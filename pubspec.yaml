@@ -1,0 +1,35 @@
+name: desk_tidy_sticky
+description: "Minimal sticky notes for Desk Tidy."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  
+  # Core Window & System
+  window_manager: ^0.5.1
+  system_tray: 2.0.3
+  win32: ^5.0.0
+  # hotkey_manager removed to match desk_tidy
+  # screen_retriever removed to match desk_tidy
+  
+  # Data & Utils
+  shared_preferences: ^2.3.2
+  path_provider: ^2.1.4
+  path: ^1.9.0
+  intl: ^0.19.0
+  lpinyin: ^2.0.3
+  uuid: ^3.0.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
