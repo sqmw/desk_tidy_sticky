@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
-import '../../services/notes_service.dart';
 
 typedef NoteAction = Future<void> Function(Note note);
 typedef ReorderCallback = Future<void> Function(int oldIndex, int newIndex);
@@ -15,8 +14,10 @@ class PanelNotesList extends StatelessWidget {
   final NoteAction onTogglePin;
   final NoteAction onToggleDone;
   final NoteAction onToggleArchive;
+  final NoteAction? onRestore;
   final ReorderCallback onReorder;
   final NoteSortMode sortMode;
+  final NoteViewMode viewMode;
   final Strings strings;
 
   const PanelNotesList({
@@ -27,20 +28,23 @@ class PanelNotesList extends StatelessWidget {
     required this.onTogglePin,
     required this.onToggleDone,
     required this.onToggleArchive,
+    this.onRestore,
     required this.onReorder,
     required this.sortMode,
+    required this.viewMode,
     required this.strings,
   });
 
   @override
   Widget build(BuildContext context) {
-    final canReorder = sortMode == NoteSortMode.custom;
+    final canReorder =
+        sortMode == NoteSortMode.custom && viewMode != NoteViewMode.trash;
 
     return Expanded(
       child: ReorderableListView.builder(
         itemCount: notes.length,
         onReorder: onReorder,
-        buildDefaultDragHandles: false, // Using custom drag handle
+        buildDefaultDragHandles: false,
         itemBuilder: (context, index) {
           final note = notes[index];
           return Dismissible(
@@ -52,11 +56,15 @@ class PanelNotesList extends StatelessWidget {
               child: const Icon(Icons.delete, color: Colors.white),
             ),
             secondaryBackground: Container(
-              color: Colors.blueGrey,
+              color: viewMode == NoteViewMode.trash
+                  ? Colors.green
+                  : Colors.blueGrey,
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.only(right: 20),
               child: Icon(
-                note.isArchived ? Icons.unarchive : Icons.archive,
+                viewMode == NoteViewMode.trash
+                    ? Icons.restore
+                    : (note.isArchived ? Icons.unarchive : Icons.archive),
                 color: Colors.white,
               ),
             ),
@@ -64,7 +72,11 @@ class PanelNotesList extends StatelessWidget {
               if (direction == DismissDirection.startToEnd) {
                 await onDelete(note);
               } else {
-                await onToggleArchive(note);
+                if (viewMode == NoteViewMode.trash) {
+                  await onRestore?.call(note);
+                } else {
+                  await onToggleArchive(note);
+                }
               }
             },
             child: ListTile(
@@ -75,7 +87,7 @@ class PanelNotesList extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   decoration: note.isDone ? TextDecoration.lineThrough : null,
-                  color: note.isArchived
+                  color: note.isArchived || note.isDeleted
                       ? Colors.grey
                       : (note.isDone ? Colors.grey : Colors.black87),
                   fontWeight: note.isPinned ? FontWeight.w700 : FontWeight.w500,
@@ -88,45 +100,69 @@ class PanelNotesList extends StatelessWidget {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    tooltip: strings.edit,
-                    icon: const Icon(Icons.edit, size: 16),
-                    onPressed: () => onEdit(note),
-                  ),
-                  IconButton(
-                    tooltip: note.isPinned
-                        ? strings.unpinNote
-                        : strings.pinNote,
-                    icon: Icon(
-                      note.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
-                      size: 16,
-                      color: note.isPinned ? Colors.orange : Colors.grey,
+                  if (viewMode == NoteViewMode.trash) ...[
+                    IconButton(
+                      tooltip: strings.restore,
+                      icon: const Icon(
+                        Icons.restore,
+                        size: 16,
+                        color: Colors.green,
+                      ),
+                      onPressed: () => onRestore?.call(note),
                     ),
-                    onPressed: () => onTogglePin(note),
-                  ),
-                  IconButton(
-                    tooltip: note.isDone
-                        ? strings.markUndone
-                        : strings.markDone,
-                    icon: Icon(
-                      note.isDone
-                          ? Icons.check_circle
-                          : Icons.check_circle_outline,
-                      size: 16,
-                      color: note.isDone ? Colors.green : Colors.grey,
+                    IconButton(
+                      tooltip: strings.permanentlyDelete,
+                      icon: const Icon(
+                        Icons.delete_forever,
+                        size: 16,
+                        color: Colors.red,
+                      ),
+                      onPressed: () => onDelete(note),
                     ),
-                    onPressed: () => onToggleDone(note),
-                  ),
-                  IconButton(
-                    tooltip: note.isArchived
-                        ? strings.unarchive
-                        : strings.archive,
-                    icon: Icon(
-                      note.isArchived ? Icons.unarchive : Icons.archive,
-                      size: 16,
+                  ] else ...[
+                    IconButton(
+                      tooltip: strings.edit,
+                      icon: const Icon(Icons.edit, size: 16),
+                      onPressed: () => onEdit(note),
                     ),
-                    onPressed: () => onToggleArchive(note),
-                  ),
+                    if (viewMode == NoteViewMode.active)
+                      IconButton(
+                        tooltip: note.isPinned
+                            ? strings.unpinNote
+                            : strings.pinNote,
+                        icon: Icon(
+                          note.isPinned
+                              ? Icons.push_pin
+                              : Icons.push_pin_outlined,
+                          size: 16,
+                          color: note.isPinned ? Colors.orange : Colors.grey,
+                        ),
+                        onPressed: () => onTogglePin(note),
+                      ),
+                    IconButton(
+                      tooltip: note.isDone
+                          ? strings.markUndone
+                          : strings.markDone,
+                      icon: Icon(
+                        note.isDone
+                            ? Icons.check_circle
+                            : Icons.check_circle_outline,
+                        size: 16,
+                        color: note.isDone ? Colors.green : Colors.grey,
+                      ),
+                      onPressed: () => onToggleDone(note),
+                    ),
+                    IconButton(
+                      tooltip: note.isArchived
+                          ? strings.unarchive
+                          : strings.archive,
+                      icon: Icon(
+                        note.isArchived ? Icons.unarchive : Icons.archive,
+                        size: 16,
+                      ),
+                      onPressed: () => onToggleArchive(note),
+                    ),
+                  ],
                   if (canReorder)
                     ReorderableDragStartListener(
                       index: index,

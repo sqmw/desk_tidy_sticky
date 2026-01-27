@@ -1,8 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../pages/panel/panel_page.dart';
-import '../l10n/strings.dart';
-import '../services/notes_service.dart';
+import '../models/note_model.dart';
 
 class PanelPreferences {
   PanelPreferences._();

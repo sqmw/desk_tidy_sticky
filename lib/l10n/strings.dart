@@ -1,4 +1,4 @@
-enum AppLocale { en, zh }
+import '../models/note_model.dart';
 
 class Strings {
   final AppLocale locale;
@@ -59,4 +59,9 @@ class Strings {
   String get sortByNewest => locale == AppLocale.zh ? '最新' : 'Newest';
   String get sortByOldest => locale == AppLocale.zh ? '最早' : 'Oldest';
   String get sortMode => locale == AppLocale.zh ? '排序' : 'Sort';
+  String get trash => locale == AppLocale.zh ? '回收站' : 'Trash';
+  String get restore => locale == AppLocale.zh ? '恢复' : 'Restore';
+  String get permanentlyDelete =>
+      locale == AppLocale.zh ? '永久删除' : 'Permanent delete';
+  String get emptyTrash => locale == AppLocale.zh ? '清空回收站' : 'Empty trash';
 }

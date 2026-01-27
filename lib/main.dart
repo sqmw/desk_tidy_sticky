@@ -4,6 +4,7 @@ import 'package:window_manager/window_manager.dart';
 import 'config/app_config.dart';
 import 'controllers/locale_controller.dart';
 import 'l10n/strings.dart';
+import 'models/note_model.dart';
 import 'pages/panel/panel_page.dart';
 import 'pages/overlay/overlay_page.dart';
 import 'services/hotkey_service.dart';

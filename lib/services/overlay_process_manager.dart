@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-
 import '../controllers/locale_controller.dart';
-import '../l10n/strings.dart';
+import '../models/note_model.dart';
 import '../models/monitor_rect.dart';
 import 'display_service.dart';
 

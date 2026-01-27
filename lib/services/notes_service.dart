@@ -6,8 +6,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../models/note_model.dart';
 
-enum NoteSortMode { custom, newest, oldest }
-
 class NotesService {
   static final NotesService _instance = NotesService._internal();
   factory NotesService() => _instance;
@@ -115,8 +113,14 @@ class NotesService {
   }
 
   Future<void> deleteNote(String id) async {
-    _notes.removeWhere((n) => n.id == id);
-    await saveNotes();
+    final index = _notes.indexWhere((n) => n.id == id);
+    if (index != -1) {
+      _notes[index] = _notes[index].copyWith(
+        isDeleted: true,
+        isPinned: false, // Ensure unpinned when in trash
+      );
+      await saveNotes();
+    }
   }
 
   Future<void> togglePin(
@@ -149,36 +153,72 @@ class NotesService {
   }) async {
     final index = _notes.indexWhere((n) => n.id == id);
     if (index != -1) {
-      _notes[index] = _notes[index].copyWith(
-        isArchived: !_notes[index].isArchived,
+      final note = _notes[index];
+      final targetArchived = !note.isArchived;
+
+      // Rule: Unpin when archiving
+      bool targetPinned = note.isPinned;
+      if (targetArchived) {
+        targetPinned = false;
+      }
+
+      _notes[index] = note.copyWith(
+        isArchived: targetArchived,
+        isPinned: targetPinned,
       );
       _sort(sortMode);
       await saveNotes();
     }
   }
 
+  Future<void> restoreNote(
+    String id, {
+    NoteSortMode sortMode = NoteSortMode.custom,
+  }) async {
+    final index = _notes.indexWhere((n) => n.id == id);
+    if (index != -1) {
+      _notes[index] = _notes[index].copyWith(
+        isDeleted: false,
+        isPinned: false, // Don't snap to top immediately on restore
+      );
+      _sort(sortMode);
+      await saveNotes();
+    }
+  }
+
+  Future<void> permanentlyDeleteNote(String id) async {
+    _notes.removeWhere((n) => n.id == id);
+    await saveNotes();
+  }
+
+  Future<void> emptyTrash() async {
+    _notes.removeWhere((n) => n.isDeleted);
+    await saveNotes();
+  }
+
   void _sort(NoteSortMode mode) {
     _notes.sort((a, b) {
-      // Primary: Archived vs Active (Archived always at bottom if mixed, though views are usually separate)
+      // Primary: Keep deleted at bottom (though UI filters them)
+      if (a.isDeleted != b.isDeleted) {
+        return a.isDeleted ? 1 : -1;
+      }
+
+      // Secondary: Archive status
       if (a.isArchived != b.isArchived) {
         return a.isArchived ? 1 : -1;
       }
-
-      // Secondary: Pinned vs Unpinned (Pinned always at top)
+      // Tertiary: Pinned status (only for non-archived or if user wants)
       if (a.isPinned != b.isPinned) {
-        return a.isPinned ? -1 : 1;
+        return b.isPinned ? 1 : -1;
       }
 
-      // Tertiary: Selected Sort Mode
       switch (mode) {
         case NoteSortMode.custom:
-          final orderA = a.customOrder ?? 0;
-          final orderB = b.customOrder ?? 0;
-          return orderA.compareTo(orderB);
+          return (a.customOrder ?? 0).compareTo(b.customOrder ?? 0);
         case NoteSortMode.newest:
-          return b.createdAt.compareTo(a.createdAt);
+          return b.updatedAt.compareTo(a.updatedAt);
         case NoteSortMode.oldest:
-          return a.createdAt.compareTo(b.createdAt);
+          return a.updatedAt.compareTo(b.updatedAt);
       }
     });
   }

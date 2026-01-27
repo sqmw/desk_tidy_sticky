@@ -4,7 +4,7 @@ import 'dart:io';
 import '../controllers/locale_controller.dart';
 import '../controllers/overlay_controller.dart';
 import '../controllers/ipc_controller.dart';
-import '../l10n/strings.dart';
+import '../models/note_model.dart';
 
 /// Minimal stdin JSON IPC stub so parent process可以控制语言等。
 /// 格式示例：
@@ -14,8 +14,8 @@ class IpcService {
     this.localeController, {
     OverlayController? overlayController,
     IpcController? ipcController,
-  })  : overlayController = overlayController ?? OverlayController.instance,
-        ipcController = ipcController ?? IpcController.instance;
+  }) : overlayController = overlayController ?? OverlayController.instance,
+       ipcController = ipcController ?? IpcController.instance;
 
   final LocaleController localeController;
   final OverlayController overlayController;

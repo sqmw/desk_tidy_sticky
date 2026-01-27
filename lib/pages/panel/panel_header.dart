@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../l10n/strings.dart';
-import 'panel_page.dart';
-
-import '../../services/notes_service.dart';
-import '../../services/overlay_process_manager.dart'; // Added import for OverlayProcessManager
+import '../../models/note_model.dart';
+import '../../services/overlay_process_manager.dart';
 
 class PanelHeader extends StatelessWidget {
   final TextEditingController newNoteController;
@@ -24,6 +22,7 @@ class PanelHeader extends StatelessWidget {
   final VoidCallback onToggleLanguage;
   final VoidCallback onSave;
   final VoidCallback onOpenOverlay;
+  final VoidCallback onEmptyTrash;
 
   const PanelHeader({
     super.key,
@@ -43,6 +42,7 @@ class PanelHeader extends StatelessWidget {
     required this.onToggleLanguage,
     required this.onSave,
     required this.onOpenOverlay,
+    required this.onEmptyTrash,
   });
 
   @override
@@ -147,9 +147,22 @@ class PanelHeader extends StatelessWidget {
                       label: strings.archived,
                       onTap: () => onViewModeChanged(NoteViewMode.archived),
                     ),
+                    _MiniTab(
+                      selected: viewMode == NoteViewMode.trash,
+                      label: strings.trash,
+                      onTap: () => onViewModeChanged(NoteViewMode.trash),
+                    ),
                   ],
                 ),
               ),
+              if (viewMode == NoteViewMode.trash) ...[
+                const SizedBox(width: 4),
+                _HeaderIcon(
+                  tooltip: strings.emptyTrash,
+                  icon: Icons.delete_sweep_outlined,
+                  onPressed: onEmptyTrash,
+                ),
+              ],
               const SizedBox(width: 8),
               // Sort Menu
               _SortButton(

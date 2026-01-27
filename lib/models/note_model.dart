@@ -1,5 +1,11 @@
 import 'package:uuid/uuid.dart';
 
+enum NoteSortMode { custom, newest, oldest }
+
+enum NoteViewMode { active, archived, trash }
+
+enum AppLocale { en, zh }
+
 class Note {
   final String id;
   String text;
@@ -8,6 +14,7 @@ class Note {
   bool isPinned;
   bool isArchived;
   bool isDone;
+  bool isDeleted;
   int? customOrder;
 
   // Optional: Positioning for desktop notes
@@ -24,6 +31,7 @@ class Note {
     this.isPinned = false,
     this.isArchived = false,
     this.isDone = false,
+    this.isDeleted = false,
     this.customOrder,
     this.x,
     this.y,
@@ -38,6 +46,7 @@ class Note {
     bool? isPinned,
     bool? isArchived,
     bool? isDone,
+    bool? isDeleted,
     int? customOrder,
     double? x,
     double? y,
@@ -52,6 +61,7 @@ class Note {
       isPinned: isPinned ?? this.isPinned,
       isArchived: isArchived ?? this.isArchived,
       isDone: isDone ?? this.isDone,
+      isDeleted: isDeleted ?? this.isDeleted,
       customOrder: customOrder ?? this.customOrder,
       x: x ?? this.x,
       y: y ?? this.y,
@@ -69,6 +79,7 @@ class Note {
       'isPinned': isPinned,
       'isArchived': isArchived,
       'isDone': isDone,
+      'isDeleted': isDeleted,
       'customOrder': customOrder,
       'x': x,
       'y': y,
@@ -86,6 +97,7 @@ class Note {
       isPinned: json['isPinned'] ?? false,
       isArchived: json['isArchived'] ?? false,
       isDone: json['isDone'] ?? false,
+      isDeleted: json['isDeleted'] ?? false,
       customOrder: json['customOrder'],
       x: json['x'],
       y: json['y'],

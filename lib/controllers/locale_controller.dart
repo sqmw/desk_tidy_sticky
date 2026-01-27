@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
-
-import '../l10n/strings.dart';
+import '../models/note_model.dart';
 import '../services/panel_preferences.dart';
 
 class LocaleController {

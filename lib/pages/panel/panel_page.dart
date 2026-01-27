@@ -13,8 +13,6 @@ import 'edit_note_dialog.dart';
 import 'panel_header.dart';
 import 'panel_notes_list.dart';
 
-enum NoteViewMode { active, archived }
-
 class PanelPage extends StatefulWidget {
   const PanelPage({
     super.key,
@@ -110,8 +108,11 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
 
   List<Note> get _visibleNotes {
     final base = switch (_viewMode) {
-      NoteViewMode.active => _notes.where((n) => !n.isArchived).toList(),
-      NoteViewMode.archived => _notes.where((n) => n.isArchived).toList(),
+      NoteViewMode.active =>
+        _notes.where((n) => !n.isArchived && !n.isDeleted).toList(),
+      NoteViewMode.archived =>
+        _notes.where((n) => n.isArchived && !n.isDeleted).toList(),
+      NoteViewMode.trash => _notes.where((n) => n.isDeleted).toList(),
     };
 
     if (_searchQuery.trim().isEmpty) return base;
@@ -187,7 +188,21 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   }
 
   Future<void> _delete(Note note) async {
-    await _notesService.deleteNote(note.id);
+    if (_viewMode == NoteViewMode.trash) {
+      await _notesService.permanentlyDeleteNote(note.id);
+    } else {
+      await _notesService.deleteNote(note.id);
+    }
+    await _loadNotes();
+  }
+
+  Future<void> _restore(Note note) async {
+    await _notesService.restoreNote(note.id, sortMode: _sortMode);
+    await _loadNotes();
+  }
+
+  Future<void> _emptyTrash() async {
+    await _notesService.emptyTrash();
     await _loadNotes();
   }
 
@@ -276,15 +291,18 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                 onOpenOverlay: () {
                   _openOverlay();
                 },
+                onEmptyTrash: _emptyTrash,
               ),
               PanelNotesList(
                 notes: _visibleNotes,
                 onEdit: _edit,
                 onDelete: _delete,
+                onRestore: _restore,
                 onTogglePin: _togglePin,
                 onToggleDone: _toggleDone,
                 onToggleArchive: _toggleArchive,
                 onReorder: _onReorder,
+                viewMode: _viewMode,
                 sortMode: _sortMode,
                 strings: widget.strings,
               ),
