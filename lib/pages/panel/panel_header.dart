@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
+import '../../l10n/strings.dart';
 import 'panel_page.dart';
 
 class PanelHeader extends StatelessWidget {
   final TextEditingController newNoteController;
   final TextEditingController searchController;
   final FocusNode focusNode;
+  final Strings strings;
   final bool hideAfterSave;
   final ValueChanged<bool> onHideAfterSaveChanged;
   final NoteViewMode viewMode;
@@ -14,6 +16,7 @@ class PanelHeader extends StatelessWidget {
   final bool windowPinned;
   final VoidCallback onToggleWindowPinned;
   final VoidCallback onHideWindow;
+  final VoidCallback onToggleLanguage;
   final VoidCallback onSave;
   final VoidCallback onSaveAndPin;
   final VoidCallback onOpenOverlay;
@@ -23,6 +26,7 @@ class PanelHeader extends StatelessWidget {
     required this.newNoteController,
     required this.searchController,
     required this.focusNode,
+    required this.strings,
     required this.hideAfterSave,
     required this.onHideAfterSaveChanged,
     required this.viewMode,
@@ -30,6 +34,7 @@ class PanelHeader extends StatelessWidget {
     required this.windowPinned,
     required this.onToggleWindowPinned,
     required this.onHideWindow,
+    required this.onToggleLanguage,
     required this.onSave,
     required this.onSaveAndPin,
     required this.onOpenOverlay,
@@ -50,9 +55,9 @@ class PanelHeader extends StatelessWidget {
               height: 28,
               child: Row(
                 children: [
-                  const Text(
-                    'Desk Tidy Sticky',
-                    style: TextStyle(
+                  Text(
+                    strings.appName,
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Colors.black54,
@@ -72,6 +77,11 @@ class PanelHeader extends StatelessWidget {
                     onPressed: onHideWindow,
                     icon: const Icon(Icons.close, size: 16),
                   ),
+                  IconButton(
+                    tooltip: 'Language',
+                    onPressed: onToggleLanguage,
+                    icon: const Icon(Icons.translate, size: 16),
+                  ),
                 ],
               ),
             ),
@@ -82,8 +92,8 @@ class PanelHeader extends StatelessWidget {
                 child: TextField(
                   controller: newNoteController,
                   focusNode: focusNode,
-                  decoration: const InputDecoration(
-                    hintText: 'Type a note... (Enter to save)',
+                  decoration: InputDecoration(
+                    hintText: strings.inputHint,
                     border: InputBorder.none,
                     isDense: true,
                   ),
@@ -106,7 +116,7 @@ class PanelHeader extends StatelessWidget {
               TextButton.icon(
                 onPressed: onSaveAndPin,
                 icon: const Icon(Icons.push_pin, size: 16),
-                label: const Text('Save & pin'),
+                label: Text(strings.saveAndPin),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -116,20 +126,20 @@ class PanelHeader extends StatelessWidget {
                     onChanged: onHideAfterSaveChanged,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  const Text('Hide after save'),
+                  Text(strings.hideAfterSave),
                 ],
               ),
               SegmentedButton<NoteViewMode>(
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: NoteViewMode.active,
-                    icon: Icon(Icons.note),
-                    label: Text('Active'),
+                    icon: const Icon(Icons.note),
+                    label: Text(strings.active),
                   ),
                   ButtonSegment(
                     value: NoteViewMode.archived,
-                    icon: Icon(Icons.archive),
-                    label: Text('Archived'),
+                    icon: const Icon(Icons.archive),
+                    label: Text(strings.archived),
                   ),
                 ],
                 selected: {viewMode},

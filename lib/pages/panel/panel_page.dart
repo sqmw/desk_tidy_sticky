@@ -4,6 +4,8 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../models/note_model.dart';
 import '../../pages/overlay/overlay_page.dart';
+import '../../controllers/locale_controller.dart';
+import '../../l10n/strings.dart';
 import '../../services/notes_service.dart';
 import '../../services/panel_preferences.dart';
 import '../../utils/note_search.dart';
@@ -14,7 +16,14 @@ import 'panel_notes_list.dart';
 enum NoteViewMode { active, archived }
 
 class PanelPage extends StatefulWidget {
-  const PanelPage({super.key});
+  const PanelPage({
+    super.key,
+    required this.localeController,
+    required this.strings,
+  });
+
+  final LocaleController localeController;
+  final Strings strings;
 
   @override
   State<PanelPage> createState() => _PanelPageState();
@@ -173,7 +182,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   Future<void> _edit(Note note) async {
     final newText = await showEditNoteDialog(
       context,
-      title: 'Edit note',
+      title: widget.strings.edit,
       initialText: note.text,
     );
     if (!mounted) return;
@@ -211,6 +220,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
           body: Column(
             children: [
               PanelHeader(
+                strings: widget.strings,
                 newNoteController: _newNoteController,
                 searchController: _searchController,
                 focusNode: _focusNode,
@@ -221,10 +231,17 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                 windowPinned: _windowPinned,
                 onToggleWindowPinned: _toggleWindowPinned,
                 onHideWindow: () => windowManager.hide(),
+                onToggleLanguage: () async {
+                  final next = widget.localeController.current == AppLocale.en
+                      ? AppLocale.zh
+                      : AppLocale.en;
+                  await widget.localeController.setLocale(next);
+                },
                 onSave: () => _saveNote(pin: false),
                 onSaveAndPin: () => _saveNote(pin: true),
-                onOpenOverlay: () =>
-                    Navigator.of(context).pushNamed(OverlayPage.routeName),
+                onOpenOverlay: () => Navigator.of(
+                  context,
+                ).pushNamed(OverlayPage.routeName, arguments: widget.strings),
               ),
               PanelNotesList(
                 notes: _visibleNotes,
