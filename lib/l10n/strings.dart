@@ -41,19 +41,17 @@ class Strings {
   String get markDone => locale == AppLocale.zh ? '标记完成' : 'Mark done';
   String get markUndone => locale == AppLocale.zh ? '取消完成' : 'Mark undone';
   String get overlayClickThrough =>
-      locale == AppLocale.zh ? '鼠标穿透' : 'Click-through';
-  String get overlayRefresh =>
-      locale == AppLocale.zh ? '刷新贴纸' : 'Refresh notes';
+      locale == AppLocale.zh ? '鼠标交互' : 'Mouse interaction';
   String get overlayClose => locale == AppLocale.zh ? '关闭贴纸' : 'Close overlay';
   String get overlayTip => locale == AppLocale.zh
-      ? '按 Esc 取消穿透'
-      : 'Press Esc to disable click-through';
+      ? '用 Ctrl+Shift+O 或托盘切换鼠标交互'
+      : 'Use Ctrl+Shift+O or tray to toggle mouse interaction';
 
   String get trayShowNotes => locale == AppLocale.zh ? '显示便笺' : 'Show notes';
   String get trayNewNote => locale == AppLocale.zh ? '新建便笺' : 'New note';
   String get trayOverlay => locale == AppLocale.zh ? '桌面贴纸' : 'Desktop overlay';
   String get trayOverlayToggleClickThrough =>
-      locale == AppLocale.zh ? '贴纸：切换穿透' : 'Overlay: Toggle click-through';
+      locale == AppLocale.zh ? '贴纸：切换鼠标交互' : 'Overlay: Toggle mouse interaction';
   String get trayOverlayClose =>
       locale == AppLocale.zh ? '贴纸：关闭' : 'Overlay: Close';
   String get trayExit => locale == AppLocale.zh ? '退出' : 'Exit';

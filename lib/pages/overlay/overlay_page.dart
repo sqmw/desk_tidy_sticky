@@ -235,7 +235,6 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
                   onToggleClickThrough: (value) async {
                     _overlayController.setClickThrough(value);
                   },
-                  onRefresh: _refreshPinned,
                 ),
               ),
             ),

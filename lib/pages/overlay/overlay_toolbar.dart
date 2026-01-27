@@ -6,7 +6,6 @@ class OverlayToolbar extends StatelessWidget {
   final bool clickThrough;
   final VoidCallback onClose;
   final ValueChanged<bool> onToggleClickThrough;
-  final VoidCallback onRefresh;
   final Strings strings;
 
   const OverlayToolbar({
@@ -14,7 +13,6 @@ class OverlayToolbar extends StatelessWidget {
     required this.clickThrough,
     required this.onClose,
     required this.onToggleClickThrough,
-    required this.onRefresh,
     required this.strings,
   });
 
@@ -37,11 +35,6 @@ class OverlayToolbar extends StatelessWidget {
               color: Colors.white,
               size: 16,
             ),
-          ),
-          IconButton(
-            tooltip: strings.overlayRefresh,
-            onPressed: onRefresh,
-            icon: const Icon(Icons.refresh, color: Colors.white, size: 16),
           ),
           IconButton(
             tooltip: strings.overlayClose,

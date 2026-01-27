@@ -38,9 +38,9 @@
 
 ## Overlay 进一步修正
 - Overlay 覆盖使用虚拟屏幕尺寸，拖拽位置会 clamp 到可视范围，避免卡片超出可见区域。
-- 新增 Click-through 控制：托盘菜单提供 “Overlay: Toggle Click-through”，全局热键 `Ctrl+Shift+O` 也可切换。
+- 新增鼠标交互切换：托盘菜单提供 “Overlay: Toggle mouse interaction”，全局热键 `Ctrl+Shift+O` 也可切换。
 - 说明：当 Overlay 覆盖整个桌面且未开启 click-through 时，可能会阻挡托盘点击。此时使用热键切换。
-- 新增 UX：开启穿透后，右上工具条自动淡出，避免误触；左上浮现提示“按 Esc 取消穿透 / Ctrl+Shift+O 切换”，2 秒后自动消失。
+- 新增 UX：开启穿透后，右上工具条自动淡出，避免误触；左上浮现提示“Ctrl+Shift+O 或托盘切换鼠标交互”，2 秒后自动消失。
 - 关闭 Overlay（X）时，如果是从面板进入（非 `--mode=overlay`），会恢复窗口默认尺寸并居中，避免残留巨屏窗口。
 
 ## WorkerW 嵌入（实验）
