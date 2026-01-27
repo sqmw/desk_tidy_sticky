@@ -7,6 +7,7 @@ import 'dart:developer' as dev;
 
 import 'package:win32/win32.dart';
 import 'package:window_manager/window_manager.dart';
+import '../controllers/overlay_controller.dart';
 
 /// Hotkey configuration data.
 class HotkeyConfig {
@@ -31,6 +32,15 @@ class HotkeyConfig {
     vkAlt: 0,
     vkKey: 0x4E, // N key
     description: 'Ctrl + Shift + N',
+  );
+
+  /// Default overlay click-through toggle: Ctrl + Shift + O
+  static const toggleOverlayClickThrough = HotkeyConfig(
+    vkCtrl: 1,
+    vkShift: 1,
+    vkAlt: 0,
+    vkKey: 0x4F, // O key
+    description: 'Ctrl + Shift + O',
   );
 
   /// Check if this hotkey combination is currently pressed.
@@ -89,6 +99,12 @@ class HotkeyService {
           await windowManager.show();
           await windowManager.focus();
         }
+      },
+    );
+    register(
+      HotkeyConfig.toggleOverlayClickThrough,
+      callback: (_) async {
+        OverlayController.instance.toggleClickThrough();
       },
     );
     startPolling();

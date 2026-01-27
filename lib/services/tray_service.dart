@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
+import '../controllers/overlay_controller.dart';
 import '../main.dart';
 import '../pages/overlay/overlay_page.dart';
 
@@ -10,6 +11,7 @@ class TrayService {
   static final TrayService _instance = TrayService._internal();
   factory TrayService() => _instance;
   TrayService._internal();
+  final OverlayController _overlayController = OverlayController.instance;
 
   Future<void> init() async {
     final iconPath = await _resolveIconPath();
@@ -35,8 +37,20 @@ class TrayService {
       MenuItemLabel(
         label: 'Desktop Overlay',
         onClicked: (_) async {
+          _overlayController.setClickThrough(false);
           await windowManager.show();
           appNavigatorKey.currentState?.pushNamed(OverlayPage.routeName);
+        },
+      ),
+      MenuItemLabel(
+        label: 'Overlay: Toggle Click-through',
+        onClicked: (_) => _overlayController.toggleClickThrough(),
+      ),
+      MenuItemLabel(
+        label: 'Overlay: Close',
+        onClicked: (_) {
+          _overlayController.setClickThrough(false);
+          appNavigatorKey.currentState?.popUntil((route) => route.isFirst);
         },
       ),
       MenuSeparator(),

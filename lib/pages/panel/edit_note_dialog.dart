@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../l10n/strings.dart';
 
 Future<String?> showEditNoteDialog(
   BuildContext context, {
   required String title,
   required String initialText,
+  required Strings strings,
 }) {
   final controller = TextEditingController(text: initialText);
   return showDialog<String>(
@@ -20,11 +22,11 @@ Future<String?> showEditNoteDialog(
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(strings.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('Save'),
+            child: Text(strings.saveNote),
           ),
         ],
       );

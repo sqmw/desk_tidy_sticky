@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
+import 'config/app_config.dart';
 import 'controllers/locale_controller.dart';
 import 'l10n/strings.dart';
 import 'pages/panel/panel_page.dart';
@@ -14,6 +15,8 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final appConfig = AppConfig.initFromProcess();
+
   // 1. Window Manager Init
   await windowManager.ensureInitialized();
 
@@ -26,13 +29,17 @@ void main() async {
   );
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
-    // Start hidden, let hotkey/tray show it
-    await windowManager.hide();
+    if (!appConfig.isOverlay) {
+      // Start hidden, let hotkey/tray show it
+      await windowManager.hide();
+    }
   });
 
   // 2. Services Init
-  await TrayService().init();
-  await HotkeyService.instance.init();
+  if (!appConfig.isBackground && !appConfig.isOverlay) {
+    await TrayService().init();
+    await HotkeyService.instance.init();
+  }
 
   final locale = await PanelPreferences.getLanguage();
   final localeController = LocaleController(locale);
@@ -53,7 +60,7 @@ class MyApp extends StatelessWidget {
       builder: (context, locale, _) {
         final strings = Strings.of(locale);
         return MaterialApp(
-          title: 'Desk Tidy Sticky',
+          title: strings.appName,
           debugShowCheckedModeBanner: false,
           navigatorKey: appNavigatorKey,
           theme: ThemeData(
@@ -63,7 +70,9 @@ class MyApp extends StatelessWidget {
             fontFamilyFallback: const ['Microsoft YaHei'],
             visualDensity: VisualDensity.adaptivePlatformDensity,
           ),
-          home: PanelPage(localeController: localeController, strings: strings),
+          home: AppConfig.instance.isOverlay
+              ? OverlayPage(strings: strings)
+              : PanelPage(localeController: localeController, strings: strings),
           onGenerateRoute: (settings) {
             if (settings.name == OverlayPage.routeName) {
               return MaterialPageRoute<void>(

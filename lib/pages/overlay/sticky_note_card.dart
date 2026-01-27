@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
 
 class StickyNoteCard extends StatelessWidget {
@@ -10,6 +11,7 @@ class StickyNoteCard extends StatelessWidget {
   final VoidCallback onDoneToggle;
   final VoidCallback onUnpin;
   final VoidCallback onEdit;
+  final Strings strings;
 
   const StickyNoteCard({
     super.key,
@@ -20,6 +22,7 @@ class StickyNoteCard extends StatelessWidget {
     required this.onDoneToggle,
     required this.onUnpin,
     required this.onEdit,
+    required this.strings,
   });
 
   @override
@@ -51,12 +54,13 @@ class StickyNoteCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     IconButton(
-                      tooltip: 'Edit',
+                      tooltip: strings.edit,
                       onPressed: onEdit,
                       icon: const Icon(Icons.edit, size: 16),
                     ),
                     IconButton(
-                      tooltip: 'Mark done',
+                      tooltip:
+                          note.isDone ? strings.markUndone : strings.markDone,
                       onPressed: onDoneToggle,
                       icon: Icon(
                         note.isDone
@@ -67,12 +71,12 @@ class StickyNoteCard extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      tooltip: 'Unpin',
+                      tooltip: strings.unpinNote,
                       onPressed: onUnpin,
                       icon: const Icon(Icons.push_pin_outlined, size: 16),
                     ),
                     IconButton(
-                      tooltip: 'Delete',
+                      tooltip: strings.delete,
                       onPressed: onDelete,
                       icon: const Icon(Icons.delete_outline, size: 16),
                     ),

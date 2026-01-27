@@ -1,15 +1,16 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:win32/win32.dart' as win32;
 
+import '../../config/app_config.dart';
+import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
 import '../../services/notes_service.dart';
+import '../../services/workerw_service.dart';
 import 'overlay_toolbar.dart';
 import 'sticky_note_card.dart';
 
@@ -25,17 +26,22 @@ class OverlayPage extends StatefulWidget {
 class _OverlayPageState extends State<OverlayPage> with WindowListener {
   final NotesService _notesService = NotesService();
   Strings get strings => widget.strings ?? Strings.of(AppLocale.en);
+  final OverlayController _overlayController = OverlayController.instance;
 
   bool _clickThrough = false;
   bool? _previousAlwaysOnTop;
   List<Note> _pinned = [];
   final Map<String, Offset> _positions = {};
   Rect _virtualRect = const Rect.fromLTWH(0, 0, 1920, 1080);
+  bool _showClickThroughHint = false;
+
+  static const Size _panelDefaultSize = Size(360, 500);
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
+    _overlayController.clickThrough.addListener(_handleClickThroughChanged);
     _prepareWindow();
     _refreshPinned();
   }
@@ -43,11 +49,13 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   @override
   void dispose() {
     windowManager.removeListener(this);
+    _overlayController.clickThrough.removeListener(_handleClickThroughChanged);
     _restoreWindow();
     super.dispose();
   }
 
   Future<void> _prepareWindow() async {
+    _clickThrough = _overlayController.clickThrough.value;
     _virtualRect = _getVirtualScreenRect();
     _previousAlwaysOnTop ??= await windowManager.isAlwaysOnTop();
     await windowManager.setAlwaysOnTop(true);
@@ -58,12 +66,39 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     await windowManager.setIgnoreMouseEvents(_clickThrough);
     await windowManager.setPosition(_virtualRect.topLeft);
     await windowManager.setSize(_virtualRect.size);
+    await windowManager.focus();
+
+    if (AppConfig.instance.embedWorkerW) {
+      final hwnd = await windowManager.getId();
+      WorkerWService.attachToWorkerW(hwnd);
+    }
   }
 
   Future<void> _restoreWindow() async {
     await windowManager.setAlwaysOnTop(_previousAlwaysOnTop ?? false);
     await windowManager.setIgnoreMouseEvents(false);
     await windowManager.setHasShadow(true);
+    if (!AppConfig.instance.isOverlay) {
+      await windowManager.setSize(_panelDefaultSize);
+      await windowManager.center();
+    }
+  }
+
+  void _handleClickThroughChanged() async {
+    final value = _overlayController.clickThrough.value;
+    if (!mounted) return;
+    setState(() {
+      _clickThrough = value;
+      _showClickThroughHint = value;
+    });
+    if (value) {
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted && _clickThrough) {
+          setState(() => _showClickThroughHint = false);
+        }
+      });
+    }
+    await windowManager.setIgnoreMouseEvents(value);
   }
 
   Offset _fallbackPosition(int index) {
@@ -123,12 +158,12 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(strings.cancel),
             ),
             FilledButton(
               onPressed: () =>
                   Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Save'),
+              child: Text(strings.saveNote),
             ),
           ],
         );
@@ -148,8 +183,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
       onKeyEvent: (event) async {
         if (event is KeyDownEvent &&
             event.logicalKey == LogicalKeyboardKey.escape) {
-          setState(() => _clickThrough = false);
-          await windowManager.setIgnoreMouseEvents(false);
+          _overlayController.setClickThrough(false);
         }
       },
       child: Scaffold(
@@ -159,19 +193,50 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
             Positioned(
               top: 12,
               right: 12,
-              child: OverlayToolbar(
-                clickThrough: _clickThrough,
-                onClose: () async {
-                  await windowManager.setIgnoreMouseEvents(false);
-                  if (mounted) Navigator.of(context).maybePop();
-                },
-                onToggleClickThrough: (value) async {
-                  setState(() => _clickThrough = value);
-                  await windowManager.setIgnoreMouseEvents(value);
-                },
-                onRefresh: _refreshPinned,
+              child: AnimatedOpacity(
+                opacity: _clickThrough ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 180),
+                child: OverlayToolbar(
+                  clickThrough: _clickThrough,
+                  strings: strings,
+                  onClose: () async {
+                    _overlayController.setClickThrough(false);
+                    await _restoreWindow();
+                    if (mounted) Navigator.of(context).maybePop();
+                  },
+                  onToggleClickThrough: (value) async {
+                    _overlayController.setClickThrough(value);
+                  },
+                  onRefresh: _refreshPinned,
+                ),
               ),
             ),
+            if (_clickThrough || _showClickThroughHint)
+              Positioned(
+                top: 12,
+                left: 12,
+                child: IgnorePointer(
+                  ignoring: true,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      child: Text(
+                        strings.overlayTip,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ..._pinned.map((note) {
               final pos = _positions[note.id] ?? _fallbackPosition(0);
               final clamped = _clampToViewport(pos);
@@ -196,6 +261,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
                     await _refreshPinned();
                   },
                   onEdit: () => _editNote(note),
+                  strings: strings,
                 ),
               );
             }),
@@ -218,13 +284,17 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     final top = win32.GetSystemMetrics(win32.SM_YVIRTUALSCREEN);
     final width = win32.GetSystemMetrics(win32.SM_CXVIRTUALSCREEN);
     final height = win32.GetSystemMetrics(win32.SM_CYVIRTUALSCREEN);
-    // 留出任务栏余量 80px，避免遮挡托盘
+
+    // Leave space for taskbar (best-effort). For left/top taskbar layouts,
+    // use click-through toggle to access tray if needed.
     const taskbarMargin = 80.0;
+    final adjustedHeight = (height - taskbarMargin).clamp(200, height);
+
     return Rect.fromLTWH(
       left.toDouble(),
       top.toDouble(),
       width.toDouble(),
-      max(0, height.toDouble() - taskbarMargin),
+      adjustedHeight.toDouble(),
     );
   }
 }

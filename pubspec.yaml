@@ -15,6 +15,7 @@ dependencies:
   window_manager: ^0.5.1
   system_tray: 2.0.3
   win32: ^5.0.0
+  ffi: ^2.1.0
   # hotkey_manager removed to match desk_tidy
   # screen_retriever removed to match desk_tidy
   

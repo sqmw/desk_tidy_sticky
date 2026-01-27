@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/strings.dart';
+
 class OverlayToolbar extends StatelessWidget {
   final bool clickThrough;
   final VoidCallback onClose;
   final ValueChanged<bool> onToggleClickThrough;
   final VoidCallback onRefresh;
+  final Strings strings;
 
   const OverlayToolbar({
     super.key,
@@ -12,6 +15,7 @@ class OverlayToolbar extends StatelessWidget {
     required this.onClose,
     required this.onToggleClickThrough,
     required this.onRefresh,
+    required this.strings,
   });
 
   @override
@@ -25,8 +29,8 @@ class OverlayToolbar extends StatelessWidget {
         children: [
           IconButton(
             tooltip: clickThrough
-                ? 'Disable click-through'
-                : 'Enable click-through',
+                ? '${strings.overlayClickThrough} (${strings.overlayTip})'
+                : strings.overlayClickThrough,
             onPressed: () => onToggleClickThrough(!clickThrough),
             icon: Icon(
               clickThrough ? Icons.visibility : Icons.visibility_off,
@@ -35,12 +39,12 @@ class OverlayToolbar extends StatelessWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Refresh',
+            tooltip: strings.overlayRefresh,
             onPressed: onRefresh,
             icon: const Icon(Icons.refresh, color: Colors.white, size: 16),
           ),
           IconButton(
-            tooltip: 'Close overlay',
+            tooltip: strings.overlayClose,
             onPressed: onClose,
             icon: const Icon(Icons.close, color: Colors.white, size: 16),
           ),

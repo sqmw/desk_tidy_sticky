@@ -65,7 +65,8 @@ class PanelHeader extends StatelessWidget {
                   ),
                   const Spacer(),
                   IconButton(
-                    tooltip: windowPinned ? 'Unpin window' : 'Pin window',
+                    tooltip:
+                        windowPinned ? strings.unpinWindow : strings.pinWindow,
                     onPressed: onToggleWindowPinned,
                     icon: Icon(
                       windowPinned ? Icons.push_pin : Icons.push_pin_outlined,
@@ -73,12 +74,12 @@ class PanelHeader extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Hide',
+                    tooltip: strings.hideWindow,
                     onPressed: onHideWindow,
                     icon: const Icon(Icons.close, size: 16),
                   ),
                   IconButton(
-                    tooltip: 'Language',
+                    tooltip: strings.language,
                     onPressed: onToggleLanguage,
                     icon: const Icon(Icons.translate, size: 16),
                   ),
@@ -103,7 +104,7 @@ class PanelHeader extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.send, size: 20),
                 onPressed: onSave,
-                tooltip: 'Save Note',
+                tooltip: strings.saveNoteAction,
               ),
             ],
           ),
@@ -147,7 +148,7 @@ class PanelHeader extends StatelessWidget {
                 onSelectionChanged: (set) => onViewModeChanged(set.first),
               ),
               IconButton(
-                tooltip: 'Desktop overlay',
+                tooltip: strings.overlay,
                 icon: const Icon(Icons.desktop_windows, size: 18),
                 onPressed: onOpenOverlay,
               ),
@@ -160,13 +161,13 @@ class PanelHeader extends StatelessWidget {
                 child: TextField(
                   controller: searchController,
                   decoration: InputDecoration(
-                    hintText: 'Search (pinyin supported)...',
+                    hintText: strings.searchHint,
                     isDense: true,
                     prefixIcon: const Icon(Icons.search, size: 18),
                     suffixIcon: searchController.text.trim().isEmpty
                         ? null
                         : IconButton(
-                            tooltip: 'Clear',
+                            tooltip: strings.clear,
                             icon: const Icon(Icons.close, size: 18),
                             onPressed: () => searchController.clear(),
                           ),

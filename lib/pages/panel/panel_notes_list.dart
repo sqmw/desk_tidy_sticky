@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
 
 typedef NoteAction = Future<void> Function(Note note);
@@ -12,6 +13,7 @@ class PanelNotesList extends StatelessWidget {
   final NoteAction onTogglePin;
   final NoteAction onToggleDone;
   final NoteAction onToggleArchive;
+  final Strings strings;
 
   const PanelNotesList({
     super.key,
@@ -21,6 +23,7 @@ class PanelNotesList extends StatelessWidget {
     required this.onTogglePin,
     required this.onToggleDone,
     required this.onToggleArchive,
+    required this.strings,
   });
 
   @override
@@ -76,11 +79,13 @@ class PanelNotesList extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    tooltip: 'Edit',
+                    tooltip: strings.edit,
                     icon: const Icon(Icons.edit, size: 16),
                     onPressed: () => onEdit(note),
                   ),
                   IconButton(
+                    tooltip:
+                        note.isPinned ? strings.unpinNote : strings.pinNote,
                     icon: Icon(
                       note.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
                       size: 16,
@@ -89,6 +94,7 @@ class PanelNotesList extends StatelessWidget {
                     onPressed: () => onTogglePin(note),
                   ),
                   IconButton(
+                    tooltip: note.isDone ? strings.markUndone : strings.markDone,
                     icon: Icon(
                       note.isDone
                           ? Icons.check_circle
@@ -99,7 +105,8 @@ class PanelNotesList extends StatelessWidget {
                     onPressed: () => onToggleDone(note),
                   ),
                   IconButton(
-                    tooltip: note.isArchived ? 'Unarchive' : 'Archive',
+                    tooltip:
+                        note.isArchived ? strings.unarchive : strings.archive,
                     icon: Icon(
                       note.isArchived ? Icons.unarchive : Icons.archive,
                       size: 16,

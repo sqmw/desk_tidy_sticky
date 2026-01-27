@@ -35,3 +35,20 @@
 ## 语言 / IPC
 - 面板右上角翻译按钮，可中英切换；语言偏好写入 shared_preferences。
 - stdin JSON IPC 预留：`{"cmd":"set_language","value":"zh"}` 或 `"en"` 可被子进程接收，便于主程序控制。
+
+## Overlay 进一步修正
+- Overlay 覆盖使用虚拟屏幕尺寸，拖拽位置会 clamp 到可视范围，避免卡片超出可见区域。
+- 新增 Click-through 控制：托盘菜单提供 “Overlay: Toggle Click-through”，全局热键 `Ctrl+Shift+O` 也可切换。
+- 说明：当 Overlay 覆盖整个桌面且未开启 click-through 时，可能会阻挡托盘点击。此时使用热键切换。
+- 新增 UX：开启穿透后，右上工具条自动淡出，避免误触；左上浮现提示“按 Esc 取消穿透 / Ctrl+Shift+O 切换”，2 秒后自动消失。
+- 关闭 Overlay（X）时，如果是从面板进入（非 `--mode=overlay`），会恢复窗口默认尺寸并居中，避免残留巨屏窗口。
+
+## WorkerW 嵌入（实验）
+- 增加 WorkerW 嵌入接口：Overlay 窗口可尝试 SetParent 到 WorkerW，使其位于桌面图标下方。
+- 启动方式：`desk_tidy_sticky.exe --mode=overlay --embed-workerw`
+- 说明：Flutter 单窗口限制下，Overlay 与 Panel 共用同一个窗口句柄，因此推荐以独立进程模式启动 overlay（即使用 --mode=overlay）。
+
+## 启动模式
+- 普通模式（默认）：面板 + 托盘 + 热键。
+- 后台模式：`--background`（作为 desk_tidy 子进程，仅后台 IPC，不注册托盘/热键）。
+- Overlay 模式：`--mode=overlay`（只显示 overlay，不注册托盘/热键）。

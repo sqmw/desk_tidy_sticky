@@ -4,6 +4,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../models/note_model.dart';
 import '../../pages/overlay/overlay_page.dart';
+import '../../controllers/overlay_controller.dart';
 import '../../controllers/locale_controller.dart';
 import '../../l10n/strings.dart';
 import '../../services/notes_service.dart';
@@ -184,6 +185,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       context,
       title: widget.strings.edit,
       initialText: note.text,
+      strings: widget.strings,
     );
     if (!mounted) return;
     if (newText == null || newText.isEmpty) return;
@@ -239,9 +241,12 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                 },
                 onSave: () => _saveNote(pin: false),
                 onSaveAndPin: () => _saveNote(pin: true),
-                onOpenOverlay: () => Navigator.of(
-                  context,
-                ).pushNamed(OverlayPage.routeName, arguments: widget.strings),
+                onOpenOverlay: () {
+                  OverlayController.instance.setClickThrough(false);
+                  Navigator.of(
+                    context,
+                  ).pushNamed(OverlayPage.routeName, arguments: widget.strings);
+                },
               ),
               PanelNotesList(
                 notes: _visibleNotes,
@@ -250,6 +255,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                 onTogglePin: _togglePin,
                 onToggleDone: _toggleDone,
                 onToggleArchive: _toggleArchive,
+                strings: widget.strings,
               ),
             ],
           ),
