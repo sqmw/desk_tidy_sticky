@@ -44,6 +44,9 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   @override
   void initState() {
     super.initState();
+    print(
+      '[OverlayPage] initState. isOverlay: ${AppConfig.instance.isOverlay}, monitor: ${AppConfig.instance.monitorRectArg}',
+    );
     windowManager.addListener(this);
     _overlayController.clickThrough.addListener(_handleClickThroughChanged);
     _ipcController.refreshTick.addListener(_handleIpcRefresh);
@@ -72,13 +75,19 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     await windowManager.setBackgroundColor(Colors.transparent);
     await windowManager.setHasShadow(false);
     await windowManager.setIgnoreMouseEvents(_clickThrough);
-    await windowManager.setPosition(_virtualRect.topLeft);
     await windowManager.setSize(_virtualRect.size);
+    print(
+      '[OverlayPage] _prepareWindow: setting position to ${_virtualRect.topLeft}',
+    );
+    await windowManager.setPosition(_virtualRect.topLeft);
+    print('[OverlayPage] _prepareWindow: show and focus');
+    await windowManager.show();
     await windowManager.focus();
 
     if (AppConfig.instance.embedWorkerW) {
       final hwnd = await windowManager.getId();
       final attached = WorkerWService.attachToWorkerW(hwnd);
+      print('[OverlayPage] _prepareWindow: embedWorkerW attached: $attached');
       if (attached) {
         await windowManager.setAlwaysOnTop(false);
       }
@@ -250,8 +259,10 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Padding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       child: Text(
                         strings.overlayTip,
                         style: const TextStyle(

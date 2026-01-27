@@ -9,36 +9,49 @@ class WorkerWService {
   static int _workerw = 0;
 
   static bool attachToWorkerW(int hwnd) {
-    final progman = win32.FindWindow(win32.TEXT('Progman'), nullptr);
-    if (progman != 0) {
-      final result = calloc<IntPtr>();
-      win32.SendMessageTimeout(
-        progman,
-        0x052C,
-        0,
-        0,
-        win32.SMTO_NORMAL,
-        1000,
-        result,
-      );
-      calloc.free(result);
-    }
+    print('WorkerWService: attachToWorkerW hwnd=$hwnd');
+    return using((arena) {
+      try {
+        final progmanName = 'Progman'.toNativeUtf16(allocator: arena);
+        final progman = win32.FindWindow(progmanName, nullptr);
+        print('WorkerWService: progman=$progman');
 
-    final workerw = _findWorkerW();
-    if (workerw != 0) {
-      win32.SetParent(hwnd, workerw);
-      win32.SetWindowPos(
-        hwnd,
-        win32.HWND_TOP,
-        0,
-        0,
-        0,
-        0,
-        win32.SWP_NOSIZE | win32.SWP_NOMOVE | win32.SWP_SHOWWINDOW,
-      );
-      return true;
-    }
-    return false;
+        if (progman != 0) {
+          final result = arena<IntPtr>();
+          win32.SendMessageTimeout(
+            progman,
+            0x052C,
+            0,
+            0,
+            win32.SMTO_NORMAL,
+            1000,
+            result,
+          );
+        }
+
+        final workerw = _findWorkerW();
+        print('WorkerWService: found workerw=$workerw');
+
+        if (workerw != 0) {
+          win32.SetParent(hwnd, workerw);
+          win32.SetWindowPos(
+            hwnd,
+            win32.HWND_TOP,
+            0,
+            0,
+            0,
+            0,
+            win32.SWP_NOSIZE | win32.SWP_NOMOVE | win32.SWP_SHOWWINDOW,
+          );
+          print('WorkerWService: Attached successfully');
+          return true;
+        }
+        return false;
+      } catch (e, st) {
+        print('WorkerWService: Error attaching: $e\n$st');
+        return false;
+      }
+    });
   }
 
   static int _findWorkerW() {

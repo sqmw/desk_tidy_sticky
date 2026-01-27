@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 import '../controllers/locale_controller.dart';
 import '../l10n/strings.dart';
@@ -14,7 +15,8 @@ class OverlayProcessManager {
   final Map<int, Process> _processes = {};
   bool _clickThrough = true;
 
-  bool get isRunning => _processes.isNotEmpty;
+  final ValueNotifier<bool> isRunningNotifier = ValueNotifier<bool>(false);
+  bool get isRunning => isRunningNotifier.value;
 
   Future<bool> startAll({
     required LocaleController localeController,
@@ -26,6 +28,7 @@ class OverlayProcessManager {
     final monitors = DisplayService.getMonitors();
     if (monitors.isEmpty) return false;
 
+    print('OverlayProcessManager: startAll count=${monitors.length}');
     _clickThrough = initialClickThrough;
     for (final m in monitors) {
       final ok = await _startOne(
@@ -35,10 +38,14 @@ class OverlayProcessManager {
         clickThrough: _clickThrough,
       );
       if (!ok) {
+        print(
+          'OverlayProcessManager: _startOne failed for monitor ${m.monitorId}',
+        );
         await stopAll();
         return false;
       }
     }
+    isRunningNotifier.value = _processes.isNotEmpty;
     return true;
   }
 
@@ -48,6 +55,7 @@ class OverlayProcessManager {
     for (final p in procs) {
       await _killProcessTree(p.pid);
     }
+    isRunningNotifier.value = false;
   }
 
   Future<void> toggleClickThroughAll() async {
@@ -78,16 +86,29 @@ class OverlayProcessManager {
       if (embedWorkerW) '--embed-workerw',
     ];
 
+    print('OverlayProcessManager: Starting child: $exe ${args.join(' ')}');
     try {
       final proc = await Process.start(
         exe,
         args,
         mode: ProcessStartMode.detachedWithStdio,
+        workingDirectory: File(exe).parent.path,
       );
       _processes[monitor.monitorId] = proc;
-      proc.exitCode.then((_) {
-        _processes.remove(monitor.monitorId);
+      print(
+        'OverlayProcessManager: Started process pid=${proc.pid} for monitor ${monitor.monitorId}',
+      );
+
+      // Capture child output
+      proc.stdout.transform(utf8.decoder).listen((data) {
+        print('[Child ${proc.pid} STDOUT]: ${data.trim()}');
       });
+      proc.stderr.transform(utf8.decoder).listen((data) {
+        print('[Child ${proc.pid} STDERR]: ${data.trim()}');
+      });
+
+      // Note: proc.exitCode is NOT available for detached processes in Dart.
+      // We rely on external tracking or assume it's running.
 
       // Ensure overlay language matches panel language at startup.
       _send(proc, {
@@ -97,16 +118,9 @@ class OverlayProcessManager {
 
       _send(proc, {'cmd': 'set_click_through', 'value': clickThrough});
 
-      // Fail fast if process exits immediately.
-      final exited = await proc.exitCode
-          .timeout(const Duration(milliseconds: 300), onTimeout: () => -1);
-      if (exited != -1) {
-        _processes.remove(monitor.monitorId);
-        return false;
-      }
-
       return true;
-    } catch (_) {
+    } catch (e, st) {
+      print('OverlayProcessManager: Error starting process: $e\n$st');
       return false;
     }
   }

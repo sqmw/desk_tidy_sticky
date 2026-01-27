@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
 import '../controllers/locale_controller.dart';
-import '../controllers/overlay_controller.dart';
 import '../l10n/strings.dart';
-import '../main.dart';
-import '../pages/overlay/overlay_page.dart';
 import 'overlay_process_manager.dart';
 
 class TrayService {
@@ -14,7 +11,6 @@ class TrayService {
   static final TrayService _instance = TrayService._internal();
   factory TrayService() => _instance;
   TrayService._internal();
-  final OverlayController _overlayController = OverlayController.instance;
   final OverlayProcessManager _overlayManager = OverlayProcessManager.instance;
   LocaleController? _localeController;
 
@@ -30,15 +26,17 @@ class TrayService {
 
     _rebuildMenu(Strings.of(localeController.current));
     localeController.notifier.addListener(_handleLocaleChanged);
+    _overlayManager.isRunningNotifier.addListener(_handleStickerStatusChanged);
 
     _systemTray.registerSystemTrayEventHandler((eventName) {
       debugPrint("eventName: $eventName");
       if (eventName == kSystemTrayEventClick) {
-        windowManager.isVisible().then((visible) {
+        windowManager.isVisible().then((visible) async {
           if (visible) {
-            windowManager.hide();
+            await windowManager.hide();
           } else {
-            windowManager.show();
+            await windowManager.show();
+            await windowManager.focus();
           }
         });
       } else if (eventName == kSystemTrayEventRightClick) {
@@ -53,48 +51,51 @@ class TrayService {
     _rebuildMenu(Strings.of(lc.current));
   }
 
+  void _handleStickerStatusChanged() {
+    final lc = _localeController;
+    if (lc == null) return;
+    _rebuildMenu(Strings.of(lc.current));
+  }
+
   Future<void> _rebuildMenu(Strings strings) async {
     final Menu menu = Menu();
+    final isRunning = _overlayManager.isRunning;
+
     await menu.buildFrom([
       MenuItemLabel(
         label: strings.trayShowNotes,
-        onClicked: (menuItem) => windowManager.show(),
+        onClicked: (menuItem) async {
+          await windowManager.show();
+          await windowManager.focus();
+        },
       ),
       MenuItemLabel(
         label: strings.trayNewNote,
-        onClicked: (menuItem) {
-          windowManager.show();
-          // and focus input? (Todo)
+        onClicked: (menuItem) async {
+          await windowManager.show();
+          await windowManager.focus();
+          // Todo: focus specific input
         },
       ),
+      MenuSeparator(),
       MenuItemLabel(
-        label: strings.trayOverlay,
+        label: isRunning ? strings.trayOverlayClose : strings.trayOverlay,
         onClicked: (_) async {
-          await _openOverlayFromTray();
-        },
-      ),
-      MenuItemLabel(
-        label: strings.trayOverlayToggleClickThrough,
-        onClicked: (_) async {
-          if (_overlayManager.isRunning) {
-            await _overlayManager.toggleClickThroughAll();
-          } else {
-            _overlayController.toggleClickThrough();
-          }
-        },
-      ),
-      MenuItemLabel(
-        label: strings.trayOverlayClose,
-        onClicked: (_) async {
-          if (_overlayManager.isRunning) {
+          if (isRunning) {
             _overlayManager.closeAll();
             await _overlayManager.stopAll();
           } else {
-            _overlayController.setClickThrough(false);
-            appNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+            await _openOverlayFromTray();
           }
         },
       ),
+      if (isRunning)
+        MenuItemLabel(
+          label: strings.trayOverlayToggleClickThrough,
+          onClicked: (_) async {
+            await _overlayManager.toggleClickThroughAll();
+          },
+        ),
       MenuSeparator(),
       MenuItemLabel(
         label: strings.trayExit,
@@ -113,16 +114,11 @@ class TrayService {
     final lc = _localeController;
     if (lc == null) return;
 
-    final ok = await _overlayManager.startAll(
+    await _overlayManager.startAll(
       localeController: lc,
       embedWorkerW: true,
       initialClickThrough: false,
     );
-    if (ok) return;
-
-    _overlayController.setClickThrough(false);
-    await windowManager.show();
-    appNavigatorKey.currentState?.pushNamed(OverlayPage.routeName);
   }
 
   Future<String> _resolveIconPath() async {

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import 'config/app_config.dart';
@@ -12,10 +13,14 @@ import 'services/panel_preferences.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
-void main() async {
+void main(List<String> args) async {
+  print('[Main] Starting... PID: $pid, args: $args');
   WidgetsFlutterBinding.ensureInitialized();
 
-  final appConfig = AppConfig.initFromProcess();
+  final appConfig = AppConfig.fromArgs(args);
+  print(
+    '[Main] AppConfig mode: ${appConfig.mode}, isChild: ${appConfig.isChild}, monitor: ${appConfig.monitorRectArg}',
+  );
 
   final locale = await PanelPreferences.getLanguage();
   final localeController = LocaleController(locale);

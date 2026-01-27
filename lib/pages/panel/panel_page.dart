@@ -3,8 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../models/note_model.dart';
-import '../../pages/overlay/overlay_page.dart';
-import '../../controllers/overlay_controller.dart';
 import '../../controllers/locale_controller.dart';
 import '../../l10n/strings.dart';
 import '../../services/notes_service.dart';
@@ -264,7 +262,6 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   }
 
   Future<void> _openOverlay() async {
-    // Prefer multi-process overlays (per monitor) to avoid virtual-screen quirks.
     if (_overlayManager.isRunning) {
       _overlayManager.closeAll();
       await _overlayManager.stopAll();
@@ -276,11 +273,12 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       embedWorkerW: true,
       initialClickThrough: false,
     );
-    if (ok) return;
-
-    // Fallback: in-process overlay route (single window).
-    OverlayController.instance.setClickThrough(false);
-    if (!mounted) return;
-    Navigator.of(context).pushNamed(OverlayPage.routeName);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(widget.strings.overlayTip),
+        ), // Or a generic failure string
+      );
+    }
   }
 }
