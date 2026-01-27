@@ -273,7 +273,6 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                   await widget.localeController.setLocale(next);
                 },
                 onSave: () => _saveNote(pin: false),
-                onSaveAndPin: () => _saveNote(pin: true),
                 onOpenOverlay: () {
                   _openOverlay();
                 },
@@ -310,9 +309,9 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     );
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.strings.overlayTip),
-        ), // Or a generic failure string
+        const SnackBar(
+          content: Text('Failed to start separate overlay processes.'),
+        ),
       );
     }
   }

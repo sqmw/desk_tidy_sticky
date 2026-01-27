@@ -18,7 +18,6 @@ class Strings {
   String get saveNote => locale == AppLocale.zh ? '保存' : 'Save';
   String get saveNoteAction => locale == AppLocale.zh ? '保存便笺' : 'Save note';
   String get cancel => locale == AppLocale.zh ? '取消' : 'Cancel';
-  String get saveAndPin => locale == AppLocale.zh ? '保存并贴到桌面' : 'Save & pin';
   String get hideAfterSave =>
       locale == AppLocale.zh ? '保存后隐藏' : 'Hide after save';
   String get active => locale == AppLocale.zh ? '活动' : 'Active';
