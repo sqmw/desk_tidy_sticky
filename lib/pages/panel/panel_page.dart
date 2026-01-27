@@ -57,6 +57,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   void initState() {
     super.initState();
     windowManager.addListener(this);
+    _overlayManager.isRunningNotifier.addListener(_updateAlwaysOnTop);
     _loadPreferences();
     _searchController.addListener(() {
       setState(() {
@@ -71,7 +72,28 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     _newNoteController.dispose();
     _searchController.dispose();
     _focusNode.dispose();
+    _overlayManager.isRunningNotifier.removeListener(_updateAlwaysOnTop);
     super.dispose();
+  }
+
+  Future<void> _updateAlwaysOnTop() async {
+    // If overlay is running, force Always On Top to ensure panel is clickable
+    // above the overlay window. Otherwise, respect user preference.
+    final shouldBeTop = _windowPinned || _overlayManager.isRunning;
+    await windowManager.setAlwaysOnTop(shouldBeTop);
+
+    // Race condition fix: Child process (Overlay) takes 1-2s to start and might
+    // assert 'AlwaysOnTop' *after* we set it here. We re-apply after a delay
+    // to ensure the Panel wins the Z-order stack.
+    if (_overlayManager.isRunning) {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      await windowManager.setAlwaysOnTop(true);
+
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (!mounted) return;
+      await windowManager.setAlwaysOnTop(true);
+    }
   }
 
   @override

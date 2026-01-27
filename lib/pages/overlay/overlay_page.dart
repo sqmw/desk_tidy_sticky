@@ -67,7 +67,8 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     _clickThrough = _overlayController.clickThrough.value;
     _virtualRect = _getOverlayRect();
     _previousAlwaysOnTop ??= await windowManager.isAlwaysOnTop();
-    await windowManager.setAlwaysOnTop(true);
+    // Do NOT set Topmost initially to avoid covering the main window
+    // await windowManager.setAlwaysOnTop(true);
     await windowManager.setSkipTaskbar(true);
     await windowManager.setAsFrameless();
     await windowManager.setBackgroundColor(Colors.transparent);
@@ -78,17 +79,18 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
       '[OverlayPage] _prepareWindow: setting position to ${_virtualRect.topLeft}',
     );
     await windowManager.setPosition(_virtualRect.topLeft);
+
+    // Ensure we are at the bottom Z-order before showing
+    await windowManager.setAlwaysOnTop(false);
+
     print('[OverlayPage] _prepareWindow: show and focus');
     await windowManager.show();
-    await windowManager.focus();
+    // await windowManager.focus(); // Avoid stealing focus/raising if possible
 
     if (AppConfig.instance.embedWorkerW) {
       final hwnd = await windowManager.getId();
       final attached = WorkerWService.attachToWorkerW(hwnd);
       print('[OverlayPage] _prepareWindow: embedWorkerW attached: $attached');
-      if (attached) {
-        await windowManager.setAlwaysOnTop(false);
-      }
     }
   }
 
