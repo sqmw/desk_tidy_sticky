@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
+import '../../theme/app_theme.dart';
 
 class OverlayToolbar extends StatelessWidget {
   final bool clickThrough;
@@ -20,8 +21,8 @@ class OverlayToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(10),
+        color: AppTheme.overlayBar,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [

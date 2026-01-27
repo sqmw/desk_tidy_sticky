@@ -4,6 +4,7 @@ import 'package:window_manager/window_manager.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
 import '../../services/overlay_process_manager.dart';
+import '../../theme/app_theme.dart';
 
 class PanelHeader extends StatelessWidget {
   final TextEditingController newNoteController;
@@ -50,8 +51,8 @@ class PanelHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+        color: AppTheme.surface,
+        border: const Border(bottom: BorderSide(color: AppTheme.divider)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -61,12 +62,11 @@ class PanelHeader extends StatelessWidget {
               children: [
                 Text(
                   strings.appName.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black26,
-                    letterSpacing: 0.5,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                        fontSize: 11,
+                        letterSpacing: 0.6,
+                        color: Colors.black54,
+                      ),
                 ),
                 const Spacer(),
                 _HeaderIcon(
@@ -97,13 +97,13 @@ class PanelHeader extends StatelessWidget {
                 child: TextField(
                   controller: newNoteController,
                   focusNode: focusNode,
-                  style: const TextStyle(fontSize: 15),
+                  style: Theme.of(context).textTheme.bodyMedium,
                   decoration: InputDecoration(
                     hintText: strings.inputHint,
-                    hintStyle: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                    hintStyle: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: Colors.grey),
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 6),
@@ -115,7 +115,7 @@ class PanelHeader extends StatelessWidget {
                 icon: const Icon(
                   Icons.send_rounded,
                   size: 20,
-                  color: Colors.blue,
+                  color: AppTheme.primary,
                 ),
                 onPressed: onSave,
                 padding: EdgeInsets.zero,
@@ -129,11 +129,12 @@ class PanelHeader extends StatelessWidget {
             children: [
               // View Mode Tabs
               Container(
-                height: 24,
+                height: 28,
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(4),
+                  color: Colors.white,
+                  borderRadius: AppTheme.pillRadius,
+                  border: Border.all(color: AppTheme.divider),
                 ),
                 child: Row(
                   children: [
@@ -201,9 +202,9 @@ class PanelHeader extends StatelessWidget {
             height: 28,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: Colors.grey[200]!),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppTheme.divider),
             ),
             child: Row(
               children: [
@@ -266,7 +267,9 @@ class _HeaderIcon extends StatelessWidget {
       icon: Icon(
         icon,
         size: size,
-        color: active ? (activeColor ?? Colors.black87) : Colors.black26,
+        color: active
+            ? (activeColor ?? Theme.of(context).colorScheme.primary)
+            : Colors.black26,
       ),
     );
   }
@@ -291,12 +294,14 @@ class _MiniTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? Colors.blue : Colors.transparent,
+          color: selected
+              ? Theme.of(context).colorScheme.primary
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(3),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 1,
                     offset: const Offset(0, 1),
                   ),
@@ -333,15 +338,15 @@ class _SortButton extends StatelessWidget {
       onSelected: onSelected,
       tooltip: strings.sortMode,
       offset: const Offset(0, 30),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
           border: Border.all(color: Colors.grey[200]!),
           borderRadius: BorderRadius.circular(4),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
             Icon(
               mode == NoteSortMode.custom
                   ? Icons.sort
@@ -424,7 +429,6 @@ class _CompactToggle extends StatelessWidget {
             child: Switch(
               value: value,
               onChanged: onChanged,
-              activeColor: Colors.blue,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),

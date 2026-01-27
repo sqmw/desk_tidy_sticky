@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
+import '../../theme/app_theme.dart';
 
 typedef NoteAction = Future<void> Function(Note note);
 typedef ReorderCallback = Future<void> Function(int oldIndex, int newIndex);
@@ -89,7 +90,9 @@ class PanelNotesList extends StatelessWidget {
                   decoration: note.isDone ? TextDecoration.lineThrough : null,
                   color: note.isArchived || note.isDeleted
                       ? Colors.grey
-                      : (note.isDone ? Colors.grey : Colors.black87),
+                      : (note.isDone
+                          ? Colors.grey
+                          : AppTheme.neutral.withValues(alpha: 0.9)),
                   fontWeight: note.isPinned ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
@@ -135,7 +138,9 @@ class PanelNotesList extends StatelessWidget {
                               ? Icons.push_pin
                               : Icons.push_pin_outlined,
                           size: 16,
-                          color: note.isPinned ? Colors.orange : Colors.grey,
+                          color: note.isPinned
+                              ? AppTheme.primary
+                              : Colors.grey,
                         ),
                         onPressed: () => onTogglePin(note),
                       ),
@@ -148,7 +153,9 @@ class PanelNotesList extends StatelessWidget {
                             ? Icons.check_circle
                             : Icons.check_circle_outline,
                         size: 16,
-                        color: note.isDone ? Colors.green : Colors.grey,
+                        color: note.isDone
+                            ? Colors.green
+                            : AppTheme.neutral.withValues(alpha: 0.65),
                       ),
                       onPressed: () => onToggleDone(note),
                     ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
+import '../../theme/app_theme.dart';
+import '../../theme/note_card_style.dart';
 
 class StickyNoteCard extends StatelessWidget {
   final Note note;
@@ -33,57 +35,54 @@ class StickyNoteCard extends StatelessWidget {
       onDoubleTap: onEdit,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minWidth: 180, maxWidth: 260),
-        child: Card(
-          color: Colors.amber.shade100.withValues(alpha: 0.95),
-          elevation: 3,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  note.text,
-                  style: TextStyle(
-                    color: Colors.brown[900],
-                    fontWeight: FontWeight.w600,
-                    decoration: note.isDone ? TextDecoration.lineThrough : null,
+        child: Container(
+          decoration: NoteCardStyle.decoration(),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                note.text,
+                style: NoteCardStyle.textStyle(note.isDone),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    tooltip: strings.edit,
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit, size: 16),
+                    color: AppTheme.neutral,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      tooltip: strings.edit,
-                      onPressed: onEdit,
-                      icon: const Icon(Icons.edit, size: 16),
+                  IconButton(
+                    tooltip: note.isDone ? strings.markUndone : strings.markDone,
+                    onPressed: onDoneToggle,
+                    icon: Icon(
+                      note.isDone
+                          ? Icons.check_circle
+                          : Icons.check_circle_outline,
+                      size: 16,
+                      color: note.isDone
+                          ? Colors.green
+                          : AppTheme.neutral.withValues(alpha: 0.65),
                     ),
-                    IconButton(
-                      tooltip:
-                          note.isDone ? strings.markUndone : strings.markDone,
-                      onPressed: onDoneToggle,
-                      icon: Icon(
-                        note.isDone
-                            ? Icons.check_circle
-                            : Icons.check_circle_outline,
-                        size: 16,
-                        color: note.isDone ? Colors.green : Colors.grey[700],
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: strings.unpinNote,
-                      onPressed: onUnpin,
-                      icon: const Icon(Icons.push_pin_outlined, size: 16),
-                    ),
-                    IconButton(
-                      tooltip: strings.delete,
-                      onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline, size: 16),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                  IconButton(
+                    tooltip: strings.unpinNote,
+                    onPressed: onUnpin,
+                    icon: const Icon(Icons.push_pin_outlined, size: 16),
+                    color: AppTheme.neutral.withValues(alpha: 0.8),
+                  ),
+                  IconButton(
+                    tooltip: strings.delete,
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    color: Colors.redAccent.withValues(alpha: 0.9),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

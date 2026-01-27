@@ -9,6 +9,7 @@ import '../../services/notes_service.dart';
 import '../../services/overlay_process_manager.dart';
 import '../../services/panel_preferences.dart';
 import '../../utils/note_search.dart';
+import '../../widgets/glass_container.dart';
 import 'edit_note_dialog.dart';
 import 'panel_header.dart';
 import 'panel_notes_list.dart';
@@ -264,49 +265,55 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
           ),
         },
         child: Scaffold(
-          backgroundColor: Colors.white,
-          body: Column(
-            children: [
-              PanelHeader(
-                strings: widget.strings,
-                newNoteController: _newNoteController,
-                searchController: _searchController,
-                focusNode: _focusNode,
-                hideAfterSave: _hideAfterSave,
-                onHideAfterSaveChanged: _setHideAfterSave,
-                viewMode: _viewMode,
-                onViewModeChanged: _setViewMode,
-                sortMode: _sortMode,
-                onSortModeChanged: _setSortMode,
-                windowPinned: _windowPinned,
-                onToggleWindowPinned: _toggleWindowPinned,
-                onHideWindow: () => windowManager.hide(),
-                onToggleLanguage: () async {
-                  final next = widget.localeController.current == AppLocale.en
-                      ? AppLocale.zh
-                      : AppLocale.en;
-                  await widget.localeController.setLocale(next);
-                },
-                onSave: () => _saveNote(pin: false),
-                onOpenOverlay: () {
-                  _openOverlay();
-                },
-                onEmptyTrash: _emptyTrash,
-              ),
-              PanelNotesList(
-                notes: _visibleNotes,
-                onEdit: _edit,
-                onDelete: _delete,
-                onRestore: _restore,
-                onTogglePin: _togglePin,
-                onToggleDone: _toggleDone,
-                onToggleArchive: _toggleArchive,
-                onReorder: _onReorder,
-                viewMode: _viewMode,
-                sortMode: _sortMode,
-                strings: widget.strings,
-              ),
-            ],
+          backgroundColor: Colors.transparent,
+          body: GlassContainer(
+            borderRadius: BorderRadius.zero,
+            opacity: 0.53, // Content panel specific opacity from desk_tidy
+            blurSigma: 18,
+            color: Colors.white,
+            child: Column(
+              children: [
+                PanelHeader(
+                  strings: widget.strings,
+                  newNoteController: _newNoteController,
+                  searchController: _searchController,
+                  focusNode: _focusNode,
+                  hideAfterSave: _hideAfterSave,
+                  onHideAfterSaveChanged: _setHideAfterSave,
+                  viewMode: _viewMode,
+                  onViewModeChanged: _setViewMode,
+                  sortMode: _sortMode,
+                  onSortModeChanged: _setSortMode,
+                  windowPinned: _windowPinned,
+                  onToggleWindowPinned: _toggleWindowPinned,
+                  onHideWindow: () => windowManager.hide(),
+                  onToggleLanguage: () async {
+                    final next = widget.localeController.current == AppLocale.en
+                        ? AppLocale.zh
+                        : AppLocale.en;
+                    await widget.localeController.setLocale(next);
+                  },
+                  onSave: () => _saveNote(pin: false),
+                  onOpenOverlay: () {
+                    _openOverlay();
+                  },
+                  onEmptyTrash: _emptyTrash,
+                ),
+                PanelNotesList(
+                  notes: _visibleNotes,
+                  onEdit: _edit,
+                  onDelete: _delete,
+                  onRestore: _restore,
+                  onTogglePin: _togglePin,
+                  onToggleDone: _toggleDone,
+                  onToggleArchive: _toggleArchive,
+                  onReorder: _onReorder,
+                  viewMode: _viewMode,
+                  sortMode: _sortMode,
+                  strings: widget.strings,
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -3,14 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import 'config/app_config.dart';
 import 'controllers/locale_controller.dart';
-import 'l10n/strings.dart';
-import 'models/note_model.dart';
+import 'l10n/strings.dart' as l10n;
+import 'models/note_model.dart' show AppLocale;
 import 'pages/panel/panel_page.dart';
 import 'pages/overlay/overlay_page.dart';
 import 'services/hotkey_service.dart';
 import 'services/ipc_service.dart';
 import 'services/tray_service.dart';
 import 'services/panel_preferences.dart';
+import 'theme/app_theme.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -68,18 +69,12 @@ class MyApp extends StatelessWidget {
     return ValueListenableBuilder<AppLocale>(
       valueListenable: localeController.notifier,
       builder: (context, locale, _) {
-        final strings = Strings.of(locale);
+        final strings = l10n.Strings.of(locale);
         return MaterialApp(
           title: strings.appName,
           debugShowCheckedModeBanner: false,
           navigatorKey: appNavigatorKey,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.amber),
-            useMaterial3: true,
-            fontFamily: 'Segoe UI', // Good for Windows
-            fontFamilyFallback: const ['Microsoft YaHei'],
-            visualDensity: VisualDensity.adaptivePlatformDensity,
-          ),
+          theme: AppTheme.buildTheme(),
           home: AppConfig.instance.isOverlay
               ? OverlayPage(strings: strings)
               : PanelPage(localeController: localeController, strings: strings),
