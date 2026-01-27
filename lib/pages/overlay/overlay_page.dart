@@ -127,14 +127,21 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     setState(() {
       _clickThrough = value;
     });
-    if (value) {
-      // Future.delayed(const Duration(seconds: 2), () {
-      //   if (mounted && _clickThrough) {
-      //     setState(() => _showClickThroughHint = false);
-      //   }
-      // });
-    }
     await windowManager.setIgnoreMouseEvents(value);
+
+    if (value) {
+      // Click-through: Drop to bottom
+      await windowManager.setAlwaysOnTop(false);
+    } else {
+      // Interactive: Raise to top
+      await windowManager.setAlwaysOnTop(true);
+    }
+
+    // Force Windows to refresh hit-testing.
+    // We only call show() to refresh the window style/Z-order.
+    // We DO NOT call focus() here because it steals focus from the Main Panel,
+    // which then gets blocked by this full-screen overlay.
+    await windowManager.show();
   }
 
   Offset _fallbackPosition(int index) {

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../models/note_model.dart';
 import '../../controllers/locale_controller.dart';
+import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../services/notes_service.dart';
 import '../../services/overlay_process_manager.dart';
@@ -42,6 +44,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   final FocusNode _focusNode = FocusNode();
   final NotesService _notesService = NotesService();
   final OverlayProcessManager _overlayManager = OverlayProcessManager.instance;
+  Timer? _zOrderTimer;
 
   List<Note> _notes = [];
   final Map<String, NoteSearchIndex> _searchIndex = {};
@@ -58,6 +61,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     super.initState();
     windowManager.addListener(this);
     _overlayManager.isRunningNotifier.addListener(_updateAlwaysOnTop);
+    OverlayController.instance.clickThrough.addListener(_updateAlwaysOnTop);
     _loadPreferences();
     _searchController.addListener(() {
       setState(() {
@@ -73,32 +77,75 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     _searchController.dispose();
     _focusNode.dispose();
     _overlayManager.isRunningNotifier.removeListener(_updateAlwaysOnTop);
+    OverlayController.instance.clickThrough.removeListener(_updateAlwaysOnTop);
+    _zOrderTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _updateAlwaysOnTop() async {
     // If overlay is running, force Always On Top to ensure panel is clickable
     // above the overlay window. Otherwise, respect user preference.
-    final shouldBeTop = _windowPinned || _overlayManager.isRunning;
+    final overlayActive = _overlayManager.isRunning;
+    final interactive = !OverlayController.instance.clickThrough.value;
+    final shouldBeTop = _windowPinned || overlayActive;
+
     await windowManager.setAlwaysOnTop(shouldBeTop);
 
-    // Race condition fix: Child process (Overlay) takes 1-2s to start and might
-    // assert 'AlwaysOnTop' *after* we set it here. We re-apply after a delay
-    // to ensure the Panel wins the Z-order stack.
-    if (_overlayManager.isRunning) {
-      await Future.delayed(const Duration(milliseconds: 500));
+    // Race condition fix & Interaction Toggle fix:
+    // If Overlay is running, we need to assert Top AFTER Overlay changes its state.
+    if (overlayActive) {
+      // Manage Heartbeat Timer
+      // We only need a heartbeat if the Overlay is Interactive (competing for top-most)
+      if (interactive) {
+        if (_zOrderTimer == null || !_zOrderTimer!.isActive) {
+          _zOrderTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+            if (mounted) {
+              windowManager.setAlwaysOnTop(true);
+            } else {
+              timer.cancel();
+            }
+          });
+        }
+      } else {
+        _zOrderTimer?.cancel();
+        _zOrderTimer = null;
+      }
+
+      // Initial staged re-assertion (Race condition fix)
+      await Future.delayed(const Duration(milliseconds: 300));
       if (!mounted) return;
       await windowManager.setAlwaysOnTop(true);
 
-      await Future.delayed(const Duration(milliseconds: 1000));
+      await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
       await windowManager.setAlwaysOnTop(true);
+      await windowManager.focus();
+
+      await Future.delayed(const Duration(milliseconds: 1500));
+      if (!mounted) return;
+      await windowManager.setAlwaysOnTop(true);
+    } else {
+      _zOrderTimer?.cancel();
+      _zOrderTimer = null;
     }
   }
 
   @override
   void onWindowFocus() {
     _focusNode.requestFocus();
+  }
+
+  @override
+  void onWindowBlur() {
+    // When focus is lost (e.g., clicked desktop), the Overlay might try to win Z-order.
+    // We re-assert our status after a short delay to ensure we stay on top.
+    if (_overlayManager.isRunning) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          windowManager.setAlwaysOnTop(true);
+        }
+      });
+    }
   }
 
   Future<void> _loadNotes() async {
