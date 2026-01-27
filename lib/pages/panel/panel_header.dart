@@ -3,6 +3,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
+import '../../controllers/overlay_controller.dart';
 import '../../services/overlay_process_manager.dart';
 import '../../theme/app_theme.dart';
 import 'package:flutter/gestures.dart';
@@ -210,13 +211,39 @@ class PanelHeader extends StatelessWidget {
                 valueListenable:
                     OverlayProcessManager.instance.isRunningNotifier,
                 builder: (context, isRunning, _) {
-                  return _HeaderIcon(
-                    tooltip: strings.overlay,
-                    icon: Icons.desktop_windows,
-                    active: isRunning,
-                    activeColor: Colors.blue,
-                    size: 16,
-                    onPressed: onOpenOverlay,
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _HeaderIcon(
+                        tooltip: strings.overlay,
+                        icon: Icons.desktop_windows,
+                        active: isRunning,
+                        activeColor: Colors.blue,
+                        size: 16,
+                        onPressed: onOpenOverlay,
+                      ),
+                      if (isRunning) ...[
+                        const SizedBox(width: 4),
+                        ValueListenableBuilder<bool>(
+                          valueListenable:
+                              OverlayController.instance.clickThrough,
+                          builder: (context, clickThrough, _) {
+                            final interactive = !clickThrough;
+                            return _HeaderIcon(
+                              tooltip: strings.overlayClickThrough,
+                              icon: interactive
+                                  ? Icons.touch_app
+                                  : Icons.do_not_touch,
+                              active: interactive,
+                              activeColor: Colors.green,
+                              size: 16,
+                              onPressed: () => OverlayController.instance
+                                  .toggleClickThrough(),
+                            );
+                          },
+                        ),
+                      ],
+                    ],
                   );
                 },
               ),

@@ -2,14 +2,19 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../controllers/locale_controller.dart';
+import '../controllers/overlay_controller.dart';
 import '../models/note_model.dart';
 import '../models/monitor_rect.dart';
 import 'display_service.dart';
 
 class OverlayProcessManager {
-  OverlayProcessManager._();
-
   static final OverlayProcessManager instance = OverlayProcessManager._();
+
+  OverlayProcessManager._() {
+    OverlayController.instance.clickThrough.addListener(
+      _handleClickThroughChanged,
+    );
+  }
 
   final Map<int, Process> _processes = {};
   bool _clickThrough = true;
@@ -148,5 +153,10 @@ class OverlayProcessManager {
     } catch (_) {
       // best-effort
     }
+  }
+
+  void _handleClickThroughChanged() {
+    _clickThrough = OverlayController.instance.clickThrough.value;
+    _broadcast({'cmd': 'set_click_through', 'value': _clickThrough});
   }
 }
