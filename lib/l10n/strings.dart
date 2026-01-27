@@ -54,6 +54,8 @@ class Strings {
   String get trayOverlayClose =>
       locale == AppLocale.zh ? '贴纸：关闭' : 'Overlay: Close';
   String get trayExit => locale == AppLocale.zh ? '退出' : 'Exit';
+  String get glassAdjust =>
+      locale == AppLocale.zh ? '滚轮调节透明度' : 'Scroll to adjust opacity';
 
   String get sortByCustom => locale == AppLocale.zh ? '手动' : 'Manual';
   String get sortByNewest => locale == AppLocale.zh ? '最新' : 'Newest';
@@ -64,4 +66,21 @@ class Strings {
   String get permanentlyDelete =>
       locale == AppLocale.zh ? '永久删除' : 'Permanent delete';
   String get emptyTrash => locale == AppLocale.zh ? '清空回收站' : 'Empty trash';
+
+  String get settings => locale == AppLocale.zh ? '设置' : 'Settings';
+  String get settingsTitle => locale == AppLocale.zh ? '设置' : 'Settings';
+  String get starOnGithub =>
+      locale == AppLocale.zh ? '在 GitHub 上点星' : 'Star on GitHub';
+  String get autoStart => locale == AppLocale.zh ? '开机自启' : 'Start on Boot';
+  String get shortcuts => locale == AppLocale.zh ? '快捷键' : 'Shortcuts';
+  String get shortcutToggle => locale == AppLocale.zh
+      ? '切换主窗口: Ctrl+Shift+N'
+      : 'Toggle Panel: Ctrl+Shift+N';
+  String get shortcutOverlay => locale == AppLocale.zh
+      ? '切换贴纸鼠标交互: Ctrl+Shift+O'
+      : 'Toggle Overlay Input: Ctrl+Shift+O';
+  String get shortcutEsc => locale == AppLocale.zh
+      ? '隐藏/退出交互: Escape (Esc)'
+      : 'Hide/Exit Interaction: Escape';
+  String get version => locale == AppLocale.zh ? '版本 v1.0.0' : 'Version v1.0.0';
 }

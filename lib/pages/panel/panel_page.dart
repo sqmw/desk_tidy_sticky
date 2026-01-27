@@ -49,6 +49,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
 
   bool _hideAfterSave = true;
   bool _windowPinned = false;
+  double _glassOpacity = 0.18;
   NoteViewMode _viewMode = NoteViewMode.active;
   NoteSortMode _sortMode = NoteSortMode.custom;
 
@@ -96,12 +97,14 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     final pinned = await PanelPreferences.getWindowPinned();
     final mode = await PanelPreferences.getViewMode();
     final sort = await PanelPreferences.getSortMode();
+    final glass = await PanelPreferences.getGlassOpacity();
     if (!mounted) return;
     setState(() {
       _hideAfterSave = hide;
       _windowPinned = pinned;
       _viewMode = mode;
       _sortMode = sort;
+      _glassOpacity = glass;
     });
     await _loadNotes();
     await windowManager.setAlwaysOnTop(pinned);
@@ -171,6 +174,12 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     setState(() => _sortMode = mode);
     await PanelPreferences.setSortMode(mode);
     await _loadNotes();
+  }
+
+  Future<void> _adjustGlass(double delta) async {
+    final next = (_glassOpacity + delta).clamp(0.05, 1.0);
+    setState(() => _glassOpacity = next);
+    await PanelPreferences.setGlassOpacity(next);
   }
 
   Future<void> _togglePin(Note note) async {
@@ -268,8 +277,8 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
           backgroundColor: Colors.transparent,
           body: GlassContainer(
             borderRadius: BorderRadius.zero,
-            opacity: 0.53, // Content panel specific opacity from desk_tidy
-            blurSigma: 18,
+            opacity: _glassOpacity,
+            blurSigma: 8 + _glassOpacity * 30,
             color: Colors.white,
             child: Column(
               children: [
@@ -298,6 +307,8 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                     _openOverlay();
                   },
                   onEmptyTrash: _emptyTrash,
+                  glassOpacity: _glassOpacity,
+                  onAdjustGlass: _adjustGlass,
                 ),
                 PanelNotesList(
                   notes: _visibleNotes,

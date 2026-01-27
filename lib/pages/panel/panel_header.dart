@@ -5,6 +5,8 @@ import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
 import '../../services/overlay_process_manager.dart';
 import '../../theme/app_theme.dart';
+import 'package:flutter/gestures.dart';
+import 'settings_dialog.dart';
 
 class PanelHeader extends StatelessWidget {
   final TextEditingController newNoteController;
@@ -24,6 +26,8 @@ class PanelHeader extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onOpenOverlay;
   final VoidCallback onEmptyTrash;
+  final double glassOpacity;
+  final ValueChanged<double> onAdjustGlass;
 
   const PanelHeader({
     super.key,
@@ -44,6 +48,8 @@ class PanelHeader extends StatelessWidget {
     required this.onSave,
     required this.onOpenOverlay,
     required this.onEmptyTrash,
+    required this.glassOpacity,
+    required this.onAdjustGlass,
   });
 
   @override
@@ -63,10 +69,10 @@ class PanelHeader extends StatelessWidget {
                 Text(
                   strings.appName.toUpperCase(),
                   style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                        fontSize: 11,
-                        letterSpacing: 0.6,
-                        color: Colors.black54,
-                      ),
+                    fontSize: 11,
+                    letterSpacing: 0.6,
+                    color: Colors.black54,
+                  ),
                 ),
                 const Spacer(),
                 _HeaderIcon(
@@ -82,6 +88,27 @@ class PanelHeader extends StatelessWidget {
                   tooltip: strings.language,
                   icon: Icons.translate,
                   onPressed: onToggleLanguage,
+                ),
+                _HeaderIcon(
+                  tooltip: strings.settings,
+                  icon: Icons.settings,
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => SettingsDialog(strings: strings),
+                    );
+                  },
+                ),
+                _HeaderIcon(
+                  tooltip: strings.glassAdjust,
+                  icon: Icons.blur_on,
+                  trailing: Text(
+                    '${(glassOpacity * 100).round()}%',
+                    style: const TextStyle(fontSize: 10, color: Colors.black45),
+                  ),
+                  onPressed: () => onAdjustGlass(0),
+                  onScroll: (event) =>
+                      onAdjustGlass(-event.scrollDelta.dy * 0.0005),
                 ),
                 _HeaderIcon(
                   tooltip: strings.hideWindow,
@@ -100,10 +127,9 @@ class PanelHeader extends StatelessWidget {
                   style: Theme.of(context).textTheme.bodyMedium,
                   decoration: InputDecoration(
                     hintText: strings.inputHint,
-                    hintStyle: Theme.of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: Colors.grey),
+                    hintStyle: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 6),
@@ -244,33 +270,53 @@ class _HeaderIcon extends StatelessWidget {
   final IconData icon;
   final String? tooltip;
   final VoidCallback onPressed;
+  final void Function(PointerScrollEvent)? onScroll;
   final bool active;
   final Color? activeColor;
   final double size;
+  final Widget? trailing;
 
   const _HeaderIcon({
     required this.icon,
     required this.onPressed,
     this.tooltip,
+    this.onScroll,
     this.active = false,
     this.activeColor,
     this.size = 14,
+    this.trailing,
   });
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
+    final iconWidget = Icon(
+      icon,
+      size: size,
+      color: active
+          ? (activeColor ?? Theme.of(context).colorScheme.primary)
+          : Colors.black26,
+    );
+
+    final button = IconButton(
       padding: const EdgeInsets.all(4),
       constraints: const BoxConstraints(),
       tooltip: tooltip,
       onPressed: onPressed,
-      icon: Icon(
-        icon,
-        size: size,
-        color: active
-            ? (activeColor ?? Theme.of(context).colorScheme.primary)
-            : Colors.black26,
-      ),
+      icon: trailing == null
+          ? iconWidget
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [iconWidget, const SizedBox(width: 2), trailing!],
+            ),
+    );
+
+    if (onScroll == null) return button;
+
+    return Listener(
+      onPointerSignal: (event) {
+        if (event is PointerScrollEvent) onScroll?.call(event);
+      },
+      child: button,
     );
   }
 }
@@ -338,15 +384,15 @@ class _SortButton extends StatelessWidget {
       onSelected: onSelected,
       tooltip: strings.sortMode,
       offset: const Offset(0, 30),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
           border: Border.all(color: Colors.grey[200]!),
           borderRadius: BorderRadius.circular(4),
         ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Icon(
               mode == NoteSortMode.custom
                   ? Icons.sort

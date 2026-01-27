@@ -14,7 +14,6 @@ import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
 import '../../services/notes_service.dart';
 import '../../services/workerw_service.dart';
-import 'overlay_toolbar.dart';
 import 'sticky_note_card.dart';
 
 class OverlayPage extends StatefulWidget {
@@ -37,7 +36,6 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   List<Note> _pinned = [];
   final Map<String, Offset> _positions = {};
   Rect _virtualRect = const Rect.fromLTWH(0, 0, 1920, 1080);
-  bool _showClickThroughHint = false;
 
   static const Size _panelDefaultSize = Size(360, 500);
 
@@ -126,14 +124,13 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     if (!mounted) return;
     setState(() {
       _clickThrough = value;
-      _showClickThroughHint = value;
     });
     if (value) {
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted && _clickThrough) {
-          setState(() => _showClickThroughHint = false);
-        }
-      });
+      // Future.delayed(const Duration(seconds: 2), () {
+      //   if (mounted && _clickThrough) {
+      //     setState(() => _showClickThroughHint = false);
+      //   }
+      // });
     }
     await windowManager.setIgnoreMouseEvents(value);
   }
@@ -227,54 +224,6 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
         backgroundColor: Colors.transparent,
         body: Stack(
           children: [
-            Positioned(
-              top: 12,
-              right: 12,
-              child: AnimatedOpacity(
-                opacity: _clickThrough ? 0.0 : 1.0,
-                duration: const Duration(milliseconds: 180),
-                child: OverlayToolbar(
-                  clickThrough: _clickThrough,
-                  strings: strings,
-                  onClose: () async {
-                    _overlayController.setClickThrough(false);
-                    await _restoreWindow();
-                    if (mounted) Navigator.of(context).maybePop();
-                  },
-                  onToggleClickThrough: (value) async {
-                    _overlayController.setClickThrough(value);
-                  },
-                ),
-              ),
-            ),
-            if (_clickThrough || _showClickThroughHint)
-              Positioned(
-                top: 12,
-                left: 12,
-                child: IgnorePointer(
-                  ignoring: true,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      child: Text(
-                        strings.overlayTip,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
             ..._pinned.map((note) {
               final pos = _positions[note.id] ?? _fallbackPosition(0);
               final clamped = _clampToViewport(pos);

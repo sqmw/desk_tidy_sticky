@@ -9,6 +9,7 @@ class PanelPreferences {
   static const _kViewMode = 'panel_view_mode';
   static const _kLanguage = 'panel_language';
   static const _kSortMode = 'panel_sort_mode';
+  static const _kGlassOpacity = 'panel_glass_opacity';
 
   static Future<bool> getHideAfterSave() async {
     final prefs = await SharedPreferences.getInstance();
@@ -53,6 +54,16 @@ class PanelPreferences {
   static Future<void> setLanguage(AppLocale locale) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kLanguage, locale == AppLocale.zh ? 'zh' : 'en');
+  }
+
+  static Future<double> getGlassOpacity() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_kGlassOpacity) ?? 0.18;
+  }
+
+  static Future<void> setGlassOpacity(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_kGlassOpacity, value);
   }
 
   static Future<NoteSortMode> getSortMode() async {
