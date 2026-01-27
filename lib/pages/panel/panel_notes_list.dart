@@ -3,8 +3,10 @@ import 'package:intl/intl.dart';
 
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
+import '../../services/notes_service.dart';
 
 typedef NoteAction = Future<void> Function(Note note);
+typedef ReorderCallback = Future<void> Function(int oldIndex, int newIndex);
 
 class PanelNotesList extends StatelessWidget {
   final List<Note> notes;
@@ -13,6 +15,8 @@ class PanelNotesList extends StatelessWidget {
   final NoteAction onTogglePin;
   final NoteAction onToggleDone;
   final NoteAction onToggleArchive;
+  final ReorderCallback onReorder;
+  final NoteSortMode sortMode;
   final Strings strings;
 
   const PanelNotesList({
@@ -23,14 +27,20 @@ class PanelNotesList extends StatelessWidget {
     required this.onTogglePin,
     required this.onToggleDone,
     required this.onToggleArchive,
+    required this.onReorder,
+    required this.sortMode,
     required this.strings,
   });
 
   @override
   Widget build(BuildContext context) {
+    final canReorder = sortMode == NoteSortMode.custom;
+
     return Expanded(
-      child: ListView.builder(
+      child: ReorderableListView.builder(
         itemCount: notes.length,
+        onReorder: onReorder,
+        buildDefaultDragHandles: false, // Using custom drag handle
         itemBuilder: (context, index) {
           final note = notes[index];
           return Dismissible(
@@ -84,8 +94,9 @@ class PanelNotesList extends StatelessWidget {
                     onPressed: () => onEdit(note),
                   ),
                   IconButton(
-                    tooltip:
-                        note.isPinned ? strings.unpinNote : strings.pinNote,
+                    tooltip: note.isPinned
+                        ? strings.unpinNote
+                        : strings.pinNote,
                     icon: Icon(
                       note.isPinned ? Icons.push_pin : Icons.push_pin_outlined,
                       size: 16,
@@ -94,7 +105,9 @@ class PanelNotesList extends StatelessWidget {
                     onPressed: () => onTogglePin(note),
                   ),
                   IconButton(
-                    tooltip: note.isDone ? strings.markUndone : strings.markDone,
+                    tooltip: note.isDone
+                        ? strings.markUndone
+                        : strings.markDone,
                     icon: Icon(
                       note.isDone
                           ? Icons.check_circle
@@ -105,14 +118,27 @@ class PanelNotesList extends StatelessWidget {
                     onPressed: () => onToggleDone(note),
                   ),
                   IconButton(
-                    tooltip:
-                        note.isArchived ? strings.unarchive : strings.archive,
+                    tooltip: note.isArchived
+                        ? strings.unarchive
+                        : strings.archive,
                     icon: Icon(
                       note.isArchived ? Icons.unarchive : Icons.archive,
                       size: 16,
                     ),
                     onPressed: () => onToggleArchive(note),
                   ),
+                  if (canReorder)
+                    ReorderableDragStartListener(
+                      index: index,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(
+                          Icons.drag_handle,
+                          size: 18,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

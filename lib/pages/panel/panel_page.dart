@@ -51,12 +51,12 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   bool _hideAfterSave = true;
   bool _windowPinned = false;
   NoteViewMode _viewMode = NoteViewMode.active;
+  NoteSortMode _sortMode = NoteSortMode.custom;
 
   @override
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    _loadNotes();
     _loadPreferences();
     _searchController.addListener(() {
       setState(() {
@@ -80,7 +80,8 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   }
 
   Future<void> _loadNotes() async {
-    await _notesService.loadNotes();
+    await _notesService.loadNotes(sortMode: _sortMode);
+    if (!mounted) return;
     setState(() {
       _notes = _notesService.notes;
       _searchIndex
@@ -95,12 +96,15 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     final hide = await PanelPreferences.getHideAfterSave();
     final pinned = await PanelPreferences.getWindowPinned();
     final mode = await PanelPreferences.getViewMode();
+    final sort = await PanelPreferences.getSortMode();
     if (!mounted) return;
     setState(() {
       _hideAfterSave = hide;
       _windowPinned = pinned;
       _viewMode = mode;
+      _sortMode = sort;
     });
+    await _loadNotes();
     await windowManager.setAlwaysOnTop(pinned);
   }
 
@@ -135,7 +139,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   Future<void> _saveNote({required bool pin}) async {
     final text = _newNoteController.text.trim();
     if (text.isEmpty) return;
-    await _notesService.addNote(text, isPinned: pin);
+    await _notesService.addNote(text, isPinned: pin, sortMode: _sortMode);
     _newNoteController.clear();
     await _loadNotes();
     if (_hideAfterSave) {
@@ -158,20 +162,27 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   Future<void> _setViewMode(NoteViewMode mode) async {
     setState(() => _viewMode = mode);
     await PanelPreferences.setViewMode(mode);
+    await _loadNotes();
+  }
+
+  Future<void> _setSortMode(NoteSortMode mode) async {
+    setState(() => _sortMode = mode);
+    await PanelPreferences.setSortMode(mode);
+    await _loadNotes();
   }
 
   Future<void> _togglePin(Note note) async {
-    await _notesService.togglePin(note.id);
+    await _notesService.togglePin(note.id, sortMode: _sortMode);
     await _loadNotes();
   }
 
   Future<void> _toggleDone(Note note) async {
-    await _notesService.toggleDone(note.id);
+    await _notesService.toggleDone(note.id, sortMode: _sortMode);
     await _loadNotes();
   }
 
   Future<void> _toggleArchive(Note note) async {
-    await _notesService.toggleArchive(note.id);
+    await _notesService.toggleArchive(note.id, sortMode: _sortMode);
     await _loadNotes();
   }
 
@@ -189,7 +200,27 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     );
     if (!mounted) return;
     if (newText == null || newText.isEmpty) return;
-    await _notesService.updateNote(note.copyWith(text: newText));
+    await _notesService.updateNote(
+      note.copyWith(text: newText),
+      sortMode: _sortMode,
+    );
+    await _loadNotes();
+  }
+
+  Future<void> _onReorder(int oldIndex, int newIndex) async {
+    if (_sortMode != NoteSortMode.custom) return;
+
+    final visible = _visibleNotes;
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
+    final item = visible.removeAt(oldIndex);
+    visible.insert(newIndex, item);
+
+    await _notesService.reorderNotes(
+      visible,
+      isArchivedView: _viewMode == NoteViewMode.archived,
+    );
     await _loadNotes();
   }
 
@@ -230,6 +261,8 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                 onHideAfterSaveChanged: _setHideAfterSave,
                 viewMode: _viewMode,
                 onViewModeChanged: _setViewMode,
+                sortMode: _sortMode,
+                onSortModeChanged: _setSortMode,
                 windowPinned: _windowPinned,
                 onToggleWindowPinned: _toggleWindowPinned,
                 onHideWindow: () => windowManager.hide(),
@@ -252,6 +285,8 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                 onTogglePin: _togglePin,
                 onToggleDone: _toggleDone,
                 onToggleArchive: _toggleArchive,
+                onReorder: _onReorder,
+                sortMode: _sortMode,
                 strings: widget.strings,
               ),
             ],

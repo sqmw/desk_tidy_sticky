@@ -4,6 +4,8 @@ import 'package:window_manager/window_manager.dart';
 import '../../l10n/strings.dart';
 import 'panel_page.dart';
 
+import '../../services/notes_service.dart';
+
 class PanelHeader extends StatelessWidget {
   final TextEditingController newNoteController;
   final TextEditingController searchController;
@@ -13,6 +15,8 @@ class PanelHeader extends StatelessWidget {
   final ValueChanged<bool> onHideAfterSaveChanged;
   final NoteViewMode viewMode;
   final ValueChanged<NoteViewMode> onViewModeChanged;
+  final NoteSortMode sortMode;
+  final ValueChanged<NoteSortMode> onSortModeChanged;
   final bool windowPinned;
   final VoidCallback onToggleWindowPinned;
   final VoidCallback onHideWindow;
@@ -31,6 +35,8 @@ class PanelHeader extends StatelessWidget {
     required this.onHideAfterSaveChanged,
     required this.viewMode,
     required this.onViewModeChanged,
+    required this.sortMode,
+    required this.onSortModeChanged,
     required this.windowPinned,
     required this.onToggleWindowPinned,
     required this.onHideWindow,
@@ -65,8 +71,9 @@ class PanelHeader extends StatelessWidget {
                   ),
                   const Spacer(),
                   IconButton(
-                    tooltip:
-                        windowPinned ? strings.unpinWindow : strings.pinWindow,
+                    tooltip: windowPinned
+                        ? strings.unpinWindow
+                        : strings.pinWindow,
                     onPressed: onToggleWindowPinned,
                     icon: Icon(
                       windowPinned ? Icons.push_pin : Icons.push_pin_outlined,
@@ -111,7 +118,7 @@ class PanelHeader extends StatelessWidget {
           const SizedBox(height: 6),
           Wrap(
             spacing: 8,
-            runSpacing: 4,
+            runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               TextButton.icon(
@@ -134,18 +141,52 @@ class PanelHeader extends StatelessWidget {
                 segments: [
                   ButtonSegment(
                     value: NoteViewMode.active,
-                    icon: const Icon(Icons.note),
-                    label: Text(strings.active),
+                    icon: const Icon(Icons.note, size: 16),
+                    label: Text(
+                      strings.active,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
                   ButtonSegment(
                     value: NoteViewMode.archived,
-                    icon: const Icon(Icons.archive),
-                    label: Text(strings.archived),
+                    icon: const Icon(Icons.archive, size: 16),
+                    label: Text(
+                      strings.archived,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
                 ],
                 selected: {viewMode},
                 showSelectedIcon: false,
                 onSelectionChanged: (set) => onViewModeChanged(set.first),
+              ),
+              SegmentedButton<NoteSortMode>(
+                segments: [
+                  ButtonSegment(
+                    value: NoteSortMode.custom,
+                    label: Text(
+                      strings.sortByCustom,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  ButtonSegment(
+                    value: NoteSortMode.newest,
+                    label: Text(
+                      strings.sortByNewest,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  ButtonSegment(
+                    value: NoteSortMode.oldest,
+                    label: Text(
+                      strings.sortByOldest,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+                selected: {sortMode},
+                showSelectedIcon: false,
+                onSelectionChanged: (set) => onSortModeChanged(set.first),
               ),
               IconButton(
                 tooltip: strings.overlay,

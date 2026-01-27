@@ -8,6 +8,7 @@ class Note {
   bool isPinned;
   bool isArchived;
   bool isDone;
+  int? customOrder;
 
   // Optional: Positioning for desktop notes
   double? x;
@@ -23,6 +24,7 @@ class Note {
     this.isPinned = false,
     this.isArchived = false,
     this.isDone = false,
+    this.customOrder,
     this.x,
     this.y,
     this.width,
@@ -36,6 +38,7 @@ class Note {
     bool? isPinned,
     bool? isArchived,
     bool? isDone,
+    int? customOrder,
     double? x,
     double? y,
     double? width,
@@ -49,6 +52,7 @@ class Note {
       isPinned: isPinned ?? this.isPinned,
       isArchived: isArchived ?? this.isArchived,
       isDone: isDone ?? this.isDone,
+      customOrder: customOrder ?? this.customOrder,
       x: x ?? this.x,
       y: y ?? this.y,
       width: width ?? this.width,
@@ -65,6 +69,7 @@ class Note {
       'isPinned': isPinned,
       'isArchived': isArchived,
       'isDone': isDone,
+      'customOrder': customOrder,
       'x': x,
       'y': y,
       'width': width,
@@ -81,6 +86,7 @@ class Note {
       isPinned: json['isPinned'] ?? false,
       isArchived: json['isArchived'] ?? false,
       isDone: json['isDone'] ?? false,
+      customOrder: json['customOrder'],
       x: json['x'],
       y: json['y'],
       width: json['width'],

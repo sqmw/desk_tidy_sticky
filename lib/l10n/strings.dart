@@ -16,8 +16,7 @@ class Strings {
   String get inputHint =>
       locale == AppLocale.zh ? '输入便笺…（回车保存）' : 'Type a note... (Enter to save)';
   String get saveNote => locale == AppLocale.zh ? '保存' : 'Save';
-  String get saveNoteAction =>
-      locale == AppLocale.zh ? '保存便笺' : 'Save note';
+  String get saveNoteAction => locale == AppLocale.zh ? '保存便笺' : 'Save note';
   String get cancel => locale == AppLocale.zh ? '取消' : 'Cancel';
   String get saveAndPin => locale == AppLocale.zh ? '保存并贴到桌面' : 'Save & pin';
   String get hideAfterSave =>
@@ -50,9 +49,15 @@ class Strings {
   String get trayShowNotes => locale == AppLocale.zh ? '显示便笺' : 'Show notes';
   String get trayNewNote => locale == AppLocale.zh ? '新建便笺' : 'New note';
   String get trayOverlay => locale == AppLocale.zh ? '桌面贴纸' : 'Desktop overlay';
-  String get trayOverlayToggleClickThrough =>
-      locale == AppLocale.zh ? '贴纸：切换鼠标交互' : 'Overlay: Toggle mouse interaction';
+  String get trayOverlayToggleClickThrough => locale == AppLocale.zh
+      ? '贴纸：切换鼠标交互'
+      : 'Overlay: Toggle mouse interaction';
   String get trayOverlayClose =>
       locale == AppLocale.zh ? '贴纸：关闭' : 'Overlay: Close';
   String get trayExit => locale == AppLocale.zh ? '退出' : 'Exit';
+
+  String get sortByCustom => locale == AppLocale.zh ? '手动' : 'Manual';
+  String get sortByNewest => locale == AppLocale.zh ? '最新' : 'Newest';
+  String get sortByOldest => locale == AppLocale.zh ? '最早' : 'Oldest';
+  String get sortMode => locale == AppLocale.zh ? '排序' : 'Sort';
 }
