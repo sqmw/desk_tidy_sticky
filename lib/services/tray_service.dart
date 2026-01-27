@@ -2,9 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
+import '../controllers/locale_controller.dart';
 import '../controllers/overlay_controller.dart';
+import '../l10n/strings.dart';
 import '../main.dart';
 import '../pages/overlay/overlay_page.dart';
+import 'overlay_process_manager.dart';
 
 class TrayService {
   final SystemTray _systemTray = SystemTray();
@@ -12,8 +15,12 @@ class TrayService {
   factory TrayService() => _instance;
   TrayService._internal();
   final OverlayController _overlayController = OverlayController.instance;
+  final OverlayProcessManager _overlayManager = OverlayProcessManager.instance;
+  LocaleController? _localeController;
 
-  Future<void> init() async {
+  Future<void> init({required LocaleController localeController}) async {
+    _localeController = localeController;
+
     final iconPath = await _resolveIconPath();
 
     await _systemTray.initSystemTray(
@@ -21,43 +28,8 @@ class TrayService {
       iconPath: iconPath,
     );
 
-    final Menu menu = Menu();
-    await menu.buildFrom([
-      MenuItemLabel(
-        label: 'Show Notes',
-        onClicked: (menuItem) => windowManager.show(),
-      ),
-      MenuItemLabel(
-        label: 'New Note',
-        onClicked: (menuItem) {
-          windowManager.show();
-          // and focus input? (Todo)
-        },
-      ),
-      MenuItemLabel(
-        label: 'Desktop Overlay',
-        onClicked: (_) async {
-          _overlayController.setClickThrough(false);
-          await windowManager.show();
-          appNavigatorKey.currentState?.pushNamed(OverlayPage.routeName);
-        },
-      ),
-      MenuItemLabel(
-        label: 'Overlay: Toggle Click-through',
-        onClicked: (_) => _overlayController.toggleClickThrough(),
-      ),
-      MenuItemLabel(
-        label: 'Overlay: Close',
-        onClicked: (_) {
-          _overlayController.setClickThrough(false);
-          appNavigatorKey.currentState?.popUntil((route) => route.isFirst);
-        },
-      ),
-      MenuSeparator(),
-      MenuItemLabel(label: 'Exit', onClicked: (menuItem) => exit(0)),
-    ]);
-
-    await _systemTray.setContextMenu(menu);
+    _rebuildMenu(Strings.of(localeController.current));
+    localeController.notifier.addListener(_handleLocaleChanged);
 
     _systemTray.registerSystemTrayEventHandler((eventName) {
       debugPrint("eventName: $eventName");
@@ -73,6 +45,84 @@ class TrayService {
         _systemTray.popUpContextMenu();
       }
     });
+  }
+
+  void _handleLocaleChanged() {
+    final lc = _localeController;
+    if (lc == null) return;
+    _rebuildMenu(Strings.of(lc.current));
+  }
+
+  Future<void> _rebuildMenu(Strings strings) async {
+    final Menu menu = Menu();
+    await menu.buildFrom([
+      MenuItemLabel(
+        label: strings.trayShowNotes,
+        onClicked: (menuItem) => windowManager.show(),
+      ),
+      MenuItemLabel(
+        label: strings.trayNewNote,
+        onClicked: (menuItem) {
+          windowManager.show();
+          // and focus input? (Todo)
+        },
+      ),
+      MenuItemLabel(
+        label: strings.trayOverlay,
+        onClicked: (_) async {
+          await _openOverlayFromTray();
+        },
+      ),
+      MenuItemLabel(
+        label: strings.trayOverlayToggleClickThrough,
+        onClicked: (_) async {
+          if (_overlayManager.isRunning) {
+            await _overlayManager.toggleClickThroughAll();
+          } else {
+            _overlayController.toggleClickThrough();
+          }
+        },
+      ),
+      MenuItemLabel(
+        label: strings.trayOverlayClose,
+        onClicked: (_) async {
+          if (_overlayManager.isRunning) {
+            _overlayManager.closeAll();
+            await _overlayManager.stopAll();
+          } else {
+            _overlayController.setClickThrough(false);
+            appNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+          }
+        },
+      ),
+      MenuSeparator(),
+      MenuItemLabel(
+        label: strings.trayExit,
+        onClicked: (_) async {
+          await _overlayManager.stopAll();
+          exit(0);
+        },
+      ),
+    ]);
+
+    await _systemTray.setContextMenu(menu);
+  }
+
+  Future<void> _openOverlayFromTray() async {
+    if (_overlayManager.isRunning) return;
+    final lc = _localeController;
+    if (lc == null) return;
+
+    final ok = await _overlayManager.startAll(
+      localeController: lc,
+      embedWorkerW: true,
+      initialClickThrough: false,
+    );
+    if (ok) return;
+
+    _overlayController.setClickThrough(false);
+    await windowManager.show();
+    appNavigatorKey.currentState?.pushNamed(OverlayPage.routeName);
   }
 
   Future<String> _resolveIconPath() async {

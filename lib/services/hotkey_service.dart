@@ -8,6 +8,7 @@ import 'dart:developer' as dev;
 import 'package:win32/win32.dart';
 import 'package:window_manager/window_manager.dart';
 import '../controllers/overlay_controller.dart';
+import 'overlay_process_manager.dart';
 
 /// Hotkey configuration data.
 class HotkeyConfig {
@@ -104,7 +105,12 @@ class HotkeyService {
     register(
       HotkeyConfig.toggleOverlayClickThrough,
       callback: (_) async {
-        OverlayController.instance.toggleClickThrough();
+        final overlayManager = OverlayProcessManager.instance;
+        if (overlayManager.isRunning) {
+          await overlayManager.toggleClickThroughAll();
+        } else {
+          OverlayController.instance.toggleClickThrough();
+        }
       },
     );
     startPolling();

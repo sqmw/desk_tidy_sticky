@@ -8,6 +8,7 @@ import '../../controllers/overlay_controller.dart';
 import '../../controllers/locale_controller.dart';
 import '../../l10n/strings.dart';
 import '../../services/notes_service.dart';
+import '../../services/overlay_process_manager.dart';
 import '../../services/panel_preferences.dart';
 import '../../utils/note_search.dart';
 import 'edit_note_dialog.dart';
@@ -43,6 +44,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final NotesService _notesService = NotesService();
+  final OverlayProcessManager _overlayManager = OverlayProcessManager.instance;
 
   List<Note> _notes = [];
   final Map<String, NoteSearchIndex> _searchIndex = {};
@@ -242,10 +244,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                 onSave: () => _saveNote(pin: false),
                 onSaveAndPin: () => _saveNote(pin: true),
                 onOpenOverlay: () {
-                  OverlayController.instance.setClickThrough(false);
-                  Navigator.of(
-                    context,
-                  ).pushNamed(OverlayPage.routeName, arguments: widget.strings);
+                  _openOverlay();
                 },
               ),
               PanelNotesList(
@@ -262,5 +261,26 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
         ),
       ),
     );
+  }
+
+  Future<void> _openOverlay() async {
+    // Prefer multi-process overlays (per monitor) to avoid virtual-screen quirks.
+    if (_overlayManager.isRunning) {
+      _overlayManager.closeAll();
+      await _overlayManager.stopAll();
+      return;
+    }
+
+    final ok = await _overlayManager.startAll(
+      localeController: widget.localeController,
+      embedWorkerW: true,
+      initialClickThrough: false,
+    );
+    if (ok) return;
+
+    // Fallback: in-process overlay route (single window).
+    OverlayController.instance.setClickThrough(false);
+    if (!mounted) return;
+    Navigator.of(context).pushNamed(OverlayPage.routeName);
   }
 }

@@ -48,4 +48,13 @@ class Strings {
   String get overlayTip => locale == AppLocale.zh
       ? '按 Esc 取消穿透'
       : 'Press Esc to disable click-through';
+
+  String get trayShowNotes => locale == AppLocale.zh ? '显示便笺' : 'Show notes';
+  String get trayNewNote => locale == AppLocale.zh ? '新建便笺' : 'New note';
+  String get trayOverlay => locale == AppLocale.zh ? '桌面贴纸' : 'Desktop overlay';
+  String get trayOverlayToggleClickThrough =>
+      locale == AppLocale.zh ? '贴纸：切换穿透' : 'Overlay: Toggle click-through';
+  String get trayOverlayClose =>
+      locale == AppLocale.zh ? '贴纸：关闭' : 'Overlay: Close';
+  String get trayExit => locale == AppLocale.zh ? '退出' : 'Exit';
 }

@@ -8,7 +8,7 @@ class WorkerWService {
 
   static int _workerw = 0;
 
-  static void attachToWorkerW(int hwnd) {
+  static bool attachToWorkerW(int hwnd) {
     final progman = win32.FindWindow(win32.TEXT('Progman'), nullptr);
     if (progman != 0) {
       final result = calloc<IntPtr>();
@@ -36,7 +36,9 @@ class WorkerWService {
         0,
         win32.SWP_NOSIZE | win32.SWP_NOMOVE | win32.SWP_SHOWWINDOW,
       );
+      return true;
     }
+    return false;
   }
 
   static int _findWorkerW() {

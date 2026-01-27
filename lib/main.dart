@@ -17,6 +17,10 @@ void main() async {
 
   final appConfig = AppConfig.initFromProcess();
 
+  final locale = await PanelPreferences.getLanguage();
+  final localeController = LocaleController(locale);
+  IpcService(localeController).start();
+
   // 1. Window Manager Init
   await windowManager.ensureInitialized();
 
@@ -33,17 +37,17 @@ void main() async {
       // Start hidden, let hotkey/tray show it
       await windowManager.hide();
     }
+    // Prevent Windows Aero Snap (same as desk_tidy)
+    await windowManager.setMaximizable(false);
   });
 
   // 2. Services Init
-  if (!appConfig.isBackground && !appConfig.isOverlay) {
-    await TrayService().init();
+  if (!appConfig.isChild && !appConfig.isBackground) {
+    if (!appConfig.isOverlay) {
+      await TrayService().init(localeController: localeController);
+    }
     await HotkeyService.instance.init();
   }
-
-  final locale = await PanelPreferences.getLanguage();
-  final localeController = LocaleController(locale);
-  IpcService(localeController).start();
 
   runApp(MyApp(localeController: localeController));
 }

@@ -48,6 +48,11 @@
 - 启动方式：`desk_tidy_sticky.exe --mode=overlay --embed-workerw`
 - 说明：Flutter 单窗口限制下，Overlay 与 Panel 共用同一个窗口句柄，因此推荐以独立进程模式启动 overlay（即使用 --mode=overlay）。
 
+## 多屏 Overlay（多进程）
+- 多屏不再使用“虚拟屏幕一张大窗”作为默认策略；改为每个显示器一个 overlay 子进程。
+- 入口：面板点击 Overlay 时，优先启动子进程 overlays；失败再回退到单进程 overlay route。
+- 细节见：`docs/2026-01-27-multi-process-overlay.md`
+
 ## 启动模式
 - 普通模式（默认）：面板 + 托盘 + 热键。
 - 后台模式：`--background`（作为 desk_tidy 子进程，仅后台 IPC，不注册托盘/热键）。

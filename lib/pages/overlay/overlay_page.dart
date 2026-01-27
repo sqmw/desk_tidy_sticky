@@ -1,11 +1,14 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:win32/win32.dart' as win32;
 
 import '../../config/app_config.dart';
+import '../../controllers/ipc_controller.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
@@ -27,6 +30,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   final NotesService _notesService = NotesService();
   Strings get strings => widget.strings ?? Strings.of(AppLocale.en);
   final OverlayController _overlayController = OverlayController.instance;
+  final IpcController _ipcController = IpcController.instance;
 
   bool _clickThrough = false;
   bool? _previousAlwaysOnTop;
@@ -42,6 +46,8 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     super.initState();
     windowManager.addListener(this);
     _overlayController.clickThrough.addListener(_handleClickThroughChanged);
+    _ipcController.refreshTick.addListener(_handleIpcRefresh);
+    _ipcController.closeTick.addListener(_handleIpcClose);
     _prepareWindow();
     _refreshPinned();
   }
@@ -50,13 +56,15 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   void dispose() {
     windowManager.removeListener(this);
     _overlayController.clickThrough.removeListener(_handleClickThroughChanged);
+    _ipcController.refreshTick.removeListener(_handleIpcRefresh);
+    _ipcController.closeTick.removeListener(_handleIpcClose);
     _restoreWindow();
     super.dispose();
   }
 
   Future<void> _prepareWindow() async {
     _clickThrough = _overlayController.clickThrough.value;
-    _virtualRect = _getVirtualScreenRect();
+    _virtualRect = _getOverlayRect();
     _previousAlwaysOnTop ??= await windowManager.isAlwaysOnTop();
     await windowManager.setAlwaysOnTop(true);
     await windowManager.setSkipTaskbar(true);
@@ -70,7 +78,27 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
 
     if (AppConfig.instance.embedWorkerW) {
       final hwnd = await windowManager.getId();
-      WorkerWService.attachToWorkerW(hwnd);
+      final attached = WorkerWService.attachToWorkerW(hwnd);
+      if (attached) {
+        await windowManager.setAlwaysOnTop(false);
+      }
+    }
+  }
+
+  void _handleIpcRefresh() {
+    _refreshPinned();
+  }
+
+  void _handleIpcClose() async {
+    _overlayController.setClickThrough(false);
+    await _restoreWindow();
+    if (!mounted) return;
+    if (AppConfig.instance.isOverlay) {
+      // Overlay-only process: exit completely.
+      // ignore: avoid_exit
+      exit(0);
+    } else {
+      Navigator.of(context).maybePop();
     }
   }
 
@@ -296,5 +324,19 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
       width.toDouble(),
       adjustedHeight.toDouble(),
     );
+  }
+
+  Rect _getOverlayRect() {
+    final m = AppConfig.instance.overlayMonitorRect;
+    if (m != null) {
+      // monitor rect might include negative origins.
+      return Rect.fromLTWH(
+        m.left.toDouble(),
+        m.top.toDouble(),
+        m.width.toDouble(),
+        m.height.toDouble(),
+      );
+    }
+    return _getVirtualScreenRect();
   }
 }
