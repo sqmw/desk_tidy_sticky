@@ -12,6 +12,7 @@ import '../../controllers/ipc_controller.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
+import '../../services/ipc_service.dart';
 import '../../services/notes_service.dart';
 import '../../services/workerw_service.dart';
 import 'sticky_note_card.dart';
@@ -177,6 +178,10 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     if (pos == null) return;
     await _notesService.updateNote(note.copyWith(x: pos.dx, y: pos.dy));
     await _refreshPinned();
+
+    // Notify parent to refresh list (e.g. if position was relevant, or just keep in sync)
+    // Position might not affect list view, but good practice.
+    IpcService.instance.sendToParent('refresh_notes');
   }
 
   Future<void> _editNote(Note note) async {
@@ -216,6 +221,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     if (newText == null || newText.isEmpty) return;
     await _notesService.updateNote(note.copyWith(text: newText));
     await _refreshPinned();
+    IpcService.instance.sendToParent('refresh_notes');
   }
 
   @override
@@ -247,14 +253,17 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
                   onDelete: () async {
                     await _notesService.deleteNote(note.id);
                     await _refreshPinned();
+                    IpcService.instance.sendToParent('refresh_notes');
                   },
                   onDoneToggle: () async {
                     await _notesService.toggleDone(note.id);
                     await _refreshPinned();
+                    IpcService.instance.sendToParent('refresh_notes');
                   },
                   onUnpin: () async {
                     await _notesService.togglePin(note.id);
                     await _refreshPinned();
+                    IpcService.instance.sendToParent('refresh_notes');
                   },
                   onEdit: () => _editNote(note),
                   strings: strings,

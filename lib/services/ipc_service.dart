@@ -21,11 +21,20 @@ class IpcService {
   final OverlayController overlayController;
   final IpcController ipcController;
 
+  static late IpcService instance;
+
   void start() {
+    instance = this; // Assign singleton on start
     stdin
         .transform(utf8.decoder)
         .transform(const LineSplitter())
-        .listen(_handleLine);
+        .listen(
+          _handleLine,
+          onDone: () {
+            // Parent closed pipe or died. Exit self.
+            exit(0);
+          },
+        );
   }
 
   Future<void> _handleLine(String line) async {
@@ -60,5 +69,15 @@ class IpcService {
     } catch (_) {
       // Ignore malformed messages.
     }
+  }
+
+  /// Sends a command to the parent process via stdout.
+  /// Format: IPC_JSON:{"cmd":"..."}
+  void sendToParent(String cmd) {
+    // Only child processes should send to parent
+    // But we don't strictly check AppConfig here for simplicity.
+    final jsonStr = jsonEncode({'cmd': cmd});
+    // Use a specific prefix so parent knows it's an IPC message, not just debug log.
+    print('IPC_JSON:$jsonStr');
   }
 }

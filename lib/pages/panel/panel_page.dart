@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../models/note_model.dart';
+import '../../controllers/ipc_controller.dart';
 import '../../controllers/locale_controller.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
@@ -62,6 +63,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     windowManager.addListener(this);
     _overlayManager.isRunningNotifier.addListener(_updateAlwaysOnTop);
     OverlayController.instance.clickThrough.addListener(_updateAlwaysOnTop);
+    IpcController.instance.refreshTick.addListener(_handleIpcRefresh);
     _loadPreferences();
     _searchController.addListener(() {
       setState(() {
@@ -78,6 +80,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     _focusNode.dispose();
     _overlayManager.isRunningNotifier.removeListener(_updateAlwaysOnTop);
     OverlayController.instance.clickThrough.removeListener(_updateAlwaysOnTop);
+    IpcController.instance.refreshTick.removeListener(_handleIpcRefresh);
     _zOrderTimer?.cancel();
     super.dispose();
   }
@@ -86,7 +89,6 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     // If overlay is running, force Always On Top to ensure panel is clickable
     // above the overlay window. Otherwise, respect user preference.
     final overlayActive = _overlayManager.isRunning;
-    final interactive = !OverlayController.instance.clickThrough.value;
     final shouldBeTop = _windowPinned || overlayActive;
 
     await windowManager.setAlwaysOnTop(shouldBeTop);
@@ -96,20 +98,12 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     if (overlayActive) {
       // Manage Heartbeat Timer
       // We only need a heartbeat if the Overlay is Interactive (competing for top-most)
-      if (interactive) {
-        if (_zOrderTimer == null || !_zOrderTimer!.isActive) {
-          _zOrderTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
-            if (mounted) {
-              windowManager.setAlwaysOnTop(true);
-            } else {
-              timer.cancel();
-            }
-          });
-        }
-      } else {
-        _zOrderTimer?.cancel();
-        _zOrderTimer = null;
-      }
+      // Manage Heartbeat Timer
+      // REMOVED: Periodic heartbeat was causing System Tray menu to close immediately
+      // because setAlwaysOnTop(true) steals focus/interrupts system popups.
+      // We will rely on onWindowBlur to re-assert Z-order if we lose it.
+      _zOrderTimer?.cancel();
+      _zOrderTimer = null;
 
       // Initial staged re-assertion (Race condition fix)
       await Future.delayed(const Duration(milliseconds: 300));
@@ -128,6 +122,10 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       _zOrderTimer?.cancel();
       _zOrderTimer = null;
     }
+  }
+
+  void _handleIpcRefresh() {
+    _loadNotes();
   }
 
   @override
@@ -219,6 +217,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     if (_hideAfterSave) {
       await windowManager.hide();
     }
+    _overlayManager.refreshAll();
   }
 
   Future<void> _toggleWindowPinned() async {
@@ -254,16 +253,19 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   Future<void> _togglePin(Note note) async {
     await _notesService.togglePin(note.id, sortMode: _sortMode);
     await _loadNotes();
+    _overlayManager.refreshAll();
   }
 
   Future<void> _toggleDone(Note note) async {
     await _notesService.toggleDone(note.id, sortMode: _sortMode);
     await _loadNotes();
+    _overlayManager.refreshAll();
   }
 
   Future<void> _toggleArchive(Note note) async {
     await _notesService.toggleArchive(note.id, sortMode: _sortMode);
     await _loadNotes();
+    _overlayManager.refreshAll();
   }
 
   Future<void> _delete(Note note) async {
@@ -273,16 +275,19 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       await _notesService.deleteNote(note.id);
     }
     await _loadNotes();
+    _overlayManager.refreshAll();
   }
 
   Future<void> _restore(Note note) async {
     await _notesService.restoreNote(note.id, sortMode: _sortMode);
     await _loadNotes();
+    _overlayManager.refreshAll();
   }
 
   Future<void> _emptyTrash() async {
     await _notesService.emptyTrash();
     await _loadNotes();
+    _overlayManager.refreshAll();
   }
 
   Future<void> _edit(Note note) async {
@@ -299,6 +304,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       sortMode: _sortMode,
     );
     await _loadNotes();
+    _overlayManager.refreshAll();
   }
 
   Future<void> _onReorder(int oldIndex, int newIndex) async {
@@ -316,6 +322,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       isArchivedView: _viewMode == NoteViewMode.archived,
     );
     await _loadNotes();
+    _overlayManager.refreshAll();
   }
 
   @override

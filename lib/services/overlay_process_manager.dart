@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import '../controllers/ipc_controller.dart';
 import '../controllers/locale_controller.dart';
 import '../controllers/overlay_controller.dart';
 import '../models/note_model.dart';
@@ -104,12 +105,35 @@ class OverlayProcessManager {
       );
 
       // Capture child output
-      proc.stdout.transform(utf8.decoder).listen((data) {
-        print('[Child ${proc.pid} STDOUT]: ${data.trim()}');
-      });
-      proc.stderr.transform(utf8.decoder).listen((data) {
-        print('[Child ${proc.pid} STDERR]: ${data.trim()}');
-      });
+      proc.stdout
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            if (line.startsWith('IPC_JSON:')) {
+              final jsonStr = line.substring('IPC_JSON:'.length);
+              try {
+                final data = jsonDecode(jsonStr);
+                if (data is Map) {
+                  final cmd = data['cmd'];
+                  if (cmd == 'refresh_notes') {
+                    IpcController.instance.requestRefresh();
+                  }
+                }
+              } catch (_) {
+                print(
+                  'OverlayProcessManager: Failed to parse IPC JSON: $jsonStr',
+                );
+              }
+            } else {
+              print('[Child ${proc.pid} STDOUT]: ${line.trim()}');
+            }
+          });
+      proc.stderr
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+            print('[Child ${proc.pid} STDERR]: ${line.trim()}');
+          });
 
       // Note: proc.exitCode is NOT available for detached processes in Dart.
       // We rely on external tracking or assume it's running.
