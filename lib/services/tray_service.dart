@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
 import '../controllers/locale_controller.dart';
+import '../controllers/overlay_controller.dart';
 import '../l10n/strings.dart';
 import 'overlay_window_manager.dart';
+import 'panel_preferences.dart';
 
 class TrayService {
   final SystemTray _systemTray = SystemTray();
@@ -113,11 +115,15 @@ class TrayService {
     final lc = _localeController;
     if (lc == null) return;
 
+    const clickThrough = true;
+    OverlayController.instance.setClickThrough(true);
+
     await _overlayManager.startAll(
       localeController: lc,
       embedWorkerW: true,
-      initialClickThrough: false,
+      initialClickThrough: clickThrough,
     );
+    await PanelPreferences.setOverlayEnabled(true);
   }
 
   Future<String> _resolveIconPath() async {

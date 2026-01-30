@@ -56,6 +56,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   double _glassOpacity = 0.18;
   NoteViewMode _viewMode = NoteViewMode.active;
   NoteSortMode _sortMode = NoteSortMode.custom;
+  bool _overlayClickThrough = true;
 
   @override
   void initState() {
@@ -63,6 +64,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     windowManager.addListener(this);
     _overlayManager.isRunningNotifier.addListener(_updateAlwaysOnTop);
     OverlayController.instance.clickThrough.addListener(_updateAlwaysOnTop);
+    // Click-through is transient; do not persist across app launches.
     IpcController.instance.refreshTick.addListener(_handleIpcRefresh);
     _loadPreferences();
     _searchController.addListener(() {
@@ -165,6 +167,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     final mode = await PanelPreferences.getViewMode();
     final sort = await PanelPreferences.getSortMode();
     final glass = await PanelPreferences.getGlassOpacity();
+    final overlayEnabled = await PanelPreferences.getOverlayEnabled();
     if (!mounted) return;
     setState(() {
       _hideAfterSave = hide;
@@ -173,8 +176,17 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       _sortMode = sort;
       _glassOpacity = glass;
     });
+    _overlayClickThrough = true;
+    OverlayController.instance.setClickThrough(true);
     await _loadNotes();
     await windowManager.setAlwaysOnTop(pinned);
+    if (overlayEnabled) {
+      await _overlayManager.startAll(
+        localeController: widget.localeController,
+        embedWorkerW: true,
+        initialClickThrough: _overlayClickThrough,
+      );
+    }
   }
 
   List<Note> get _visibleNotes {
@@ -417,14 +429,20 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   Future<void> _openOverlay() async {
     if (_overlayManager.isRunning) {
       await _overlayManager.stopAll();
+      await PanelPreferences.setOverlayEnabled(false);
       return;
     }
 
+    _overlayClickThrough = true;
+    OverlayController.instance.setClickThrough(true);
     final ok = await _overlayManager.startAll(
       localeController: widget.localeController,
       embedWorkerW: true,
-      initialClickThrough: false,
+      initialClickThrough: _overlayClickThrough,
     );
+    if (ok) {
+      await PanelPreferences.setOverlayEnabled(true);
+    }
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

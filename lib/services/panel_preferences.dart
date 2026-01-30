@@ -10,6 +10,7 @@ class PanelPreferences {
   static const _kLanguage = 'panel_language';
   static const _kSortMode = 'panel_sort_mode';
   static const _kGlassOpacity = 'panel_glass_opacity';
+  static const _kOverlayEnabled = 'overlay_enabled';
 
   static Future<bool> getHideAfterSave() async {
     final prefs = await SharedPreferences.getInstance();
@@ -78,5 +79,15 @@ class PanelPreferences {
   static Future<void> setSortMode(NoteSortMode mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kSortMode, mode.name);
+  }
+
+  static Future<bool> getOverlayEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kOverlayEnabled) ?? false;
+  }
+
+  static Future<void> setOverlayEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kOverlayEnabled, value);
   }
 }
