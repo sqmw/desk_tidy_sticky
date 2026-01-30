@@ -20,6 +20,10 @@ reparenting could also desync window bounds during layer switches.
 - Apply overlay bounds using `setBounds` (logical units) and perform a small
   resize refresh on Windows to keep the Flutter surface in sync after z-order
   changes.
+- Keep bottom layer pinned to WorkerW even in interactive mode, so switching
+  z-order does not temporarily surface all notes.
+- If WorkerW attach fails, force the window to HWND_BOTTOM to avoid it
+  floating above other windows.
 - Limit position-update refreshes to panel windows only.
 
 ## Affected Files

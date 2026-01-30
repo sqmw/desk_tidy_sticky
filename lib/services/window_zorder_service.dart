@@ -26,6 +26,22 @@ class WindowZOrderService {
     );
   }
 
+  static Future<void> setBottomNoActivate() async {
+    if (!Platform.isWindows) {
+      return;
+    }
+    final hwnd = await windowManager.getId();
+    win32.SetWindowPos(
+      hwnd,
+      win32.HWND_BOTTOM,
+      0,
+      0,
+      0,
+      0,
+      win32.SWP_NOMOVE | win32.SWP_NOSIZE | win32.SWP_NOACTIVATE,
+    );
+  }
+
   static Future<void> showNoActivate() async {
     if (!Platform.isWindows) {
       await windowManager.show();

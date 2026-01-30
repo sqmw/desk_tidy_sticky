@@ -162,12 +162,11 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     final layer = AppConfig.instance.layer;
 
     // 1. If it's the Top layer, it's ALWAYS Top.
-    // 2. If it's the Bottom layer, it's Top only if interactive (for editing).
+    // 2. Bottom layer stays at bottom even when interactive.
     // 3. If it's the Any/None layer, check if any notes are set to always-on-top.
     final anyAlwaysOnTop = _pinned.any((n) => n.isAlwaysOnTop);
     final shouldBeTop =
         (layer == OverlayLayer.top) ||
-        interactive ||
         (layer == OverlayLayer.any && anyAlwaysOnTop);
 
     print(
@@ -187,6 +186,11 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
       await WindowZOrderService.setAlwaysOnTopNoActivate(false);
       if (AppConfig.instance.embedWorkerW) {
         reparented = WorkerWService.attachToWorkerW(hwnd);
+        if (!reparented) {
+          await WindowZOrderService.setBottomNoActivate();
+        }
+      } else {
+        await WindowZOrderService.setBottomNoActivate();
       }
     }
     if (reparented || AppConfig.instance.embedWorkerW) {
