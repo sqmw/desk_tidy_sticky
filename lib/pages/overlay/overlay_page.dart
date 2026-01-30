@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
@@ -34,9 +36,11 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
 
   bool _clickThrough = false;
   bool? _previousAlwaysOnTop;
+  bool _hasNotes = false;
   List<Note> _pinned = [];
   final Map<String, Offset> _positions = {};
   Rect _virtualRect = const Rect.fromLTWH(0, 0, 1920, 1080);
+  double _devicePixelRatio = 1.0;
 
   static const Size _panelDefaultSize = Size(360, 500);
 
@@ -52,6 +56,23 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     _ipcController.closeTick.addListener(_handleIpcClose);
     _prepareWindow();
     _refreshPinned();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateDevicePixelRatio();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateDevicePixelRatio();
+  }
+
+  void _updateDevicePixelRatio() {
+    final next = View.of(context).devicePixelRatio;
+    if ((_devicePixelRatio - next).abs() < 0.001) return;
+    _devicePixelRatio = next;
+    _applyOverlayBounds();
+    _refreshPinned();
   }
 
   @override
@@ -66,7 +87,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
 
   Future<void> _prepareWindow() async {
     _clickThrough = _overlayController.clickThrough.value;
-    _virtualRect = _getOverlayRect();
+    _virtualRect = _getOverlayRectLogical();
     _previousAlwaysOnTop ??= await windowManager.isAlwaysOnTop();
     // Do NOT set Topmost initially to avoid covering the main window
     // await windowManager.setAlwaysOnTop(true);
@@ -74,12 +95,11 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     await windowManager.setAsFrameless();
     await windowManager.setBackgroundColor(Colors.transparent);
     await windowManager.setHasShadow(false);
-    await windowManager.setIgnoreMouseEvents(_clickThrough);
-    await windowManager.setSize(_virtualRect.size);
+    await windowManager.setIgnoreMouseEvents(_effectiveClickThrough);
+    await _applyOverlayBounds();
     print(
       '[OverlayPage] _prepareWindow: setting position to ${_virtualRect.topLeft}',
     );
-    await windowManager.setPosition(_virtualRect.topLeft);
 
     // Ensure we are at the bottom Z-order before showing
     await WindowZOrderService.setAlwaysOnTopNoActivate(false);
@@ -128,9 +148,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     setState(() {
       _clickThrough = value;
     });
-    await windowManager.setIgnoreMouseEvents(value);
-
-    await _updateWindowZOrder();
+    await _applyMouseMode();
 
     // Force Windows to refresh hit-testing.
     // We only call show() to refresh the window style/Z-order.
@@ -140,7 +158,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   }
 
   Future<void> _updateWindowZOrder() async {
-    final interactive = !_clickThrough;
+    final interactive = !_effectiveClickThrough;
     final layer = AppConfig.instance.layer;
 
     // 1. If it's the Top layer, it's ALWAYS Top.
@@ -171,16 +189,49 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
         reparented = WorkerWService.attachToWorkerW(hwnd);
       }
     }
-    if (reparented) {
+    if (reparented || AppConfig.instance.embedWorkerW) {
       await _applyOverlayBounds();
     }
     await WindowZOrderService.showNoActivate();
   }
 
+  bool get _effectiveClickThrough => _clickThrough || _pinned.isEmpty;
+
+  Future<void> _applyMouseMode() async {
+    if (!_hasNotes) {
+      await windowManager.setIgnoreMouseEvents(true);
+      return;
+    }
+    await windowManager.setIgnoreMouseEvents(_effectiveClickThrough);
+    await _updateWindowZOrder();
+  }
+
+  Future<void> _syncVisibility() async {
+    if (_hasNotes) {
+      await _applyOverlayBounds();
+      await WindowZOrderService.showNoActivate();
+    } else {
+      await windowManager.hide();
+    }
+  }
+
   Future<void> _applyOverlayBounds() async {
-    _virtualRect = _getOverlayRect();
-    await windowManager.setSize(_virtualRect.size);
-    await windowManager.setPosition(_virtualRect.topLeft);
+    _virtualRect = _getOverlayRectLogical();
+    await windowManager.setBounds(
+      Rect.fromLTWH(
+        _virtualRect.left,
+        _virtualRect.top,
+        _virtualRect.width,
+        _virtualRect.height,
+      ),
+    );
+    if (Platform.isWindows) {
+      final size = await windowManager.getSize();
+      await windowManager.setSize(
+        Size(size.width + 1, size.height + 1),
+      );
+      await windowManager.setSize(size);
+    }
   }
 
   Offset _fallbackPosition(int index) {
@@ -192,6 +243,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   Future<void> _refreshPinned() async {
     await _notesService.loadNotes();
     final allPinned = List<Note>.from(_notesService.pinnedNotes);
+    final pendingMigrations = <(String, Offset)>[];
 
     // Filter by layer
     final layer = AppConfig.instance.layer;
@@ -203,6 +255,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
 
     setState(() {
       _pinned = filtered;
+      _hasNotes = filtered.isNotEmpty;
       for (final note in filtered) {
         // Use global index among all pinned notes for fallback position consistency
         final globalIndex = allPinned.indexWhere((n) => n.id == note.id);
@@ -210,13 +263,45 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
         print(
           '[OverlayPage] Note ${note.id}: isAlwaysOnTop=${note.isAlwaysOnTop}, layer=${layer.name}, pos=(${note.x}, ${note.y}) globalIndex=$globalIndex',
         );
-        _positions[note.id] = Offset(
-          note.x ?? _fallbackPosition(globalIndex).dx,
-          note.y ?? _fallbackPosition(globalIndex).dy,
-        );
+        final pos = _normalizeStoredPosition(note, globalIndex);
+        if (pos.needsPersist) {
+          pendingMigrations.add((note.id, pos.value));
+        }
+        _positions[note.id] = pos.value;
       }
     });
-    await _updateWindowZOrder();
+    for (final item in pendingMigrations) {
+      await _notesService.updateNotePosition(
+        item.$1,
+        x: item.$2.dx,
+        y: item.$2.dy,
+      );
+    }
+    await _syncVisibility();
+    await _applyMouseMode();
+  }
+
+  ({Offset value, bool needsPersist}) _normalizeStoredPosition(
+    Note note,
+    int globalIndex,
+  ) {
+    final fallback = _fallbackPosition(globalIndex);
+    final x = note.x;
+    final y = note.y;
+    if (x == null || y == null) {
+      return (value: fallback, needsPersist: false);
+    }
+    if (_devicePixelRatio <= 1.0) {
+      return (value: Offset(x, y), needsPersist: false);
+    }
+    final maxX = _virtualRect.width + 8;
+    final maxY = _virtualRect.height + 8;
+    final likelyPhysical = x > maxX || y > maxY;
+    if (!likelyPhysical) {
+      return (value: Offset(x, y), needsPersist: false);
+    }
+    final scaled = Offset(x / _devicePixelRatio, y / _devicePixelRatio);
+    return (value: scaled, needsPersist: true);
   }
 
   void _updateDrag(Note note, Offset delta) {
@@ -233,13 +318,13 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
 
     // Notify parent to refresh list (e.g. if position was relevant, or just keep in sync)
     // Position might not affect list view, but good practice.
-    WindowMessageService.instance.sendToAll('refresh_notes');
+    WindowMessageService.instance.sendToPanels('refresh_notes');
   }
 
   Future<void> _editNote(Note note) async {
     if (_clickThrough) {
-      setState(() => _clickThrough = false);
-      await windowManager.setIgnoreMouseEvents(false);
+      _overlayController.setClickThrough(false);
+      await _applyMouseMode();
     }
 
     if (!mounted) return;
@@ -341,7 +426,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     return Offset(offset.dx.clamp(minX, maxX), offset.dy.clamp(minY, maxY));
   }
 
-  Rect _getVirtualScreenRect() {
+  Rect _getVirtualScreenRectPhysical() {
     final left = win32.GetSystemMetrics(win32.SM_XVIRTUALSCREEN);
     final top = win32.GetSystemMetrics(win32.SM_YVIRTUALSCREEN);
     final width = win32.GetSystemMetrics(win32.SM_CXVIRTUALSCREEN);
@@ -360,7 +445,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     );
   }
 
-  Rect _getOverlayRect() {
+  Rect _getOverlayRectPhysical() {
     final m = AppConfig.instance.overlayMonitorRect;
     if (m != null) {
       // monitor rect might include negative origins.
@@ -371,6 +456,20 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
         m.height.toDouble(),
       );
     }
-    return _getVirtualScreenRect();
+    return _getVirtualScreenRectPhysical();
+  }
+
+  Rect _getOverlayRectLogical() {
+    return _toLogicalRect(_getOverlayRectPhysical());
+  }
+
+  Rect _toLogicalRect(Rect rect) {
+    final dpr = _devicePixelRatio == 0 ? 1.0 : _devicePixelRatio;
+    return Rect.fromLTWH(
+      rect.left / dpr,
+      rect.top / dpr,
+      rect.width / dpr,
+      rect.height / dpr,
+    );
   }
 }

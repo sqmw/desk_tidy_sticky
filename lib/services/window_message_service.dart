@@ -5,6 +5,7 @@ import '../controllers/ipc_controller.dart';
 import '../controllers/locale_controller.dart';
 import '../controllers/overlay_controller.dart';
 import '../models/note_model.dart';
+import '../models/window_args.dart';
 
 class WindowMessageService {
   WindowMessageService(
@@ -20,26 +21,19 @@ class WindowMessageService {
   final OverlayController overlayController;
   final IpcController ipcController;
 
-  final WindowMethodChannel _channel = WindowMethodChannel(
-    'desk_tidy_sticky',
-  );
   late final WindowController _windowController;
   bool _suppressLocaleBroadcast = false;
 
   Future<void> start() async {
     instance = this;
     _windowController = await WindowController.fromCurrentEngine();
-    _channel.setMethodCallHandler(_handleMethodCall);
+    await _windowController.setWindowMethodHandler(_handleMethodCall);
     localeController.notifier.addListener(_handleLocaleChanged);
   }
 
   Future<void> _handleMethodCall(MethodCall call) async {
     final rawArgs = call.arguments;
     final args = rawArgs is Map ? rawArgs : const <Object?, Object?>{};
-    final sourceId = args['sourceWindowId'] as int?;
-    if (sourceId != null && sourceId == _windowController.windowId) {
-      return;
-    }
 
     switch (call.method) {
       case 'set_language':
@@ -83,10 +77,42 @@ class WindowMessageService {
   }
 
   Future<void> sendToAll(String method, [Map<String, Object?>? args]) async {
-    final payload = <String, Object?>{
-      if (args != null) ...args,
-      'sourceWindowId': _windowController.windowId,
-    };
-    await _channel.invokeMethod(method, payload);
+    await _sendWhere((_) => true, method, args);
+  }
+
+  Future<void> sendToPanels(
+    String method, [
+    Map<String, Object?>? args,
+  ]) async {
+    await _sendWhere((windowArgs) {
+      return windowArgs.type == AppWindowType.panel;
+    }, method, args);
+  }
+
+  Future<void> sendToOverlays(
+    String method, [
+    Map<String, Object?>? args,
+  ]) async {
+    await _sendWhere((windowArgs) {
+      return windowArgs.type == AppWindowType.overlay;
+    }, method, args);
+  }
+
+  Future<void> _sendWhere(
+    bool Function(WindowArgs args) predicate,
+    String method, [
+    Map<String, Object?>? args,
+  ]) async {
+    final controllers = await WindowController.getAll();
+    for (final controller in controllers) {
+      if (controller.windowId == _windowController.windowId) continue;
+      final windowArgs = WindowArgs.fromJsonString(controller.arguments);
+      if (!predicate(windowArgs)) continue;
+      try {
+        await controller.invokeMethod(method, args);
+      } catch (_) {
+        // Window may not be ready to receive messages yet.
+      }
+    }
   }
 }

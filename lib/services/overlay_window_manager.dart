@@ -67,9 +67,9 @@ class OverlayWindowManager {
 
   Future<void> stopAll() async {
     if (_windows.isEmpty) return;
+    await _closeOverlayWindows();
     _windows.clear();
     isRunningNotifier.value = false;
-    await WindowMessageService.instance.sendToAll('close_overlay');
   }
 
   Future<void> toggleClickThroughAll() async {
@@ -81,7 +81,7 @@ class OverlayWindowManager {
   }
 
   void closeAll() {
-    WindowMessageService.instance.sendToAll('close_overlay');
+    _closeOverlayWindows();
   }
 
   Future<bool> _startOne({
@@ -106,6 +106,15 @@ class OverlayWindowManager {
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  Future<void> _closeOverlayWindows() async {
+    final controllers = await WindowController.getAll();
+    for (final controller in controllers) {
+      final args = WindowArgs.fromJsonString(controller.arguments);
+      if (args.type != AppWindowType.overlay) continue;
+      await controller.invokeMethod('close_overlay');
     }
   }
 

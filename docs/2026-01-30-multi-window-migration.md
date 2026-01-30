@@ -18,12 +18,16 @@ implementation to simplify IPC and reduce complexity.
   - `embedWorkerW`
 
 ## Messaging Rules
-- Messages include `sourceWindowId` to avoid self-loop.
+- Uses `DesktopMultiWindow.setMethodHandler` and `invokeMethod(windowId, ...)`
+  for targeted delivery across windows.
 - Commands:
   - `refresh_notes`
   - `close_overlay`
   - `set_language`
   - `set_click_through`
+## Known Behavior
+- A newly created window may not have registered its handler yet. Message send
+  attempts are best-effort and ignore "channel unregistered" errors.
 
 ## Windows Runner Change
 `windows/runner/flutter_window.cpp` registers plugins for sub-windows so
