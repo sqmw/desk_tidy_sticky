@@ -9,7 +9,7 @@ Minimal sticky notes companion for the Desk Tidy family (Windows / Flutter). Fas
 - Archive/unarchive notes; toggle Active/Archived view; edit notes.
 - Done/pin/archive toggles and swipe actions (delete / archive).
 - Tray menu: show panel, create note, open desktop overlay, exit.
-- Desktop overlay (preview): pinned notes float on top, draggable with stored positions (committed on drag end), click-through toggle, edit on double click.
+- Desktop overlay (preview): pinned notes float on top, draggable with stored positions (committed on drag end), click-through toggle, edit on double click. Overlay runs as same-process multi-window on Windows.
 
 ## Run
 ```bash

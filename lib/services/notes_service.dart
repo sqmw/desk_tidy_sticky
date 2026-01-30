@@ -94,6 +94,20 @@ class NotesService {
     }
   }
 
+  Future<void> updateNotePosition(
+    String id, {
+    required double x,
+    required double y,
+  }) async {
+    final index = _notes.indexWhere((n) => n.id == id);
+    if (index != -1) {
+      final note = _notes[index];
+      note.x = x;
+      note.y = y;
+      await saveNotes();
+    }
+  }
+
   Future<void> reorderNotes(
     List<Note> reorderedVisibleNotes, {
     required bool isArchivedView,
@@ -131,6 +145,20 @@ class NotesService {
     if (index != -1) {
       _notes[index] = _notes[index].copyWith(isPinned: !_notes[index].isPinned);
       _sort(sortMode);
+      await saveNotes();
+    }
+  }
+
+  Future<void> toggleZOrder(
+    String id, {
+    NoteSortMode sortMode = NoteSortMode.custom,
+  }) async {
+    final index = _notes.indexWhere((n) => n.id == id);
+    if (index != -1) {
+      _notes[index] = _notes[index].copyWith(
+        isAlwaysOnTop: !_notes[index].isAlwaysOnTop,
+      );
+      // No sort change needed for z-order usually, but good to keep consistency.
       await saveNotes();
     }
   }

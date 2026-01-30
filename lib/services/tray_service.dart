@@ -4,14 +4,14 @@ import 'package:system_tray/system_tray.dart';
 import 'package:window_manager/window_manager.dart';
 import '../controllers/locale_controller.dart';
 import '../l10n/strings.dart';
-import 'overlay_process_manager.dart';
+import 'overlay_window_manager.dart';
 
 class TrayService {
   final SystemTray _systemTray = SystemTray();
   static final TrayService _instance = TrayService._internal();
   factory TrayService() => _instance;
   TrayService._internal();
-  final OverlayProcessManager _overlayManager = OverlayProcessManager.instance;
+  final OverlayWindowManager _overlayManager = OverlayWindowManager.instance;
   LocaleController? _localeController;
 
   Future<void> init({required LocaleController localeController}) async {
@@ -82,7 +82,6 @@ class TrayService {
         label: isRunning ? strings.trayOverlayClose : strings.trayOverlay,
         onClicked: (_) async {
           if (isRunning) {
-            _overlayManager.closeAll();
             await _overlayManager.stopAll();
           } else {
             await _openOverlayFromTray();

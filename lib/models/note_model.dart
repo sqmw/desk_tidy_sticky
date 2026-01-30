@@ -15,6 +15,7 @@ class Note {
   bool isArchived;
   bool isDone;
   bool isDeleted;
+  bool isAlwaysOnTop;
   int? customOrder;
 
   // Optional: Positioning for desktop notes
@@ -32,6 +33,7 @@ class Note {
     this.isArchived = false,
     this.isDone = false,
     this.isDeleted = false,
+    this.isAlwaysOnTop = false,
     this.customOrder,
     this.x,
     this.y,
@@ -47,6 +49,7 @@ class Note {
     bool? isArchived,
     bool? isDone,
     bool? isDeleted,
+    bool? isAlwaysOnTop,
     int? customOrder,
     double? x,
     double? y,
@@ -62,6 +65,7 @@ class Note {
       isArchived: isArchived ?? this.isArchived,
       isDone: isDone ?? this.isDone,
       isDeleted: isDeleted ?? this.isDeleted,
+      isAlwaysOnTop: isAlwaysOnTop ?? this.isAlwaysOnTop,
       customOrder: customOrder ?? this.customOrder,
       x: x ?? this.x,
       y: y ?? this.y,
@@ -80,6 +84,7 @@ class Note {
       'isArchived': isArchived,
       'isDone': isDone,
       'isDeleted': isDeleted,
+      'isAlwaysOnTop': isAlwaysOnTop,
       'customOrder': customOrder,
       'x': x,
       'y': y,
@@ -98,6 +103,7 @@ class Note {
       isArchived: json['isArchived'] ?? false,
       isDone: json['isDone'] ?? false,
       isDeleted: json['isDeleted'] ?? false,
+      isAlwaysOnTop: json['isAlwaysOnTop'] ?? false,
       customOrder: json['customOrder'],
       x: json['x'],
       y: json['y'],

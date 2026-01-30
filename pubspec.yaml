@@ -13,6 +13,7 @@ dependencies:
   
   # Core Window & System
   window_manager: ^0.5.1
+  desktop_multi_window: ^0.3.0
   system_tray: 2.0.3
   win32: ^5.0.0
   ffi: ^2.1.0

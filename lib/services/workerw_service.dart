@@ -9,7 +9,10 @@ class WorkerWService {
   static int _workerw = 0;
 
   static bool attachToWorkerW(int hwnd) {
-    print('WorkerWService: attachToWorkerW hwnd=$hwnd');
+    final currentParent = win32.GetParent(hwnd);
+    print(
+      'WorkerWService: attachToWorkerW hwnd=$hwnd, currentParent=$currentParent',
+    );
     return using((arena) {
       try {
         final progmanName = 'Progman'.toNativeUtf16(allocator: arena);
@@ -41,7 +44,10 @@ class WorkerWService {
             0,
             0,
             0,
-            win32.SWP_NOSIZE | win32.SWP_NOMOVE | win32.SWP_SHOWWINDOW,
+            win32.SWP_NOSIZE |
+                win32.SWP_NOMOVE |
+                win32.SWP_SHOWWINDOW |
+                win32.SWP_NOACTIVATE,
           );
           print('WorkerWService: Attached successfully');
           return true;
@@ -49,6 +55,37 @@ class WorkerWService {
         return false;
       } catch (e, st) {
         print('WorkerWService: Error attaching: $e\n$st');
+        return false;
+      }
+    });
+  }
+
+  static bool detachFromWorkerW(int hwnd) {
+    final currentParent = win32.GetParent(hwnd);
+    print(
+      'WorkerWService: detachFromWorkerW hwnd=$hwnd, currentParent=$currentParent',
+    );
+    return using((arena) {
+      try {
+        final desktop = win32.GetDesktopWindow();
+        print('WorkerWService: Setting parent to desktop=$desktop');
+        win32.SetParent(hwnd, desktop);
+        // Bring to top
+        win32.SetWindowPos(
+          hwnd,
+          win32.HWND_TOP,
+          0,
+          0,
+          0,
+          0,
+          win32.SWP_NOSIZE |
+              win32.SWP_NOMOVE |
+              win32.SWP_SHOWWINDOW |
+              win32.SWP_NOACTIVATE,
+        );
+        return true;
+      } catch (e) {
+        print('WorkerWService: Error detaching: $e');
         return false;
       }
     });

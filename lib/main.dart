@@ -1,16 +1,18 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:window_manager/window_manager.dart';
 import 'config/app_config.dart';
 import 'controllers/locale_controller.dart';
 import 'l10n/strings.dart' as l10n;
 import 'models/note_model.dart' show AppLocale;
+import 'models/window_args.dart';
 import 'pages/panel/panel_page.dart';
 import 'pages/overlay/overlay_page.dart';
 import 'services/hotkey_service.dart';
-import 'services/ipc_service.dart';
 import 'services/tray_service.dart';
 import 'services/panel_preferences.dart';
+import 'services/window_message_service.dart';
 import 'theme/app_theme.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
@@ -19,14 +21,16 @@ void main(List<String> args) async {
   print('[Main] Starting... PID: $pid, args: $args');
   WidgetsFlutterBinding.ensureInitialized();
 
-  final appConfig = AppConfig.fromArgs(args);
+  final windowController = await WindowController.fromCurrentEngine();
+  final windowArgs = WindowArgs.fromJsonString(windowController.arguments);
+  final appConfig = AppConfig.fromWindowArgs(windowArgs);
   print(
     '[Main] AppConfig mode: ${appConfig.mode}, isChild: ${appConfig.isChild}, monitor: ${appConfig.monitorRectArg}',
   );
 
   final locale = await PanelPreferences.getLanguage();
   final localeController = LocaleController(locale);
-  IpcService(localeController).start();
+  await WindowMessageService(localeController).start();
 
   // 1. Window Manager Init
   await windowManager.ensureInitialized();
@@ -49,10 +53,8 @@ void main(List<String> args) async {
   });
 
   // 2. Services Init
-  if (!appConfig.isChild && !appConfig.isBackground) {
-    if (!appConfig.isOverlay) {
-      await TrayService().init(localeController: localeController);
-    }
+  if (!appConfig.isOverlay && !appConfig.isBackground) {
+    await TrayService().init(localeController: localeController);
     await HotkeyService.instance.init();
   }
 

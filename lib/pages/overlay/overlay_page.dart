@@ -1,7 +1,5 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
@@ -12,9 +10,11 @@ import '../../controllers/ipc_controller.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
-import '../../services/ipc_service.dart';
+import '../../models/overlay_layer.dart';
 import '../../services/notes_service.dart';
+import '../../services/window_zorder_service.dart';
 import '../../services/workerw_service.dart';
+import '../../services/window_message_service.dart';
 import 'sticky_note_card.dart';
 
 class OverlayPage extends StatefulWidget {
@@ -82,10 +82,10 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     await windowManager.setPosition(_virtualRect.topLeft);
 
     // Ensure we are at the bottom Z-order before showing
-    await windowManager.setAlwaysOnTop(false);
+    await WindowZOrderService.setAlwaysOnTopNoActivate(false);
 
     print('[OverlayPage] _prepareWindow: show and focus');
-    await windowManager.show();
+    await WindowZOrderService.showNoActivate();
     // await windowManager.focus(); // Avoid stealing focus/raising if possible
 
     if (AppConfig.instance.embedWorkerW) {
@@ -104,16 +104,16 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     await _restoreWindow();
     if (!mounted) return;
     if (AppConfig.instance.isOverlay) {
-      // Overlay-only process: exit completely.
-      // ignore: avoid_exit
-      exit(0);
+      await windowManager.close();
     } else {
       Navigator.of(context).maybePop();
     }
   }
 
   Future<void> _restoreWindow() async {
-    await windowManager.setAlwaysOnTop(_previousAlwaysOnTop ?? false);
+    await WindowZOrderService.setAlwaysOnTopNoActivate(
+      _previousAlwaysOnTop ?? false,
+    );
     await windowManager.setIgnoreMouseEvents(false);
     await windowManager.setHasShadow(true);
     if (!AppConfig.instance.isOverlay) {
@@ -130,19 +130,57 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     });
     await windowManager.setIgnoreMouseEvents(value);
 
-    if (value) {
-      // Click-through: Drop to bottom
-      await windowManager.setAlwaysOnTop(false);
-    } else {
-      // Interactive: Raise to top
-      await windowManager.setAlwaysOnTop(true);
-    }
+    await _updateWindowZOrder();
 
     // Force Windows to refresh hit-testing.
     // We only call show() to refresh the window style/Z-order.
     // We DO NOT call focus() here because it steals focus from the Main Panel,
     // which then gets blocked by this full-screen overlay.
-    await windowManager.show();
+    await WindowZOrderService.showNoActivate();
+  }
+
+  Future<void> _updateWindowZOrder() async {
+    final interactive = !_clickThrough;
+    final layer = AppConfig.instance.layer;
+
+    // 1. If it's the Top layer, it's ALWAYS Top.
+    // 2. If it's the Bottom layer, it's Top only if interactive (for editing).
+    // 3. If it's the Any/None layer, check if any notes are set to always-on-top.
+    final anyAlwaysOnTop = _pinned.any((n) => n.isAlwaysOnTop);
+    final shouldBeTop =
+        (layer == OverlayLayer.top) ||
+        interactive ||
+        (layer == OverlayLayer.any && anyAlwaysOnTop);
+
+    print(
+      '[OverlayPage] _updateWindowZOrder: layer=${layer.name}, interactive=$interactive, anyOnTop=$anyAlwaysOnTop -> shouldBeTop=$shouldBeTop',
+    );
+
+    final hwnd = await windowManager.getId();
+    _previousAlwaysOnTop = shouldBeTop;
+
+    bool reparented = false;
+    if (shouldBeTop) {
+      if (AppConfig.instance.embedWorkerW) {
+        reparented = WorkerWService.detachFromWorkerW(hwnd);
+      }
+      await WindowZOrderService.setAlwaysOnTopNoActivate(true);
+    } else {
+      await WindowZOrderService.setAlwaysOnTopNoActivate(false);
+      if (AppConfig.instance.embedWorkerW) {
+        reparented = WorkerWService.attachToWorkerW(hwnd);
+      }
+    }
+    if (reparented) {
+      await _applyOverlayBounds();
+    }
+    await WindowZOrderService.showNoActivate();
+  }
+
+  Future<void> _applyOverlayBounds() async {
+    _virtualRect = _getOverlayRect();
+    await windowManager.setSize(_virtualRect.size);
+    await windowManager.setPosition(_virtualRect.topLeft);
   }
 
   Offset _fallbackPosition(int index) {
@@ -153,17 +191,32 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
 
   Future<void> _refreshPinned() async {
     await _notesService.loadNotes();
-    final pinned = List<Note>.from(_notesService.pinnedNotes);
+    final allPinned = List<Note>.from(_notesService.pinnedNotes);
+
+    // Filter by layer
+    final layer = AppConfig.instance.layer;
+    final filtered = allPinned.where((n) {
+      if (layer == OverlayLayer.top) return n.isAlwaysOnTop;
+      if (layer == OverlayLayer.bottom) return !n.isAlwaysOnTop;
+      return true; // any
+    }).toList();
+
     setState(() {
-      _pinned = pinned;
-      for (final entry in pinned.asMap().entries) {
-        final note = entry.value;
+      _pinned = filtered;
+      for (final note in filtered) {
+        // Use global index among all pinned notes for fallback position consistency
+        final globalIndex = allPinned.indexWhere((n) => n.id == note.id);
+
+        print(
+          '[OverlayPage] Note ${note.id}: isAlwaysOnTop=${note.isAlwaysOnTop}, layer=${layer.name}, pos=(${note.x}, ${note.y}) globalIndex=$globalIndex',
+        );
         _positions[note.id] = Offset(
-          note.x ?? _fallbackPosition(entry.key).dx,
-          note.y ?? _fallbackPosition(entry.key).dy,
+          note.x ?? _fallbackPosition(globalIndex).dx,
+          note.y ?? _fallbackPosition(globalIndex).dy,
         );
       }
     });
+    await _updateWindowZOrder();
   }
 
   void _updateDrag(Note note, Offset delta) {
@@ -176,12 +229,11 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   Future<void> _commitPosition(Note note) async {
     final pos = _positions[note.id];
     if (pos == null) return;
-    await _notesService.updateNote(note.copyWith(x: pos.dx, y: pos.dy));
-    await _refreshPinned();
+    await _notesService.updateNotePosition(note.id, x: pos.dx, y: pos.dy);
 
     // Notify parent to refresh list (e.g. if position was relevant, or just keep in sync)
     // Position might not affect list view, but good practice.
-    IpcService.instance.sendToParent('refresh_notes');
+    WindowMessageService.instance.sendToAll('refresh_notes');
   }
 
   Future<void> _editNote(Note note) async {
@@ -221,7 +273,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     if (newText == null || newText.isEmpty) return;
     await _notesService.updateNote(note.copyWith(text: newText));
     await _refreshPinned();
-    IpcService.instance.sendToParent('refresh_notes');
+    WindowMessageService.instance.sendToAll('refresh_notes');
   }
 
   @override
@@ -253,17 +305,22 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
                   onDelete: () async {
                     await _notesService.deleteNote(note.id);
                     await _refreshPinned();
-                    IpcService.instance.sendToParent('refresh_notes');
+                    WindowMessageService.instance.sendToAll('refresh_notes');
                   },
                   onDoneToggle: () async {
                     await _notesService.toggleDone(note.id);
                     await _refreshPinned();
-                    IpcService.instance.sendToParent('refresh_notes');
+                    WindowMessageService.instance.sendToAll('refresh_notes');
                   },
                   onUnpin: () async {
                     await _notesService.togglePin(note.id);
                     await _refreshPinned();
-                    IpcService.instance.sendToParent('refresh_notes');
+                    WindowMessageService.instance.sendToAll('refresh_notes');
+                  },
+                  onToggleZOrder: () async {
+                    await _notesService.toggleZOrder(note.id);
+                    await _refreshPinned();
+                    WindowMessageService.instance.sendToAll('refresh_notes');
                   },
                   onEdit: () => _editNote(note),
                   strings: strings,

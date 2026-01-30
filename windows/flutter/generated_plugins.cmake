@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  desktop_multi_window
   screen_retriever_windows
   system_tray
   url_launcher_windows

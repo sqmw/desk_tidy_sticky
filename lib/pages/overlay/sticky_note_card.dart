@@ -12,6 +12,7 @@ class StickyNoteCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onDoneToggle;
   final VoidCallback onUnpin;
+  final VoidCallback onToggleZOrder;
   final VoidCallback onEdit;
   final Strings strings;
 
@@ -23,6 +24,7 @@ class StickyNoteCard extends StatelessWidget {
     required this.onDelete,
     required this.onDoneToggle,
     required this.onUnpin,
+    required this.onToggleZOrder,
     required this.onEdit,
     required this.strings,
   });
@@ -41,10 +43,7 @@ class StickyNoteCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                note.text,
-                style: NoteCardStyle.textStyle(note.isDone),
-              ),
+              Text(note.text, style: NoteCardStyle.textStyle(note.isDone)),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -56,7 +55,9 @@ class StickyNoteCard extends StatelessWidget {
                     color: AppTheme.neutral,
                   ),
                   IconButton(
-                    tooltip: note.isDone ? strings.markUndone : strings.markDone,
+                    tooltip: note.isDone
+                        ? strings.markUndone
+                        : strings.markDone,
                     onPressed: onDoneToggle,
                     icon: Icon(
                       note.isDone
@@ -73,6 +74,21 @@ class StickyNoteCard extends StatelessWidget {
                     onPressed: onUnpin,
                     icon: const Icon(Icons.push_pin_outlined, size: 16),
                     color: AppTheme.neutral.withValues(alpha: 0.8),
+                  ),
+                  IconButton(
+                    tooltip: note.isAlwaysOnTop
+                        ? strings.pinToBottom
+                        : strings.pinToTop,
+                    onPressed: onToggleZOrder,
+                    icon: Icon(
+                      note.isAlwaysOnTop
+                          ? Icons.vertical_align_top
+                          : Icons.vertical_align_bottom,
+                      size: 16,
+                      color: note.isAlwaysOnTop
+                          ? AppTheme.primary
+                          : AppTheme.neutral,
+                    ),
                   ),
                   IconButton(
                     tooltip: strings.delete,

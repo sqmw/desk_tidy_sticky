@@ -9,7 +9,7 @@ import '../../controllers/locale_controller.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../services/notes_service.dart';
-import '../../services/overlay_process_manager.dart';
+import '../../services/overlay_window_manager.dart';
 import '../../services/panel_preferences.dart';
 import '../../utils/note_search.dart';
 import '../../widgets/glass_container.dart';
@@ -44,7 +44,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final NotesService _notesService = NotesService();
-  final OverlayProcessManager _overlayManager = OverlayProcessManager.instance;
+  final OverlayWindowManager _overlayManager = OverlayWindowManager.instance;
   Timer? _zOrderTimer;
 
   List<Note> _notes = [];
@@ -256,6 +256,12 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     _overlayManager.refreshAll();
   }
 
+  Future<void> _toggleZOrder(Note note) async {
+    await _notesService.toggleZOrder(note.id, sortMode: _sortMode);
+    await _loadNotes();
+    _overlayManager.refreshAll();
+  }
+
   Future<void> _toggleDone(Note note) async {
     await _notesService.toggleDone(note.id, sortMode: _sortMode);
     await _loadNotes();
@@ -392,6 +398,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                   onDelete: _delete,
                   onRestore: _restore,
                   onTogglePin: _togglePin,
+                  onToggleZOrder: _toggleZOrder,
                   onToggleDone: _toggleDone,
                   onToggleArchive: _toggleArchive,
                   onReorder: _onReorder,
@@ -409,7 +416,6 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
 
   Future<void> _openOverlay() async {
     if (_overlayManager.isRunning) {
-      _overlayManager.closeAll();
       await _overlayManager.stopAll();
       return;
     }

@@ -15,6 +15,7 @@ class PanelNotesList extends StatelessWidget {
   final NoteAction onTogglePin;
   final NoteAction onToggleDone;
   final NoteAction onToggleArchive;
+  final NoteAction onToggleZOrder;
   final NoteAction? onRestore;
   final ReorderCallback onReorder;
   final NoteSortMode sortMode;
@@ -29,6 +30,7 @@ class PanelNotesList extends StatelessWidget {
     required this.onTogglePin,
     required this.onToggleDone,
     required this.onToggleArchive,
+    required this.onToggleZOrder,
     this.onRestore,
     required this.onReorder,
     required this.sortMode,
@@ -91,8 +93,8 @@ class PanelNotesList extends StatelessWidget {
                   color: note.isArchived || note.isDeleted
                       ? Colors.grey
                       : (note.isDone
-                          ? Colors.grey
-                          : AppTheme.neutral.withValues(alpha: 0.9)),
+                            ? Colors.grey
+                            : AppTheme.neutral.withValues(alpha: 0.9)),
                   fontWeight: note.isPinned ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
@@ -138,11 +140,25 @@ class PanelNotesList extends StatelessWidget {
                               ? Icons.push_pin
                               : Icons.push_pin_outlined,
                           size: 16,
-                          color: note.isPinned
+                          color: note.isPinned ? AppTheme.primary : Colors.grey,
+                        ),
+                        onPressed: () => onTogglePin(note),
+                      ),
+                    if (viewMode == NoteViewMode.active && note.isPinned)
+                      IconButton(
+                        tooltip: note.isAlwaysOnTop
+                            ? strings.pinToBottom
+                            : strings.pinToTop,
+                        icon: Icon(
+                          note.isAlwaysOnTop
+                              ? Icons.vertical_align_top
+                              : Icons.vertical_align_bottom,
+                          size: 16,
+                          color: note.isAlwaysOnTop
                               ? AppTheme.primary
                               : Colors.grey,
                         ),
-                        onPressed: () => onTogglePin(note),
+                        onPressed: () => onToggleZOrder(note),
                       ),
                     IconButton(
                       tooltip: note.isDone
