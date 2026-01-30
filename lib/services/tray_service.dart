@@ -7,6 +7,7 @@ import '../controllers/overlay_controller.dart';
 import '../l10n/strings.dart';
 import 'overlay_window_manager.dart';
 import 'panel_preferences.dart';
+import 'tray_menu_guard.dart';
 
 class TrayService {
   final SystemTray _systemTray = SystemTray();
@@ -42,6 +43,7 @@ class TrayService {
           }
         });
       } else if (eventName == kSystemTrayEventRightClick) {
+        TrayMenuGuard.instance.markMenuOpen();
         _systemTray.popUpContextMenu();
       }
     });

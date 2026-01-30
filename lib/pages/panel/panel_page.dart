@@ -11,6 +11,7 @@ import '../../l10n/strings.dart';
 import '../../services/notes_service.dart';
 import '../../services/overlay_window_manager.dart';
 import '../../services/panel_preferences.dart';
+import '../../services/tray_menu_guard.dart';
 import '../../utils/note_search.dart';
 import '../../widgets/glass_container.dart';
 import 'edit_note_dialog.dart';
@@ -64,6 +65,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     windowManager.addListener(this);
     _overlayManager.isRunningNotifier.addListener(_updateAlwaysOnTop);
     OverlayController.instance.clickThrough.addListener(_updateAlwaysOnTop);
+    TrayMenuGuard.instance.isMenuOpen.addListener(_updateAlwaysOnTop);
     // Click-through is transient; do not persist across app launches.
     IpcController.instance.refreshTick.addListener(_handleIpcRefresh);
     _loadPreferences();
@@ -82,12 +84,17 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     _focusNode.dispose();
     _overlayManager.isRunningNotifier.removeListener(_updateAlwaysOnTop);
     OverlayController.instance.clickThrough.removeListener(_updateAlwaysOnTop);
+    TrayMenuGuard.instance.isMenuOpen.removeListener(_updateAlwaysOnTop);
     IpcController.instance.refreshTick.removeListener(_handleIpcRefresh);
     _zOrderTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _updateAlwaysOnTop() async {
+    if (TrayMenuGuard.instance.isMenuOpen.value) {
+      await windowManager.setAlwaysOnTop(false);
+      return;
+    }
     // If overlay is running, force Always On Top to ensure panel is clickable
     // above the overlay window. Otherwise, respect user preference.
     final overlayActive = _overlayManager.isRunning;
@@ -115,7 +122,6 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       await Future.delayed(const Duration(milliseconds: 700));
       if (!mounted) return;
       await windowManager.setAlwaysOnTop(true);
-      await windowManager.focus();
 
       await Future.delayed(const Duration(milliseconds: 1500));
       if (!mounted) return;
@@ -139,7 +145,8 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   void onWindowBlur() {
     // When focus is lost (e.g., clicked desktop), the Overlay might try to win Z-order.
     // We re-assert our status after a short delay to ensure we stay on top.
-    if (_overlayManager.isRunning) {
+    if (_overlayManager.isRunning &&
+        !TrayMenuGuard.instance.isMenuOpen.value) {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (mounted) {
           windowManager.setAlwaysOnTop(true);
