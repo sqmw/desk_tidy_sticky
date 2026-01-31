@@ -11,6 +11,7 @@ class PanelPreferences {
   static const _kSortMode = 'panel_sort_mode';
   static const _kGlassOpacity = 'panel_glass_opacity';
   static const _kOverlayEnabled = 'overlay_enabled';
+  static const _kPanelWindowId = 'panel_window_id';
 
   static Future<bool> getHideAfterSave() async {
     final prefs = await SharedPreferences.getInstance();
@@ -89,5 +90,15 @@ class PanelPreferences {
   static Future<void> setOverlayEnabled(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_kOverlayEnabled, value);
+  }
+
+  static Future<String?> getPanelWindowId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_kPanelWindowId);
+  }
+
+  static Future<void> setPanelWindowId(String windowId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kPanelWindowId, windowId);
   }
 }

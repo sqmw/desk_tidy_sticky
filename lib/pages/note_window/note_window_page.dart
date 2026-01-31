@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../controllers/ipc_controller.dart';
+import '../../controllers/ipc_scope.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
@@ -34,6 +35,7 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   final NotesService _notesService = NotesService();
   final OverlayController _overlayController = OverlayController.instance;
   final IpcController _ipcController = IpcController.instance;
+  late final String _ipcScope;
 
   Note? _note;
   bool _clickThrough = false;
@@ -54,10 +56,11 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       scheduleMicrotask(() => windowManager.close());
       return;
     }
+    _ipcScope = IpcScope.note(widget.noteId);
     windowManager.addListener(this);
     _overlayController.clickThrough.addListener(_handleClickThroughChanged);
-    _ipcController.refreshTick.addListener(_handleRefresh);
-    _ipcController.closeTick.addListener(_handleClose);
+    _ipcController.refreshTick(_ipcScope).addListener(_handleRefresh);
+    _ipcController.closeTick(_ipcScope).addListener(_handleClose);
     _prepareWindow();
     _loadNote();
   }
@@ -66,8 +69,8 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   void dispose() {
     windowManager.removeListener(this);
     _overlayController.clickThrough.removeListener(_handleClickThroughChanged);
-    _ipcController.refreshTick.removeListener(_handleRefresh);
-    _ipcController.closeTick.removeListener(_handleClose);
+    _ipcController.refreshTick(_ipcScope).removeListener(_handleRefresh);
+    _ipcController.closeTick(_ipcScope).removeListener(_handleClose);
     _moveDebounce?.cancel();
     super.dispose();
   }
@@ -151,18 +154,22 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
     final interactive = !_clickThrough;
     final shouldBeTop = interactive || note.isAlwaysOnTop;
+    final hwnd = await windowManager.getId();
 
     if (shouldBeTop) {
+      // If this window was previously embedded under WorkerW (bottom mode),
+      // it must be detached first, otherwise "always on top" has no effect.
+      WorkerWService.detachFromWorkerW(hwnd);
       await WindowZOrderService.setAlwaysOnTopNoActivate(true);
     } else {
       await WindowZOrderService.setAlwaysOnTopNoActivate(false);
       // Use WorkerW embedding to make "bottom" visible on desktop (instead of
       // being pushed below desktop windows by HWND_BOTTOM).
-      final hwnd = await windowManager.getId();
       final ok = WorkerWService.attachToWorkerW(hwnd);
       if (!ok) {
         // Fallback: avoid forcing HWND_BOTTOM which can make the window
         // completely invisible on some setups.
+        WorkerWService.detachFromWorkerW(hwnd);
         await WindowZOrderService.setAlwaysOnTopNoActivate(false);
       }
     }
@@ -246,21 +253,34 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                 onDragEnd: () {},
                 onDelete: () async {
                   await _notesService.deleteNote(note.id);
-                  WindowMessageService.instance.sendToAll('refresh_notes');
+                  await WindowMessageService.instance.sendToPrimaryPanel(
+                    'refresh_notes',
+                  );
                   await windowManager.close();
                 },
                 onDoneToggle: () async {
                   await _notesService.toggleDone(note.id);
-                  WindowMessageService.instance.sendToAll('refresh_notes');
+                  // Note window is the current engine; sendToAll won't reach us.
+                  _ipcController.requestRefresh(_ipcScope);
+                  WindowMessageService.instance.sendToPrimaryPanel(
+                    'refresh_notes',
+                  );
                 },
                 onUnpin: () async {
                   await _notesService.togglePin(note.id);
-                  WindowMessageService.instance.sendToAll('refresh_notes');
+                  // Close after unpin, but still notify panels/other windows.
+                  await WindowMessageService.instance.sendToPrimaryPanel(
+                    'refresh_notes',
+                  );
                   await windowManager.close();
                 },
                 onToggleZOrder: () async {
                   await _notesService.toggleZOrder(note.id);
-                  WindowMessageService.instance.sendToAll('refresh_notes');
+                  // Apply new z-order/icon state immediately in this window.
+                  _ipcController.requestRefresh(_ipcScope);
+                  WindowMessageService.instance.sendToPrimaryPanel(
+                    'refresh_notes',
+                  );
                 },
                 onEdit: () async {
                   if (_clickThrough) {
@@ -296,7 +316,11 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                   if (!mounted) return;
                   if (newText == null || newText.isEmpty) return;
                   await _notesService.updateNote(note.copyWith(text: newText));
-                  WindowMessageService.instance.sendToAll('refresh_notes');
+                  // Update current note window immediately.
+                  _ipcController.requestRefresh(_ipcScope);
+                  WindowMessageService.instance.sendToPrimaryPanel(
+                    'refresh_notes',
+                  );
                 },
                 strings: widget.strings,
               ),

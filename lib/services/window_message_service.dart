@@ -2,14 +2,17 @@ import 'package:flutter/services.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 
 import '../controllers/ipc_controller.dart';
+
 import '../controllers/locale_controller.dart';
 import '../controllers/overlay_controller.dart';
 import '../models/note_model.dart';
 import '../models/window_args.dart';
+import 'panel_preferences.dart';
 
 class WindowMessageService {
   WindowMessageService(
     this.localeController, {
+    required this.scope,
     OverlayController? overlayController,
     IpcController? ipcController,
   }) : overlayController = overlayController ?? OverlayController.instance,
@@ -20,6 +23,7 @@ class WindowMessageService {
   final LocaleController localeController;
   final OverlayController overlayController;
   final IpcController ipcController;
+  final String scope;
 
   late final WindowController _windowController;
   bool _suppressLocaleBroadcast = false;
@@ -58,10 +62,10 @@ class WindowMessageService {
         }
         break;
       case 'refresh_notes':
-        ipcController.requestRefresh();
+        ipcController.requestRefresh(scope);
         break;
       case 'close_overlay':
-        ipcController.requestClose();
+        ipcController.requestClose(scope);
         break;
       default:
         break;
@@ -87,6 +91,28 @@ class WindowMessageService {
     await _sendWhere((windowArgs) {
       return windowArgs.type == AppWindowType.panel;
     }, method, args);
+  }
+
+  /// Send to the primary panel window only (avoids accidentally broadcasting to
+  /// note windows if their `arguments` are unavailable in `getAll()`).
+  Future<void> sendToPrimaryPanel(
+    String method, [
+    Map<String, Object?>? args,
+  ]) async {
+    final panelId = await PanelPreferences.getPanelWindowId();
+    if (panelId != null) {
+      final controllers = await WindowController.getAll();
+      for (final controller in controllers) {
+        if (controller.windowId == _windowController.windowId) continue;
+        if (controller.windowId != panelId) continue;
+        try {
+          await controller.invokeMethod(method, args);
+        } catch (_) {}
+        return;
+      }
+    }
+    // Fallback (best-effort).
+    await sendToPanels(method, args);
   }
 
   Future<void> sendToOverlays(

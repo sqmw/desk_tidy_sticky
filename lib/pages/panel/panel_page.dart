@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../models/note_model.dart';
 import '../../controllers/ipc_controller.dart';
+import '../../controllers/ipc_scope.dart';
 import '../../controllers/locale_controller.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
@@ -68,7 +69,9 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     OverlayController.instance.clickThrough.addListener(_updateAlwaysOnTop);
     TrayMenuGuard.instance.isMenuOpen.addListener(_updateAlwaysOnTop);
     // Click-through is transient; do not persist across app launches.
-    IpcController.instance.refreshTick.addListener(_handleIpcRefresh);
+    IpcController.instance.refreshTick(IpcScope.panel).addListener(
+      _handleIpcRefresh,
+    );
     _loadPreferences();
     _searchController.addListener(() {
       setState(() {
@@ -86,7 +89,9 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     _overlayManager.isRunningNotifier.removeListener(_updateAlwaysOnTop);
     OverlayController.instance.clickThrough.removeListener(_updateAlwaysOnTop);
     TrayMenuGuard.instance.isMenuOpen.removeListener(_updateAlwaysOnTop);
-    IpcController.instance.refreshTick.removeListener(_handleIpcRefresh);
+    IpcController.instance.refreshTick(IpcScope.panel).removeListener(
+      _handleIpcRefresh,
+    );
     _zOrderTimer?.cancel();
     super.dispose();
   }
@@ -243,7 +248,8 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     if (_hideAfterSave) {
       await windowManager.hide();
     }
-    _overlayManager.refreshAll();
+    // _loadNotes() will sync pinned note windows; avoid refreshing all windows
+    // to prevent unrelated sticky notes from flashing.
   }
 
   Future<void> _toggleWindowPinned() async {
@@ -279,25 +285,29 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   Future<void> _togglePin(Note note) async {
     await _notesService.togglePin(note.id, sortMode: _sortMode);
     await _loadNotes();
-    _overlayManager.refreshAll();
+    // _loadNotes() will sync windows (create/close) as needed.
   }
 
   Future<void> _toggleZOrder(Note note) async {
     await _notesService.toggleZOrder(note.id, sortMode: _sortMode);
     await _loadNotes();
-    _overlayManager.refreshAll();
+    if (_overlayManager.isRunning) {
+      await _overlayManager.refreshNote(note.id);
+    }
   }
 
   Future<void> _toggleDone(Note note) async {
     await _notesService.toggleDone(note.id, sortMode: _sortMode);
     await _loadNotes();
-    _overlayManager.refreshAll();
+    if (_overlayManager.isRunning) {
+      await _overlayManager.refreshNote(note.id);
+    }
   }
 
   Future<void> _toggleArchive(Note note) async {
     await _notesService.toggleArchive(note.id, sortMode: _sortMode);
     await _loadNotes();
-    _overlayManager.refreshAll();
+    // Archiving will unpin and sync will close any related sticky window.
   }
 
   Future<void> _delete(Note note) async {
@@ -307,19 +317,18 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       await _notesService.deleteNote(note.id);
     }
     await _loadNotes();
-    _overlayManager.refreshAll();
+    // If the note was pinned, sync will close the sticky window.
   }
 
   Future<void> _restore(Note note) async {
     await _notesService.restoreNote(note.id, sortMode: _sortMode);
     await _loadNotes();
-    _overlayManager.refreshAll();
+    // Restore does not imply pinning; no sticky refresh needed.
   }
 
   Future<void> _emptyTrash() async {
     await _notesService.emptyTrash();
     await _loadNotes();
-    _overlayManager.refreshAll();
   }
 
   Future<void> _edit(Note note) async {
@@ -336,7 +345,9 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       sortMode: _sortMode,
     );
     await _loadNotes();
-    _overlayManager.refreshAll();
+    if (_overlayManager.isRunning) {
+      await _overlayManager.refreshNote(note.id);
+    }
   }
 
   void _onReorder(int oldIndex, int newIndex) {
@@ -377,12 +388,10 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
 
     // Persist without forcing a reload (prevents visual flicker).
     unawaited(
-      _notesService
-          .reorderNotes(
-            reorderedVisible,
-            isArchivedView: _viewMode == NoteViewMode.archived,
-          )
-          .then((_) => _overlayManager.refreshAll()),
+      _notesService.reorderNotes(
+        reorderedVisible,
+        isArchivedView: _viewMode == NoteViewMode.archived,
+      ),
     );
   }
 

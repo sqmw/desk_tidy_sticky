@@ -3,6 +3,7 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 
 import '../controllers/locale_controller.dart';
 import '../controllers/overlay_controller.dart';
+import '../models/note_model.dart';
 import '../models/window_args.dart';
 import 'notes_service.dart';
 import 'window_message_service.dart';
@@ -25,6 +26,9 @@ class StickyNoteWindowManager {
 
   final ValueNotifier<bool> isRunningNotifier = ValueNotifier<bool>(false);
   bool get isRunning => isRunningNotifier.value;
+
+  AppLocale? _lastLocaleBroadcast;
+  bool? _lastClickThroughBroadcast;
 
   Future<bool> start({
     required LocaleController localeController,
@@ -69,6 +73,16 @@ class StickyNoteWindowManager {
     await WindowMessageService.instance.sendToAll('refresh_notes');
   }
 
+  Future<void> refreshNote(String noteId) async {
+    final controller = _noteWindows[noteId];
+    if (controller == null) return;
+    try {
+      await controller.invokeMethod('refresh_notes');
+    } catch (_) {
+      // Best-effort: window may be closing/not ready.
+    }
+  }
+
   Future<void> sync({
     required LocaleController localeController,
     required bool embedWorkerW,
@@ -103,17 +117,32 @@ class StickyNoteWindowManager {
       );
       if (controller != null) {
         _noteWindows[note.id] = controller;
+        // Ensure new windows get current settings even if we suppress broadcast
+        // due to unchanged values.
+        _kickWindow(
+          controller,
+          localeName: localeController.current.name,
+          clickThrough: _clickThrough,
+        );
       }
     }
 
-    await WindowMessageService.instance.sendToAll(
-      'set_language',
-      {'value': localeController.current.name},
-    );
-    await WindowMessageService.instance.sendToAll(
-      'set_click_through',
-      {'value': _clickThrough},
-    );
+    final localeNow = localeController.current;
+    if (_lastLocaleBroadcast != localeNow) {
+      _lastLocaleBroadcast = localeNow;
+      await WindowMessageService.instance.sendToAll(
+        'set_language',
+        {'value': localeNow.name},
+      );
+    }
+
+    if (_lastClickThroughBroadcast != _clickThrough) {
+      _lastClickThroughBroadcast = _clickThrough;
+      await WindowMessageService.instance.sendToAll(
+        'set_click_through',
+        {'value': _clickThrough},
+      );
+    }
   }
 
   Future<void> _recoverExistingWindows() async {
@@ -170,25 +199,38 @@ class StickyNoteWindowManager {
         WindowConfiguration(hiddenAtLaunch: true, arguments: args.toJsonString()),
       );
       await controller.show();
-      _kickWindow(controller);
       return controller;
     } catch (_) {
       return null;
     }
   }
 
-  void _kickWindow(WindowController controller) {
+  void _kickWindow(
+    WindowController controller, {
+    required String localeName,
+    required bool clickThrough,
+  }) {
     // Some systems need an extra show/refresh cycle to surface a newly-created
     // transparent window (especially when immediately reparenting to WorkerW).
     Future.delayed(const Duration(milliseconds: 150), () async {
       try {
         await controller.show();
+        await controller.invokeMethod('set_language', {'value': localeName});
+        await controller.invokeMethod(
+          'set_click_through',
+          {'value': clickThrough},
+        );
         await controller.invokeMethod('refresh_notes');
       } catch (_) {}
     });
     Future.delayed(const Duration(milliseconds: 400), () async {
       try {
         await controller.show();
+        await controller.invokeMethod('set_language', {'value': localeName});
+        await controller.invokeMethod(
+          'set_click_through',
+          {'value': clickThrough},
+        );
         await controller.invokeMethod('refresh_notes');
       } catch (_) {}
     });
@@ -205,6 +247,8 @@ class StickyNoteWindowManager {
   void _handleClickThroughChanged() {
     if (!_enabled) return;
     _clickThrough = OverlayController.instance.clickThrough.value;
+    if (_lastClickThroughBroadcast == _clickThrough) return;
+    _lastClickThroughBroadcast = _clickThrough;
     WindowMessageService.instance.sendToAll(
       'set_click_through',
       {'value': _clickThrough},

@@ -5,15 +5,22 @@ class IpcController {
 
   static final IpcController instance = IpcController._();
 
-  final ValueNotifier<int> refreshTick = ValueNotifier<int>(0);
-  final ValueNotifier<int> closeTick = ValueNotifier<int>(0);
+  final Map<String, ValueNotifier<int>> _refreshTicks = {};
+  final Map<String, ValueNotifier<int>> _closeTicks = {};
 
-  void requestRefresh() {
-    refreshTick.value++;
+  ValueNotifier<int> refreshTick(String scope) {
+    return _refreshTicks.putIfAbsent(scope, () => ValueNotifier<int>(0));
   }
 
-  void requestClose() {
-    closeTick.value++;
+  ValueNotifier<int> closeTick(String scope) {
+    return _closeTicks.putIfAbsent(scope, () => ValueNotifier<int>(0));
+  }
+
+  void requestRefresh(String scope) {
+    refreshTick(scope).value++;
+  }
+
+  void requestClose(String scope) {
+    closeTick(scope).value++;
   }
 }
-

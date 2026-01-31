@@ -15,6 +15,7 @@ import 'services/tray_service.dart';
 import 'services/panel_preferences.dart';
 import 'services/window_message_service.dart';
 import 'theme/app_theme.dart';
+import 'controllers/ipc_scope.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -31,7 +32,18 @@ void main(List<String> args) async {
 
   final locale = await PanelPreferences.getLanguage();
   final localeController = LocaleController(locale);
-  await WindowMessageService(localeController).start();
+  final scope = switch (appConfig.mode) {
+    AppMode.note => IpcScope.note(appConfig.noteId ?? ''),
+    AppMode.overlay => IpcScope.overlay(appConfig.layer.name),
+    _ => IpcScope.panel,
+  };
+  await WindowMessageService(localeController, scope: scope).start();
+  if (appConfig.mode == AppMode.normal) {
+    // Allow note windows to message the panel without accidentally broadcasting
+    // to other note windows (some environments may not report arguments for
+    // WindowController.getAll()).
+    await PanelPreferences.setPanelWindowId(windowController.windowId);
+  }
 
   // 1. Window Manager Init
   await windowManager.ensureInitialized();

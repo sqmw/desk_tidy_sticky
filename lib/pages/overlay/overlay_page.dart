@@ -9,6 +9,7 @@ import 'package:win32/win32.dart' as win32;
 
 import '../../config/app_config.dart';
 import '../../controllers/ipc_controller.dart';
+import '../../controllers/ipc_scope.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
@@ -32,6 +33,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   Strings get strings => widget.strings ?? Strings.of(AppLocale.en);
   final OverlayController _overlayController = OverlayController.instance;
   final IpcController _ipcController = IpcController.instance;
+  late final String _ipcScope;
 
   bool _clickThrough = false;
   bool? _previousAlwaysOnTop;
@@ -51,9 +53,10 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
       '[OverlayPage] initState. isOverlay: ${AppConfig.instance.isOverlay}, monitor: ${AppConfig.instance.monitorRectArg}',
     );
     windowManager.addListener(this);
+    _ipcScope = IpcScope.overlay(AppConfig.instance.layer.name);
     _overlayController.clickThrough.addListener(_handleClickThroughChanged);
-    _ipcController.refreshTick.addListener(_handleIpcRefresh);
-    _ipcController.closeTick.addListener(_handleIpcClose);
+    _ipcController.refreshTick(_ipcScope).addListener(_handleIpcRefresh);
+    _ipcController.closeTick(_ipcScope).addListener(_handleIpcClose);
     _prepareWindow();
     _refreshPinned();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -79,8 +82,8 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   void dispose() {
     windowManager.removeListener(this);
     _overlayController.clickThrough.removeListener(_handleClickThroughChanged);
-    _ipcController.refreshTick.removeListener(_handleIpcRefresh);
-    _ipcController.closeTick.removeListener(_handleIpcClose);
+    _ipcController.refreshTick(_ipcScope).removeListener(_handleIpcRefresh);
+    _ipcController.closeTick(_ipcScope).removeListener(_handleIpcClose);
     _restoreWindow();
     super.dispose();
   }
