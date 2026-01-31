@@ -339,22 +339,51 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     _overlayManager.refreshAll();
   }
 
-  Future<void> _onReorder(int oldIndex, int newIndex) async {
+  void _onReorder(int oldIndex, int newIndex) {
+    // Important: ReorderableListView expects the data list to be updated
+    // synchronously inside this callback. If we wait for IO + reload, the drop
+    // animation will look like a "flash/re-render".
     if (_sortMode != NoteSortMode.custom) return;
+    if (_searchQuery.trim().isNotEmpty) return;
 
-    final visible = _visibleNotes;
+    final reorderedVisible = _visibleNotes;
     if (newIndex > oldIndex) {
       newIndex -= 1;
     }
-    final item = visible.removeAt(oldIndex);
-    visible.insert(newIndex, item);
+    final item = reorderedVisible.removeAt(oldIndex);
+    reorderedVisible.insert(newIndex, item);
 
-    await _notesService.reorderNotes(
-      visible,
-      isArchivedView: _viewMode == NoteViewMode.archived,
+    // Update customOrder in memory to keep the next reload stable.
+    for (var i = 0; i < reorderedVisible.length; i++) {
+      reorderedVisible[i].customOrder = i;
+    }
+
+    bool inCurrentView(Note n) => switch (_viewMode) {
+      NoteViewMode.active => !n.isArchived && !n.isDeleted,
+      NoteViewMode.archived => n.isArchived && !n.isDeleted,
+      NoteViewMode.trash => n.isDeleted,
+    };
+
+    setState(() {
+      // Rebuild the full list by replacing the visible subset with the new
+      // order, while preserving all other notes' relative positions.
+      final iter = reorderedVisible.iterator;
+      _notes = _notes.map((n) {
+        if (!inCurrentView(n)) return n;
+        if (!iter.moveNext()) return n;
+        return iter.current;
+      }).toList(growable: false);
+    });
+
+    // Persist without forcing a reload (prevents visual flicker).
+    unawaited(
+      _notesService
+          .reorderNotes(
+            reorderedVisible,
+            isArchivedView: _viewMode == NoteViewMode.archived,
+          )
+          .then((_) => _overlayManager.refreshAll()),
     );
-    await _loadNotes();
-    _overlayManager.refreshAll();
   }
 
   @override
@@ -429,7 +458,10 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
                   onToggleArchive: _toggleArchive,
                   onReorder: _onReorder,
                   viewMode: _viewMode,
-                  sortMode: _sortMode,
+                  canReorder:
+                      _sortMode == NoteSortMode.custom &&
+                      _viewMode != NoteViewMode.trash &&
+                      _searchQuery.trim().isEmpty,
                   strings: widget.strings,
                 ),
               ],

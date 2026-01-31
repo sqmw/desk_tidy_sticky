@@ -68,6 +68,8 @@ class Strings {
   String get emptyTrash => locale == AppLocale.zh ? '清空回收站' : 'Empty trash';
   String get pinToTop => locale == AppLocale.zh ? '置顶显示' : 'Always on Top';
   String get pinToBottom => locale == AppLocale.zh ? '贴在底部' : 'Pin to Bottom';
+  String get dragToReorder =>
+      locale == AppLocale.zh ? '拖动排序' : 'Drag to reorder';
 
   String get settings => locale == AppLocale.zh ? '设置' : 'Settings';
   String get settingsTitle => locale == AppLocale.zh ? '设置' : 'Settings';
