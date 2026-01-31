@@ -15,6 +15,7 @@ import '../../services/notes_service.dart';
 import '../../services/window_message_service.dart';
 import '../../services/window_zorder_service.dart';
 import '../../services/workerw_service.dart';
+import '../../widgets/hover_state_builder.dart';
 import '../overlay/sticky_note_card.dart';
 
 class NoteWindowPage extends StatefulWidget {
@@ -104,9 +105,10 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
   Future<Note?> _readNoteOnce() async {
     await _notesService.loadNotes();
-    return _notesService.notes
-        .cast<Note?>()
-        .firstWhere((n) => n?.id == widget.noteId, orElse: () => null);
+    return _notesService.notes.cast<Note?>().firstWhere(
+      (n) => n?.id == widget.noteId,
+      orElse: () => null,
+    );
   }
 
   void _handleRefresh() {
@@ -126,9 +128,10 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
   Future<void> _loadNote() async {
     await _notesService.loadNotes();
-    final note = _notesService.notes
-        .cast<Note?>()
-        .firstWhere((n) => n?.id == widget.noteId, orElse: () => null);
+    final note = _notesService.notes.cast<Note?>().firstWhere(
+      (n) => n?.id == widget.noteId,
+      orElse: () => null,
+    );
 
     if (!mounted) return;
 
@@ -186,11 +189,12 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       textDirection: TextDirection.ltr,
       ellipsis: '…',
     )..layout(maxWidth: _cardWidth - _cardPadding.horizontal);
-    final height = (_cardPadding.vertical +
-            painter.height +
-            10 + // spacing before icon row
-            _iconRowHeight)
-        .clamp(_cardMinHeight, 420.0);
+    final height =
+        (_cardPadding.vertical +
+                painter.height +
+                10 + // spacing before icon row
+                _iconRowHeight)
+            .clamp(_cardMinHeight, 420.0);
     return Size(_cardWidth, height);
   }
 
@@ -245,101 +249,109 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Center(
-          child: Stack(
-            children: [
-              StickyNoteCard(
-                note: note,
-                onDragUpdate: (_) {},
-                onDragEnd: () {},
-                onDelete: () async {
-                  await _notesService.deleteNote(note.id);
-                  await WindowMessageService.instance.sendToPrimaryPanel(
-                    'refresh_notes',
-                  );
-                  await windowManager.close();
-                },
-                onDoneToggle: () async {
-                  await _notesService.toggleDone(note.id);
-                  // Note window is the current engine; sendToAll won't reach us.
-                  _ipcController.requestRefresh(_ipcScope);
-                  WindowMessageService.instance.sendToPrimaryPanel(
-                    'refresh_notes',
-                  );
-                },
-                onUnpin: () async {
-                  await _notesService.togglePin(note.id);
-                  // Close after unpin, but still notify panels/other windows.
-                  await WindowMessageService.instance.sendToPrimaryPanel(
-                    'refresh_notes',
-                  );
-                  await windowManager.close();
-                },
-                onToggleZOrder: () async {
-                  await _notesService.toggleZOrder(note.id);
-                  // Apply new z-order/icon state immediately in this window.
-                  _ipcController.requestRefresh(_ipcScope);
-                  WindowMessageService.instance.sendToPrimaryPanel(
-                    'refresh_notes',
-                  );
-                },
-                onEdit: () async {
-                  if (_clickThrough) {
-                    _overlayController.setClickThrough(false);
-                  }
-                  final controller = TextEditingController(text: note.text);
-                  final newText = await showDialog<String>(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: Text(widget.strings.edit),
-                        content: TextField(
-                          controller: controller,
-                          autofocus: true,
-                          minLines: 1,
-                          maxLines: 8,
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: Text(widget.strings.cancel),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.of(context).pop(
-                              controller.text.trim(),
-                            ),
-                            child: Text(widget.strings.saveNote),
-                          ),
-                        ],
+          child: HoverStateBuilder(
+            enabled: !_clickThrough,
+            builder: (context, hovering) {
+              return Stack(
+                children: [
+                  StickyNoteCard(
+                    note: note,
+                    onDragUpdate: (_) {},
+                    onDragEnd: () {},
+                    onDelete: () async {
+                      await _notesService.deleteNote(note.id);
+                      await WindowMessageService.instance.sendToPrimaryPanel(
+                        'refresh_notes',
+                      );
+                      await windowManager.close();
+                    },
+                    onDoneToggle: () async {
+                      await _notesService.toggleDone(note.id);
+                      // Note window is the current engine; sendToAll won't reach us.
+                      _ipcController.requestRefresh(_ipcScope);
+                      WindowMessageService.instance.sendToPrimaryPanel(
+                        'refresh_notes',
                       );
                     },
-                  );
-                  if (!mounted) return;
-                  if (newText == null || newText.isEmpty) return;
-                  await _notesService.updateNote(note.copyWith(text: newText));
-                  // Update current note window immediately.
-                  _ipcController.requestRefresh(_ipcScope);
-                  WindowMessageService.instance.sendToPrimaryPanel(
-                    'refresh_notes',
-                  );
-                },
-                strings: widget.strings,
-              ),
-              // Easy drag: allow dragging most of the card, but avoid stealing
-              // clicks from the icon row at the bottom.
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                bottom: 54,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onPanStart: (_) {
-                    if (_clickThrough) return;
-                    windowManager.startDragging();
-                  },
-                ),
-              ),
-            ],
+                    onUnpin: () async {
+                      await _notesService.togglePin(note.id);
+                      // Close after unpin, but still notify panels/other windows.
+                      await WindowMessageService.instance.sendToPrimaryPanel(
+                        'refresh_notes',
+                      );
+                      await windowManager.close();
+                    },
+                    onToggleZOrder: () async {
+                      await _notesService.toggleZOrder(note.id);
+                      // Apply new z-order/icon state immediately in this window.
+                      _ipcController.requestRefresh(_ipcScope);
+                      WindowMessageService.instance.sendToPrimaryPanel(
+                        'refresh_notes',
+                      );
+                    },
+                    onEdit: () async {
+                      if (_clickThrough) {
+                        _overlayController.setClickThrough(false);
+                      }
+                      final controller = TextEditingController(text: note.text);
+                      final newText = await showDialog<String>(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: Text(widget.strings.edit),
+                            content: TextField(
+                              controller: controller,
+                              autofocus: true,
+                              minLines: 1,
+                              maxLines: 8,
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: Text(widget.strings.cancel),
+                              ),
+                              FilledButton(
+                                onPressed: () => Navigator.of(
+                                  context,
+                                ).pop(controller.text.trim()),
+                                child: Text(widget.strings.saveNote),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                      if (!mounted) return;
+                      if (newText == null || newText.isEmpty) return;
+                      await _notesService.updateNote(
+                        note.copyWith(text: newText),
+                      );
+                      // Update current note window immediately.
+                      _ipcController.requestRefresh(_ipcScope);
+                      WindowMessageService.instance.sendToPrimaryPanel(
+                        'refresh_notes',
+                      );
+                    },
+                    strings: widget.strings,
+                    actionsVisible: hovering,
+                  ),
+                  // Easy drag: allow dragging most of the card, but avoid stealing
+                  // clicks from the icon row at the bottom.
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    bottom: 54,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onPanStart: (_) {
+                        if (_clickThrough) return;
+                        windowManager.startDragging();
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

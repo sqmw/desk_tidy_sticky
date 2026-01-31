@@ -17,6 +17,7 @@ import '../../services/notes_service.dart';
 import '../../services/window_zorder_service.dart';
 import '../../services/workerw_service.dart';
 import '../../services/window_message_service.dart';
+import '../../widgets/hover_state_builder.dart';
 import 'sticky_note_card.dart';
 
 class OverlayPage extends StatefulWidget {
@@ -240,9 +241,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     );
     if (Platform.isWindows) {
       final size = await windowManager.getSize();
-      await windowManager.setSize(
-        Size(size.width + 1, size.height + 1),
-      );
+      await windowManager.setSize(Size(size.width + 1, size.height + 1));
       await windowManager.setSize(size);
     }
   }
@@ -392,32 +391,46 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
               return Positioned(
                 left: clamped.dx,
                 top: clamped.dy,
-                child: StickyNoteCard(
-                  note: note,
-                  onDragUpdate: (delta) => _updateDrag(note, delta),
-                  onDragEnd: () => _commitPosition(note),
-                  onDelete: () async {
-                    await _notesService.deleteNote(note.id);
-                    await _refreshPinned();
-                    WindowMessageService.instance.sendToAll('refresh_notes');
+                child: HoverStateBuilder(
+                  enabled: !_clickThrough,
+                  builder: (context, hovering) {
+                    return StickyNoteCard(
+                      note: note,
+                      onDragUpdate: (delta) => _updateDrag(note, delta),
+                      onDragEnd: () => _commitPosition(note),
+                      onDelete: () async {
+                        await _notesService.deleteNote(note.id);
+                        await _refreshPinned();
+                        WindowMessageService.instance.sendToAll(
+                          'refresh_notes',
+                        );
+                      },
+                      onDoneToggle: () async {
+                        await _notesService.toggleDone(note.id);
+                        await _refreshPinned();
+                        WindowMessageService.instance.sendToAll(
+                          'refresh_notes',
+                        );
+                      },
+                      onUnpin: () async {
+                        await _notesService.togglePin(note.id);
+                        await _refreshPinned();
+                        WindowMessageService.instance.sendToAll(
+                          'refresh_notes',
+                        );
+                      },
+                      onToggleZOrder: () async {
+                        await _notesService.toggleZOrder(note.id);
+                        await _refreshPinned();
+                        WindowMessageService.instance.sendToAll(
+                          'refresh_notes',
+                        );
+                      },
+                      onEdit: () => _editNote(note),
+                      strings: strings,
+                      actionsVisible: hovering,
+                    );
                   },
-                  onDoneToggle: () async {
-                    await _notesService.toggleDone(note.id);
-                    await _refreshPinned();
-                    WindowMessageService.instance.sendToAll('refresh_notes');
-                  },
-                  onUnpin: () async {
-                    await _notesService.togglePin(note.id);
-                    await _refreshPinned();
-                    WindowMessageService.instance.sendToAll('refresh_notes');
-                  },
-                  onToggleZOrder: () async {
-                    await _notesService.toggleZOrder(note.id);
-                    await _refreshPinned();
-                    WindowMessageService.instance.sendToAll('refresh_notes');
-                  },
-                  onEdit: () => _editNote(note),
-                  strings: strings,
                 ),
               );
             }),
