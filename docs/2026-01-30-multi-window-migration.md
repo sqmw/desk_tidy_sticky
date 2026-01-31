@@ -8,12 +8,13 @@ implementation to simplify IPC and reduce complexity.
 - New dependency: `desktop_multi_window`
 - New args model: `WindowArgs` for per-window metadata
 - New messaging: `WindowMessageService` for refresh/close/locale sync
-- Replace `OverlayProcessManager` with `OverlayWindowManager`
+- Replace `OverlayProcessManager` with `StickyNoteWindowManager`
 
 ## Window Creation
 - Panel window creates overlay windows via `WindowController.create(...)`
+- One note window per pinned note.
 - Each overlay window receives JSON args for:
-  - `layer` (top/bottom)
+  - `type` (note)
   - `monitorRectArg`
   - `embedWorkerW`
 

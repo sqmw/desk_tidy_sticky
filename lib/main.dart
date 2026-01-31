@@ -9,6 +9,7 @@ import 'models/note_model.dart' show AppLocale;
 import 'models/window_args.dart';
 import 'pages/panel/panel_page.dart';
 import 'pages/overlay/overlay_page.dart';
+import 'pages/note_window/note_window_page.dart';
 import 'services/hotkey_service.dart';
 import 'services/tray_service.dart';
 import 'services/panel_preferences.dart';
@@ -44,8 +45,8 @@ void main(List<String> args) async {
   );
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
-    if (!appConfig.isOverlay) {
-      // Start hidden, let hotkey/tray show it
+    if (appConfig.mode == AppMode.normal) {
+      // Start hidden, let hotkey/tray show it.
       await windowManager.hide();
     }
     // Prevent Windows Aero Snap (same as desk_tidy)
@@ -53,7 +54,7 @@ void main(List<String> args) async {
   });
 
   // 2. Services Init
-  if (!appConfig.isOverlay && !appConfig.isBackground) {
+  if (appConfig.mode == AppMode.normal) {
     await TrayService().init(localeController: localeController);
     await HotkeyService.instance.init();
   }
@@ -79,6 +80,11 @@ class MyApp extends StatelessWidget {
           theme: AppTheme.buildTheme(),
           home: AppConfig.instance.isOverlay
               ? OverlayPage(strings: strings)
+              : AppConfig.instance.isNoteWindow
+              ? NoteWindowPage(
+                  noteId: AppConfig.instance.noteId ?? '',
+                  strings: strings,
+                )
               : PanelPage(localeController: localeController, strings: strings),
           onGenerateRoute: (settings) {
             if (settings.name == OverlayPage.routeName) {

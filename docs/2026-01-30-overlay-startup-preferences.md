@@ -1,20 +1,21 @@
-# Overlay Startup Preferences
+# Desktop Sticky Startup Preferences
 
 ## Requirements
-- Desktop sticky overlay state should persist across restarts.
+- Desktop sticky state should persist across restarts.
 - Mouse mode should default to click-through (non-edit) on startup.
 
 ## Changes
-- Added overlay preferences:
+- Added desktop sticky preferences:
   - `overlay_enabled`
 - On panel startup:
-  - Load persisted overlay state
+  - Load persisted sticky enabled state
   - Force click-through default for each session
-  - Auto-start overlay when enabled
-- On overlay toggle:
+  - Auto-start sticky windows when enabled
+- On sticky toggle:
   - Persist enabled/disabled state
 
 ## Affected Files
 - `lib/services/panel_preferences.dart`
 - `lib/pages/panel/panel_page.dart`
 - `lib/services/tray_service.dart`
+- `lib/services/sticky_note_window_manager.dart`

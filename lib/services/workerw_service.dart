@@ -39,7 +39,8 @@ class WorkerWService {
           win32.SetParent(hwnd, workerw);
           win32.SetWindowPos(
             hwnd,
-            win32.HWND_TOP,
+            // Keep it at the bottom within WorkerW so it behaves like desktop content.
+            win32.HWND_BOTTOM,
             0,
             0,
             0,
@@ -100,6 +101,13 @@ class WorkerWService {
     );
     win32.EnumWindows(callback, 0);
 
+    if (_workerw != 0) return _workerw;
+
+    // Fallback: return the first WorkerW we can find.
+    final fallback = win32.FindWindowEx(0, 0, win32.TEXT('WorkerW'), nullptr);
+    if (fallback != 0) {
+      _workerw = fallback;
+    }
     return _workerw;
   }
 
@@ -120,6 +128,20 @@ class WorkerWService {
       if (nextWorker != 0) {
         _workerw = nextWorker;
         return 0;
+      }
+
+      // Fallback: if there's no sibling WorkerW, use the current window if it
+      // is itself a WorkerW. (Some shells/layouts don't create the extra layer.)
+      final cls = calloc<win32.WCHAR>(256);
+      try {
+        win32.GetClassName(hwnd, cls.cast<Utf16>(), 256);
+        final className = cls.cast<Utf16>().toDartString();
+        if (className == 'WorkerW') {
+          _workerw = hwnd;
+          return 0;
+        }
+      } finally {
+        calloc.free(cls);
       }
     }
     return 1;

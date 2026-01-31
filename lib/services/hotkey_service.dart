@@ -8,7 +8,7 @@ import 'dart:developer' as dev;
 import 'package:win32/win32.dart';
 import 'package:window_manager/window_manager.dart';
 import '../controllers/overlay_controller.dart';
-import 'overlay_window_manager.dart';
+import 'sticky_note_window_manager.dart';
 
 /// Hotkey configuration data.
 class HotkeyConfig {
@@ -105,9 +105,9 @@ class HotkeyService {
     register(
       HotkeyConfig.toggleOverlayClickThrough,
       callback: (_) async {
-        final overlayManager = OverlayWindowManager.instance;
+        final overlayManager = StickyNoteWindowManager.instance;
         if (overlayManager.isRunning) {
-          await overlayManager.toggleClickThroughAll();
+          await overlayManager.toggleClickThrough();
         } else {
           OverlayController.instance.toggleClickThrough();
         }

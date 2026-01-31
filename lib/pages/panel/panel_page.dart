@@ -9,7 +9,7 @@ import '../../controllers/locale_controller.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../services/notes_service.dart';
-import '../../services/overlay_window_manager.dart';
+import '../../services/sticky_note_window_manager.dart';
 import '../../services/panel_preferences.dart';
 import '../../services/tray_menu_guard.dart';
 import '../../utils/note_search.dart';
@@ -45,7 +45,8 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final NotesService _notesService = NotesService();
-  final OverlayWindowManager _overlayManager = OverlayWindowManager.instance;
+  final StickyNoteWindowManager _overlayManager =
+      StickyNoteWindowManager.instance;
   Timer? _zOrderTimer;
 
   List<Note> _notes = [];
@@ -166,6 +167,12 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
           _notes.map((n) => MapEntry(n.id, NoteSearchIndex.fromText(n.text))),
         );
     });
+    if (_overlayManager.isRunning) {
+      await _overlayManager.sync(
+        localeController: widget.localeController,
+        embedWorkerW: true,
+      );
+    }
   }
 
   Future<void> _loadPreferences() async {
@@ -188,7 +195,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     await _loadNotes();
     await windowManager.setAlwaysOnTop(pinned);
     if (overlayEnabled) {
-      await _overlayManager.startAll(
+      await _overlayManager.start(
         localeController: widget.localeController,
         embedWorkerW: true,
         initialClickThrough: _overlayClickThrough,
@@ -435,14 +442,14 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
 
   Future<void> _openOverlay() async {
     if (_overlayManager.isRunning) {
-      await _overlayManager.stopAll();
+      await _overlayManager.stop();
       await PanelPreferences.setOverlayEnabled(false);
       return;
     }
 
     _overlayClickThrough = true;
     OverlayController.instance.setClickThrough(true);
-    final ok = await _overlayManager.startAll(
+    final ok = await _overlayManager.start(
       localeController: widget.localeController,
       embedWorkerW: true,
       initialClickThrough: _overlayClickThrough,

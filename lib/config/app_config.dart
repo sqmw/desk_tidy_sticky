@@ -12,6 +12,7 @@ class AppConfig {
     required this.parentPid,
     required this.monitorRectArg,
     required this.layer,
+    required this.noteId,
   });
 
   static AppConfig? _instance;
@@ -25,6 +26,7 @@ class AppConfig {
     parentPid: null,
     monitorRectArg: null,
     layer: OverlayLayer.any,
+    noteId: null,
   );
 
   final AppMode mode;
@@ -33,9 +35,11 @@ class AppConfig {
   final int? parentPid;
   final String? monitorRectArg;
   final OverlayLayer layer;
+  final String? noteId;
 
   bool get isBackground => mode == AppMode.background;
   bool get isOverlay => mode == AppMode.overlay;
+  bool get isNoteWindow => mode == AppMode.note;
 
   MonitorRect? get overlayMonitorRect {
     final arg = monitorRectArg;
@@ -51,6 +55,7 @@ class AppConfig {
     int? parentPid;
     String? monitorRectArg;
     OverlayLayer layer = OverlayLayer.any;
+    String? noteId;
 
     for (final arg in args) {
       if (arg == '--background' || arg == '--mode=background') {
@@ -81,6 +86,7 @@ class AppConfig {
       parentPid: parentPid,
       monitorRectArg: monitorRectArg,
       layer: layer,
+      noteId: noteId,
     );
     _instance = config;
     return config;
@@ -91,8 +97,11 @@ class AppConfig {
   }
 
   static AppConfig fromWindowArgs(WindowArgs args) {
-    final mode =
-        args.type == AppWindowType.overlay ? AppMode.overlay : AppMode.normal;
+    final mode = switch (args.type) {
+      AppWindowType.overlay => AppMode.overlay,
+      AppWindowType.note => AppMode.note,
+      _ => AppMode.normal,
+    };
     final config = AppConfig._(
       mode: mode,
       embedWorkerW: args.embedWorkerW,
@@ -100,10 +109,11 @@ class AppConfig {
       parentPid: null,
       monitorRectArg: args.monitorRectArg,
       layer: args.layer,
+      noteId: args.noteId,
     );
     _instance = config;
     return config;
   }
 }
 
-enum AppMode { normal, background, overlay }
+enum AppMode { normal, background, overlay, note }

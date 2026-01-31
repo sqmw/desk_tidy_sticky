@@ -5,7 +5,7 @@ import 'package:window_manager/window_manager.dart';
 import '../controllers/locale_controller.dart';
 import '../controllers/overlay_controller.dart';
 import '../l10n/strings.dart';
-import 'overlay_window_manager.dart';
+import 'sticky_note_window_manager.dart';
 import 'panel_preferences.dart';
 import 'tray_menu_guard.dart';
 
@@ -14,7 +14,8 @@ class TrayService {
   static final TrayService _instance = TrayService._internal();
   factory TrayService() => _instance;
   TrayService._internal();
-  final OverlayWindowManager _overlayManager = OverlayWindowManager.instance;
+  final StickyNoteWindowManager _overlayManager =
+      StickyNoteWindowManager.instance;
   LocaleController? _localeController;
 
   Future<void> init({required LocaleController localeController}) async {
@@ -86,7 +87,7 @@ class TrayService {
         label: isRunning ? strings.trayOverlayClose : strings.trayOverlay,
         onClicked: (_) async {
           if (isRunning) {
-            await _overlayManager.stopAll();
+            await _overlayManager.stop();
           } else {
             await _openOverlayFromTray();
           }
@@ -96,14 +97,14 @@ class TrayService {
         MenuItemLabel(
           label: strings.trayOverlayToggleClickThrough,
           onClicked: (_) async {
-            await _overlayManager.toggleClickThroughAll();
+            await _overlayManager.toggleClickThrough();
           },
         ),
       MenuSeparator(),
       MenuItemLabel(
         label: strings.trayExit,
         onClicked: (_) async {
-          await _overlayManager.stopAll();
+          await _overlayManager.stop();
           exit(0);
         },
       ),
@@ -120,7 +121,7 @@ class TrayService {
     const clickThrough = true;
     OverlayController.instance.setClickThrough(true);
 
-    await _overlayManager.startAll(
+    await _overlayManager.start(
       localeController: lc,
       embedWorkerW: true,
       initialClickThrough: clickThrough,

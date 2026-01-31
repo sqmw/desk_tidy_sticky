@@ -4,7 +4,7 @@ import 'package:window_manager/window_manager.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
 import '../../controllers/overlay_controller.dart';
-import '../../services/overlay_window_manager.dart';
+import '../../services/sticky_note_window_manager.dart';
 import '../../theme/app_theme.dart';
 import 'package:flutter/gestures.dart';
 import 'settings_dialog.dart';
@@ -209,7 +209,7 @@ class PanelHeader extends StatelessWidget {
               // Sticker Toggle
               ValueListenableBuilder<bool>(
                 valueListenable:
-                    OverlayWindowManager.instance.isRunningNotifier,
+                    StickyNoteWindowManager.instance.isRunningNotifier,
                 builder: (context, isRunning, _) {
                   return Row(
                     mainAxisSize: MainAxisSize.min,

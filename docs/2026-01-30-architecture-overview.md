@@ -9,7 +9,7 @@
 - `lib/controllers/*`: Local state signals (locale, overlay click-through, refresh).
 - `lib/services/*`:
   - `notes_service.dart`: Persistence + sorting for notes.
-  - `overlay_window_manager.dart`: Creates/controls overlay windows.
+  - `sticky_note_window_manager.dart`: Creates/closes note windows for pinned notes.
   - `window_message_service.dart`: Cross-window commands (refresh/close/locale).
   - `window_zorder_service.dart` / `workerw_service.dart`: Window z-order and
     WorkerW desktop attachment.
@@ -23,4 +23,4 @@
 
 ## Window Types
 - Panel: normal window with tray/hotkey.
-- Overlay: frameless desktop window, one per monitor per layer.
+- Note Window: frameless desktop window, one per pinned note.

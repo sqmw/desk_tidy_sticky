@@ -1,5 +1,8 @@
 # Overlay Interaction Stability Fix
 
+> 说明：该文档针对“Top/Bottom 双 Overlay 全屏窗口”时期的实现。
+> 2026-01-31 起切换为「方案C：每贴纸一个窗口」，详见 `docs/2026-01-31-per-note-windows.md`。
+
 ## Problems
 - Interactive mode could only drag once, then stopped responding.
 - After relaunching in interactive mode, notes became unresponsive.

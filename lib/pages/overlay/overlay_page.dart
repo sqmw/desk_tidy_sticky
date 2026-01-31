@@ -12,7 +12,6 @@ import '../../controllers/ipc_controller.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
-import '../../models/overlay_layer.dart';
 import '../../services/notes_service.dart';
 import '../../services/window_zorder_service.dart';
 import '../../services/workerw_service.dart';
@@ -41,6 +40,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   final Map<String, Offset> _positions = {};
   Rect _virtualRect = const Rect.fromLTWH(0, 0, 1920, 1080);
   double _devicePixelRatio = 1.0;
+  int _bottomSettleEpoch = 0;
 
   static const Size _panelDefaultSize = Size(360, 500);
 
@@ -148,6 +148,10 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     setState(() {
       _clickThrough = value;
     });
+    if (!_effectiveClickThrough) {
+      _cancelBottomSettle();
+    }
+    await _refreshPinned();
     await _applyMouseMode();
 
     // Force Windows to refresh hit-testing.
@@ -159,18 +163,16 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
 
   Future<void> _updateWindowZOrder() async {
     final interactive = !_effectiveClickThrough;
-    final layer = AppConfig.instance.layer;
 
-    // 1. If it's the Top layer, it's ALWAYS Top.
-    // 2. Bottom layer stays at bottom even when interactive.
-    // 3. If it's the Any/None layer, check if any notes are set to always-on-top.
+    // Single overlay window per monitor:
+    // - Interactive mode must raise window to allow editing.
+    // - If any note is always-on-top, keep the overlay window topmost.
+    // - Otherwise, push window behind desktop (WorkerW) and to HWND_BOTTOM.
     final anyAlwaysOnTop = _pinned.any((n) => n.isAlwaysOnTop);
-    final shouldBeTop =
-        (layer == OverlayLayer.top) ||
-        (layer == OverlayLayer.any && anyAlwaysOnTop);
+    final shouldBeTop = interactive || anyAlwaysOnTop;
 
     print(
-      '[OverlayPage] _updateWindowZOrder: layer=${layer.name}, interactive=$interactive, anyOnTop=$anyAlwaysOnTop -> shouldBeTop=$shouldBeTop',
+      '[OverlayPage] _updateWindowZOrder: interactive=$interactive, anyOnTop=$anyAlwaysOnTop -> shouldBeTop=$shouldBeTop',
     );
 
     final hwnd = await windowManager.getId();
@@ -197,6 +199,10 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
       await _applyOverlayBounds();
     }
     await WindowZOrderService.showNoActivate();
+    if (!shouldBeTop) {
+      await WindowZOrderService.setBottomNoActivate();
+      _scheduleBottomSettle();
+    }
   }
 
   bool get _effectiveClickThrough => _clickThrough || _pinned.isEmpty;
@@ -248,24 +254,20 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     await _notesService.loadNotes();
     final allPinned = List<Note>.from(_notesService.pinnedNotes);
     final pendingMigrations = <(String, Offset)>[];
-
-    // Filter by layer
-    final layer = AppConfig.instance.layer;
-    final filtered = allPinned.where((n) {
-      if (layer == OverlayLayer.top) return n.isAlwaysOnTop;
-      if (layer == OverlayLayer.bottom) return !n.isAlwaysOnTop;
-      return true; // any
-    }).toList();
+    final filtered = allPinned;
 
     setState(() {
       _pinned = filtered;
       _hasNotes = filtered.isNotEmpty;
+      if (filtered.isEmpty) {
+        _positions.clear();
+      }
       for (final note in filtered) {
         // Use global index among all pinned notes for fallback position consistency
         final globalIndex = allPinned.indexWhere((n) => n.id == note.id);
 
         print(
-          '[OverlayPage] Note ${note.id}: isAlwaysOnTop=${note.isAlwaysOnTop}, layer=${layer.name}, pos=(${note.x}, ${note.y}) globalIndex=$globalIndex',
+          '[OverlayPage] Note ${note.id}: isAlwaysOnTop=${note.isAlwaysOnTop}, pos=(${note.x}, ${note.y}) globalIndex=$globalIndex',
         );
         final pos = _normalizeStoredPosition(note, globalIndex);
         if (pos.needsPersist) {
@@ -475,5 +477,31 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
       rect.width / dpr,
       rect.height / dpr,
     );
+  }
+
+  void _scheduleBottomSettle() {
+    if (!_effectiveClickThrough) return;
+    final epoch = ++_bottomSettleEpoch;
+    Future.delayed(const Duration(milliseconds: 120), () async {
+      if (!mounted || _bottomSettleEpoch != epoch) return;
+      await _enforceBottomLayer();
+    });
+    Future.delayed(const Duration(milliseconds: 360), () async {
+      if (!mounted || _bottomSettleEpoch != epoch) return;
+      await _enforceBottomLayer();
+    });
+  }
+
+  Future<void> _enforceBottomLayer() async {
+    if (!_effectiveClickThrough) return;
+    if (AppConfig.instance.embedWorkerW) {
+      final hwnd = await windowManager.getId();
+      WorkerWService.attachToWorkerW(hwnd);
+    }
+    await WindowZOrderService.setBottomNoActivate();
+  }
+
+  void _cancelBottomSettle() {
+    _bottomSettleEpoch++;
   }
 }
