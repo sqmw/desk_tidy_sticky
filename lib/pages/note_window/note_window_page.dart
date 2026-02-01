@@ -1,10 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:win32/win32.dart' as win32;
 
 import '../../controllers/ipc_controller.dart';
 import '../../controllers/ipc_scope.dart';
@@ -46,11 +48,18 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   late final TextEditingController _textController = TextEditingController();
 
   Timer? _moveDebounce;
+  Timer? _alignDebounce;
+  Timer? _clampDebounce;
   Offset? _lastSavedPos;
+  bool _isClamping = false;
 
   static const double _cardWidth = 260;
   static const double _cardMinHeight = 60;
   static const EdgeInsets _cardPadding = EdgeInsets.all(12);
+  static const double _edgeSnapThreshold = 8;
+
+  double _devicePixelRatio = 1.0;
+  Alignment _contentAlignment = Alignment.topCenter;
 
   @override
   void initState() {
@@ -77,8 +86,98 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
     _ipcController.refreshTick(_ipcScope).removeListener(_handleRefresh);
     _ipcController.closeTick(_ipcScope).removeListener(_handleClose);
     _moveDebounce?.cancel();
+    _alignDebounce?.cancel();
+    _clampDebounce?.cancel();
     _textController.dispose();
     super.dispose();
+  }
+
+  void _updateDevicePixelRatio(BuildContext context) {
+    final next = View.of(context).devicePixelRatio;
+    if ((_devicePixelRatio - next).abs() < 0.001) return;
+    _devicePixelRatio = next;
+    _scheduleEdgeAlignmentUpdate();
+  }
+
+  Rect _getVirtualScreenRectLogical() {
+    if (!Platform.isWindows) {
+      // Best-effort fallback (project is Windows-first).
+      return const Rect.fromLTWH(0, 0, 1920, 1080);
+    }
+
+    final left = win32.GetSystemMetrics(win32.SM_XVIRTUALSCREEN);
+    final top = win32.GetSystemMetrics(win32.SM_YVIRTUALSCREEN);
+    final width = win32.GetSystemMetrics(win32.SM_CXVIRTUALSCREEN);
+    final height = win32.GetSystemMetrics(win32.SM_CYVIRTUALSCREEN);
+
+    final dpr = _devicePixelRatio == 0 ? 1.0 : _devicePixelRatio;
+    return Rect.fromLTWH(
+      left.toDouble() / dpr,
+      top.toDouble() / dpr,
+      width.toDouble() / dpr,
+      height.toDouble() / dpr,
+    );
+  }
+
+  void _scheduleEdgeAlignmentUpdate() {
+    _alignDebounce?.cancel();
+    _alignDebounce = Timer(const Duration(milliseconds: 50), () async {
+      if (!mounted) return;
+      final pos = await windowManager.getPosition();
+      final size = await windowManager.getSize();
+      final rect = Rect.fromLTWH(pos.dx, pos.dy, size.width, size.height);
+      final screen = _getVirtualScreenRectLogical();
+
+      final nearTop = rect.top <= screen.top + _edgeSnapThreshold;
+      final nearBottom = rect.bottom >= screen.bottom - _edgeSnapThreshold;
+      final nearLeft = rect.left <= screen.left + _edgeSnapThreshold;
+      final nearRight = rect.right >= screen.right - _edgeSnapThreshold;
+
+      final x = nearLeft && !nearRight
+          ? -1.0
+          : nearRight && !nearLeft
+          ? 1.0
+          : 0.0;
+      // Default keep header-reserved space at bottom (top-aligned content),
+      // but when user drags the window to the bottom edge, switch to bottom
+      // alignment so the visible content can reach the screen bottom.
+      final y = nearTop && !nearBottom
+          ? -1.0
+          : nearBottom && !nearTop
+          ? 1.0
+          : -1.0;
+
+      final next = Alignment(x, y);
+      if (next == _contentAlignment) return;
+      setState(() => _contentAlignment = next);
+    });
+  }
+
+  Future<void> _clampToScreenIfNeeded() async {
+    if (_isClamping) return;
+    _isClamping = true;
+    try {
+      final pos = await windowManager.getPosition();
+      final size = await windowManager.getSize();
+      final rect = Rect.fromLTWH(pos.dx, pos.dy, size.width, size.height);
+      final screen = _getVirtualScreenRectLogical();
+
+      final minX = screen.left;
+      final minY = screen.top;
+      final maxX = screen.right - rect.width;
+      final maxY = screen.bottom - rect.height;
+
+      final clampedX = rect.left.clamp(minX, maxX);
+      final clampedY = rect.top.clamp(minY, maxY);
+
+      final movedX = (clampedX - rect.left).abs();
+      final movedY = (clampedY - rect.top).abs();
+      if (movedX > _edgeSnapThreshold || movedY > _edgeSnapThreshold) {
+        await windowManager.setPosition(Offset(clampedX, clampedY));
+      }
+    } finally {
+      _isClamping = false;
+    }
   }
 
   Future<void> _prepareWindow() async {
@@ -98,6 +197,8 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       await windowManager.setPosition(Offset(note.x!, note.y!));
     }
     await windowManager.setSize(_estimateWindowSize(note?.text ?? ''));
+    _scheduleEdgeAlignmentUpdate();
+    await _clampToScreenIfNeeded();
 
     // Attempt to show without activating initially
     await WindowZOrderService.showNoActivate();
@@ -163,6 +264,8 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
     if (!_isEditing) {
       await windowManager.setSize(_estimateWindowSize(note.text));
+      _scheduleEdgeAlignmentUpdate();
+      await _clampToScreenIfNeeded();
     }
     await _applyMouseModeAndZOrder('load-note');
   }
@@ -224,14 +327,25 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
   @override
   void onWindowMove() {
+    _scheduleEdgeAlignmentUpdate();
     if (_clickThrough) return;
     _schedulePersistPosition();
   }
 
   @override
   void onWindowMoved() {
+    _scheduleEdgeAlignmentUpdate();
+    _scheduleClampToScreen();
     if (_clickThrough) return;
     _schedulePersistPosition();
+  }
+
+  void _scheduleClampToScreen() {
+    _clampDebounce?.cancel();
+    _clampDebounce = Timer(const Duration(milliseconds: 120), () async {
+      if (!mounted) return;
+      await _clampToScreenIfNeeded();
+    });
   }
 
   void _schedulePersistPosition() {
@@ -253,6 +367,7 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
+    _updateDevicePixelRatio(context);
     final note = _note;
     if (note == null) {
       return const Scaffold(
@@ -279,7 +394,7 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Align(
-          alignment: Alignment.topCenter,
+          alignment: _contentAlignment,
           child: HoverStateBuilder(
             enabled: !_clickThrough,
             builder: (context, hovering) {
@@ -343,6 +458,8 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                           await windowManager.setSize(
                             _estimateWindowSize(newText),
                           );
+                          _scheduleEdgeAlignmentUpdate();
+                          await _clampToScreenIfNeeded();
                         }
                         _ipcController.requestRefresh(_ipcScope);
                         WindowMessageService.instance.sendToPrimaryPanel(
