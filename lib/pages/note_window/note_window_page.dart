@@ -46,7 +46,7 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   Offset? _lastSavedPos;
 
   static const double _cardWidth = 260;
-  static const double _cardMinHeight = 160;
+  static const double _cardMinHeight = 60;
   static const EdgeInsets _cardPadding = EdgeInsets.all(12);
 
   @override
@@ -190,9 +190,7 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: _cardWidth - _cardPadding.horizontal);
     final height =
-        (_cardPadding.vertical +
-                painter.height +
-                24) // small buffer for general padding/rendering
+        (32 + painter.height + 24) // 32 header + 12 top + 12 bottom padding
             .clamp(_cardMinHeight, 10000.0);
     return Size(_cardWidth, height);
   }
@@ -247,7 +245,8 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       },
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: Center(
+        body: Align(
+          alignment: Alignment.bottomCenter,
           child: HoverStateBuilder(
             enabled: !_clickThrough,
             builder: (context, hovering) {
@@ -255,7 +254,11 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                 children: [
                   StickyNoteCard(
                     note: note,
-                    onDragUpdate: (_) {},
+                    onDragUpdate: (_) {
+                      if (!_clickThrough) {
+                        windowManager.startDragging();
+                      }
+                    },
                     onDragEnd: () {},
                     onDelete: () async {
                       await _notesService.deleteNote(note.id);
@@ -332,21 +335,6 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                     },
                     strings: widget.strings,
                     actionsVisible: hovering,
-                  ),
-                  // Easy drag: allow dragging most of the card, but avoid stealing
-                  // clicks from the icon row at the bottom.
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    bottom: 54,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onPanStart: (_) {
-                        if (_clickThrough) return;
-                        windowManager.startDragging();
-                      },
-                    ),
                   ),
                 ],
               );
