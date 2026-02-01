@@ -22,6 +22,7 @@ class NoteCardStyle {
       fontWeight: FontWeight.w600,
       decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
       height: 1.4,
+      fontSize: 14,
     );
   }
 }

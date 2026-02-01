@@ -427,6 +427,8 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
                         );
                       },
                       onEdit: () => _editNote(note),
+                      onSave: () {},
+                      onCancel: () {},
                       strings: strings,
                       actionsVisible: hovering,
                     );

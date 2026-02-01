@@ -41,6 +41,8 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
   Note? _note;
   bool _clickThrough = false;
+  bool _isEditing = false;
+  late final TextEditingController _textController = TextEditingController();
 
   Timer? _moveDebounce;
   Offset? _lastSavedPos;
@@ -73,6 +75,7 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
     _ipcController.refreshTick(_ipcScope).removeListener(_handleRefresh);
     _ipcController.closeTick(_ipcScope).removeListener(_handleClose);
     _moveDebounce?.cancel();
+    _textController.dispose();
     super.dispose();
   }
 
@@ -143,9 +146,13 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
     setState(() {
       _note = note;
+      // Do not reset _isEditing here to avoid interrupting user typing if background refresh happens.
     });
 
-    await windowManager.setSize(_estimateWindowSize(note.text));
+    // Only update size if NOT editing to avoid jumping while typing.
+    if (!_isEditing) {
+      await windowManager.setSize(_estimateWindowSize(note.text));
+    }
     await _applyMouseModeAndZOrder();
   }
 
@@ -183,10 +190,7 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   Size _estimateWindowSize(String text) {
     // plumbing. Windows can be resized again after a refresh.
     final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: NoteCardStyle.textStyle(false).copyWith(fontSize: 14),
-      ),
+      text: TextSpan(text: text, style: NoteCardStyle.textStyle(false)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: _cardWidth - _cardPadding.horizontal);
     final height =
@@ -240,7 +244,13 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       onKeyEvent: (event) async {
         if (event is KeyDownEvent &&
             event.logicalKey == LogicalKeyboardKey.escape) {
-          _overlayController.setClickThrough(true);
+          if (_isEditing) {
+            setState(() {
+              _isEditing = false;
+            });
+          } else {
+            _overlayController.setClickThrough(true);
+          }
         }
       },
       child: Scaffold(
@@ -254,8 +264,10 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                 children: [
                   StickyNoteCard(
                     note: note,
+                    isEditing: _isEditing,
+                    textController: _textController,
                     onDragUpdate: (_) {
-                      if (!_clickThrough) {
+                      if (!_clickThrough && !_isEditing) {
                         windowManager.startDragging();
                       }
                     },
@@ -269,7 +281,6 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                     },
                     onDoneToggle: () async {
                       await _notesService.toggleDone(note.id);
-                      // Note window is the current engine; sendToAll won't reach us.
                       _ipcController.requestRefresh(_ipcScope);
                       WindowMessageService.instance.sendToPrimaryPanel(
                         'refresh_notes',
@@ -277,7 +288,6 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                     },
                     onUnpin: () async {
                       await _notesService.togglePin(note.id);
-                      // Close after unpin, but still notify panels/other windows.
                       await WindowMessageService.instance.sendToPrimaryPanel(
                         'refresh_notes',
                       );
@@ -285,53 +295,47 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                     },
                     onToggleZOrder: () async {
                       await _notesService.toggleZOrder(note.id);
-                      // Apply new z-order/icon state immediately in this window.
                       _ipcController.requestRefresh(_ipcScope);
                       WindowMessageService.instance.sendToPrimaryPanel(
                         'refresh_notes',
                       );
                     },
-                    onEdit: () async {
+                    onEdit: () {
                       if (_clickThrough) {
                         _overlayController.setClickThrough(false);
                       }
-                      final controller = TextEditingController(text: note.text);
-                      final newText = await showDialog<String>(
-                        context: context,
-                        builder: (context) {
-                          return AlertDialog(
-                            title: Text(widget.strings.edit),
-                            content: TextField(
-                              controller: controller,
-                              autofocus: true,
-                              minLines: 1,
-                              maxLines: 8,
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: Text(widget.strings.cancel),
-                              ),
-                              FilledButton(
-                                onPressed: () => Navigator.of(
-                                  context,
-                                ).pop(controller.text.trim()),
-                                child: Text(widget.strings.saveNote),
-                              ),
-                            ],
+                      setState(() {
+                        _isEditing = true;
+                        _textController.text = note.text;
+                      });
+                    },
+                    onSave: () async {
+                      final newText = _textController.text.trim();
+                      if (newText.isNotEmpty) {
+                        await _notesService.updateNote(
+                          note.copyWith(text: newText),
+                        );
+                        // Force immediate size update after save
+                        if (mounted) {
+                          await windowManager.setSize(
+                            _estimateWindowSize(newText),
                           );
-                        },
-                      );
-                      if (!mounted) return;
-                      if (newText == null || newText.isEmpty) return;
-                      await _notesService.updateNote(
-                        note.copyWith(text: newText),
-                      );
-                      // Update current note window immediately.
-                      _ipcController.requestRefresh(_ipcScope);
-                      WindowMessageService.instance.sendToPrimaryPanel(
-                        'refresh_notes',
-                      );
+                        }
+                        _ipcController.requestRefresh(_ipcScope);
+                        WindowMessageService.instance.sendToPrimaryPanel(
+                          'refresh_notes',
+                        );
+                      }
+                      if (mounted) {
+                        setState(() {
+                          _isEditing = false;
+                        });
+                      }
+                    },
+                    onCancel: () {
+                      setState(() {
+                        _isEditing = false;
+                      });
                     },
                     strings: widget.strings,
                     actionsVisible: hovering,
