@@ -8,6 +8,7 @@ import '../controllers/overlay_controller.dart';
 import '../models/note_model.dart';
 import '../models/window_args.dart';
 import 'panel_preferences.dart';
+import 'log_service.dart';
 
 class WindowMessageService {
   WindowMessageService(
@@ -32,6 +33,12 @@ class WindowMessageService {
     instance = this;
     _windowController = await WindowController.fromCurrentEngine();
     await _windowController.setWindowMethodHandler(_handleMethodCall);
+
+    // Log startup
+    await LogService.info(
+      'WindowMessageService started for scope: $scope, ID: ${_windowController.windowId}',
+    );
+
     localeController.notifier.addListener(_handleLocaleChanged);
   }
 
@@ -65,6 +72,9 @@ class WindowMessageService {
         ipcController.requestRefresh(scope);
         break;
       case 'close_overlay':
+        await LogService.info(
+          '[WindowMessageService] received close_overlay for scope: $scope',
+        );
         ipcController.requestClose(scope);
         break;
       default:
@@ -74,23 +84,21 @@ class WindowMessageService {
 
   void _handleLocaleChanged() {
     if (_suppressLocaleBroadcast) return;
-    sendToAll(
-      'set_language',
-      {'value': localeController.current.name},
-    );
+    sendToAll('set_language', {'value': localeController.current.name});
   }
 
   Future<void> sendToAll(String method, [Map<String, Object?>? args]) async {
     await _sendWhere((_) => true, method, args);
   }
 
-  Future<void> sendToPanels(
-    String method, [
-    Map<String, Object?>? args,
-  ]) async {
-    await _sendWhere((windowArgs) {
-      return windowArgs.type == AppWindowType.panel;
-    }, method, args);
+  Future<void> sendToPanels(String method, [Map<String, Object?>? args]) async {
+    await _sendWhere(
+      (windowArgs) {
+        return windowArgs.type == AppWindowType.panel;
+      },
+      method,
+      args,
+    );
   }
 
   /// Send to the primary panel window only (avoids accidentally broadcasting to
@@ -103,8 +111,11 @@ class WindowMessageService {
     if (panelId != null) {
       final controllers = await WindowController.getAll();
       for (final controller in controllers) {
-        if (controller.windowId == _windowController.windowId) continue;
-        if (controller.windowId != panelId) continue;
+        // Safe check for ID equality using String conversion
+        if (controller.windowId.toString() ==
+            _windowController.windowId.toString())
+          continue;
+        if (controller.windowId.toString() != panelId) continue;
         try {
           await controller.invokeMethod(method, args);
         } catch (_) {}
@@ -119,9 +130,13 @@ class WindowMessageService {
     String method, [
     Map<String, Object?>? args,
   ]) async {
-    await _sendWhere((windowArgs) {
-      return windowArgs.type == AppWindowType.overlay;
-    }, method, args);
+    await _sendWhere(
+      (windowArgs) {
+        return windowArgs.type == AppWindowType.overlay;
+      },
+      method,
+      args,
+    );
   }
 
   Future<void> _sendWhere(
@@ -131,7 +146,9 @@ class WindowMessageService {
   ]) async {
     final controllers = await WindowController.getAll();
     for (final controller in controllers) {
-      if (controller.windowId == _windowController.windowId) continue;
+      if (controller.windowId.toString() ==
+          _windowController.windowId.toString())
+        continue;
       final windowArgs = WindowArgs.fromJsonString(controller.arguments);
       if (!predicate(windowArgs)) continue;
       try {

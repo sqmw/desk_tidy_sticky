@@ -88,6 +88,7 @@ class TrayService {
         onClicked: (_) async {
           if (isRunning) {
             await _overlayManager.stop();
+            await PanelPreferences.setOverlayEnabled(false);
           } else {
             await _openOverlayFromTray();
           }

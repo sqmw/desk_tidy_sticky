@@ -15,6 +15,7 @@ import '../../services/notes_service.dart';
 import '../../services/window_message_service.dart';
 import '../../services/window_zorder_service.dart';
 import '../../services/workerw_service.dart';
+import '../../services/log_service.dart';
 import '../../widgets/hover_state_builder.dart';
 import '../../theme/note_card_style.dart';
 import '../overlay/sticky_note_card.dart';
@@ -54,8 +55,8 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   @override
   void initState() {
     super.initState();
+    LogService.info('[NoteWindow:${widget.noteId}] initState');
     if (widget.noteId.trim().isEmpty) {
-      // Defensive: should never happen unless args were malformed.
       scheduleMicrotask(() => windowManager.close());
       return;
     }
@@ -70,6 +71,7 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
   @override
   void dispose() {
+    LogService.info('[NoteWindow:${widget.noteId}] dispose');
     windowManager.removeListener(this);
     _overlayController.clickThrough.removeListener(_handleClickThroughChanged);
     _ipcController.refreshTick(_ipcScope).removeListener(_handleRefresh);
@@ -81,6 +83,9 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
   Future<void> _prepareWindow() async {
     _clickThrough = _overlayController.clickThrough.value;
+    LogService.info(
+      '[NoteWindow:${widget.noteId}] _prepareWindow. clickThrough=$_clickThrough',
+    );
 
     await windowManager.setSkipTaskbar(true);
     await windowManager.setAsFrameless();
@@ -88,21 +93,21 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
     await windowManager.setHasShadow(false);
     await windowManager.setIgnoreMouseEvents(_clickThrough);
 
-    // Initial bounds: use stored note position if present; otherwise keep default.
     final note = await _readNoteOnce();
     if (note != null && note.x != null && note.y != null) {
       await windowManager.setPosition(Offset(note.x!, note.y!));
     }
     await windowManager.setSize(_estimateWindowSize(note?.text ?? ''));
 
+    // Attempt to show without activating initially
     await WindowZOrderService.showNoActivate();
-    // One more enforcement after first frame to avoid "enabled but invisible"
-    // when the window gets reparented to WorkerW too early.
+
+    // Schedule enforcement
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _applyMouseModeAndZOrder();
+      _applyMouseModeAndZOrder('post-frame');
     });
     Future.delayed(const Duration(milliseconds: 250), () {
-      _applyMouseModeAndZOrder();
+      _applyMouseModeAndZOrder('delayed-init');
     });
   }
 
@@ -115,18 +120,24 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   }
 
   void _handleRefresh() {
+    LogService.info('[NoteWindow:${widget.noteId}] _handleRefresh');
     _loadNote();
   }
 
   void _handleClose() async {
+    LogService.info('[NoteWindow:${widget.noteId}] _handleClose');
     await windowManager.close();
   }
 
   void _handleClickThroughChanged() {
+    final newVal = _overlayController.clickThrough.value;
+    LogService.info(
+      '[NoteWindow:${widget.noteId}] ClickThrough changed: $_clickThrough -> $newVal',
+    );
     setState(() {
-      _clickThrough = _overlayController.clickThrough.value;
+      _clickThrough = newVal;
     });
-    _applyMouseModeAndZOrder();
+    _applyMouseModeAndZOrder('click-through-changed');
   }
 
   Future<void> _loadNote() async {
@@ -138,25 +149,30 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
 
     if (!mounted) return;
 
-    // If note disappeared (unpinned/deleted/archived), close the window.
     if (note == null || !note.isPinned || note.isArchived || note.isDeleted) {
+      LogService.info(
+        '[NoteWindow:${widget.noteId}] Note unavailable or unpinned, closing.',
+      );
       await windowManager.close();
       return;
     }
 
     setState(() {
       _note = note;
-      // Do not reset _isEditing here to avoid interrupting user typing if background refresh happens.
     });
 
-    // Only update size if NOT editing to avoid jumping while typing.
     if (!_isEditing) {
       await windowManager.setSize(_estimateWindowSize(note.text));
     }
-    await _applyMouseModeAndZOrder();
+    await _applyMouseModeAndZOrder('load-note');
   }
 
-  Future<void> _applyMouseModeAndZOrder() async {
+  Future<void> _applyMouseModeAndZOrder(String reason) async {
+    // Only log if not too frequent
+    LogService.info(
+      '[NoteWindow:${widget.noteId}] _applyMouseModeAndZOrder. Reason: $reason, clickThrough=$_clickThrough',
+    );
+
     await windowManager.setIgnoreMouseEvents(_clickThrough);
 
     final note = _note;
@@ -166,25 +182,30 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
     final shouldBeTop = interactive || note.isAlwaysOnTop;
     final hwnd = await windowManager.getId();
 
+    LogService.info(
+      '[NoteWindow:${widget.noteId}] Z-Order check: interactive=$interactive, alwaysOnTop=${note.isAlwaysOnTop} => shouldBeTop=$shouldBeTop',
+    );
+
     if (shouldBeTop) {
-      // If this window was previously embedded under WorkerW (bottom mode),
-      // it must be detached first, otherwise "always on top" has no effect.
       WorkerWService.detachFromWorkerW(hwnd);
       await WindowZOrderService.setAlwaysOnTopNoActivate(true);
+      LogService.info('[NoteWindow:${widget.noteId}] Set AlwaysOnTop(TRUE)');
     } else {
       await WindowZOrderService.setAlwaysOnTopNoActivate(false);
-      // Use WorkerW embedding to make "bottom" visible on desktop (instead of
-      // being pushed below desktop windows by HWND_BOTTOM).
       final ok = WorkerWService.attachToWorkerW(hwnd);
+      LogService.info(
+        '[NoteWindow:${widget.noteId}] AttachWorkerW result: $ok',
+      );
+
       if (!ok) {
-        // Fallback: avoid forcing HWND_BOTTOM which can make the window
-        // completely invisible on some setups.
         WorkerWService.detachFromWorkerW(hwnd);
         await WindowZOrderService.setAlwaysOnTopNoActivate(false);
+        LogService.info(
+          '[NoteWindow:${widget.noteId}] Attach failed, fallback to Normal/Bottom',
+        );
       }
     }
 
-    // When editing, we need the window to be active to receive keyboard input.
     if (_isEditing) {
       await windowManager.show();
     } else {
@@ -193,14 +214,11 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   }
 
   Size _estimateWindowSize(String text) {
-    // plumbing. Windows can be resized again after a refresh.
     final painter = TextPainter(
       text: TextSpan(text: text, style: NoteCardStyle.textStyle(false)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: _cardWidth - _cardPadding.horizontal);
-    final height =
-        (32 + painter.height + 24) // 32 header + 12 top + 12 bottom padding
-            .clamp(_cardMinHeight, 10000.0);
+    final height = (32 + painter.height + 24).clamp(_cardMinHeight, 10000.0);
     return Size(_cardWidth, height);
   }
 
@@ -309,7 +327,6 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                       if (_clickThrough) {
                         _overlayController.setClickThrough(false);
                       }
-                      // Activate the window to receive keyboard focus for editing.
                       await windowManager.focus();
                       setState(() {
                         _isEditing = true;
@@ -322,7 +339,6 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                         await _notesService.updateNote(
                           note.copyWith(text: newText),
                         );
-                        // Force immediate size update after save
                         if (mounted) {
                           await windowManager.setSize(
                             _estimateWindowSize(newText),
