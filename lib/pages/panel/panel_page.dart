@@ -101,16 +101,19 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       await windowManager.setAlwaysOnTop(false);
       return;
     }
-    // If overlay is running, force Always On Top to ensure panel is clickable
-    // above the overlay window. Otherwise, respect user preference.
+    // If overlay is running AND in interactive mode (not click-through),
+    // force Always On Top to ensure panel is clickable above the overlay window.
+    // Otherwise, respect user preference only.
     final overlayActive = _overlayManager.isRunning;
-    final shouldBeTop = _windowPinned || overlayActive;
+    final overlayInteractive =
+        overlayActive && !OverlayController.instance.clickThrough.value;
+    final shouldBeTop = _windowPinned || overlayInteractive;
 
     await windowManager.setAlwaysOnTop(shouldBeTop);
 
     // Race condition fix & Interaction Toggle fix:
-    // If Overlay is running, we need to assert Top AFTER Overlay changes its state.
-    if (overlayActive) {
+    // If Overlay is in interactive mode, we need to assert Top AFTER Overlay changes its state.
+    if (overlayInteractive) {
       // Manage Heartbeat Timer
       // We only need a heartbeat if the Overlay is Interactive (competing for top-most)
       // Manage Heartbeat Timer
@@ -187,7 +190,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
 
   Future<void> _loadPreferences() async {
     final hide = await PanelPreferences.getHideAfterSave();
-    final pinned = await PanelPreferences.getWindowPinned();
+    // Window pinned state is NOT persisted - always start unpinned.
     final mode = await PanelPreferences.getViewMode();
     final sort = await PanelPreferences.getSortMode();
     final glass = await PanelPreferences.getGlassOpacity();
@@ -195,7 +198,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     if (!mounted) return;
     setState(() {
       _hideAfterSave = hide;
-      _windowPinned = pinned;
+      _windowPinned = false; // Always start unpinned
       _viewMode = mode;
       _sortMode = sort;
       _glassOpacity = glass;
@@ -203,7 +206,8 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     _overlayClickThrough = true;
     OverlayController.instance.setClickThrough(true);
     await _loadNotes();
-    await windowManager.setAlwaysOnTop(pinned);
+    // Explicitly set to not always on top at startup.
+    await windowManager.setAlwaysOnTop(false);
     if (overlayEnabled) {
       await _overlayManager.start(
         localeController: widget.localeController,
@@ -261,7 +265,7 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     final next = !_windowPinned;
     setState(() => _windowPinned = next);
     await windowManager.setAlwaysOnTop(next);
-    await PanelPreferences.setWindowPinned(next);
+    // Note: Window pinned state is NOT persisted - session only.
   }
 
   Future<void> _setHideAfterSave(bool value) async {

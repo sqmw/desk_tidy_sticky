@@ -88,3 +88,27 @@ await windowManager.setAlwaysOnTop(true);
 
 1. 创建贴纸，双击编辑，验证可正常输入
 2. 取消主窗口置顶，点击其他窗口，验证主窗口不再自动弹回
+3. 重启应用，验证主窗口默认不置顶
+
+---
+
+## 补充修复 (2026-02-01 11:30)
+
+### 问题
+1. 主窗口置顶状态被持久化保存，重启后保持置顶
+2. 启动时虽然置顶图标未选中，但窗口实际是置顶的
+
+### 原因
+- `_loadPreferences()` 读取持久化的 `windowPinned` 值
+- `_updateAlwaysOnTop()` 在 overlay 运行时无条件设置置顶（无论是否 clickThrough 模式）
+
+### 修复
+1. **移除持久化**: 不再保存/读取 windowPinned 状态，每次启动默认不置顶
+2. **精确判断 overlay 交互模式**: 只有当 overlay 处于交互模式（非 clickThrough）时才强制主窗口置顶
+
+```dart
+// 只有交互模式下才强制置顶
+final overlayInteractive = overlayActive && 
+    !OverlayController.instance.clickThrough.value;
+final shouldBeTop = _windowPinned || overlayInteractive;
+```
