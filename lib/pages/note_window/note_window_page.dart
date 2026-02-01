@@ -184,7 +184,12 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       }
     }
 
-    await WindowZOrderService.showNoActivate();
+    // When editing, we need the window to be active to receive keyboard input.
+    if (_isEditing) {
+      await windowManager.show();
+    } else {
+      await WindowZOrderService.showNoActivate();
+    }
   }
 
   Size _estimateWindowSize(String text) {
@@ -300,10 +305,12 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                         'refresh_notes',
                       );
                     },
-                    onEdit: () {
+                    onEdit: () async {
                       if (_clickThrough) {
                         _overlayController.setClickThrough(false);
                       }
+                      // Activate the window to receive keyboard focus for editing.
+                      await windowManager.focus();
                       setState(() {
                         _isEditing = true;
                         _textController.text = note.text;

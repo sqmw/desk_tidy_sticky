@@ -69,9 +69,9 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     OverlayController.instance.clickThrough.addListener(_updateAlwaysOnTop);
     TrayMenuGuard.instance.isMenuOpen.addListener(_updateAlwaysOnTop);
     // Click-through is transient; do not persist across app launches.
-    IpcController.instance.refreshTick(IpcScope.panel).addListener(
-      _handleIpcRefresh,
-    );
+    IpcController.instance
+        .refreshTick(IpcScope.panel)
+        .addListener(_handleIpcRefresh);
     _loadPreferences();
     _searchController.addListener(() {
       setState(() {
@@ -89,9 +89,9 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
     _overlayManager.isRunningNotifier.removeListener(_updateAlwaysOnTop);
     OverlayController.instance.clickThrough.removeListener(_updateAlwaysOnTop);
     TrayMenuGuard.instance.isMenuOpen.removeListener(_updateAlwaysOnTop);
-    IpcController.instance.refreshTick(IpcScope.panel).removeListener(
-      _handleIpcRefresh,
-    );
+    IpcController.instance
+        .refreshTick(IpcScope.panel)
+        .removeListener(_handleIpcRefresh);
     _zOrderTimer?.cancel();
     super.dispose();
   }
@@ -121,16 +121,19 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       _zOrderTimer = null;
 
       // Initial staged re-assertion (Race condition fix)
+      // Only continue if the window should remain on top.
+      if (!shouldBeTop) return;
+
       await Future.delayed(const Duration(milliseconds: 300));
-      if (!mounted) return;
+      if (!mounted || !_windowPinned) return;
       await windowManager.setAlwaysOnTop(true);
 
       await Future.delayed(const Duration(milliseconds: 700));
-      if (!mounted) return;
+      if (!mounted || !_windowPinned) return;
       await windowManager.setAlwaysOnTop(true);
 
       await Future.delayed(const Duration(milliseconds: 1500));
-      if (!mounted) return;
+      if (!mounted || !_windowPinned) return;
       await windowManager.setAlwaysOnTop(true);
     } else {
       _zOrderTimer?.cancel();
@@ -151,10 +154,12 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
   void onWindowBlur() {
     // When focus is lost (e.g., clicked desktop), the Overlay might try to win Z-order.
     // We re-assert our status after a short delay to ensure we stay on top.
-    if (_overlayManager.isRunning &&
+    // Only re-assert if user explicitly pinned the window.
+    if (_windowPinned &&
+        _overlayManager.isRunning &&
         !TrayMenuGuard.instance.isMenuOpen.value) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted) {
+        if (mounted && _windowPinned) {
           windowManager.setAlwaysOnTop(true);
         }
       });
@@ -379,11 +384,13 @@ class _PanelPageState extends State<PanelPage> with WindowListener {
       // Rebuild the full list by replacing the visible subset with the new
       // order, while preserving all other notes' relative positions.
       final iter = reorderedVisible.iterator;
-      _notes = _notes.map((n) {
-        if (!inCurrentView(n)) return n;
-        if (!iter.moveNext()) return n;
-        return iter.current;
-      }).toList(growable: false);
+      _notes = _notes
+          .map((n) {
+            if (!inCurrentView(n)) return n;
+            if (!iter.moveNext()) return n;
+            return iter.current;
+          })
+          .toList(growable: false);
     });
 
     // Persist without forcing a reload (prevents visual flicker).
