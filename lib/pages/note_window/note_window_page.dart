@@ -279,7 +279,7 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: Align(
-          alignment: Alignment.bottomCenter,
+          alignment: Alignment.topCenter,
           child: HoverStateBuilder(
             enabled: !_clickThrough,
             builder: (context, hovering) {
