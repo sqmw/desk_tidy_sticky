@@ -16,6 +16,7 @@ import '../../services/window_message_service.dart';
 import '../../services/window_zorder_service.dart';
 import '../../services/workerw_service.dart';
 import '../../widgets/hover_state_builder.dart';
+import '../../theme/note_card_style.dart';
 import '../overlay/sticky_note_card.dart';
 
 class NoteWindowPage extends StatefulWidget {
@@ -47,7 +48,6 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   static const double _cardWidth = 260;
   static const double _cardMinHeight = 160;
   static const EdgeInsets _cardPadding = EdgeInsets.all(12);
-  static const double _iconRowHeight = 16 + 10 + 16; // icons + spacing + row
 
   @override
   void initState() {
@@ -181,20 +181,19 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   }
 
   Size _estimateWindowSize(String text) {
-    // Best-effort sizing to reduce text clipping without adding heavy layout
     // plumbing. Windows can be resized again after a refresh.
     final painter = TextPainter(
-      text: TextSpan(text: text, style: const TextStyle(fontSize: 14)),
-      maxLines: 8,
+      text: TextSpan(
+        text: text,
+        style: NoteCardStyle.textStyle(false).copyWith(fontSize: 14),
+      ),
       textDirection: TextDirection.ltr,
-      ellipsis: '…',
     )..layout(maxWidth: _cardWidth - _cardPadding.horizontal);
     final height =
         (_cardPadding.vertical +
                 painter.height +
-                10 + // spacing before icon row
-                _iconRowHeight)
-            .clamp(_cardMinHeight, 420.0);
+                24) // small buffer for general padding/rendering
+            .clamp(_cardMinHeight, 10000.0);
     return Size(_cardWidth, height);
   }
 
