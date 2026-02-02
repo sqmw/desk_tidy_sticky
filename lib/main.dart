@@ -23,6 +23,8 @@ import 'services/panel_window_service.dart';
 import 'theme/app_theme.dart';
 import 'controllers/ipc_scope.dart';
 
+import 'utils/single_instance.dart';
+
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 void main(List<String> args) async {
@@ -36,6 +38,20 @@ void main(List<String> args) async {
       final windowArgs = WindowArgs.fromJsonString(windowController.arguments);
       final appConfig = AppConfig.fromWindowArgs(windowArgs);
       await LogService.info('AppConfig mode: ${appConfig.mode}');
+
+      // Single Instance Check (Only for Main Process)
+      if (appConfig.mode == AppMode.normal) {
+        final isPrimary = await SingleInstance.ensure(
+          onActivate: () async {
+            await LogService.info('SingleInstance: Activated by new instance');
+            await PanelWindowService.show();
+          },
+        );
+        if (!isPrimary) {
+          await LogService.info('SingleInstance: Secondary instance, exiting');
+          exit(0);
+        }
+      }
 
       // Pre-load deferred libraries based on mode
       if (appConfig.mode == AppMode.normal) {
