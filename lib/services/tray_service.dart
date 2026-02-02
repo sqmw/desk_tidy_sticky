@@ -66,13 +66,7 @@ class TrayService {
           await PanelWindowService.show();
         },
       ),
-      MenuItemLabel(
-        label: strings.trayNewNote,
-        onClicked: (menuItem) async {
-          await PanelWindowService.show();
-          // Todo: focus specific input
-        },
-      ),
+
       MenuSeparator(),
       MenuItemLabel(
         label: isRunning ? strings.trayOverlayClose : strings.trayOverlay,
