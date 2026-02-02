@@ -2,11 +2,14 @@ import 'package:flutter/services.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 
 import '../controllers/ipc_controller.dart';
+import '../controllers/ipc_scope.dart';
 
 import '../controllers/locale_controller.dart';
 import '../controllers/overlay_controller.dart';
 import '../models/note_model.dart';
 import '../models/window_args.dart';
+import '../models/notes_command.dart';
+import 'notes_command_handler.dart';
 import 'panel_preferences.dart';
 import 'log_service.dart';
 
@@ -16,8 +19,10 @@ class WindowMessageService {
     required this.scope,
     OverlayController? overlayController,
     IpcController? ipcController,
+    NotesCommandHandler? notesCommandHandler,
   }) : overlayController = overlayController ?? OverlayController.instance,
-       ipcController = ipcController ?? IpcController.instance;
+       ipcController = ipcController ?? IpcController.instance,
+       _notesCommandHandler = notesCommandHandler ?? NotesCommandHandler();
 
   static late WindowMessageService instance;
 
@@ -25,6 +30,7 @@ class WindowMessageService {
   final OverlayController overlayController;
   final IpcController ipcController;
   final String scope;
+  final NotesCommandHandler _notesCommandHandler;
 
   late final WindowController _windowController;
   bool _suppressLocaleBroadcast = false;
@@ -77,8 +83,36 @@ class WindowMessageService {
         );
         ipcController.requestClose(scope);
         break;
+      case 'notes_command':
+        // Single-writer: only the primary panel window is allowed to mutate notes.
+        if (scope != IpcScope.panel) return;
+        final cmd = NotesCommand.tryFromArgs(args);
+        if (cmd == null) return;
+        await _handleNotesCommand(cmd);
+        break;
       default:
         break;
+    }
+  }
+
+  Future<void> _handleNotesCommand(NotesCommand cmd) async {
+    try {
+      final result = await _notesCommandHandler.handle(cmd);
+
+      if (result.refreshPanel) {
+        ipcController.requestRefresh(IpcScope.panel);
+      }
+      if (result.refreshOverlays) {
+        await sendToOverlays('refresh_notes');
+      }
+      if (result.refreshNoteWindow) {
+        await sendToNote(cmd.noteId, 'refresh_notes');
+      }
+      if (result.closeNoteWindow) {
+        await sendToNote(cmd.noteId, 'close_overlay');
+      }
+    } catch (e, s) {
+      await LogService.error('notes_command failed', e, s);
     }
   }
 
@@ -113,8 +147,9 @@ class WindowMessageService {
       for (final controller in controllers) {
         // Safe check for ID equality using String conversion
         if (controller.windowId.toString() ==
-            _windowController.windowId.toString())
+            _windowController.windowId.toString()) {
           continue;
+        }
         if (controller.windowId.toString() != panelId) continue;
         try {
           await controller.invokeMethod(method, args);
@@ -139,6 +174,31 @@ class WindowMessageService {
     );
   }
 
+  Future<void> sendToNotes(String method, [Map<String, Object?>? args]) async {
+    await _sendWhere(
+      (windowArgs) {
+        return windowArgs.type == AppWindowType.note;
+      },
+      method,
+      args,
+    );
+  }
+
+  Future<void> sendToNote(
+    String noteId,
+    String method, [
+    Map<String, Object?>? args,
+  ]) async {
+    await _sendWhere(
+      (windowArgs) {
+        return windowArgs.type == AppWindowType.note &&
+            windowArgs.noteId == noteId;
+      },
+      method,
+      args,
+    );
+  }
+
   Future<void> _sendWhere(
     bool Function(WindowArgs args) predicate,
     String method, [
@@ -147,8 +207,9 @@ class WindowMessageService {
     final controllers = await WindowController.getAll();
     for (final controller in controllers) {
       if (controller.windowId.toString() ==
-          _windowController.windowId.toString())
+          _windowController.windowId.toString()) {
         continue;
+      }
       final windowArgs = WindowArgs.fromJsonString(controller.arguments);
       if (!predicate(windowArgs)) continue;
       try {

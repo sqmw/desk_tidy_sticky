@@ -13,10 +13,10 @@ import '../../controllers/ipc_scope.dart';
 import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
+import '../../services/notes_command_dispatcher.dart';
 import '../../services/notes_service.dart';
 import '../../services/window_zorder_service.dart';
 import '../../services/workerw_service.dart';
-import '../../services/window_message_service.dart';
 import '../../widgets/hover_state_builder.dart';
 import 'sticky_note_card.dart';
 
@@ -31,6 +31,8 @@ class OverlayPage extends StatefulWidget {
 
 class _OverlayPageState extends State<OverlayPage> with WindowListener {
   final NotesService _notesService = NotesService();
+  final NotesCommandDispatcher _notesDispatcher =
+      NotesCommandDispatcher.instance;
   Strings get strings => widget.strings ?? Strings.of(AppLocale.en);
   final OverlayController _overlayController = OverlayController.instance;
   final IpcController _ipcController = IpcController.instance;
@@ -279,7 +281,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
       }
     });
     for (final item in pendingMigrations) {
-      await _notesService.updateNotePosition(
+      await _notesDispatcher.updatePosition(
         item.$1,
         x: item.$2.dx,
         y: item.$2.dy,
@@ -322,11 +324,7 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
   Future<void> _commitPosition(Note note) async {
     final pos = _positions[note.id];
     if (pos == null) return;
-    await _notesService.updateNotePosition(note.id, x: pos.dx, y: pos.dy);
-
-    // Notify parent to refresh list (e.g. if position was relevant, or just keep in sync)
-    // Position might not affect list view, but good practice.
-    WindowMessageService.instance.sendToPanels('refresh_notes');
+    await _notesDispatcher.updatePosition(note.id, x: pos.dx, y: pos.dy);
   }
 
   Future<void> _editNote(Note note) async {
@@ -364,9 +362,12 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
     );
     if (!mounted) return;
     if (newText == null || newText.isEmpty) return;
-    await _notesService.updateNote(note.copyWith(text: newText));
-    await _refreshPinned();
-    WindowMessageService.instance.sendToAll('refresh_notes');
+    await _notesDispatcher.updateText(note.id, newText);
+    setState(() {
+      _pinned = _pinned
+          .map((n) => n.id == note.id ? n.copyWith(text: newText) : n)
+          .toList(growable: false);
+    });
   }
 
   @override
@@ -399,32 +400,53 @@ class _OverlayPageState extends State<OverlayPage> with WindowListener {
                       onDragUpdate: (delta) => _updateDrag(note, delta),
                       onDragEnd: () => _commitPosition(note),
                       onDelete: () async {
-                        await _notesService.deleteNote(note.id);
-                        await _refreshPinned();
-                        WindowMessageService.instance.sendToAll(
-                          'refresh_notes',
-                        );
+                        await _notesDispatcher.deleteNote(note.id);
+                        setState(() {
+                          _pinned = _pinned
+                              .where((n) => n.id != note.id)
+                              .toList(growable: false);
+                          _positions.remove(note.id);
+                          _hasNotes = _pinned.isNotEmpty;
+                        });
+                        await _syncVisibility();
                       },
                       onDoneToggle: () async {
-                        await _notesService.toggleDone(note.id);
-                        await _refreshPinned();
-                        WindowMessageService.instance.sendToAll(
-                          'refresh_notes',
-                        );
+                        await _notesDispatcher.toggleDone(note.id);
+                        setState(() {
+                          _pinned = _pinned
+                              .map(
+                                (n) => n.id == note.id
+                                    ? n.copyWith(isDone: !n.isDone)
+                                    : n,
+                              )
+                              .toList(growable: false);
+                        });
                       },
                       onUnpin: () async {
-                        await _notesService.togglePin(note.id);
-                        await _refreshPinned();
-                        WindowMessageService.instance.sendToAll(
-                          'refresh_notes',
-                        );
+                        await _notesDispatcher.togglePin(note.id);
+                        setState(() {
+                          _pinned = _pinned
+                              .where((n) => n.id != note.id)
+                              .toList(growable: false);
+                          _positions.remove(note.id);
+                          _hasNotes = _pinned.isNotEmpty;
+                        });
+                        await _syncVisibility();
                       },
                       onToggleZOrder: () async {
-                        await _notesService.toggleZOrder(note.id);
-                        await _refreshPinned();
-                        WindowMessageService.instance.sendToAll(
-                          'refresh_notes',
-                        );
+                        await _notesDispatcher.toggleZOrder(note.id);
+                        setState(() {
+                          _pinned = _pinned
+                              .map(
+                                (n) => n.id == note.id
+                                    ? n.copyWith(
+                                        isAlwaysOnTop: !n.isAlwaysOnTop,
+                                      )
+                                    : n,
+                              )
+                              .toList(growable: false);
+                        });
+                        await _updateWindowZOrder();
                       },
                       onEdit: () => _editNote(note),
                       onSave: () {},

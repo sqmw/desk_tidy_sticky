@@ -71,6 +71,7 @@ class NotesService {
     bool isPinned = false,
     NoteSortMode sortMode = NoteSortMode.custom,
   }) async {
+    await loadNotes(sortMode: sortMode);
     final note = Note(text: text, isPinned: isPinned);
     // For custom order, new note comes first
     if (sortMode == NoteSortMode.custom) {
@@ -86,6 +87,7 @@ class NotesService {
     Note updatedNote, {
     NoteSortMode sortMode = NoteSortMode.custom,
   }) async {
+    await loadNotes(sortMode: sortMode);
     final index = _notes.indexWhere((n) => n.id == updatedNote.id);
     if (index != -1) {
       _notes[index] = updatedNote;
@@ -114,6 +116,7 @@ class NotesService {
     List<Note> reorderedVisibleNotes, {
     required bool isArchivedView,
   }) async {
+    await loadNotes();
     // 1. Update customOrder based on the new order in the visible list.
     // We only update the customOrder for notes in the current view.
     for (int i = 0; i < reorderedVisibleNotes.length; i++) {
@@ -129,6 +132,7 @@ class NotesService {
   }
 
   Future<void> deleteNote(String id) async {
+    await loadNotes();
     final index = _notes.indexWhere((n) => n.id == id);
     if (index != -1) {
       _notes[index] = _notes[index].copyWith(
@@ -143,6 +147,7 @@ class NotesService {
     String id, {
     NoteSortMode sortMode = NoteSortMode.custom,
   }) async {
+    await loadNotes(sortMode: sortMode);
     final index = _notes.indexWhere((n) => n.id == id);
     if (index != -1) {
       _notes[index] = _notes[index].copyWith(isPinned: !_notes[index].isPinned);
@@ -155,6 +160,7 @@ class NotesService {
     String id, {
     NoteSortMode sortMode = NoteSortMode.custom,
   }) async {
+    await loadNotes(sortMode: sortMode);
     final index = _notes.indexWhere((n) => n.id == id);
     if (index != -1) {
       _notes[index] = _notes[index].copyWith(
@@ -169,6 +175,7 @@ class NotesService {
     String id, {
     NoteSortMode sortMode = NoteSortMode.custom,
   }) async {
+    await loadNotes(sortMode: sortMode);
     final index = _notes.indexWhere((n) => n.id == id);
     if (index != -1) {
       _notes[index] = _notes[index].copyWith(isDone: !_notes[index].isDone);
@@ -181,6 +188,7 @@ class NotesService {
     String id, {
     NoteSortMode sortMode = NoteSortMode.custom,
   }) async {
+    await loadNotes(sortMode: sortMode);
     final index = _notes.indexWhere((n) => n.id == id);
     if (index != -1) {
       final note = _notes[index];
@@ -205,6 +213,7 @@ class NotesService {
     String id, {
     NoteSortMode sortMode = NoteSortMode.custom,
   }) async {
+    await loadNotes(sortMode: sortMode);
     final index = _notes.indexWhere((n) => n.id == id);
     if (index != -1) {
       _notes[index] = _notes[index].copyWith(
@@ -217,11 +226,13 @@ class NotesService {
   }
 
   Future<void> permanentlyDeleteNote(String id) async {
+    await loadNotes();
     _notes.removeWhere((n) => n.id == id);
     await saveNotes();
   }
 
   Future<void> emptyTrash() async {
+    await loadNotes();
     _notes.removeWhere((n) => n.isDeleted);
     await saveNotes();
   }

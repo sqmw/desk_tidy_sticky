@@ -9,8 +9,9 @@ import 'controllers/locale_controller.dart';
 import 'l10n/strings.dart' as l10n;
 import 'models/note_model.dart' show AppLocale;
 import 'models/window_args.dart';
-import 'pages/panel/panel_page.dart';
-import 'pages/overlay/overlay_page.dart';
+// Deferred imports to save memory in multi-window scenarios
+import 'pages/panel/panel_page.dart' deferred as panel_impl;
+import 'pages/overlay/overlay_page.dart' deferred as overlay_impl;
 import 'pages/note_window/note_window_page.dart';
 import 'services/hotkey_service.dart';
 import 'services/tray_service.dart';
@@ -36,9 +37,15 @@ void main(List<String> args) async {
       final appConfig = AppConfig.fromWindowArgs(windowArgs);
       await LogService.info('AppConfig mode: ${appConfig.mode}');
 
+      // Pre-load deferred libraries based on mode
+      if (appConfig.mode == AppMode.normal) {
+        await panel_impl.loadLibrary();
+      } else if (appConfig.mode == AppMode.overlay) {
+        await overlay_impl.loadLibrary();
+      }
+
       final locale = await PanelPreferences.getLanguage();
-      final showPanelOnStartup =
-          await PanelPreferences.getShowPanelOnStartup();
+      final showPanelOnStartup = await PanelPreferences.getShowPanelOnStartup();
       final localeController = LocaleController(locale);
       final scope = switch (appConfig.mode) {
         AppMode.note => IpcScope.note(appConfig.noteId ?? ''),
@@ -130,17 +137,22 @@ class MyApp extends StatelessWidget {
           navigatorKey: appNavigatorKey,
           theme: AppTheme.buildTheme(),
           home: AppConfig.instance.isOverlay
-              ? OverlayPage(strings: strings)
+              ? overlay_impl.OverlayPage(strings: strings)
               : AppConfig.instance.isNoteWindow
               ? NoteWindowPage(
                   noteId: AppConfig.instance.noteId ?? '',
                   strings: strings,
                 )
-              : PanelPage(localeController: localeController, strings: strings),
+              : panel_impl.PanelPage(
+                  localeController: localeController,
+                  strings: strings,
+                ),
           onGenerateRoute: (settings) {
-            if (settings.name == OverlayPage.routeName) {
+            // Keep route name stable without referencing deferred symbols.
+            if (settings.name == '/overlay') {
+              // Fallback/Safety check if needed, though usually handled by home
               return MaterialPageRoute<void>(
-                builder: (_) => OverlayPage(strings: strings),
+                builder: (_) => overlay_impl.OverlayPage(strings: strings),
                 settings: settings,
                 fullscreenDialog: true,
               );

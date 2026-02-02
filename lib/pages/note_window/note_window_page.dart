@@ -14,7 +14,7 @@ import '../../controllers/overlay_controller.dart';
 import '../../l10n/strings.dart';
 import '../../models/note_model.dart';
 import '../../services/notes_service.dart';
-import '../../services/window_message_service.dart';
+import '../../services/notes_command_dispatcher.dart';
 import '../../services/window_zorder_service.dart';
 import '../../services/workerw_service.dart';
 import '../../services/log_service.dart';
@@ -38,6 +38,8 @@ class NoteWindowPage extends StatefulWidget {
 
 class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
   final NotesService _notesService = NotesService();
+  final NotesCommandDispatcher _notesDispatcher =
+      NotesCommandDispatcher.instance;
   final OverlayController _overlayController = OverlayController.instance;
   final IpcController _ipcController = IpcController.instance;
   late final String _ipcScope;
@@ -356,12 +358,11 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
       if (last != null && (last - pos).distance < 0.5) return;
       _lastSavedPos = pos;
 
-      await _notesService.updateNotePosition(
+      await _notesDispatcher.updatePosition(
         widget.noteId,
         x: pos.dx,
         y: pos.dy,
       );
-      WindowMessageService.instance.sendToPanels('refresh_notes');
     });
   }
 
@@ -411,32 +412,18 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                     },
                     onDragEnd: () {},
                     onDelete: () async {
-                      await _notesService.deleteNote(note.id);
-                      await WindowMessageService.instance.sendToPrimaryPanel(
-                        'refresh_notes',
-                      );
+                      await _notesDispatcher.deleteNote(note.id);
                       await windowManager.close();
                     },
                     onDoneToggle: () async {
-                      await _notesService.toggleDone(note.id);
-                      _ipcController.requestRefresh(_ipcScope);
-                      WindowMessageService.instance.sendToPrimaryPanel(
-                        'refresh_notes',
-                      );
+                      await _notesDispatcher.toggleDone(note.id);
                     },
                     onUnpin: () async {
-                      await _notesService.togglePin(note.id);
-                      await WindowMessageService.instance.sendToPrimaryPanel(
-                        'refresh_notes',
-                      );
+                      await _notesDispatcher.togglePin(note.id);
                       await windowManager.close();
                     },
                     onToggleZOrder: () async {
-                      await _notesService.toggleZOrder(note.id);
-                      _ipcController.requestRefresh(_ipcScope);
-                      WindowMessageService.instance.sendToPrimaryPanel(
-                        'refresh_notes',
-                      );
+                      await _notesDispatcher.toggleZOrder(note.id);
                     },
                     onEdit: () async {
                       if (_clickThrough) {
@@ -451,9 +438,10 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                     onSave: () async {
                       final newText = _textController.text.trim();
                       if (newText.isNotEmpty) {
-                        await _notesService.updateNote(
-                          note.copyWith(text: newText),
-                        );
+                        await _notesDispatcher.updateText(note.id, newText);
+                        setState(() {
+                          _note = note.copyWith(text: newText);
+                        });
                         if (mounted) {
                           await windowManager.setSize(
                             _estimateWindowSize(newText),
@@ -461,10 +449,6 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
                           _scheduleEdgeAlignmentUpdate();
                           await _clampToScreenIfNeeded();
                         }
-                        _ipcController.requestRefresh(_ipcScope);
-                        WindowMessageService.instance.sendToPrimaryPanel(
-                          'refresh_notes',
-                        );
                       }
                       if (mounted) {
                         setState(() {

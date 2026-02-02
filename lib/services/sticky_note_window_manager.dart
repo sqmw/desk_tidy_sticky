@@ -343,13 +343,13 @@ class StickyNoteWindowManager {
     required bool clickThrough,
   }) {
     // UPDATED: Removed repetitive `await controller.show()` calls.
+    // Also removed redundant `refresh_notes` calls as NoteWindowPage loads data on initState.
     Future.delayed(const Duration(milliseconds: 150), () async {
       try {
         await controller.invokeMethod('set_language', {'value': localeName});
         await controller.invokeMethod('set_click_through', {
           'value': clickThrough,
         });
-        await controller.invokeMethod('refresh_notes');
       } catch (_) {}
     });
     Future.delayed(const Duration(milliseconds: 400), () async {
@@ -358,7 +358,6 @@ class StickyNoteWindowManager {
         await controller.invokeMethod('set_click_through', {
           'value': clickThrough,
         });
-        await controller.invokeMethod('refresh_notes');
       } catch (_) {}
     });
   }

@@ -13,6 +13,13 @@
 1. 位置持久化前强制刷新数据，避免用旧内存覆盖最新状态。
 2. 在点击穿透切换时重新读取便笺状态，若已取消钉住则立即关闭窗口。
 
+## 进一步修复（单写入者）
+上面的方案属于“止血”（降低脏数据写回概率），但从根上讲只要 **多个进程都能直接写 `notes.json`**，就仍存在写写覆盖的可能。
+
+因此新增了 Notes 的 **Single Writer 架构**：只有 panel 进程允许写入；其他进程通过 IPC 命令请求修改，避免任何非 panel 进程把旧缓存回写到磁盘。
+
+详见：`docs/2026-02-02-single-writer-notes.md`
+
 ## 代码改动
 - `lib/services/notes_service.dart`
   - `updateNotePosition` 先 `loadNotes()`，确保落盘前是最新状态。
