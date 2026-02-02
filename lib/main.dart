@@ -17,6 +17,8 @@ import 'services/tray_service.dart';
 import 'services/panel_preferences.dart';
 import 'services/window_message_service.dart';
 import 'services/log_service.dart';
+import 'services/panel_visibility_service.dart';
+import 'services/panel_window_service.dart';
 import 'theme/app_theme.dart';
 import 'controllers/ipc_scope.dart';
 
@@ -35,6 +37,8 @@ void main(List<String> args) async {
       await LogService.info('AppConfig mode: ${appConfig.mode}');
 
       final locale = await PanelPreferences.getLanguage();
+      final showPanelOnStartup =
+          await PanelPreferences.getShowPanelOnStartup();
       final localeController = LocaleController(locale);
       final scope = switch (appConfig.mode) {
         AppMode.note => IpcScope.note(appConfig.noteId ?? ''),
@@ -66,8 +70,13 @@ void main(List<String> args) async {
       await windowManager.waitUntilReadyToShow(windowOptions, () async {
         await LogService.info('WindowManager ready to show');
         if (appConfig.mode == AppMode.normal) {
-          await windowManager.hide();
-          await LogService.info('Panel Window Hidden (Normal Mode)');
+          if (!showPanelOnStartup) {
+            await PanelWindowService.ensureHidden();
+            await LogService.info('Panel Window Hidden (Startup Preference)');
+          } else {
+            await PanelWindowService.show(focus: false);
+            await LogService.info('Panel Window Shown (Startup Preference)');
+          }
         }
         await windowManager.setMaximizable(false);
       });
@@ -92,6 +101,11 @@ void main(List<String> args) async {
       }
 
       runApp(MyApp(localeController: localeController));
+      if (appConfig.mode == AppMode.normal) {
+        await PanelVisibilityService.applyStartupVisibility(
+          showOnStartup: showPanelOnStartup,
+        );
+      }
     },
     (error, stack) {
       LogService.error('Uncaught error', error, stack);

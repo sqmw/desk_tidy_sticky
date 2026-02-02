@@ -238,7 +238,7 @@ class _NoteWindowPageState extends State<NoteWindowPage> with WindowListener {
     setState(() {
       _clickThrough = newVal;
     });
-    _applyMouseModeAndZOrder('click-through-changed');
+    _loadNote();
   }
 
   Future<void> _loadNote() async {

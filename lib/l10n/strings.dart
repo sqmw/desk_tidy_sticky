@@ -76,6 +76,8 @@ class Strings {
   String get starOnGithub =>
       locale == AppLocale.zh ? '在 GitHub 上点星' : 'Star on GitHub';
   String get autoStart => locale == AppLocale.zh ? '开机自启' : 'Start on Boot';
+  String get showPanelOnStartup =>
+      locale == AppLocale.zh ? '启动时显示主窗口' : 'Show panel on startup';
   String get shortcuts => locale == AppLocale.zh ? '快捷键' : 'Shortcuts';
   String get shortcutToggle => locale == AppLocale.zh
       ? '切换主窗口: Ctrl+Shift+N'

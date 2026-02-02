@@ -12,6 +12,7 @@ class PanelPreferences {
   static const _kGlassOpacity = 'panel_glass_opacity';
   static const _kOverlayEnabled = 'overlay_enabled';
   static const _kPanelWindowId = 'panel_window_id';
+  static const _kShowPanelOnStartup = 'panel_show_on_startup';
 
   static Future<bool> getHideAfterSave() async {
     final prefs = await SharedPreferences.getInstance();
@@ -100,5 +101,15 @@ class PanelPreferences {
   static Future<void> setPanelWindowId(String windowId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kPanelWindowId, windowId);
+  }
+
+  static Future<bool> getShowPanelOnStartup() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kShowPanelOnStartup) ?? false;
+  }
+
+  static Future<void> setShowPanelOnStartup(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kShowPanelOnStartup, value);
   }
 }

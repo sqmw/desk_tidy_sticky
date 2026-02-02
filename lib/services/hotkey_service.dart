@@ -6,9 +6,9 @@ import 'dart:async';
 import 'dart:developer' as dev;
 
 import 'package:win32/win32.dart';
-import 'package:window_manager/window_manager.dart';
 import '../controllers/overlay_controller.dart';
 import 'sticky_note_window_manager.dart';
+import 'panel_window_service.dart';
 
 /// Hotkey configuration data.
 class HotkeyConfig {
@@ -94,12 +94,7 @@ class HotkeyService {
     register(
       HotkeyConfig.togglePanel,
       callback: (hotkey) async {
-        if (await windowManager.isVisible()) {
-          await windowManager.hide();
-        } else {
-          await windowManager.show();
-          await windowManager.focus();
-        }
+        await PanelWindowService.toggle();
       },
     );
     register(

@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:system_tray/system_tray.dart';
-import 'package:window_manager/window_manager.dart';
 import '../controllers/locale_controller.dart';
 import '../controllers/overlay_controller.dart';
 import '../l10n/strings.dart';
 import 'sticky_note_window_manager.dart';
 import 'panel_preferences.dart';
 import 'tray_menu_guard.dart';
+import 'panel_window_service.dart';
 
 class TrayService {
   final SystemTray _systemTray = SystemTray();
@@ -35,14 +35,7 @@ class TrayService {
     _systemTray.registerSystemTrayEventHandler((eventName) {
       debugPrint("eventName: $eventName");
       if (eventName == kSystemTrayEventClick) {
-        windowManager.isVisible().then((visible) async {
-          if (visible) {
-            await windowManager.hide();
-          } else {
-            await windowManager.show();
-            await windowManager.focus();
-          }
-        });
+        PanelWindowService.toggleVisibility();
       } else if (eventName == kSystemTrayEventRightClick) {
         TrayMenuGuard.instance.markMenuOpen();
         _systemTray.popUpContextMenu();
@@ -70,15 +63,13 @@ class TrayService {
       MenuItemLabel(
         label: strings.trayShowNotes,
         onClicked: (menuItem) async {
-          await windowManager.show();
-          await windowManager.focus();
+          await PanelWindowService.show();
         },
       ),
       MenuItemLabel(
         label: strings.trayNewNote,
         onClicked: (menuItem) async {
-          await windowManager.show();
-          await windowManager.focus();
+          await PanelWindowService.show();
           // Todo: focus specific input
         },
       ),

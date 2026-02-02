@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../l10n/strings.dart';
 import '../../theme/app_theme.dart';
+import '../../services/panel_preferences.dart';
 
 class SettingsDialog extends StatefulWidget {
   final Strings strings;
@@ -17,11 +18,13 @@ class SettingsDialog extends StatefulWidget {
 
 class _SettingsDialogState extends State<SettingsDialog> {
   bool _isAutoStart = false;
+  bool _showPanelOnStartup = false;
 
   @override
   void initState() {
     super.initState();
     _initAutoStart();
+    _initPanelStartupVisibility();
   }
 
   Future<void> _initAutoStart() async {
@@ -60,6 +63,24 @@ class _SettingsDialogState extends State<SettingsDialog> {
     setState(() {
       _isAutoStart = value;
     });
+  }
+
+  Future<void> _initPanelStartupVisibility() async {
+    final show = await PanelPreferences.getShowPanelOnStartup();
+    if (mounted) {
+      setState(() {
+        _showPanelOnStartup = show;
+      });
+    }
+  }
+
+  Future<void> _togglePanelStartupVisibility(bool value) async {
+    await PanelPreferences.setShowPanelOnStartup(value);
+    if (mounted) {
+      setState(() {
+        _showPanelOnStartup = value;
+      });
+    }
   }
 
   Future<void> _launchGitHub() async {
@@ -121,6 +142,21 @@ class _SettingsDialogState extends State<SettingsDialog> {
                     ),
                   ),
                   Switch(value: _isAutoStart, onChanged: _toggleAutoStart),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.strings.showPanelOnStartup,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                  Switch(
+                    value: _showPanelOnStartup,
+                    onChanged: _togglePanelStartupVisibility,
+                  ),
                 ],
               ),
               const Divider(height: 32),

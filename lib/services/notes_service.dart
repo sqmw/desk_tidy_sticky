@@ -99,6 +99,8 @@ class NotesService {
     required double x,
     required double y,
   }) async {
+    // Reload to avoid overwriting newer state (e.g. pin/unpin from another window).
+    await loadNotes();
     final index = _notes.indexWhere((n) => n.id == id);
     if (index != -1) {
       final note = _notes[index];
