@@ -268,9 +268,7 @@ class StickyNoteWindowManager {
     for (final controller in availableControllers.values) {
       WindowArgs args;
       try {
-        final argsString = await controller.arguments;
-        if (argsString == null) continue;
-        args = WindowArgs.fromJsonString(argsString);
+        args = WindowArgs.fromJsonString(controller.arguments);
       } catch (e) {
         continue;
       }

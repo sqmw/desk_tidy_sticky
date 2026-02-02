@@ -88,5 +88,7 @@ class Strings {
   String get shortcutEsc => locale == AppLocale.zh
       ? '隐藏/退出交互: Escape (Esc)'
       : 'Hide/Exit Interaction: Escape';
+  String get shortcutPinSave =>
+      locale == AppLocale.zh ? '保存并置顶: Ctrl+Enter' : 'Pin & Save: Ctrl+Enter';
   String get version => locale == AppLocale.zh ? '版本 v1.0.0' : 'Version v1.0.0';
 }

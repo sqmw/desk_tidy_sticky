@@ -8,6 +8,7 @@ import 'sticky_note_window_manager.dart';
 import 'panel_preferences.dart';
 import 'tray_menu_guard.dart';
 import 'panel_window_service.dart';
+import 'github_service.dart';
 
 class TrayService {
   final SystemTray _systemTray = SystemTray();
@@ -64,6 +65,13 @@ class TrayService {
         label: strings.trayShowNotes,
         onClicked: (menuItem) async {
           await PanelWindowService.show();
+        },
+      ),
+
+      MenuItemLabel(
+        label: strings.starOnGithub,
+        onClicked: (_) async {
+          await GithubService.openRepo();
         },
       ),
 

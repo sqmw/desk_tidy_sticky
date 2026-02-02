@@ -1,11 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:launch_at_startup/launch_at_startup.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../l10n/strings.dart';
 import '../../theme/app_theme.dart';
 import '../../services/panel_preferences.dart';
+import '../../services/github_service.dart';
 
 class SettingsDialog extends StatefulWidget {
   final Strings strings;
@@ -83,20 +83,34 @@ class _SettingsDialogState extends State<SettingsDialog> {
     }
   }
 
-  Future<void> _launchGitHub() async {
-    final uri = Uri.parse('https://github.com/sqmw/desk_tidy_sticky');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Re-setup instance just in case if app name is needed, but typically setup is one-off.
     // We'll rely on the initState setup.
 
     return AlertDialog(
-      title: Text(widget.strings.settingsTitle),
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(widget.strings.settingsTitle),
+          FilledButton.icon(
+            onPressed: () async {
+              await GithubService.openRepo();
+            },
+            icon: const Icon(Icons.star, size: 16),
+            label: Text(
+              widget.strings.starOnGithub,
+              style: const TextStyle(fontSize: 12),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF24292e), // GitHub Black
+              foregroundColor: Colors.white,
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+            ),
+          ),
+        ],
+      ),
       content: SizedBox(
         width: 380,
         child: SingleChildScrollView(
@@ -131,7 +145,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
               // Auto Start Toggle
               Row(
                 children: [
@@ -165,23 +179,10 @@ class _SettingsDialogState extends State<SettingsDialog> {
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               const SizedBox(height: 12),
+              _buildShortcutItem(context, widget.strings.shortcutPinSave),
               _buildShortcutItem(context, widget.strings.shortcutToggle),
               _buildShortcutItem(context, widget.strings.shortcutOverlay),
               _buildShortcutItem(context, widget.strings.shortcutEsc),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: _launchGitHub,
-                  icon: const Icon(Icons.star, size: 18),
-                  label: Text(widget.strings.starOnGithub),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF24292e), // GitHub Black
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
             ],
           ), // Column
         ), // SingleChildScrollView
