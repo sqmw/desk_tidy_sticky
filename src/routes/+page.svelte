@@ -12,6 +12,9 @@
   import Dismissible from "$lib/Dismissible.svelte";
   import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
   import { listen } from "@tauri-apps/api/event";
+  import { slide } from "svelte/transition";
+
+  import { openUrl } from "@tauri-apps/plugin-opener";
 
   const NOTE_VIEW_MODES = ["active", "archived", "trash"];
   const NOTE_SORT_MODES = ["custom", "newest", "oldest"];
@@ -83,6 +86,17 @@
   }
 
   async function syncWindows() {
+    // If stickies are hidden, ensure no windows are open and return
+    if (!stickiesVisible) {
+      const wins = await WebviewWindow.getAll();
+      for (const w of wins) {
+        if (w.label.startsWith("note-")) {
+          await w.close();
+        }
+      }
+      return;
+    }
+
     // For each pinned note, ensure a window is open. Also close windows that should not exist.
     /** @type {Set<string>} */
     const shouldExist = new Set(
@@ -507,7 +521,39 @@
     await startWindowDrag(e);
   }
 
+  let interactionDisabled = $state(false);
+  let stickiesVisible = $state(true);
+  let isSortMenuOpen = $state(false);
+
+  async function toggleInteraction() {
+    try {
+      const newState = await invoke("toggle_overlay_interaction");
+      interactionDisabled = /** @type {boolean} */ (newState);
+    } catch (e) {
+      console.error("toggleInteraction", e);
+    }
+  }
+
+  async function toggleStickiesVisibility() {
+    try {
+      stickiesVisible = !stickiesVisible;
+      if (stickiesVisible) {
+        await loadNotes();
+      }
+      await syncWindows();
+    } catch (e) {
+      console.error("toggleStickiesVisibility", e);
+    }
+  }
+
   onMount(() => {
+    // Get initial state
+    invoke("get_overlay_interaction")
+      .then((state) => {
+        interactionDisabled = /** @type {boolean} */ (state);
+      })
+      .catch((e) => console.error("get_overlay_interaction", e));
+
     /** @type {Array<Promise<() => void>>} */
     const unsubs = [];
 
@@ -520,19 +566,13 @@
 
     unsubs.push(
       listen("tray_overlay_toggle", async () => {
-        // Toggle: if any note windows exist, close them; otherwise re-sync (open pinned)
-        try {
-          const all = await WebviewWindow.getAll();
-          const noteWins = all.filter((w) => w.label?.startsWith("note-"));
-          if (noteWins.length > 0) {
-            for (const w of noteWins) await w.close();
-          } else {
-            await loadNotes();
-            await syncWindows();
-          }
-        } catch (e) {
-          console.error("tray_overlay_toggle", e);
-        }
+        await toggleStickiesVisibility();
+      }),
+    );
+
+    unsubs.push(
+      listen("overlay_input_changed", (event) => {
+        interactionDisabled = /** @type {boolean} */ (event.payload);
       }),
     );
 
@@ -551,24 +591,41 @@
 <div class="panel" style="--glass-opacity: {glassOpacity}">
   <div class="glass-container">
     <!-- Header -->
-    <header class="panel-header" data-tauri-drag-region>
+    <header class="panel-header">
       <div class="header-row">
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          class="header-drag"
-          onmousedown={startWindowDrag}
-          onpointerdown={startWindowDragPointer}
-        >
+        <div class="header-drag" onpointerdown={startWindowDragPointer}>
           <span class="app-title">{strings.appName.toUpperCase()}</span>
         </div>
-        <div class="header-actions" data-tauri-drag-region="false">
+        <div class="header-actions">
           <button
             type="button"
             class="icon-btn"
+            class:active={windowPinned}
             title={windowPinned ? strings.unpinWindow : strings.pinWindow}
             onclick={toggleWindowPinned}
           >
-            📌
+            <!-- Material Design Push Pin Icon -->
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="currentColor"
+              fill-rule="evenodd"
+              style="transform: translateY(0.5px);"
+            >
+              {#if windowPinned}
+                <!-- push_pin (Filled) -->
+                <path
+                  d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"
+                />
+              {:else}
+                <!-- push_pin_outlined (Filled shape with hole) -->
+                <path
+                  d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zm-2-2h-4V4h4v6z"
+                />
+              {/if}
+            </svg>
           </button>
           <button
             type="button"
@@ -576,7 +633,12 @@
             title={strings.language}
             onclick={toggleLanguage}
           >
-            🌐
+            <!-- Language Icon (translate) -->
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path
+                d="M12.87 15.07l-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"
+              />
+            </svg>
           </button>
           <button
             type="button"
@@ -584,8 +646,14 @@
             title={strings.settings}
             onclick={() => (showSettings = true)}
           >
-            ⚙️
+            <!-- Settings Icon (settings) -->
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path
+                d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+              />
+            </svg>
           </button>
+
           <button
             type="button"
             class="icon-btn glass-btn"
@@ -594,8 +662,13 @@
               e.preventDefault();
               adjustGlass(-e.deltaY * 0.0005);
             }}
+            style="width: auto; padding: 0 4px; font-variant-numeric: tabular-nums;"
           >
-            ◐ <span class="glass-pct">{Math.round(glassOpacity * 100)}%</span>
+            <span
+              class="glass-pct"
+              style="font-size: 11px; font-weight: 500; min-width: 24px; text-align: center;"
+              >{Math.round(glassOpacity * 100)}%</span
+            >
           </button>
           <button
             type="button"
@@ -625,7 +698,7 @@
           ➤
         </button>
       </div>
-      <div class="tabs-row" data-tauri-drag-region="false">
+      <div class="tabs-row">
         <div class="view-tabs">
           {#each NOTE_VIEW_MODES as mode}
             <button
@@ -644,163 +717,421 @@
             </button>
           {/each}
         </div>
+
+        <div class="sort-dropdown" style="position: relative; flex-shrink: 0;">
+          <button
+            type="button"
+            class="sort-trigger"
+            onclick={() => (isSortMenuOpen = !isSortMenuOpen)}
+            title={strings.sortMode}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="12"
+              height="12"
+              fill="currentColor"
+              style="opacity:0.7; margin-right:4px;"
+            >
+              <path d="M3 18h6v-2H3v2zM3 6v2h18V6H3zm0 7h12v-2H3v2z" />
+            </svg>
+            <span
+              style="font-size:10px; color:var(--neutral); margin-right:2px;"
+            >
+              {sortMode === "custom"
+                ? strings.sortByCustom
+                : sortMode === "newest"
+                  ? strings.sortByNewest
+                  : strings.sortByOldest}
+            </span>
+            <svg
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="currentColor"
+              style="opacity:0.5;"
+            >
+              <path d="M7 10l5 5 5-5z" />
+            </svg>
+          </button>
+
+          {#if isSortMenuOpen}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="sort-menu-overlay"
+              onclick={() => (isSortMenuOpen = false)}
+            ></div>
+            <div class="sort-menu">
+              <button
+                class="sort-item"
+                class:selected={sortMode === "custom"}
+                onclick={() => {
+                  setSortMode("custom");
+                  isSortMenuOpen = false;
+                }}
+              >
+                {strings.sortByCustom}
+              </button>
+              <button
+                class="sort-item"
+                class:selected={sortMode === "newest"}
+                onclick={() => {
+                  setSortMode("newest");
+                  isSortMenuOpen = false;
+                }}
+              >
+                {strings.sortByNewest}
+              </button>
+              <button
+                class="sort-item"
+                class:selected={sortMode === "oldest"}
+                onclick={() => {
+                  setSortMode("oldest");
+                  isSortMenuOpen = false;
+                }}
+              >
+                {strings.sortByOldest}
+              </button>
+            </div>
+          {/if}
+        </div>
         {#if viewMode === "trash"}
           <button
             type="button"
             class="icon-btn"
             title={strings.emptyTrash}
             onclick={emptyTrash}
+            style="margin-left: 2px;"
           >
-            🗑️
+            <svg
+              viewBox="0 0 24 24"
+              width="16"
+              height="16"
+              fill="currentColor"
+              style="color: #ef5350;"
+            >
+              <path
+                d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+              />
+            </svg>
           </button>
         {/if}
-        <select
-          class="sort-select"
-          value={sortMode}
-          onchange={(e) =>
-            setSortMode(/** @type {HTMLInputElement} */ (e.target).value)}
-          title={strings.sortMode}
-          data-tauri-drag-region="false"
-        >
-          <option value="custom">{strings.sortByCustom}</option>
-          <option value="newest">{strings.sortByNewest}</option>
-          <option value="oldest">{strings.sortByOldest}</option>
-        </select>
-        <label class="toggle-label" data-tauri-drag-region="false">
+
+        <div style="flex:1"></div>
+
+        <!-- Hide After Save Toggle -->
+        <label class="toggle-switch" title={strings.hideAfterSave}>
           <input
             type="checkbox"
             bind:checked={hideAfterSave}
             onchange={() => savePrefs({ hideAfterSave })}
           />
-          {strings.hideAfterSave}
+          <span class="slider round"></span>
         </label>
+
+        <!-- Desktop Overlay (Stickers) Toggle -->
+        <!-- Desktop Overlay (Stickers) Toggle -->
+        <button
+          type="button"
+          class="icon-btn"
+          class:active={stickiesVisible}
+          title={stickiesVisible
+            ? strings.trayStickiesClose
+            : strings.trayStickiesShow}
+          onclick={toggleStickiesVisibility}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            {#if stickiesVisible}
+              <!-- desktop_windows (Filled) -->
+              <path
+                d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"
+              />
+            {:else}
+              <!-- desktop_windows (Outlined) - Fully Hollow Wireframe -->
+              <g
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="13" rx="2" />
+                <path d="M12 16v4 M8 20h8" />
+              </g>
+            {/if}
+          </svg>
+        </button>
+
+        <!-- Interaction Toggle -->
+        <button
+          type="button"
+          class="icon-btn"
+          class:active={!interactionDisabled}
+          title={strings.trayInteraction}
+          onclick={toggleInteraction}
+          style="margin-left: 4px;"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            {#if !interactionDisabled}
+              <!-- mouse (Filled) -->
+              <path
+                d="M13 1.1V9h7.4c0-3.9-3.1-7.1-6.8-7.8l-.6-.1zm-2 0C7.1 1.6 4.1 4.8 4.1 8.7V9H11V1.1zm-7.1 9.9v4.5C3.9 19.9 7.5 23.5 12 23.5S20 19.9 20 15.5V11H3.9z"
+              />
+            {:else}
+              <!-- mouse (Outlined) - Truly Hollow with evenodd -->
+              <path
+                fill-rule="evenodd"
+                clip-rule="evenodd"
+                d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zm0-6H7V9c0-2.76 2.24-5 5-5s5 2.24 5 5v0zm-4.5-5h1v5h-1V4z"
+              />
+            {/if}
+          </svg>
+        </button>
       </div>
       <div class="search-row" data-tauri-drag-region="false">
-        <input
-          type="text"
-          class="search-input"
-          placeholder={strings.searchHint}
-          bind:value={searchQuery}
-        />
-        {#if searchQuery.trim()}
-          <button
-            type="button"
-            class="search-clear"
-            onclick={() => (searchQuery = "")}
-            title={strings.clear}>✕</button
+        <div class="search-container">
+          <svg
+            class="search-icon"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="currentColor"
           >
-        {/if}
+            <path
+              d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+            />
+          </svg>
+          <input
+            type="text"
+            class="search-input"
+            placeholder={strings.searchHint}
+            bind:value={searchQuery}
+          />
+          {#if searchQuery.trim()}
+            <button
+              type="button"
+              class="search-clear"
+              onclick={() => (searchQuery = "")}
+              title={strings.clear}>✕</button
+            >
+          {/if}
+        </div>
       </div>
     </header>
 
     <!-- Notes list -->
     <div class="notes-list">
       {#each visibleNotes as note, index (note.id)}
-        <Dismissible
-          leftBg="#e53935"
-          leftIcon="🗑"
-          rightBg={viewMode === "trash" ? "#43a047" : "#607d8b"}
-          rightIcon={viewMode === "trash" ? "↩" : "📁"}
-          onSwipeLeft={() => deleteNote(note)}
-          onSwipeRight={() =>
-            viewMode === "trash" ? restoreNote(note) : toggleArchive(note)}
+        <div
+          transition:slide={{ duration: 200, axis: "y" }}
+          class="note-wrapper"
         >
-          {#snippet content()}
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div
-              class="note-item"
-              class:dragging={draggedIndex === index}
-              class:pinned={note.isPinned}
-              class:muted={note.isArchived || note.isDeleted}
-              draggable={canReorder}
-              role="listitem"
-              ondragstart={(e) => handleDragStart(e, index)}
-              ondragover={(e) => handleDragOver(e, index)}
-              ondrop={(e) => handleDrop(e, index)}
-              ondragend={handleDragEnd}
-            >
-              {#if canReorder}
-                <span class="drag-handle" title={strings.dragToReorder}>⋮⋮</span
-                >
-              {/if}
-              <div class="note-content">
-                <span class="note-text" class:done={note.isDone}
-                  >{note.text}</span
-                >
-                <span class="note-date">{formatDate(note.updatedAt)}</span>
-              </div>
-              <div class="note-actions">
-                {#if viewMode === "trash"}
-                  <button
-                    type="button"
-                    class="action-btn"
-                    title={strings.restore}
-                    onclick={() => restoreNote(note)}>↩</button
+          <Dismissible
+            leftBg={viewMode === "trash" ? "#43a047" : "#607d8b"}
+            leftIcon={viewMode === "trash" ? iconRestore : iconArchive}
+            rightBg="#e53935"
+            rightIcon={iconDelete}
+            onSwipeRight={() =>
+              viewMode === "trash" ? restoreNote(note) : toggleArchive(note)}
+            onSwipeLeft={() => deleteNote(note)}
+          >
+            {#snippet content()}
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <div
+                class="note-item"
+                class:pinned={note.isPinned}
+                class:muted={note.isArchived || note.isDeleted}
+                role="listitem"
+                ondragover={(e) => handleDragOver(e, index)}
+                ondrop={(e) => handleDrop(e, index)}
+                ondragend={handleDragEnd}
+              >
+                {#if canReorder}
+                  <span
+                    class="drag-handle"
+                    title={strings.dragToReorder}
+                    draggable={true}
+                    ondragstart={(e) => handleDragStart(e, index)}
                   >
-                  <button
-                    type="button"
-                    class="action-btn danger"
-                    title={strings.permanentlyDelete}
-                    onclick={() => deleteNote(note)}>🗑</button
+                    <!-- Drag Handle Icon -->
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+                      />
+                    </svg>
+                  </span>
+                {/if}
+                <div class="note-content">
+                  <span class="note-text" class:done={note.isDone}
+                    >{note.text}</span
                   >
-                {:else}
-                  <button
-                    type="button"
-                    class="action-btn"
-                    title={strings.edit}
-                    onclick={() => openEdit(note)}>✎</button
-                  >
-                  {#if viewMode === "active"}
+                  <span class="note-date">{formatDate(note.updatedAt)}</span>
+                </div>
+                <div class="note-actions">
+                  {#if viewMode === "trash"}
                     <button
                       type="button"
                       class="action-btn"
-                      title={note.isPinned
-                        ? strings.unpinNote
-                        : strings.pinNote}
-                      onclick={() => togglePin(note)}
+                      title={strings.restore}
+                      onclick={() => restoreNote(note)}
+                      >{@render iconRestore()}</button
                     >
-                      {note.isPinned ? "📌" : "📍"}
-                    </button>
-                    {#if note.isPinned}
+                    <button
+                      type="button"
+                      class="action-btn danger"
+                      title={strings.permanentlyDelete}
+                      onclick={() => deleteNote(note)}
+                      >{@render iconDelete()}</button
+                    >
+                  {:else}
+                    <button
+                      type="button"
+                      class="action-btn"
+                      title={strings.edit}
+                      onclick={() => openEdit(note)}
+                      >{@render iconEdit()}</button
+                    >
+                    {#if viewMode === "active"}
                       <button
                         type="button"
                         class="action-btn"
-                        title={note.isAlwaysOnTop
-                          ? strings.pinToBottom
-                          : strings.pinToTop}
-                        onclick={() => toggleZOrder(note)}
+                        title={note.isPinned
+                          ? strings.unpinNote
+                          : strings.pinNote}
+                        onclick={() => togglePin(note)}
                       >
-                        {note.isAlwaysOnTop ? "▴" : "▾"}
+                        {#if note.isPinned}
+                          {@render iconPinFilled()}
+                        {:else}
+                          {@render iconPinOutline()}
+                        {/if}
                       </button>
+                      {#if note.isPinned}
+                        <button
+                          type="button"
+                          class="action-btn"
+                          title={note.isAlwaysOnTop
+                            ? strings.pinToBottom
+                            : strings.pinToTop}
+                          onclick={() => toggleZOrder(note)}
+                        >
+                          {note.isAlwaysOnTop ? "▴" : "▾"}
+                        </button>
+                      {/if}
                     {/if}
+                    <button
+                      type="button"
+                      class="action-btn"
+                      title={note.isDone
+                        ? strings.markUndone
+                        : strings.markDone}
+                      onclick={() => toggleDone(note)}
+                    >
+                      {#if note.isDone}
+                        {@render iconCheckBox()}
+                      {:else}
+                        {@render iconCheckBoxOutline()}
+                      {/if}
+                    </button>
+                    <button
+                      type="button"
+                      class="action-btn"
+                      title={note.isArchived
+                        ? strings.unarchive
+                        : strings.archive}
+                      onclick={() => toggleArchive(note)}
+                    >
+                      {#if note.isArchived}
+                        {@render iconUnarchive()}
+                      {:else}
+                        {@render iconArchive()}
+                      {/if}
+                    </button>
                   {/if}
-                  <button
-                    type="button"
-                    class="action-btn"
-                    title={note.isDone ? strings.markUndone : strings.markDone}
-                    onclick={() => toggleDone(note)}
-                  >
-                    {note.isDone ? "☑" : "☐"}
-                  </button>
-                  <button
-                    type="button"
-                    class="action-btn"
-                    title={note.isArchived
-                      ? strings.unarchive
-                      : strings.archive}
-                    onclick={() => toggleArchive(note)}
-                  >
-                    📁
-                  </button>
-                {/if}
+                </div>
               </div>
-            </div>
-          {/snippet}
-        </Dismissible>
+            {/snippet}
+          </Dismissible>
+        </div>
       {/each}
     </div>
   </div>
 </div>
+
+{#snippet iconRestore()}
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+    <path
+      d="M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z"
+    />
+  </svg>
+{/snippet}
+
+{#snippet iconDelete()}
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+    <path
+      d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+    />
+  </svg>
+{/snippet}
+
+{#snippet iconArchive()}
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+    <path
+      d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"
+    />
+  </svg>
+{/snippet}
+
+{#snippet iconUnarchive()}
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+    <path
+      d="M20.55 5.22l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.15.55L3.46 5.22C3.17 5.57 3 6.01 3 6.5V19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.49-.17-.93-.45-1.28zM12 9.5l5.5 5.5H14v2h-4v-2H6.5L12 9.5zM5.12 5l.82-1h12l.93 1H5.12z"
+    />
+  </svg>
+{/snippet}
+
+{#snippet iconEdit()}
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+    <path
+      d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
+    />
+  </svg>
+{/snippet}
+
+{#snippet iconPinOutline()}
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+    <path
+      d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zm-2-2h-4V4h4v6z"
+    />
+  </svg>
+{/snippet}
+
+{#snippet iconPinFilled()}
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+    <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+  </svg>
+{/snippet}
+
+{#snippet iconCheckBoxOutline()}
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+    <path
+      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"
+    />
+  </svg>
+{/snippet}
+
+{#snippet iconCheckBox()}
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+    <path
+      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+    />
+  </svg>
+{/snippet}
 
 {#if showEditDialog}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -846,47 +1177,102 @@
       tabindex="-1"
       onclick={(e) => e.stopPropagation()}
     >
-      <h3>{strings.settingsTitle}</h3>
-      <p>{strings.appName} {strings.version}</p>
-      <a
-        href="https://github.com/sqmw/desk_tidy_sticky"
-        target="_blank"
-        rel="noopener">{strings.starOnGithub}</a
-      >
-      <div class="settings-row">
-        <label for="autostart-check">{strings.autoStart}</label>
-        <input
-          id="autostart-check"
-          type="checkbox"
-          checked={isAutostartEnabled}
-          onchange={(e) =>
-            toggleAutostart(/** @type {HTMLInputElement} */ (e.target).checked)}
-        />
-      </div>
-      <div class="settings-row">
-        <label for="show-panel-check">{strings.showPanelOnStartup}</label>
-        <input
-          id="show-panel-check"
-          type="checkbox"
-          checked={showPanelOnStartup}
-          onchange={(e) => {
-            const checked = /** @type {HTMLInputElement} */ (e.target).checked;
-            showPanelOnStartup = checked;
-            savePrefs({ showPanelOnStartup: checked });
+      <div class="dialog-header">
+        <div class="dialog-title-group">
+          <h3>{strings.settingsTitle}</h3>
+          <span class="version-badge">{strings.version}</span>
+        </div>
+        <a
+          href="https://github.com/sqmw/desk_tidy_sticky"
+          target="_blank"
+          rel="noopener"
+          class="github-link"
+          title={strings.starOnGithub}
+          onclick={(e) => {
+            e.preventDefault();
+            openUrl("https://github.com/sqmw/desk_tidy_sticky");
           }}
-        />
+        >
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+            <path
+              d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+            />
+          </svg>
+          <span>Star</span>
+        </a>
       </div>
-      <div class="shortcuts-list">
-        <p><strong>{strings.shortcuts}</strong></p>
-        <p>{strings.shortcutToggle}</p>
-        <p>{strings.shortcutPinSave}</p>
-        <p>{strings.shortcutEsc}</p>
+
+      <div class="settings-content">
+        <div class="settings-section">
+          <h4>{strings.general}</h4>
+          <label class="setting-item">
+            <span class="setting-label">{strings.autoStart}</span>
+            <div class="toggle-switch">
+              <input
+                type="checkbox"
+                checked={isAutostartEnabled}
+                onchange={(e) =>
+                  toggleAutostart(
+                    /** @type {HTMLInputElement} */ (e.target).checked,
+                  )}
+              />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="setting-item">
+            <span class="setting-label">{strings.showPanelOnStartup}</span>
+            <div class="toggle-switch">
+              <input
+                type="checkbox"
+                checked={showPanelOnStartup}
+                onchange={(e) => {
+                  const checked = /** @type {HTMLInputElement} */ (e.target)
+                    .checked;
+                  showPanelOnStartup = checked;
+                  savePrefs({ showPanelOnStartup: checked });
+                }}
+              />
+              <span class="slider"></span>
+            </div>
+          </label>
+        </div>
+
+        <div class="settings-section">
+          <h4>{strings.shortcuts}</h4>
+          <div class="shortcuts-grid">
+            <div class="shortcut-row">
+              <span class="sc-desc">{strings.shortcutToggle.split(":")[0]}</span
+              >
+              <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>
+            </div>
+            <div class="shortcut-row">
+              <span class="sc-desc"
+                >{strings.shortcutOverlay.split(":")[0]}</span
+              >
+              <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>
+            </div>
+            <div class="shortcut-row">
+              <span class="sc-desc"
+                >{strings.shortcutPinSave.split(":")[0]}</span
+              >
+              <kbd>Ctrl</kbd>+<kbd>Enter</kbd>
+            </div>
+            <div class="shortcut-row">
+              <span class="sc-desc">{strings.shortcutEsc.split(":")[0]}</span>
+              <kbd>Esc</kbd>
+            </div>
+          </div>
+        </div>
       </div>
-      <button
-        type="button"
-        class="primary"
-        onclick={() => (showSettings = false)}>{strings.close}</button
-      >
+
+      <div class="dialog-footer">
+        <button
+          type="button"
+          class="primary block-btn"
+          onclick={() => (showSettings = false)}>{strings.close}</button
+        >
+      </div>
     </div>
   </div>
 {/if}
@@ -907,7 +1293,7 @@
   }
 
   :global(:root) {
-    --primary: #3a6ff7;
+    --primary: #546e7a; /* Updated to Slate Blue per user request */
     --accent: #f6c344;
     --neutral: #303133;
     --surface: #f5f7fa;
@@ -973,16 +1359,25 @@
     padding: 4px;
     font-size: 14px;
     opacity: 0.7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .icon-btn:hover {
     opacity: 1;
   }
 
+  .icon-btn.active {
+    opacity: 1;
+    color: var(--primary); /* Change icon color */
+  }
+
   .glass-btn {
     display: flex;
     align-items: center;
     gap: 2px;
+    opacity: 1; /* Override default .icon-btn opacity for full control */
   }
 
   .glass-pct {
@@ -1022,7 +1417,7 @@
   .tabs-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px; /* Reduced from 8px */
     margin-bottom: 0;
   }
 
@@ -1031,11 +1426,12 @@
     background: #fff;
     border-radius: 6px;
     border: 1px solid var(--divider);
-    padding: 2px;
+    padding: 1px; /* Reduced from 2px */
+    flex-shrink: 0;
   }
 
   .tab {
-    padding: 4px 8px;
+    padding: 2px 6px; /* Reduced from 4px 8px */
     font-size: 10px;
     border: none;
     background: transparent;
@@ -1049,36 +1445,108 @@
     font-weight: 600;
   }
 
-  .sort-select {
-    font-size: 10px;
-    padding: 2px 6px;
-    border: 1px solid var(--divider);
-    border-radius: 4px;
-  }
-
-  .toggle-label {
-    font-size: 10px;
+  .sort-trigger {
     display: flex;
     align-items: center;
-    gap: 4px;
+    background: #fff;
+    border: 1px solid var(--divider);
+    border-radius: 4px;
+    padding: 2px 4px; /* Reduced from 2px 6px */
     cursor: pointer;
+    user-select: none;
+    height: 22px;
+  }
+  .sort-trigger:hover {
+    border-color: #bbb;
+    background: #fafafa;
+  }
+
+  .sort-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background: #fff;
+    border: 1px solid var(--divider);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    min-width: 100px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .sort-menu-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99;
+    cursor: default;
+  }
+
+  .sort-item {
+    background: transparent;
+    border: none;
+    text-align: left;
+    padding: 6px 8px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--neutral);
+    display: block;
+    width: 100%;
+  }
+
+  .sort-item:hover {
+    background: var(--surface);
+  }
+
+  .sort-item.selected {
+    background: rgba(58, 111, 247, 0.1);
+    color: var(--primary);
+    font-weight: 600;
   }
 
   .search-row {
-    margin-top: 2px;
+    margin-top: 6px; /* Reduced from 12px */
+    margin-bottom: 6px;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
+    padding: 0 4px; /* Reduced to align with note cards */
+  }
+
+  .search-container {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    color: #909399;
+    pointer-events: none;
   }
 
   .search-input {
     flex: 1;
-    padding: 2px 8px;
-    font-size: 12px;
+    padding: 6px 12px 6px 30px; /* Increased left padding for icon */
+    font-size: 13px;
     border: 1px solid var(--divider);
-    border-radius: 20px;
+    border-radius: 16px; /* Pill shape */
     background: #fff;
     user-select: text;
+    transition: all 0.2s;
+    outline: none;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  }
+
+  .search-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(58, 111, 247, 0.1);
   }
 
   .search-clear {
@@ -1086,56 +1554,66 @@
     border: none;
     cursor: pointer;
     padding: 4px;
-    font-size: 12px;
-    color: #999;
+    font-size: 14px;
+    color: #bbb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .search-clear:hover {
-    color: #333;
+    color: #666;
   }
 
   .notes-list {
     flex: 1;
     overflow-y: auto;
-    padding: 4px 8px;
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE/Edge legacy */
+    padding: 0 4px; /* Reduced side padding slightly */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: #ddd transparent;
   }
 
+  /* Completely hide scrollbar */
   .notes-list::-webkit-scrollbar {
     width: 0;
     height: 0;
-    display: none; /* Chrome/Safari */
+    display: none;
   }
 
   .note-item {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    padding: 8px;
+    padding: 10px 12px;
     border-radius: 8px;
-    margin-bottom: 2px;
+    /* margin-bottom: 6px; Moved to Dismissible container */
+    background: #fff; /* Card background */
+    border: 1px solid var(--divider);
     cursor: default;
-  }
-
-  .note-item[draggable="true"] {
-    cursor: grab;
-  }
-
-  .note-item.dragging {
-    opacity: 0.5;
+    transition:
+      transform 0.15s,
+      box-shadow 0.15s;
+    user-select: none; /* Prevent text selection dragging issues */
   }
 
   .note-item:hover {
-    background: rgba(0, 0, 0, 0.04);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-color: #dcdfe6;
   }
 
   .drag-handle {
     cursor: grab;
-    color: #999;
-    font-size: 12px;
-    margin-right: 6px;
-    user-select: none;
+    color: #ccc; /* Subtler handle */
+    font-size: 14px;
+    margin-right: 8px;
+    margin-top: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .note-item:hover .drag-handle {
+    opacity: 1;
   }
 
   .note-content {
@@ -1146,49 +1624,63 @@
   .note-text {
     display: block;
     font-size: 14px;
+    line-height: 1.4;
     color: var(--neutral);
-    max-lines: 2;
+    max-lines: 3; /* Show a bit more text */
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .note-text.done {
-    text-decoration: line-through;
-    color: #999;
-  }
-
-  .note-item.pinned .note-text {
-    font-weight: 700;
-  }
-
-  .note-item.muted .note-text {
-    color: #999;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
   }
 
   .note-date {
-    font-size: 10px;
+    font-size: 11px;
     color: #999;
-    margin-top: 4px;
+    margin-top: 6px;
     display: block;
   }
 
   .note-actions {
     display: flex;
-    gap: 2px;
+    gap: 4px;
     flex-shrink: 0;
+    margin-left: 8px;
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s;
+  }
+
+  .note-item:hover .note-actions {
+    opacity: 1; /* Show on hover */
   }
 
   .action-btn {
-    background: none;
-    border: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
     cursor: pointer;
-    padding: 2px;
-    font-size: 14px;
-    opacity: 0.6;
+    padding: 4px;
+    font-size: 12px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    transition: all 0.2s;
   }
 
   .action-btn:hover {
-    opacity: 1;
+    background: #f0f2f5;
+    color: #333;
+    border-color: #e4e7ed;
+  }
+
+  .action-btn.danger:hover {
+    color: #e53935;
+    background: #fef0f0;
+    border-color: #fab6b6;
   }
 
   .action-btn.danger {
@@ -1250,20 +1742,172 @@
     border-color: var(--primary);
   }
 
-  .settings-dialog a {
-    color: var(--primary);
-    text-decoration: none;
+  .settings-dialog {
+    width: 380px; /* Slightly wider */
+    padding: 0;
+    overflow: hidden;
   }
 
-  .settings-row {
+  .dialog-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--divider);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fafafa;
+  }
+
+  .dialog-title-group h3 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--neutral);
+    margin-bottom: 4px;
+  }
+
+  .version-badge {
+    font-size: 11px;
+    color: #888;
+    background: #eee;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .github-link {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--neutral);
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid #dcdfe6;
+    padding: 6px 12px;
+    border-radius: 20px;
+    transition: all 0.2s;
+  }
+
+  .github-link:hover {
+    border-color: #333;
+    background: #333;
+    color: #fff;
+  }
+
+  .settings-content {
+    padding: 24px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+
+  .settings-section {
+    margin-bottom: 24px;
+  }
+  .settings-section:last-child {
+    margin-bottom: 0;
+  }
+
+  .settings-section h4 {
+    margin: 0 0 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #999;
+    letter-spacing: 0.5px;
+  }
+
+  .setting-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 12px 0;
+    margin-bottom: 12px;
+    cursor: pointer;
+    user-select: none;
   }
 
-  .shortcuts-list {
-    margin: 16px 0;
-    font-size: 12px;
+  .setting-label {
+    font-size: 14px;
+    color: var(--neutral);
+  }
+
+  .shortcuts-grid {
+    display: grid;
+    gap: 8px;
+  }
+
+  .shortcut-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #555;
+  }
+
+  kbd {
+    background: #f4f4f5;
+    border: 1px solid #e4e7ed;
+    border-radius: 4px;
+    box-shadow: 0 1px 0 #e4e7ed;
+    color: #606266;
+    display: inline-block;
+    font-family: monospace;
+    font-size: 11px;
+    padding: 2px 6px;
+    margin: 0 2px;
+    min-width: 20px;
+    text-align: center;
+  }
+
+  .dialog-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--divider);
+    background: #fafafa;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .block-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Toggle Switch Styles */
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #dcdfe6;
+    transition: 0.3s;
+    border-radius: 20px;
+  }
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  input:checked + .slider {
+    background-color: var(--primary);
+  }
+  input:checked + .slider:before {
+    transform: translateX(16px);
   }
 </style>

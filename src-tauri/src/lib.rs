@@ -256,6 +256,28 @@ fn unpin_window_from_desktop(window: tauri::WebviewWindow) -> Result<(), String>
     windows::detach_from_worker_w(hwnd.0 as isize).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn toggle_overlay_interaction(app: tauri::AppHandle) -> Result<bool, String> {
+    if let Some(state) = app.try_state::<OverlayInputState>() {
+        let click_through = state.toggle();
+        apply_overlay_input_state(&app, click_through);
+        let _ = app.emit("overlay_input_changed", click_through);
+        Ok(click_through)
+    } else {
+        Err("OverlayInputState not found".to_string())
+    }
+}
+
+#[tauri::command]
+fn get_overlay_interaction(app: tauri::AppHandle) -> Result<bool, String> {
+    if let Some(state) = app.try_state::<OverlayInputState>() {
+        let guard = state.0.lock().map_err(|_| "mutex poisoned")?;
+        Ok(*guard)
+    } else {
+        Err("OverlayInputState not found".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -406,7 +428,11 @@ pub fn run() {
             set_preferences,
             pin_window_to_desktop,
             unpin_window_from_desktop,
+            pin_window_to_desktop,
+            unpin_window_from_desktop,
             update_tray_texts,
+            toggle_overlay_interaction,
+            get_overlay_interaction,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
