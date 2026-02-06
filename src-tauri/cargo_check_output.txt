@@ -1,0 +1,191 @@
+    Checking desk_tidy_sticky v0.1.0 (F:\language\rust\code\desk_tidy_sticky\src-tauri)
+warning: unused import: `PWSTR`
+ --> src\windows.rs:2:29
+  |
+2 | use windows::core::{PCWSTR, PWSTR};
+  |                             ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `LRESULT`
+ --> src\windows.rs:3:54
+  |
+3 | use windows::Win32::Foundation::{BOOL, HWND, LPARAM, LRESULT, WPARAM};
+  |                                                      ^^^^^^^
+
+warning: unused imports: `GetClassNameW`, `GetParent`, and `WM_USER`
+ --> src\windows.rs:5:46
+  |
+5 |     EnumWindows, FindWindowExW, FindWindowW, GetClassNameW, GetParent, SendMessageTimeoutW,
+  |                                              ^^^^^^^^^^^^^  ^^^^^^^^^
+6 |     SetParent, SetWindowPos, HWND_BOTTOM, HWND_TOP, SMTO_NORMAL, SWP_NOACTIVATE, SWP_NOMOVE,
+7 |     SWP_NOSIZE, SWP_SHOWWINDOW, WM_USER,
+  |                                 ^^^^^^^
+
+error[E0609]: no field `0` on type `Result<HWND, windows_result::error::Error>`
+  --> src\windows.rs:15:20
+   |
+15 |         if progman.0.is_null() {
+   |                    ^ unknown field
+   |
+help: one of the expressions' fields has a field of the same name
+   |
+15 |         if progman.unwrap().0.is_null() {
+   |                    +++++++++
+
+error[E0271]: type mismatch resolving `<Result<HWND, Error> as TypeKind>::TypeKind == CopyType`
+    --> src\windows.rs:22:13
+     |
+  21 |         let _ = SendMessageTimeoutW(
+     |                 ------------------- required by a bound introduced by this call
+  22 |             progman,
+     |             ^^^^^^^ expected `CopyType`, found `InterfaceType`
+     |
+     = note: required for `Result<HWND, windows_result::error::Error>` to implement `Param<HWND, CopyType>`
+note: required by a bound in `SendMessageTimeoutW`
+    --> C:\Users\19519\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-0.58.0\src\Windows\Win32\UI\WindowsAndMessaging\mod.rs:2701:9
+     |
+2699 | pub unsafe fn SendMessageTimeoutW<P0, P1, P2>(hwnd: P0, msg: u32, wparam: P1, lparam: P2, fuflags: SEND_MESSAGE_TIMEOUT_FLAGS, utimeout: ...
+     |               ------------------- required by a bound in this function
+2700 | where
+2701 |     P0: windows_core::Param<super::super::Foundation::HWND>,
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `SendMessageTimeoutW`
+
+error[E0277]: the trait bound `Result<HWND, windows_result::error::Error>: Param<HWND, CopyType>` is not satisfied
+    --> src\windows.rs:22:13
+     |
+  21 |         let _ = SendMessageTimeoutW(
+     |                 ------------------- required by a bound introduced by this call
+  22 |             progman,
+     |             ^^^^^^^ the trait `CanInto<HWND>` is not implemented for `Result<HWND, windows_result::error::Error>`
+     |
+note: there are multiple different versions of crate `windows_core` in the dependency graph
+    --> C:\Users\19519\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-core-0.58.0\src\imp\can_into.rs:1:1
+     |
+   1 | pub trait CanInto<T>: Sized {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ this is the expected trait
+     |
+    ::: C:\Users\19519\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-core-0.61.2\src\imp\can_into.rs:1:1
+     |
+   1 | pub trait CanInto<T>: Sized {
+     | --------------------------- this is the found trait
+     = help: you can use `cargo tree` to explore your dependency tree
+     = help: the following other types implement trait `CanInto<T>`:
+               `HCURSOR` implements `CanInto<HICON>`
+               `HINSTANCE` implements `CanInto<HMODULE>`
+               `HMODULE` implements `CanInto<HINSTANCE>`
+               `HWND` implements `CanInto<HANDLE>`
+               `IAgileObject` implements `CanInto<IUnknown>`
+               `IAgileReference` implements `CanInto<IUnknown>`
+               `IGenericFactory` implements `CanInto<IInspectable>`
+               `IGenericFactory` implements `CanInto<IUnknown>`
+             and 3 others
+     = note: required for `Result<HWND, windows_result::error::Error>` to implement `Param<HWND, CopyType>`
+note: required by a bound in `SendMessageTimeoutW`
+    --> C:\Users\19519\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-0.58.0\src\Windows\Win32\UI\WindowsAndMessaging\mod.rs:2701:9
+     |
+2699 | pub unsafe fn SendMessageTimeoutW<P0, P1, P2>(hwnd: P0, msg: u32, wparam: P1, lparam: P2, fuflags: SEND_MESSAGE_TIMEOUT_FLAGS, utimeout: ...
+     |               ------------------- required by a bound in this function
+2700 | where
+2701 |     P0: windows_core::Param<super::super::Foundation::HWND>,
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `SendMessageTimeoutW`
+
+error[E0277]: the trait bound `Result<HWND, windows_result::error::Error>: Param<HWND, CopyType>` is not satisfied
+    --> src\windows.rs:22:13
+     |
+  21 |         let _ = SendMessageTimeoutW(
+     |                 ------------------- required by a bound introduced by this call
+  22 |             progman,
+     |             ^^^^^^^ the trait `Interface` is not implemented for `Result<HWND, windows_result::error::Error>`
+     |
+note: there are multiple different versions of crate `windows_core` in the dependency graph
+    --> C:\Users\19519\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-core-0.58.0\src\interface.rs:14:1
+     |
+  14 | pub unsafe trait Interface: Sized + Clone {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this is the expected trait
+     |
+    ::: C:\Users\19519\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-core-0.61.2\src\interface.rs:14:1
+     |
+  14 | pub unsafe trait Interface: Sized + Clone {
+     | ----------------------------------------- this is the trait that was imported
+     = help: you can use `cargo tree` to explore your dependency tree
+     = help: the following other types implement trait `Interface`:
+               IAgileObject
+               IAgileReference
+               IGenericFactory
+               IInspectable
+               IUnknown
+               IWeakReference
+               IWeakReferenceSource
+     = note: required for `Result<HWND, windows_result::error::Error>` to implement `TypeKind`
+     = note: required for `Result<HWND, windows_result::error::Error>` to implement `Param<HWND, CopyType>`
+note: required by a bound in `SendMessageTimeoutW`
+    --> C:\Users\19519\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-0.58.0\src\Windows\Win32\UI\WindowsAndMessaging\mod.rs:2701:9
+     |
+2699 | pub unsafe fn SendMessageTimeoutW<P0, P1, P2>(hwnd: P0, msg: u32, wparam: P1, lparam: P2, fuflags: SEND_MESSAGE_TIMEOUT_FLAGS, utimeout: ...
+     |               ------------------- required by a bound in this function
+2700 | where
+2701 |     P0: windows_core::Param<super::super::Foundation::HWND>,
+     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `SendMessageTimeoutW`
+
+error[E0308]: mismatched types
+  --> src\windows.rs:28:18
+   |
+28 |             Some(&mut result as *mut _ as *mut isize),
+   |             ---- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `*mut usize`, found `*mut isize`
+   |             |
+   |             arguments to this enum variant are incorrect
+   |
+   = note: expected raw pointer `*mut usize`
+              found raw pointer `*mut isize`
+help: the type constructed contains `*mut isize` due to the type of the argument passed
+  --> src\windows.rs:28:13
+   |
+28 |             Some(&mut result as *mut _ as *mut isize),
+   |             ^^^^^-----------------------------------^
+   |                  |
+   |                  this argument influences the type of `Some`
+note: tuple variant defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\core\src\option.rs:608:5
+
+error[E0609]: no field `0` on type `Result<HWND, windows_result::error::Error>`
+  --> src\windows.rs:42:27
+   |
+42 |             if !shell_dll.0.is_null() {
+   |                           ^ unknown field
+   |
+help: one of the expressions' fields has a field of the same name
+   |
+42 |             if !shell_dll.unwrap().0.is_null() {
+   |                           +++++++++
+
+error[E0609]: no field `0` on type `Result<HWND, windows_result::error::Error>`
+  --> src\windows.rs:49:28
+   |
+49 |                 if !worker.0.is_null() {
+   |                            ^ unknown field
+   |
+help: one of the expressions' fields has a field of the same name
+   |
+49 |                 if !worker.unwrap().0.is_null() {
+   |                            +++++++++
+
+error[E0308]: mismatched types
+  --> src\windows.rs:50:48
+   |
+50 |                     *(lparam.0 as *mut HWND) = worker;
+   |                     ------------------------   ^^^^^^ expected `HWND`, found `Result<HWND, Error>`
+   |                     |
+   |                     expected due to the type of this binding
+   |
+   = note: expected struct `HWND`
+                found enum `Result<HWND, windows_result::error::Error>`
+help: consider using `Result::expect` to unwrap the `Result<HWND, windows_result::error::Error>` value, panicking if the value is a `Result::Err`
+   |
+50 |                     *(lparam.0 as *mut HWND) = worker.expect("REASON");
+   |                                                      +++++++++++++++++
+
+Some errors have detailed explanations: E0271, E0277, E0308, E0609.
+For more information about an error, try `rustc --explain E0271`.
+warning: `desk_tidy_sticky` (lib) generated 3 warnings
+error: could not compile `desk_tidy_sticky` (lib) due to 8 previous errors; 3 warnings emitted

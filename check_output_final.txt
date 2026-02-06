@@ -1,0 +1,181 @@
+
+> desk_tidy_sticky@0.1.0 check F:\language\rust\code\desk_tidy_sticky
+> svelte-kit sync && svelte-check --tsconfig ./jsconfig.json
+
+Loading svelte-check in workspace: f:\language\rust\code\desk_tidy_sticky
+Getting Svelte diagnostics...
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\lib\Dismissible.svelte[39m:44:1
+[33mWarn[39m: Non-interactive element `<div>` should not be assigned mouse or keyboard event listeners
+https://svelte.dev/e/a11y_no_noninteractive_element_interactions (svelte)
+[36m<!-- svelte-ignore a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
+[35m<div
+  class="dismissible"
+  role="group"
+  style="--offset: {offset}px"
+  ontouchstart={handleStart}
+  ontouchmove={handleMove}
+  ontouchend={handleEnd}
+  onmousedown={handleStart}
+  onmousemove={(e) => e.buttons === 1 && handleMove(e)}
+  onmouseup={handleEnd}
+  onmouseleave={handleEnd}
+>
+  <div class="dismissible-bg left" style="background: {leftBg}">
+    <span class="dismissible-icon">{leftIcon}</span>
+  </div>
+  <div class="dismissible-bg right" style="background: {rightBg}">
+    <span class="dismissible-icon">{rightIcon}</span>
+  </div>
+  <div class="dismissible-content">
+    {@render content?.()}
+  </div>
+</div>[36m[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:108:28
+[31mError[39m: Parameter 'updates' implicitly has an 'any' type. (js)
+[36m
+  async function savePrefs([35mupdates[36m) {
+    try {[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:133:33
+[31mError[39m: Parameter 'noteId' implicitly has an 'any' type. (js)
+[36m
+  async function openNoteWindow([35mnoteId[36m) {
+    const label = `note-${noteId}`;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:153:16
+[31mError[39m: Property 'setFocus' does not exist on type 'Promise<WebviewWindow | null>'. (js)
+[36m      const w = WebviewWindow.getByLabel(label);
+      if (w) w.[35msetFocus[36m();
+    });[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:157:34
+[31mError[39m: Parameter 'noteId' implicitly has an 'any' type. (js)
+[36m
+  async function closeNoteWindow([35mnoteId[36m) {
+    const label = `note-${noteId}`;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:165:28
+[31mError[39m: Parameter 'note' implicitly has an 'any' type. (js)
+[36m
+  async function togglePin([35mnote[36m) {
+    try {[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:184:31
+[31mError[39m: Parameter 'note' implicitly has an 'any' type. (js)
+[36m
+  async function toggleZOrder([35mnote[36m) {
+    try {[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:193:29
+[31mError[39m: Parameter 'note' implicitly has an 'any' type. (js)
+[36m
+  async function toggleDone([35mnote[36m) {
+    try {[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:202:32
+[31mError[39m: Parameter 'note' implicitly has an 'any' type. (js)
+[36m
+  async function toggleArchive([35mnote[36m) {
+    try {[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:211:29
+[31mError[39m: Parameter 'note' implicitly has an 'any' type. (js)
+[36m
+  async function deleteNote([35mnote[36m) {
+    try {[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:224:30
+[31mError[39m: Parameter 'note' implicitly has an 'any' type. (js)
+[36m
+  async function restoreNote([35mnote[36m) {
+    try {[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:242:31
+[31mError[39m: Parameter 'fromIndex' implicitly has an 'any' type. (js)
+[36m
+  async function reorderNotes([35mfromIndex[36m, toIndex) {
+    if (!canReorder || fromIndex === toIndex) return;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:242:42
+[31mError[39m: Parameter 'toIndex' implicitly has an 'any' type. (js)
+[36m
+  async function reorderNotes(fromIndex, [35mtoIndex[36m) {
+    if (!canReorder || fromIndex === toIndex) return;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:259:28
+[31mError[39m: Parameter 'e' implicitly has an 'any' type. (js)
+[36m
+  function handleDragStart([35me[36m, index) {
+    if (!canReorder) return;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:259:31
+[31mError[39m: Parameter 'index' implicitly has an 'any' type. (js)
+[36m
+  function handleDragStart(e, [35mindex[36m) {
+    if (!canReorder) return;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:266:27
+[31mError[39m: Parameter 'e' implicitly has an 'any' type. (js)
+[36m
+  function handleDragOver([35me[36m, index) {
+    if (!canReorder || draggedIndex === null) return;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:266:30
+[31mError[39m: Parameter 'index' implicitly has an 'any' type. (js)
+[36m
+  function handleDragOver(e, [35mindex[36m) {
+    if (!canReorder || draggedIndex === null) return;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:272:23
+[31mError[39m: Parameter 'e' implicitly has an 'any' type. (js)
+[36m
+  function handleDrop([35me[36m, toIndex) {
+    if (!canReorder || draggedIndex === null) return;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:272:26
+[31mError[39m: Parameter 'toIndex' implicitly has an 'any' type. (js)
+[36m
+  function handleDrop(e, [35mtoIndex[36m) {
+    if (!canReorder || draggedIndex === null) return;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:292:34
+[31mError[39m: Parameter 'enabled' implicitly has an 'any' type. (js)
+[36m
+  async function toggleAutostart([35menabled[36m) {
+    try {[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:305:21
+[31mError[39m: Parameter 'note' implicitly has an 'any' type. (js)
+[36m
+  function openEdit([35mnote[36m) {
+    editingNote = note;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:341:30
+[31mError[39m: Parameter 'mode' implicitly has an 'any' type. (js)
+[36m
+  async function setViewMode([35mmode[36m) {
+    viewMode = mode;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:347:30
+[31mError[39m: Parameter 'mode' implicitly has an 'any' type. (js)
+[36m
+  async function setSortMode([35mmode[36m) {
+    sortMode = mode;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:353:35
+[31mError[39m: Parameter 'v' implicitly has an 'any' type. (js)
+[36m
+  async function setHideAfterSave([35mv[36m) {
+    hideAfterSave = v;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:358:30
+[31mError[39m: Parameter 'delta' implicitly has an 'any' type. (js)
+[36m
+  async function adjustGlass([35mdelta[36m) {
+    const next = Math.max(0.05, Math.min(1, glassOpacity + delta));[39m
+
+====================================
+[31msvelte-check found 24 errors and 1 warning in 2 files
+[39m鈥塃LIFECYCLE鈥?Command failed with exit code 1.

@@ -1,0 +1,61 @@
+
+> desk_tidy_sticky@0.1.0 check F:\language\rust\code\desk_tidy_sticky
+> svelte-kit sync && svelte-check --tsconfig ./jsconfig.json
+
+Loading svelte-check in workspace: f:\language\rust\code\desk_tidy_sticky
+Getting Svelte diagnostics...
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\lib\Dismissible.svelte[39m:44:1
+[33mWarn[39m: Non-interactive element `<div>` should not be assigned mouse or keyboard event listeners
+https://svelte.dev/e/a11y_no_noninteractive_element_interactions (svelte)
+[36m<!-- svelte-ignore a11y_no_static_element_interactions a11y_no_noninteractive_element_interactions -->
+[35m<div
+  class="dismissible"
+  role="group"
+  style="--offset: {offset}px"
+  ontouchstart={handleStart}
+  ontouchmove={handleMove}
+  ontouchend={handleEnd}
+  onmousedown={handleStart}
+  onmousemove={(e) => e.buttons === 1 && handleMove(e)}
+  onmouseup={handleEnd}
+  onmouseleave={handleEnd}
+>
+  <div class="dismissible-bg left" style="background: {leftBg}">
+    <span class="dismissible-icon">{leftIcon}</span>
+  </div>
+  <div class="dismissible-bg right" style="background: {rightBg}">
+    <span class="dismissible-icon">{rightIcon}</span>
+  </div>
+  <div class="dismissible-content">
+    {@render content?.()}
+  </div>
+</div>[36m[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:279:5
+[31mError[39m: 'e.dataTransfer' is possibly 'null'. (js)
+[36m    if (!canReorder) return;
+    [35me.dataTransfer[36m.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:280:5
+[31mError[39m: 'e.dataTransfer' is possibly 'null'. (js)
+[36m    e.dataTransfer.effectAllowed = "move";
+    [35me.dataTransfer[36m.setData("text/plain", String(index));
+    draggedIndex = index;[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:281:5
+[31mError[39m: Type 'number' is not assignable to type 'null'. (js)
+[36m    e.dataTransfer.setData("text/plain", String(index));
+    [35mdraggedIndex[36m = index;
+  }[39m
+
+f:\language\rust\code\desk_tidy_sticky\[32msrc\routes\+page.svelte[39m:291:5
+[31mError[39m: 'e.dataTransfer' is possibly 'null'. (js)
+[36m    e.preventDefault();
+    [35me.dataTransfer[36m.dropEffect = "move";
+  }[39m
+
+====================================
+[31msvelte-check found 4 errors and 1 warning in 2 files
+[39m鈥塃LIFECYCLE鈥?Command failed with exit code 1.
