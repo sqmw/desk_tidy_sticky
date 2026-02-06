@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["tray-icon", "image-ico"] }
 tauri-plugin-opener = "2"
 tauri-plugin-store = "2"
 tauri-plugin-global-shortcut = "2"
@@ -30,5 +30,3 @@ uuid = { version = "1", features = ["v4", "serde"] }
 directories = "5"
 chrono = { version = "0.4", features = ["serde"] }
 windows = { version = "0.58.0", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
-
-

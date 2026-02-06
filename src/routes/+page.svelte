@@ -1,4 +1,5 @@
 <script>
+  import { onMount, tick } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import {
@@ -10,6 +11,7 @@
   import { matchNote } from "$lib/note-search.js";
   import Dismissible from "$lib/Dismissible.svelte";
   import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+  import { listen } from "@tauri-apps/api/event";
 
   const NOTE_VIEW_MODES = ["active", "archived", "trash"];
   const NOTE_SORT_MODES = ["custom", "newest", "oldest"];
@@ -34,6 +36,8 @@
   let showPanelOnStartup = $state(false);
   /** @type {number | null} */
   let draggedIndex = $state(null);
+  /** @type {HTMLInputElement | null} */
+  let noteInputEl = $state(null);
 
   const strings = $derived(getStrings(locale));
 
@@ -79,14 +83,34 @@
   }
 
   async function syncWindows() {
-    // For each pinned note, ensure a window is open
+    // For each pinned note, ensure a window is open. Also close windows that should not exist.
+    /** @type {Set<string>} */
+    const shouldExist = new Set(
+      notes
+        .filter((n) => n.isPinned && !n.isArchived && !n.isDeleted)
+        .map((n) => `note-${n.id}`),
+    );
+
+    // Close stale note windows
+    try {
+      const all = await WebviewWindow.getAll();
+      for (const w of all) {
+        if (w.label?.startsWith("note-") && !shouldExist.has(w.label)) {
+          await w.close();
+        }
+      }
+    } catch (e) {
+      console.error("syncWindows(close)", e);
+    }
+
+    // Ensure missing windows are created
     for (const n of notes) {
       if (n.isPinned && !n.isArchived && !n.isDeleted) {
         const label = `note-${n.id}`;
         // Check if window exists (WebviewWindow.getByLabel returns null/undefined if not found)
         const exists = await WebviewWindow.getByLabel(label);
         if (!exists) {
-          openNoteWindow(n.id);
+          openNoteWindow(n);
         }
       }
     }
@@ -132,8 +156,11 @@
     }
   }
 
-  /** @param {string | number} noteId */
-  async function openNoteWindow(noteId) {
+  /** @param {any} note */
+  async function openNoteWindow(note) {
+    const noteId = note?.id;
+    if (!noteId) return;
+
     const label = `note-${noteId}`;
     const webview = new WebviewWindow(label, {
       url: `/note/${noteId}`,
@@ -142,19 +169,18 @@
       height: 300,
       decorations: false,
       transparent: true,
-      alwaysOnTop: true,
+      alwaysOnTop: !!note?.isAlwaysOnTop,
       skipTaskbar: true,
     });
     webview.once("tauri://created", function () {
       // webview window successfully created
     });
-    webview.once("tauri://error", function (e) {
+    webview.once("tauri://error", async function (e) {
       // an error happened creating the webview window
       console.error(e);
       // If key already exists, maybe focus it?
-      const w = WebviewWindow.getByLabel(label);
-      // @ts-ignore
-      if (w) w.setFocus();
+      const w = await WebviewWindow.getByLabel(label);
+      if (w) await w.setFocus();
     });
   }
 
@@ -177,7 +203,7 @@
       const updated = notes.find((n) => n.id === note.id);
       if (updated) {
         if (updated.isPinned) {
-          openNoteWindow(updated.id);
+          openNoteWindow(updated);
         } else {
           closeNoteWindow(updated.id);
         }
@@ -416,6 +442,96 @@
   $effect(() => {
     if (showSettings) initAutostart();
   });
+
+  async function focusNewNoteInput() {
+    await tick();
+    noteInputEl?.focus();
+    noteInputEl?.select();
+  }
+
+  /** @param {MouseEvent} e */
+  async function startWindowDrag(e) {
+    if (e.button !== 0) return; // left click only
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.log("[drag] mousedown", {
+        button: e.button,
+        buttons: e.buttons,
+        target: /** @type {any} */ (e.target)?.tagName,
+        x: e.clientX,
+        y: e.clientY,
+      });
+    }
+    try {
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.log("[drag] calling startDragging()");
+      }
+      await getCurrentWindow().startDragging();
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.log("[drag] startDragging() resolved");
+      }
+    } catch (err) {
+      console.error("startDragging failed", err);
+    }
+  }
+
+  /** @param {PointerEvent} e */
+  async function startWindowDragPointer(e) {
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.log("[drag] pointerdown", {
+        button: e.button,
+        buttons: e.buttons,
+        pointerType: e.pointerType,
+        target: /** @type {any} */ (e.target)?.tagName,
+        x: e.clientX,
+        y: e.clientY,
+      });
+    }
+    // Delegate to mouse-based logic when available
+    // @ts-ignore - PointerEvent is compatible enough for our checks
+    await startWindowDrag(e);
+  }
+
+  onMount(() => {
+    /** @type {Array<Promise<() => void>>} */
+    const unsubs = [];
+
+    unsubs.push(
+      listen("tray_new_note", async () => {
+        newNoteText = "";
+        await focusNewNoteInput();
+      }),
+    );
+
+    unsubs.push(
+      listen("tray_overlay_toggle", async () => {
+        // Toggle: if any note windows exist, close them; otherwise re-sync (open pinned)
+        try {
+          const all = await WebviewWindow.getAll();
+          const noteWins = all.filter((w) => w.label?.startsWith("note-"));
+          if (noteWins.length > 0) {
+            for (const w of noteWins) await w.close();
+          } else {
+            await loadNotes();
+            await syncWindows();
+          }
+        } catch (e) {
+          console.error("tray_overlay_toggle", e);
+        }
+      }),
+    );
+
+    return () => {
+      for (const p of unsubs) {
+        Promise.resolve(p)
+          .then((u) => u())
+          .catch(() => {});
+      }
+    };
+  });
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -425,8 +541,15 @@
     <!-- Header -->
     <header class="panel-header" data-tauri-drag-region>
       <div class="header-row">
-        <span class="app-title">{strings.appName.toUpperCase()}</span>
-        <div class="header-actions">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="header-drag"
+          onmousedown={startWindowDrag}
+          onpointerdown={startWindowDragPointer}
+        >
+          <span class="app-title">{strings.appName.toUpperCase()}</span>
+        </div>
+        <div class="header-actions" data-tauri-drag-region="false">
           <button
             type="button"
             class="icon-btn"
@@ -472,12 +595,13 @@
           </button>
         </div>
       </div>
-      <div class="input-row">
+      <div class="input-row" data-tauri-drag-region="false">
         <input
           type="text"
           class="note-input"
           placeholder={strings.inputHint}
           bind:value={newNoteText}
+          bind:this={noteInputEl}
           onkeydown={(e) => e.key === "Enter" && saveNote(false)}
         />
         <button
@@ -489,7 +613,7 @@
           ➤
         </button>
       </div>
-      <div class="tabs-row">
+      <div class="tabs-row" data-tauri-drag-region="false">
         <div class="view-tabs">
           {#each NOTE_VIEW_MODES as mode}
             <button
@@ -524,12 +648,13 @@
           onchange={(e) =>
             setSortMode(/** @type {HTMLInputElement} */ (e.target).value)}
           title={strings.sortMode}
+          data-tauri-drag-region="false"
         >
           <option value="custom">{strings.sortByCustom}</option>
           <option value="newest">{strings.sortByNewest}</option>
           <option value="oldest">{strings.sortByOldest}</option>
         </select>
-        <label class="toggle-label">
+        <label class="toggle-label" data-tauri-drag-region="false">
           <input
             type="checkbox"
             bind:checked={hideAfterSave}
@@ -538,7 +663,7 @@
           {strings.hideAfterSave}
         </label>
       </div>
-      <div class="search-row">
+      <div class="search-row" data-tauri-drag-region="false">
         <input
           type="text"
           class="search-input"
@@ -755,6 +880,10 @@
 {/if}
 
 <style>
+  :global(html, body) {
+    overflow: hidden;
+  }
+
   :global(:root) {
     --primary: #3a6ff7;
     --accent: #f6c344;
@@ -787,6 +916,7 @@
     border-bottom: 1px solid var(--divider);
     padding: 12px;
     flex-shrink: 0;
+    user-select: none;
   }
 
   .header-row {
@@ -794,6 +924,12 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 8px;
+  }
+
+  .header-drag {
+    flex: 1;
+    min-width: 0;
+    cursor: default;
   }
 
   .app-title {
@@ -850,6 +986,7 @@
     font-size: 14px;
     padding: 6px 0;
     outline: none;
+    user-select: text;
   }
 
   .send-btn {
@@ -922,6 +1059,7 @@
     border: 1px solid var(--divider);
     border-radius: 20px;
     background: #fff;
+    user-select: text;
   }
 
   .search-clear {
@@ -941,6 +1079,14 @@
     flex: 1;
     overflow-y: auto;
     padding: 8px;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge legacy */
+  }
+
+  .notes-list::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none; /* Chrome/Safari */
   }
 
   .note-item {

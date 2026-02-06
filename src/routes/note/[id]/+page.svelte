@@ -2,11 +2,14 @@
     import { onMount } from "svelte";
     import { invoke } from "@tauri-apps/api/core";
     import { getCurrentWindow } from "@tauri-apps/api/window";
+    import { listen } from "@tauri-apps/api/event";
     import { page } from "$app/stores";
 
+    /** @type {any} */
     let note = $state(null);
-    let noteId = $page.params.id;
+    const noteId = $derived($page.params.id);
     let text = $state("");
+    let clickThrough = $state(false);
 
     // Load note data on mount
     async function loadNote() {
@@ -20,6 +23,23 @@
             }
         } catch (e) {
             console.error(e);
+        }
+    }
+
+    async function applyZOrderAndParent() {
+        if (!note) return;
+
+        const win = getCurrentWindow();
+        try {
+            if (note.isAlwaysOnTop) {
+                await invoke("unpin_window_from_desktop");
+                await win.setAlwaysOnTop(true);
+            } else {
+                await win.setAlwaysOnTop(false);
+                await invoke("pin_window_to_desktop");
+            }
+        } catch (e) {
+            console.error("applyZOrderAndParent", e);
         }
     }
 
@@ -61,9 +81,60 @@
         }
     }
 
+    async function toggleMouseInteraction() {
+        clickThrough = !clickThrough;
+        try {
+            await getCurrentWindow().setIgnoreCursorEvents(clickThrough);
+        } catch (e) {
+            console.error("setIgnoreCursorEvents", e);
+        }
+    }
+
+    async function toggleTopmost() {
+        if (!note) return;
+        try {
+            const all = await invoke("toggle_z_order", {
+                // @ts-ignore
+                id: note.id,
+                sortMode: "custom",
+            });
+            // @ts-ignore
+            const updated = all.find((n) => n.id === noteId);
+            if (updated) note = updated;
+            await applyZOrderAndParent();
+        } catch (e) {
+            console.error("toggleTopmost", e);
+        }
+    }
+
     onMount(() => {
-        loadNote();
-        // Setup listeners for sync?
+        /** @type {Array<Promise<() => void>>} */
+        const unlistenPromises = [];
+
+        unlistenPromises.push(
+            listen("overlay_input_changed", async (event) => {
+                // @ts-ignore
+                clickThrough = !!event.payload;
+                try {
+                    await getCurrentWindow().setIgnoreCursorEvents(clickThrough);
+                } catch (e) {
+                    console.error("overlay_input_changed", e);
+                }
+            }),
+        );
+
+        loadNote().then(applyZOrderAndParent);
+
+        return async () => {
+            for (const p of unlistenPromises) {
+                try {
+                    const unlisten = await p;
+                    unlisten();
+                } catch {
+                    // ignore
+                }
+            }
+        };
     });
 </script>
 
@@ -77,8 +148,14 @@
         ></textarea>
 
         <div class="toolbar">
-            <button onclick={pinToDesktop} title="Pin to Desktop">📌</button>
-            <button onclick={unpinFromDesktop} title="Unpin">📍</button>
+            <button onclick={toggleTopmost} title="Toggle z-order">
+                {note.isAlwaysOnTop ? "⬇" : "⬆"}
+            </button>
+            <button onclick={toggleMouseInteraction} title="Toggle mouse interaction">
+                {clickThrough ? "🖱️✖" : "🖱️"}
+            </button>
+            <button onclick={pinToDesktop} title="Attach to desktop layer">📌</button>
+            <button onclick={unpinFromDesktop} title="Detach from desktop layer">📍</button>
             <button onclick={() => getCurrentWindow().close()} title="Close"
                 >✕</button
             >

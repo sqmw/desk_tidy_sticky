@@ -22,8 +22,15 @@
 | 快捷键 | 功能 |
 |-------|------|
 | `Ctrl + Shift + N` | 唤醒/隐藏主面板 |
+| `Ctrl + Shift + O` | 贴纸：切换鼠标交互（穿透/可点） |
 | `Ctrl + Enter` | 保存并固定到桌面 |
 | `Esc` | 隐藏面板（不保存） |
+
+## 🖼️ 截图
+
+| 主界面 | 贴纸 | 列表 |
+|:---:|:---:|:---:|
+| ![hero](.github/screenshots/hero.png) | ![desktop](.github/screenshots/desktop_mode.png) | ![list](.github/screenshots/list_page.png) |
 
 ## 🔧 技术栈
 
@@ -47,6 +54,10 @@ pnpm tauri build
 ## 📂 数据迁移
 
 从 Flutter/Dart 版本迁移：数据存储在 `%APPDATA%\..\desk_tidy_sticky\notes.json`（Dart 版本）或 `%APPDATA%\com\desk_tidy\desk_tidy_sticky\notes.json`（本版本）。可手动复制 `notes.json` 到新路径。
+
+## 🧭 迁移记录
+
+- `docs/migration/2026-02-06-flutter-to-tauri.md`
 
 ## 📄 开源协议
 

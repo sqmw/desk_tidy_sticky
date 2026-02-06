@@ -5,7 +5,37 @@ mod windows;
 
 use notes_service::NoteSortMode;
 use preferences::PanelPreferences;
+use tauri::Emitter;
 use tauri::Manager;
+use std::sync::{Arc, Mutex};
+
+#[derive(Default, Clone)]
+struct OverlayInputState(Arc<Mutex<bool>>);
+
+impl OverlayInputState {
+    fn toggle(&self) -> bool {
+        let mut guard = self.0.lock().expect("overlay input mutex poisoned");
+        *guard = !*guard;
+        *guard
+    }
+}
+
+fn apply_overlay_input_state(app: &tauri::AppHandle, click_through: bool) {
+    // Apply to all note windows. Ignore errors (window might be closing).
+    for (label, w) in app.webview_windows() {
+        if label.starts_with("note-") {
+            let _ = w.set_ignore_cursor_events(click_through);
+        }
+    }
+}
+
+fn close_all_note_windows(app: &tauri::AppHandle) {
+    for (label, w) in app.webview_windows() {
+        if label.starts_with("note-") {
+            let _ = w.close();
+        }
+    }
+}
 
 #[tauri::command]
 fn load_notes(sort_mode: String) -> Result<Vec<notes::Note>, String> {
@@ -170,6 +200,7 @@ fn unpin_window_from_desktop(window: tauri::WebviewWindow) -> Result<(), String>
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(OverlayInputState::default())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.show();
@@ -186,14 +217,42 @@ pub fn run() {
                 ));
                 use tauri::menu::{Menu, MenuItem};
                 use tauri::tray::TrayIconBuilder;
+                use tauri::image::Image;
 
                 let show_i = MenuItem::with_id(app, "show", "Show notes", true, None::<&str>)?;
                 let overlay_i =
                     MenuItem::with_id(app, "overlay", "Desktop overlay", true, None::<&str>)?;
+                let new_note_i =
+                    MenuItem::with_id(app, "new_note", "New note", true, None::<&str>)?;
+                let overlay_input_i = MenuItem::with_id(
+                    app,
+                    "overlay_input",
+                    "Overlay: Toggle mouse interaction",
+                    true,
+                    None::<&str>,
+                )?;
+                let overlay_close_i = MenuItem::with_id(
+                    app,
+                    "overlay_close",
+                    "Overlay: Close",
+                    true,
+                    None::<&str>,
+                )?;
                 let quit_i = MenuItem::with_id(app, "quit", "Exit", true, None::<&str>)?;
-                let menu = Menu::with_items(app, &[&show_i, &overlay_i, &quit_i])?;
+                let menu = Menu::with_items(
+                    app,
+                    &[
+                        &show_i,
+                        &new_note_i,
+                        &overlay_i,
+                        &overlay_input_i,
+                        &overlay_close_i,
+                        &quit_i,
+                    ],
+                )?;
 
                 let _tray = TrayIconBuilder::new()
+                    .icon(Image::from_bytes(include_bytes!("../icons/icon.ico"))?)
                     .menu(&menu)
                     .show_menu_on_left_click(true)
                     .on_menu_event(|app, event| {
@@ -202,6 +261,23 @@ pub fn run() {
                                 let _ = w.show();
                                 let _ = w.set_focus();
                             }
+                        } else if event.id.as_ref() == "new_note" {
+                            if let Some(w) = app.get_webview_window("main") {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                                let _ = app.emit("tray_new_note", ());
+                            }
+                        } else if event.id.as_ref() == "overlay_input" {
+                            if let Some(state) = app.try_state::<OverlayInputState>() {
+                                let click_through = state.toggle();
+                                apply_overlay_input_state(app, click_through);
+                                let _ = app.emit("overlay_input_changed", click_through);
+                            }
+                        } else if event.id.as_ref() == "overlay" {
+                            let _ = app.emit("tray_overlay_toggle", ());
+                        } else if event.id.as_ref() == "overlay_close" {
+                            close_all_note_windows(app);
+                            let _ = app.emit("overlay_closed", ());
                         } else if event.id.as_ref() == "quit" {
                             app.exit(0);
                         }
@@ -223,16 +299,27 @@ pub fn run() {
         })
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcuts(["Ctrl+Shift+N"])
+                .with_shortcuts(["Ctrl+Shift+N", "Ctrl+Shift+O"])
                 .expect("Failed to register shortcut")
-                .with_handler(|app, _shortcut, event| {
+                .with_handler(|app, shortcut, event| {
+                    use tauri_plugin_global_shortcut::{Code, Modifiers};
                     if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.set_focus();
-                            if window.is_visible().unwrap_or(false) {
-                                let _ = window.hide();
-                            } else {
-                                let _ = window.show();
+                        if shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyN) {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.set_focus();
+                                if window.is_visible().unwrap_or(false) {
+                                    let _ = window.hide();
+                                } else {
+                                    let _ = window.show();
+                                }
+                            }
+                        } else if shortcut
+                            .matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyO)
+                        {
+                            if let Some(state) = app.try_state::<OverlayInputState>() {
+                                let click_through = state.toggle();
+                                apply_overlay_input_state(app, click_through);
+                                let _ = app.emit("overlay_input_changed", click_through);
                             }
                         }
                     }

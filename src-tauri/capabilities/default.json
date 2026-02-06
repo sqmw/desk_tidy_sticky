@@ -10,6 +10,7 @@
     "core:window:allow-show",
     "core:window:allow-close",
     "core:window:allow-set-focus",
+    "core:window:allow-start-dragging",
     "autostart:allow-enable",
     "autostart:allow-disable",
     "autostart:allow-is-enabled"

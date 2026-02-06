@@ -59,7 +59,7 @@ pub fn init_worker_w() -> Result<(), String> {
             BOOL(1)
         }
 
-        EnumWindows(
+        let _ = EnumWindows(
             Some(enum_windows_proc),
             LPARAM(&mut worker_w_candidate as *mut _ as isize),
         );
