@@ -30,3 +30,4 @@ uuid = { version = "1", features = ["v4", "serde"] }
 directories = "5"
 chrono = { version = "0.4", features = ["serde"] }
 windows = { version = "0.58.0", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+open = "5.3.3"

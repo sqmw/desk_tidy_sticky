@@ -395,6 +395,15 @@
   async function toggleLanguage() {
     locale = locale === "en" ? "zh" : "en";
     await savePrefs({ language: locale });
+    updateTrayMenu();
+  }
+
+  async function updateTrayMenu() {
+    try {
+      await invoke("update_tray_texts", { texts: strings });
+    } catch (e) {
+      console.error("updateTrayMenu", e);
+    }
   }
 
   /** @param {string} mode */
@@ -436,7 +445,10 @@
   }
 
   $effect(() => {
-    loadPrefs().then(() => loadNotes());
+    loadPrefs().then(() => {
+      loadNotes();
+      updateTrayMenu();
+    });
   });
 
   $effect(() => {
@@ -881,7 +893,17 @@
 
 <style>
   :global(html, body) {
+    margin: 0;
+    padding: 0;
     overflow: hidden;
+    height: 100%;
+    width: 100%;
+  }
+
+  :global(*),
+  :global(*::before),
+  :global(*::after) {
+    box-sizing: border-box;
   }
 
   :global(:root) {
@@ -914,7 +936,7 @@
   .panel-header {
     background: var(--surface);
     border-bottom: 1px solid var(--divider);
-    padding: 12px;
+    padding: 0px 12px;
     flex-shrink: 0;
     user-select: none;
   }
@@ -923,7 +945,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 0;
   }
 
   .header-drag {
@@ -976,7 +998,7 @@
     display: flex;
     gap: 8px;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 0;
   }
 
   .note-input {
@@ -984,7 +1006,7 @@
     border: none;
     background: transparent;
     font-size: 14px;
-    padding: 6px 0;
+    padding: 2px 0;
     outline: none;
     user-select: text;
   }
@@ -1001,7 +1023,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 0;
   }
 
   .view-tabs {
@@ -1043,10 +1065,7 @@
   }
 
   .search-row {
-    margin-top: 4px;
-  }
-
-  .search-row {
+    margin-top: 2px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -1054,7 +1073,7 @@
 
   .search-input {
     flex: 1;
-    padding: 6px 8px;
+    padding: 2px 8px;
     font-size: 12px;
     border: 1px solid var(--divider);
     border-radius: 20px;
@@ -1078,7 +1097,7 @@
   .notes-list {
     flex: 1;
     overflow-y: auto;
-    padding: 8px;
+    padding: 4px 8px;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE/Edge legacy */
   }
@@ -1095,7 +1114,7 @@
     justify-content: space-between;
     padding: 8px;
     border-radius: 8px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     cursor: default;
   }
 
