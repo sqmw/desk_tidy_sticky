@@ -13,6 +13,7 @@
   import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
   import { listen } from "@tauri-apps/api/event";
   import { slide } from "svelte/transition";
+  import { flip } from "svelte/animate";
 
   import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -37,8 +38,18 @@
   let showSettings = $state(false);
   let isAutostartEnabled = $state(false);
   let showPanelOnStartup = $state(false);
+  /** @type {string | null} */
+  let draggedNoteId = $state(null);
   /** @type {number | null} */
-  let draggedIndex = $state(null);
+  let dragTargetIndex = $state(null);
+  /** @type {any[] | null} */
+  let dragPreviewNotes = $state(null);
+  let dragGhostTop = $state(0);
+  let dragGhostLeft = $state(0);
+  let dragGhostWidth = $state(0);
+  let dragPointerOffsetY = $state(0);
+  /** @type {HTMLDivElement | null} */
+  let notesListEl = $state(null);
   /** @type {HTMLInputElement | null} */
   let noteInputEl = $state(null);
 
@@ -75,6 +86,14 @@
   const canReorder = $derived(
     sortMode === "custom" && viewMode !== "trash" && !searchQuery.trim(),
   );
+  const renderedNotes = $derived(dragPreviewNotes ?? visibleNotes);
+  const draggedNote = $derived.by(() => {
+    if (!draggedNoteId) return null;
+    return (
+      (dragPreviewNotes ?? visibleNotes).find((n) => n.id === draggedNoteId) ??
+      null
+    );
+  });
 
   async function loadNotes() {
     try {
@@ -291,65 +310,217 @@
   }
 
   /**
-   * @param {number} fromIndex
-   * @param {number} toIndex
+   * @param {any[]} reorderedVisible
    */
-  async function reorderNotes(fromIndex, toIndex) {
-    if (!canReorder || fromIndex === toIndex) return;
-    const list = [...visibleNotes];
-    const [item] = list.splice(fromIndex, 1);
-    list.splice(toIndex, 0, item);
-    const reordered = list.map((n, i) => ({ id: n.id, order: i }));
+  async function persistReorderedVisible(reorderedVisible) {
+    const reordered = reorderedVisible.map((n, i) => ({ id: n.id, order: i }));
+
+    /** @param {any} n */
+    const inCurrentView = (n) => {
+      if (viewMode === "active") return !n.isArchived && !n.isDeleted;
+      if (viewMode === "archived") return n.isArchived && !n.isDeleted;
+      return n.isDeleted;
+    };
+
+    const iter = reorderedVisible[Symbol.iterator]();
+    notes = notes.map((n) => {
+      if (!inCurrentView(n)) return n;
+      const next = iter.next();
+      return next.done ? n : next.value;
+    });
+
     try {
       await invoke("reorder_notes", {
         reordered,
         isArchivedView: viewMode === "archived",
       });
-      await loadNotes();
     } catch (e) {
       console.error("reorderNotes", e);
+      await loadNotes();
+    }
+  }
+
+  /** @type {number | null} */
+  let verticalDragStartY = $state(null);
+
+  /** @param {PointerEvent | TouchEvent | MouseEvent} e */
+  function getEventClientY(e) {
+    // @ts-ignore
+    return e.touches ? e.touches[0].clientY : e.clientY;
+  }
+
+  /** @param {number} pointerY */
+  function findDropIndexByPointer(pointerY) {
+    if (!notesListEl || !draggedNoteId) return 0;
+    const wrappers = notesListEl.querySelectorAll(".note-wrapper");
+    const len = wrappers.length;
+    if (len <= 1) return 0;
+
+    const activeList = dragPreviewNotes ?? visibleNotes;
+    const currentIndex = activeList.findIndex((n) => n.id === draggedNoteId);
+    if (currentIndex < 0) return 0;
+
+    // Compute insertion slot by counting how many item midlines are above pointer.
+    // Then map insertion slot back to index in list-with-dragged-item.
+    let insertionIndex = 0;
+    for (let i = 0; i < len; i += 1) {
+      const rect = wrappers[i].getBoundingClientRect();
+      const centerY = rect.top + rect.height / 2;
+      if (pointerY > centerY) insertionIndex = i + 1;
+    }
+
+    let targetIndex = insertionIndex;
+    if (insertionIndex > currentIndex) {
+      targetIndex = insertionIndex - 1;
+    }
+
+    return Math.max(
+      0,
+      Math.min(len - 1, targetIndex),
+    );
+  }
+
+  /** @param {number} pointerY */
+  function autoScrollNotesList(pointerY) {
+    if (!notesListEl) return;
+    const rect = notesListEl.getBoundingClientRect();
+    const edge = 36;
+    const maxSpeed = 14;
+    if (pointerY < rect.top + edge) {
+      const ratio = (rect.top + edge - pointerY) / edge;
+      notesListEl.scrollTop -= Math.max(2, Math.round(maxSpeed * ratio));
+    } else if (pointerY > rect.bottom - edge) {
+      const ratio = (pointerY - (rect.bottom - edge)) / edge;
+      notesListEl.scrollTop += Math.max(2, Math.round(maxSpeed * ratio));
     }
   }
 
   /**
-   * @param {DragEvent} e
+   * @param {PointerEvent | TouchEvent | MouseEvent} e
    * @param {number} index
    */
-  function handleDragStart(e, index) {
+  function handleVerticalDragStart(e, index) {
     if (!canReorder) return;
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", String(index));
+    const startList = [...visibleNotes];
+    const current = startList[index];
+    if (!current) return;
+    const clientY = getEventClientY(e);
+    const target = /** @type {HTMLElement | null} */ (e.target);
+    const wrapper = target?.closest(".note-wrapper");
+    if (wrapper) {
+      const rect = wrapper.getBoundingClientRect();
+      dragGhostTop = rect.top;
+      dragGhostLeft = rect.left;
+      dragGhostWidth = rect.width;
+      dragPointerOffsetY = Math.max(0, clientY - rect.top);
+    } else {
+      dragPointerOffsetY = 18;
     }
-    draggedIndex = index;
+    draggedNoteId = current.id;
+    dragTargetIndex = index;
+    verticalDragStartY = clientY;
+    dragPreviewNotes = startList;
   }
 
   /**
-   * @param {DragEvent} e
-   * @param {number} index
+   * @param {PointerEvent | TouchEvent | MouseEvent} e
+   * @param {number} deltaY
    */
-  function handleDragOver(e, index) {
-    if (!canReorder || draggedIndex === null) return;
-    e.preventDefault();
-    if (e.dataTransfer) {
-      e.dataTransfer.dropEffect = "move";
-    }
+  function handleVerticalDragMove(e, deltaY) {
+    if (!canReorder || !draggedNoteId) return;
+    const clientY =
+      verticalDragStartY === null
+        ? getEventClientY(e)
+        : verticalDragStartY + deltaY;
+    dragGhostTop = clientY - dragPointerOffsetY;
+    autoScrollNotesList(clientY);
+    const nextTarget = findDropIndexByPointer(clientY);
+    dragTargetIndex = nextTarget;
+
+    if (!dragPreviewNotes) return;
+    const from = dragPreviewNotes.findIndex((n) => n.id === draggedNoteId);
+    if (from < 0 || from === nextTarget) return;
+    const next = [...dragPreviewNotes];
+    const [item] = next.splice(from, 1);
+    next.splice(nextTarget, 0, item);
+    dragPreviewNotes = next;
   }
 
-  /**
-   * @param {DragEvent} e
-   * @param {number} toIndex
-   */
-  function handleDrop(e, toIndex) {
-    if (!canReorder || draggedIndex === null) return;
-    e.preventDefault();
-    const fromIndex = draggedIndex;
-    draggedIndex = null;
-    if (fromIndex !== toIndex) reorderNotes(fromIndex, toIndex);
+  async function finalizeVerticalDrag() {
+    if (!canReorder || !draggedNoteId) return;
+    const draggedId = draggedNoteId;
+    const originIndex = visibleNotes.findIndex((n) => n.id === draggedNoteId);
+    const finalIndex = (dragPreviewNotes ?? visibleNotes).findIndex(
+      (n) => n.id === draggedNoteId,
+    );
+    const finalVisible = dragPreviewNotes ?? visibleNotes;
+    const shouldPersist =
+      originIndex >= 0 && finalIndex >= 0 && originIndex !== finalIndex;
+
+    // Clear drag state immediately to stop any post-drop drifting.
+    draggedNoteId = null;
+    dragTargetIndex = null;
+    verticalDragStartY = null;
+    dragPreviewNotes = null;
+    dragGhostWidth = 0;
+    dragPointerOffsetY = 0;
+
+    if (!shouldPersist) return;
+    if (!draggedId) return;
+    await persistReorderedVisible(finalVisible);
   }
 
-  function handleDragEnd() {
-    draggedIndex = null;
+  /** @param {PointerEvent | TouchEvent | MouseEvent} e */
+  function handleVerticalDragEnd(e) {
+    void e;
+    void finalizeVerticalDrag();
+  }
+
+  /** @param {string} noteId */
+  function createVerticalDragStartHandler(noteId) {
+    /**
+     * @param {PointerEvent | TouchEvent | MouseEvent} e
+     */
+    return function onVerticalDragStart(e) {
+      const index = visibleNotes.findIndex((n) => n.id === noteId);
+      if (index < 0) return;
+      handleVerticalDragStart(e, index);
+    };
+  }
+
+  /** @param {string} noteId */
+  function createVerticalDragMoveHandler(noteId) {
+    /**
+     * @param {PointerEvent | TouchEvent | MouseEvent} e
+     * @param {number} deltaY
+     */
+    return function onVerticalDragMove(e, deltaY) {
+      if (draggedNoteId !== noteId) return;
+      handleVerticalDragMove(e, deltaY);
+    };
+  }
+
+  /** @param {string} noteId */
+  function createVerticalDragEndHandler(noteId) {
+    /**
+     * @param {PointerEvent | TouchEvent | MouseEvent} e
+     */
+    return function onVerticalDragEnd(e) {
+      if (draggedNoteId !== noteId) return;
+      handleVerticalDragEnd(e);
+    };
+  }
+
+  /** @param {PointerEvent} e */
+  function handleWindowPointerUp(e) {
+    if (e.button !== 0) return;
+    if (!draggedNoteId) return;
+    void finalizeVerticalDrag();
+  }
+
+  function handleWindowPointerCancel() {
+    if (!draggedNoteId) return;
+    void finalizeVerticalDrag();
   }
 
   async function initAutostart() {
@@ -586,7 +757,11 @@
   });
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window
+  onkeydown={handleKeydown}
+  onpointerup={handleWindowPointerUp}
+  onpointercancel={handleWindowPointerCancel}
+/>
 
 <div class="panel" style="--glass-opacity: {glassOpacity}">
   <div class="glass-container">
@@ -920,20 +1095,28 @@
     </header>
 
     <!-- Notes list -->
-    <div class="notes-list">
-      {#each visibleNotes as note, index (note.id)}
+    <div class="notes-list" bind:this={notesListEl}>
+      {#each renderedNotes as note, index (note.id)}
         <div
           transition:slide={{ duration: 200, axis: "y" }}
+          animate:flip={{ duration: 200 }}
           class="note-wrapper"
+          class:drag-placeholder={draggedNoteId === note.id}
+          class:drop-target={dragTargetIndex === index && draggedNoteId !== note.id}
         >
           <Dismissible
             leftBg={viewMode === "trash" ? "#43a047" : "#607d8b"}
             leftIcon={viewMode === "trash" ? iconRestore : iconArchive}
             rightBg="#e53935"
             rightIcon={iconDelete}
+            enableVerticalDrag={canReorder}
+            verticalDragHandleSelector='[data-reorder-handle="true"]'
             onSwipeRight={() =>
               viewMode === "trash" ? restoreNote(note) : toggleArchive(note)}
             onSwipeLeft={() => deleteNote(note)}
+            onVerticalDragStart={createVerticalDragStartHandler(note.id)}
+            onVerticalDragMove={createVerticalDragMoveHandler(note.id)}
+            onVerticalDragEnd={createVerticalDragEndHandler(note.id)}
           >
             {#snippet content()}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -941,31 +1124,9 @@
                 class="note-item"
                 class:pinned={note.isPinned}
                 class:muted={note.isArchived || note.isDeleted}
+                class:dragging={draggedNoteId === note.id}
                 role="listitem"
-                ondragover={(e) => handleDragOver(e, index)}
-                ondrop={(e) => handleDrop(e, index)}
-                ondragend={handleDragEnd}
               >
-                {#if canReorder}
-                  <span
-                    class="drag-handle"
-                    title={strings.dragToReorder}
-                    draggable={true}
-                    ondragstart={(e) => handleDragStart(e, index)}
-                  >
-                    <!-- Drag Handle Icon -->
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="16"
-                      height="16"
-                      fill="currentColor"
-                    >
-                      <path
-                        d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
-                      />
-                    </svg>
-                  </span>
-                {/if}
                 <div class="note-content">
                   <span class="note-text" class:done={note.isDone}
                     >{note.text}</span
@@ -993,8 +1154,10 @@
                       type="button"
                       class="action-btn"
                       title={strings.edit}
-                      onclick={() => openEdit(note)}
-                      >{@render iconEdit()}</button
+                      onclick={(e) => {
+                        e.stopPropagation(); // Prevent drag interference if any
+                        openEdit(note);
+                      }}>{@render iconEdit()}</button
                     >
                     {#if viewMode === "active"}
                       <button
@@ -1003,7 +1166,10 @@
                         title={note.isPinned
                           ? strings.unpinNote
                           : strings.pinNote}
-                        onclick={() => togglePin(note)}
+                        onclick={(e) => {
+                          e.stopPropagation();
+                          togglePin(note);
+                        }}
                       >
                         {#if note.isPinned}
                           {@render iconPinFilled()}
@@ -1053,6 +1219,16 @@
                       {/if}
                     </button>
                   {/if}
+                  {#if canReorder}
+                    <button
+                      type="button"
+                      class="action-btn reorder-handle"
+                      data-reorder-handle="true"
+                      title={strings.dragToReorder}
+                    >
+                      {@render iconDragHandle()}
+                    </button>
+                  {/if}
                 </div>
               </div>
             {/snippet}
@@ -1060,6 +1236,22 @@
         </div>
       {/each}
     </div>
+
+    {#if draggedNote}
+      <div
+        class="drag-ghost"
+        style="top: {dragGhostTop}px; left: {dragGhostLeft}px; width: {dragGhostWidth}px;"
+      >
+        <div class="note-item ghost">
+          <div class="note-content">
+            <span class="note-text" class:done={draggedNote.isDone}
+              >{draggedNote.text}</span
+            >
+            <span class="note-date">{formatDate(draggedNote.updatedAt)}</span>
+          </div>
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -1129,6 +1321,14 @@
   <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
     <path
       d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+    />
+  </svg>
+{/snippet}
+
+{#snippet iconDragHandle()}
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+    <path
+      d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2S7 7.1 7 6s.9-2 2-2 2 .9 2 2zm6 12c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2z"
     />
   </svg>
 {/snippet}
@@ -1568,9 +1768,12 @@
   .notes-list {
     flex: 1;
     overflow-y: auto;
-    padding: 0 4px; /* Reduced side padding slightly */
+    padding: 4px 6px 10px;
     scrollbar-width: thin; /* Firefox */
     scrollbar-color: #ddd transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   /* Completely hide scrollbar */
@@ -1580,40 +1783,84 @@
     display: none;
   }
 
+  .note-wrapper {
+    position: relative;
+    border-radius: 10px;
+    z-index: 1;
+  }
+
+  .note-wrapper.drag-placeholder::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    border: 1px dashed #b9c7dc;
+    background: rgba(84, 110, 122, 0.05);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .note-wrapper.drag-placeholder .note-item {
+    visibility: hidden;
+  }
+
+  .note-wrapper.drop-target::after {
+    content: "";
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: -4px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--primary);
+    opacity: 0.45;
+  }
+
   .note-item {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    padding: 10px 12px;
-    border-radius: 8px;
-    /* margin-bottom: 6px; Moved to Dismissible container */
-    background: #fff; /* Card background */
-    border: 1px solid var(--divider);
+    position: relative;
+    padding: 11px 12px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
+    border: 1px solid #e7ebf1;
     cursor: default;
     transition:
-      transform 0.15s,
-      box-shadow 0.15s;
+      transform 0.16s ease,
+      box-shadow 0.16s ease,
+      border-color 0.16s ease;
     user-select: none; /* Prevent text selection dragging issues */
   }
 
   .note-item:hover {
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    border-color: #dcdfe6;
+    box-shadow: 0 5px 14px rgba(15, 23, 42, 0.08);
+    border-color: #dbe3ee;
   }
 
-  .drag-handle {
-    cursor: grab;
-    color: #ccc; /* Subtler handle */
-    font-size: 14px;
-    margin-right: 8px;
-    margin-top: 2px;
-    opacity: 0;
-    transition: opacity 0.2s;
+  .note-item.dragging {
+    visibility: hidden;
   }
 
-  .note-item:hover .drag-handle {
-    opacity: 1;
+  .drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 2000;
+  }
+
+  .note-item.ghost {
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.24);
+    border-color: color-mix(in srgb, var(--primary) 45%, #d9dee7);
+    transform: scale(1.015);
+    background: linear-gradient(180deg, #ffffff 0%, #fdfdff 100%);
+    opacity: 0.98;
+  }
+
+  .note-item.muted {
+    background: #fafbfc;
+    border-color: #e8ebef;
+    opacity: 0.9;
   }
 
   .note-content {
@@ -1637,9 +1884,16 @@
 
   .note-date {
     font-size: 11px;
-    color: #999;
+    color: #9aa3af;
     margin-top: 6px;
     display: block;
+  }
+
+  .note-text.done {
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+    text-decoration-color: #9aa3af;
+    color: #8a92a0;
   }
 
   .note-actions {
@@ -1647,12 +1901,13 @@
     gap: 4px;
     flex-shrink: 0;
     margin-left: 8px;
-    opacity: 0; /* Hidden by default */
+    opacity: 0.45;
     transition: opacity 0.2s;
   }
 
-  .note-item:hover .note-actions {
-    opacity: 1; /* Show on hover */
+  .note-item:hover .note-actions,
+  .note-item.dragging .note-actions {
+    opacity: 1;
   }
 
   .action-btn {
@@ -1669,6 +1924,15 @@
     width: 24px;
     height: 24px;
     transition: all 0.2s;
+  }
+
+  .action-btn.reorder-handle {
+    cursor: grab;
+    color: #8a94a3;
+  }
+
+  .action-btn.reorder-handle:active {
+    cursor: grabbing;
   }
 
   .action-btn:hover {
