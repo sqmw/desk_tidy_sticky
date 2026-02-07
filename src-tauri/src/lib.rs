@@ -37,7 +37,6 @@ fn update_tray_texts(
     texts: HashMap<String, String>,
 ) -> Result<(), String> {
     if let Some(state) = app.try_state::<TrayMenuState>() {
-        // Map keys from frontend (strings.js) to our menu items
         if let Some(t) = texts.get("trayShowNotes") {
             let _ = state.show.set_text(t);
         }
@@ -47,28 +46,9 @@ fn update_tray_texts(
         if let Some(t) = texts.get("trayStickiesClose") {
             let _ = state.toggle_stickies.set_text(t);
         }
-        // Note: Logic for toggling Show/Close text for stickies needs frontend state awareness, 
-        // but for now we follow the simple mapping.
-        // Wait, "trayStickiesClose" and "trayStickiesShow" are toggles. The frontend should send the correct key based on state.
-        // Actually, the frontend just sends all strings. The rust side needs to know WHICH one to display?
-        // OR the frontend calls this when language changes.
-        // BUT the text "Stickers: Close" changes to "Stickers: Show" dynamically.
-        // So the frontend should invoke an update when that state changes too.
-        // For now, let's just update the static texts or assume frontend passes the current correct label.
-        
-        // Let's assume the frontend sends the specific text to show for the toggle.
-        // But "texts" is usually the whole locale map.
-        // We need separate logic or dynamic binding.
-        // The user request implies simple "sync language".
-        // IF the text depends on state (Open vs Closed), the frontend needs to trigger update.
-        
         if let Some(t) = texts.get("trayStickiesShow") {
-             // We can't automatically know which one to pick unless we check state, but we only have string map here.
-             // We will rely on "trayStickiesClose" being the default key in the map for that item, 
-             // or handle specific "update_tray_item" calls.
-             // Simplification: Just allow updating any item text if provided.
+            let _ = state.toggle_stickies.set_text(t);
         }
-        
         if let Some(t) = texts.get("trayInteraction") {
             let _ = state.toggle_interaction.set_text(t);
         }
@@ -80,7 +60,6 @@ fn update_tray_texts(
 }
 
 fn apply_overlay_input_state(app: &tauri::AppHandle, click_through: bool) {
-    // Apply to all note windows. Ignore errors (window might be closing).
     for (label, w) in app.webview_windows() {
         if label.starts_with("note-") {
             let _ = w.set_ignore_cursor_events(click_through);
@@ -88,42 +67,27 @@ fn apply_overlay_input_state(app: &tauri::AppHandle, click_through: bool) {
     }
 }
 
-fn close_all_note_windows(app: &tauri::AppHandle) {
-    for (label, w) in app.webview_windows() {
-        if label.starts_with("note-") {
-            let _ = w.close();
-        }
+fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
+    match sort_mode {
+        "newest" => NoteSortMode::Newest,
+        "oldest" => NoteSortMode::Oldest,
+        _ => NoteSortMode::Custom,
     }
 }
 
 #[tauri::command]
 fn load_notes(sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    let mode = match sort_mode.as_str() {
-        "newest" => NoteSortMode::Newest,
-        "oldest" => NoteSortMode::Oldest,
-        _ => NoteSortMode::Custom,
-    };
-    notes_service::load_notes(mode)
+    notes_service::load_notes(parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
 fn add_note(text: String, is_pinned: bool, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    let mode = match sort_mode.as_str() {
-        "newest" => NoteSortMode::Newest,
-        "oldest" => NoteSortMode::Oldest,
-        _ => NoteSortMode::Custom,
-    };
-    notes_service::add_note(text, is_pinned, mode)
+    notes_service::add_note(text, is_pinned, parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
 fn update_note(note: notes::Note, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    let mode = match sort_mode.as_str() {
-        "newest" => NoteSortMode::Newest,
-        "oldest" => NoteSortMode::Oldest,
-        _ => NoteSortMode::Custom,
-    };
-    notes_service::update_note(note, mode)
+    notes_service::update_note(note, parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
@@ -137,72 +101,37 @@ fn update_note_text(
     text: String,
     sort_mode: String,
 ) -> Result<Vec<notes::Note>, String> {
-    let mode = match sort_mode.as_str() {
-        "newest" => NoteSortMode::Newest,
-        "oldest" => NoteSortMode::Oldest,
-        _ => NoteSortMode::Custom,
-    };
-    notes_service::update_note_text(&id, text, mode)
+    notes_service::update_note_text(&id, text, parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
 fn toggle_pin(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    let mode = match sort_mode.as_str() {
-        "newest" => NoteSortMode::Newest,
-        "oldest" => NoteSortMode::Oldest,
-        _ => NoteSortMode::Custom,
-    };
-    notes_service::toggle_pin(&id, mode)
+    notes_service::toggle_pin(&id, parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
 fn toggle_z_order(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    let mode = match sort_mode.as_str() {
-        "newest" => NoteSortMode::Newest,
-        "oldest" => NoteSortMode::Oldest,
-        _ => NoteSortMode::Custom,
-    };
-    notes_service::toggle_z_order(&id, mode)
+    notes_service::toggle_z_order(&id, parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
 fn toggle_done(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    let mode = match sort_mode.as_str() {
-        "newest" => NoteSortMode::Newest,
-        "oldest" => NoteSortMode::Oldest,
-        _ => NoteSortMode::Custom,
-    };
-    notes_service::toggle_done(&id, mode)
+    notes_service::toggle_done(&id, parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
 fn toggle_archive(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    let mode = match sort_mode.as_str() {
-        "newest" => NoteSortMode::Newest,
-        "oldest" => NoteSortMode::Oldest,
-        _ => NoteSortMode::Custom,
-    };
-    notes_service::toggle_archive(&id, mode)
+    notes_service::toggle_archive(&id, parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
 fn delete_note(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    let mode = match sort_mode.as_str() {
-        "newest" => NoteSortMode::Newest,
-        "oldest" => NoteSortMode::Oldest,
-        _ => NoteSortMode::Custom,
-    };
-    notes_service::delete_note(&id, mode)
+    notes_service::delete_note(&id, parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
 fn restore_note(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    let mode = match sort_mode.as_str() {
-        "newest" => NoteSortMode::Newest,
-        "oldest" => NoteSortMode::Oldest,
-        _ => NoteSortMode::Custom,
-    };
-    notes_service::restore_note(&id, mode)
+    notes_service::restore_note(&id, parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
@@ -426,8 +355,6 @@ pub fn run() {
             reorder_notes,
             get_preferences,
             set_preferences,
-            pin_window_to_desktop,
-            unpin_window_from_desktop,
             pin_window_to_desktop,
             unpin_window_from_desktop,
             update_tray_texts,
