@@ -207,10 +207,13 @@ fn update_note_opacity(
     id: String,
     opacity: f64,
     sort_mode: String,
+    emit_event: Option<bool>,
 ) -> Result<Vec<notes::Note>, String> {
     let notes =
         notes_service::update_note_opacity(&id, opacity, parse_sort_mode(sort_mode.as_str()))?;
-    emit_notes_changed(&app);
+    if emit_event.unwrap_or(true) {
+        emit_notes_changed(&app);
+    }
     Ok(notes)
 }
 
@@ -367,6 +370,15 @@ fn sync_all_note_window_layers(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn apply_window_no_snap_by_label(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    let Some(w) = app.get_webview_window(label.as_str()) else {
+        return Ok(());
+    };
+    let hwnd = w.hwnd().map_err(|e| e.to_string())?;
+    windows::disable_aero_snap(hwnd.0 as isize)
+}
+
+#[tauri::command]
 fn toggle_z_order_and_apply(
     app: tauri::AppHandle,
     id: String,
@@ -427,6 +439,12 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             {
+                if let Some(main_window) = app.get_webview_window("main") {
+                    if let Ok(hwnd) = main_window.hwnd() {
+                        let _ = windows::disable_aero_snap(hwnd.0 as isize);
+                    }
+                }
+
                 let _ = app.handle().plugin(tauri_plugin_autostart::init(
                     tauri_plugin_autostart::MacosLauncher::LaunchAgent,
                     Some(vec![]),
@@ -568,6 +586,7 @@ pub fn run() {
             unpin_window_from_desktop,
             apply_note_window_layer,
             sync_all_note_window_layers,
+            apply_window_no_snap_by_label,
             update_tray_texts,
             toggle_overlay_interaction,
             get_overlay_interaction,

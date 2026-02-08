@@ -22,11 +22,6 @@ export function createNoteCommands(deps) {
       const next = await deps.invoke("load_notes", { sortMode });
       deps.setNotes(next);
       await deps.syncWindows();
-      try {
-        await deps.invoke("sync_all_note_window_layers");
-      } catch (e) {
-        console.error("sync_all_note_window_layers failed", e);
-      }
     } catch (e) {
       console.error("loadNotes", e);
     }

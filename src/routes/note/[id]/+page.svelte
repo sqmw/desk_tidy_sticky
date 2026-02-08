@@ -2,6 +2,7 @@
   import { onMount, tick } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { LogicalPosition } from "@tauri-apps/api/dpi";
   import { listen } from "@tauri-apps/api/event";
   import { page } from "$app/stores";
   import { getStrings } from "$lib/strings.js";
@@ -35,6 +36,12 @@
   let opacityValueHideTimer;
   /** @type {HTMLTextAreaElement | null} */
   let editorEl = $state(null);
+  let isDraggingWindow = $state(false);
+  let dragWindowX = 0;
+  let dragWindowY = 0;
+  let lastDragScreenX = 0;
+  let lastDragScreenY = 0;
+  let dragPointerId = -1;
   const strings = $derived(getStrings(locale));
   const noteBgColor = $derived(note?.bgColor || DEFAULT_NOTE_COLOR);
   const noteOpacity = $derived(note?.opacity ?? 1);
@@ -60,11 +67,6 @@
   }
 
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
-
-  /** @param {number} ms */
-  function wait(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
 
   async function loadNote() {
     try {
@@ -125,23 +127,16 @@
       return;
     }
 
-    await applyZOrderAndParent();
   }
 
-  /** @param {number[]} [retries] */
-  async function applyZOrderAndParent(retries = [0, 150, 400]) {
+  async function applyZOrderAndParent() {
     if (!note) return;
-    for (const ms of retries) {
-      if (ms > 0) {
-        await wait(ms);
-      }
-      try {
-        await invoke("apply_note_window_layer", {
-          isAlwaysOnTop: !!note.isAlwaysOnTop,
-        });
-      } catch (e) {
-        console.error("applyZOrderAndParent", e);
-      }
+    try {
+      await invoke("apply_note_window_layer", {
+        isAlwaysOnTop: !!note.isAlwaysOnTop,
+      });
+    } catch (e) {
+      console.error("applyZOrderAndParent", e);
     }
   }
 
@@ -195,14 +190,71 @@
       const next = await invoke("toggle_overlay_interaction");
       clickThrough = !!next;
       await applyInteractionPolicy();
-      await applyZOrderAndParent();
     } catch (e) {
       console.error("toggleMouseInteraction", e);
     }
   }
 
-  /** @param {MouseEvent} e */
-  async function handleDragMouseDown(e) {
+  /**
+   * @param {PointerEvent} e
+   * @param {HTMLDivElement} dragSurface
+   */
+  async function startManualWindowDrag(e, dragSurface) {
+    const win = getCurrentWindow();
+    const [position, scaleFactor] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
+    dragWindowX = position.x / scaleFactor;
+    dragWindowY = position.y / scaleFactor;
+    lastDragScreenX = e.screenX;
+    lastDragScreenY = e.screenY;
+    dragPointerId = e.pointerId;
+    isDraggingWindow = true;
+    dragSurface.setPointerCapture(e.pointerId);
+  }
+
+  /** @param {PointerEvent} e */
+  function applyManualWindowDragPosition(e) {
+    if (!isDraggingWindow) return;
+    if (e.pointerId !== dragPointerId) return;
+    if (e.buttons !== 1) {
+      endManualWindowDrag();
+      return;
+    }
+    const deltaX = e.screenX - lastDragScreenX;
+    const deltaY = e.screenY - lastDragScreenY;
+    lastDragScreenX = e.screenX;
+    lastDragScreenY = e.screenY;
+    dragWindowX += deltaX;
+    dragWindowY += deltaY;
+    getCurrentWindow()
+      .setPosition(new LogicalPosition(dragWindowX, dragWindowY))
+      .catch((err) => {
+        console.error("setPosition failed", err);
+        isDraggingWindow = false;
+      });
+  }
+
+  function endManualWindowDrag() {
+    isDraggingWindow = false;
+    dragPointerId = -1;
+  }
+
+  /** @param {PointerEvent} e */
+  function onDragPointerMove(e) {
+    applyManualWindowDragPosition(e);
+  }
+
+  /** @param {PointerEvent} e */
+  function onDragPointerUp(e) {
+    if (e.pointerId !== dragPointerId) return;
+    const surface = /** @type {HTMLDivElement | null} */ (e.currentTarget);
+    if (surface?.hasPointerCapture(e.pointerId)) {
+      surface.releasePointerCapture(e.pointerId);
+    }
+    endManualWindowDrag();
+  }
+
+  /** @param {PointerEvent} e */
+  async function handleDragPointerDown(e) {
     if (e.button !== 0) return;
     if (clickThrough) return;
     const target = /** @type {HTMLElement | null} */ (e.target);
@@ -214,10 +266,12 @@
     } else if (!inPreview && !inToolbar) {
       return;
     }
+    e.preventDefault();
     try {
-      await getCurrentWindow().startDragging();
+      const surface = /** @type {HTMLDivElement} */ (e.currentTarget);
+      await startManualWindowDrag(e, surface);
     } catch (err) {
-      console.error("startDragging failed", err);
+      console.error("startManualWindowDrag failed", err);
     }
   }
 
@@ -234,7 +288,6 @@
         note = updated;
         opacityDraft = updated.opacity ?? 1;
       }
-      await applyZOrderAndParent();
       await applyInteractionPolicy();
     } catch (e) {
       console.error("toggleTopmost", e);
@@ -261,8 +314,11 @@
     }
   }
 
-  /** @param {number} opacity */
-  async function setOpacity(opacity) {
+  /**
+   * @param {number} opacity
+   * @param {boolean} emitEvent
+   */
+  async function setOpacity(opacity, emitEvent) {
     if (!note) return;
     try {
       const all = await invoke("update_note_opacity", {
@@ -270,6 +326,7 @@
         id: note.id,
         opacity,
         sortMode: "custom",
+        emitEvent,
       });
       const updated = findUpdatedFromList(all);
       if (updated) {
@@ -285,8 +342,8 @@
   function queueOpacitySave(value) {
     clearTimeout(opacitySaveTimer);
     opacitySaveTimer = setTimeout(() => {
-      setOpacity(value);
-    }, 80);
+      setOpacity(value, false);
+    }, 60);
   }
 
   /** @param {number} value */
@@ -315,6 +372,14 @@
     opacityValueHideTimer = setTimeout(() => {
       showOpacityValue = false;
     }, 800);
+  }
+
+  /** @param {WheelEvent} e */
+  function onOpacityIconWheel(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    showOpacityPanel = true;
+    onOpacityWheel(e);
   }
 
   async function toggleDone() {
@@ -383,7 +448,6 @@
         clickThrough = !!event.payload;
         try {
           await applyInteractionPolicy();
-          await applyZOrderAndParent();
         } catch (e) {
           console.error("overlay_input_changed", e);
         }
@@ -394,7 +458,6 @@
       listen("notes_changed", async () => {
         await loadNote();
         await applyInteractionPolicy();
-        await applyZOrderAndParent();
       }),
     );
 
@@ -415,6 +478,7 @@
           // ignore
         }
       }
+      endManualWindowDrag();
       clearTimeout(opacitySaveTimer);
       clearTimeout(opacityValueHideTimer);
     };
@@ -422,7 +486,14 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="note-window" style="background: {noteBackground};" onmousedown={handleDragMouseDown}>
+<div
+  class="note-window"
+  style="background: {noteBackground};"
+  onpointerdown={handleDragPointerDown}
+  onpointermove={onDragPointerMove}
+  onpointerup={onDragPointerUp}
+  onpointercancel={onDragPointerUp}
+>
   {#if note}
     {#if isEditing}
       <textarea
@@ -477,7 +548,12 @@
         </button>
 
         <button class="tool-btn" onclick={() => (showPalette = !showPalette)} title="Change color">🎨</button>
-        <button class="tool-btn" onclick={() => (showOpacityPanel = !showOpacityPanel)} title="Opacity">◐</button>
+        <button
+          class="tool-btn"
+          onclick={() => (showOpacityPanel = !showOpacityPanel)}
+          onwheel={onOpacityIconWheel}
+          title="Opacity"
+        >◐</button>
 
       <button class="tool-btn" onclick={toggleDone} title={note.isDone ? strings.markUndone : strings.markDone}>
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2l-3.5-3.5 1.4-1.4 2.1 2.1 4.6-4.6 1.4 1.4-6 6z"/></svg>

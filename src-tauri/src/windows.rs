@@ -4,10 +4,11 @@ use windows::Win32::Foundation::{
     GetLastError, SetLastError, BOOL, HWND, LPARAM, WIN32_ERROR, WPARAM,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumWindows, FindWindowExW, FindWindowW, GetDesktopWindow, GetParent, IsWindow,
-    SendMessageTimeoutW, SetParent, SetWindowPos, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOP,
-    HWND_TOPMOST, SMTO_NORMAL, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
-    SWP_SHOWWINDOW,
+    EnumWindows, FindWindowExW, FindWindowW, GetDesktopWindow, GetParent, GetWindowLongPtrW,
+    IsWindow, SendMessageTimeoutW, SetParent, SetWindowLongPtrW, SetWindowPos, GWL_STYLE,
+    HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOP, HWND_TOPMOST, SMTO_NORMAL, SWP_FRAMECHANGED,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, WS_MAXIMIZEBOX,
+    WS_THICKFRAME,
 };
 
 static mut WORKER_W: HWND = HWND(0 as *mut c_void);
@@ -39,8 +40,6 @@ fn force_bottom_immediately(hwnd: HWND) {
         // stay visually above until another window gets focus.
         let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_FRAMECHANGED;
         let _ = SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
-        let _ = SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, flags);
-        // Re-assert once to avoid a transient "still floating" frame.
         let _ = SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, flags);
     }
 }
@@ -223,17 +222,36 @@ pub fn set_topmost_no_activate(hwnd_isize: isize, topmost: bool) -> Result<(), S
     } else {
         HWND_NOTOPMOST
     };
-    // When demoting from topmost to normal, avoid SWP_NOACTIVATE so the demotion is
-    // immediately observable without extra user clicks.
-    let flags = if topmost {
-        SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW
-    } else {
-        SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW
-    };
+    let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW;
 
     unsafe {
         let _ = SetWindowPos(hwnd, insert_after, 0, 0, 0, 0, flags);
     }
 
+    Ok(())
+}
+
+pub fn disable_aero_snap(hwnd_isize: isize) -> Result<(), String> {
+    let hwnd = HWND(hwnd_isize as *mut c_void);
+    unsafe {
+        if hwnd.0.is_null() || !IsWindow(hwnd).as_bool() {
+            return Err("disable_aero_snap target hwnd invalid".to_string());
+        }
+
+        let style = GetWindowLongPtrW(hwnd, GWL_STYLE) as u32;
+        let no_snap_style = style & !(WS_THICKFRAME.0 as u32) & !(WS_MAXIMIZEBOX.0 as u32);
+        if no_snap_style != style {
+            let _ = SetWindowLongPtrW(hwnd, GWL_STYLE, no_snap_style as isize);
+            let _ = SetWindowPos(
+                hwnd,
+                HWND_TOP,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED,
+            );
+        }
+    }
     Ok(())
 }

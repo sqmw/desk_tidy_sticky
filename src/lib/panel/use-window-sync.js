@@ -4,6 +4,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
  * @param {{
  *   getNotes: () => any[];
  *   getStickiesVisible: () => boolean;
+ *   invoke: typeof import("@tauri-apps/api/core").invoke;
  * }} deps
  */
 export function createWindowSync(deps) {
@@ -36,9 +37,17 @@ export function createWindowSync(deps) {
       transparent: true,
       alwaysOnTop: !!note?.isAlwaysOnTop,
       skipTaskbar: true,
+      resizable: false,
+      maximizable: false,
     });
 
-    webview.once("tauri://created", function () {});
+    webview.once("tauri://created", async function () {
+      try {
+        await deps.invoke("apply_window_no_snap_by_label", { label });
+      } catch (e) {
+        console.error("apply_window_no_snap_by_label", e);
+      }
+    });
     webview.once("tauri://error", async function (e) {
       const payload = String(e?.payload || "");
       if (!payload.includes("already exists")) {

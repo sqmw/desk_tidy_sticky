@@ -108,6 +108,7 @@
   const windowSync = createWindowSync({
     getNotes: () => notes,
     getStickiesVisible: () => stickiesVisible,
+    invoke,
   });
 
   const {
