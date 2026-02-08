@@ -8,6 +8,9 @@
   import { getStrings } from "$lib/strings.js";
 
   const DEFAULT_NOTE_COLOR = "#fff9c4";
+  const DEFAULT_NOTE_TEXT_COLOR = "#1f2937";
+  const DEFAULT_NOTE_OPACITY = 1;
+  const DEFAULT_NOTE_FROST = 0.22;
   const NOTE_COLORS = [
     "#fff9c4",
     "#ffe0b2",
@@ -18,6 +21,16 @@
     "#b3e5fc",
     "#c8e6c9",
   ];
+  const NOTE_TEXT_COLORS = [
+    "#111827",
+    "#1f2937",
+    "#334155",
+    "#374151",
+    "#4b5563",
+    "#0f4c81",
+    "#7c2d12",
+    "#7f1d1d",
+  ];
   /** @type {any} */
   let note = $state(null);
   const noteId = $derived($page.params.id);
@@ -26,14 +39,22 @@
   /** @type {string} */
   let locale = $state("en");
   let showPalette = $state(false);
+  let showTextColorPalette = $state(false);
   let showOpacityPanel = $state(false);
+  let showFrostPanel = $state(false);
   let showOpacityValue = $state(false);
+  let showFrostValue = $state(false);
   let isEditing = $state(false);
-  let opacityDraft = $state(1);
+  let opacityDraft = $state(DEFAULT_NOTE_OPACITY);
+  let frostDraft = $state(DEFAULT_NOTE_FROST);
   /** @type {any} */
   let opacitySaveTimer;
   /** @type {any} */
+  let frostSaveTimer;
+  /** @type {any} */
   let opacityValueHideTimer;
+  /** @type {any} */
+  let frostValueHideTimer;
   /** @type {HTMLTextAreaElement | null} */
   let editorEl = $state(null);
   let isDraggingWindow = $state(false);
@@ -44,7 +65,11 @@
   let dragPointerId = -1;
   const strings = $derived(getStrings(locale));
   const noteBgColor = $derived(note?.bgColor || DEFAULT_NOTE_COLOR);
-  const noteOpacity = $derived(note?.opacity ?? 1);
+  const noteTextColor = $derived(note?.textColor || DEFAULT_NOTE_TEXT_COLOR);
+  const noteOpacity = $derived(note?.opacity ?? DEFAULT_NOTE_OPACITY);
+  const noteFrost = $derived(note?.frost ?? DEFAULT_NOTE_FROST);
+  const noteFrostBlur = $derived((4 + noteFrost * 16).toFixed(2));
+  const noteFrostOverlay = $derived((0.04 + noteFrost * 0.24).toFixed(3));
 
   /**
    * @param {string} hex
@@ -76,7 +101,8 @@
       if (n) {
         note = n;
         text = n.text;
-        opacityDraft = n.opacity ?? 1;
+        opacityDraft = n.opacity ?? DEFAULT_NOTE_OPACITY;
+        frostDraft = n.frost ?? DEFAULT_NOTE_FROST;
       }
     } catch (e) {
       console.error("loadNote", e);
@@ -120,7 +146,8 @@
 
     note = updated;
     text = updated.text;
-    opacityDraft = updated.opacity ?? 1;
+    opacityDraft = updated.opacity ?? DEFAULT_NOTE_OPACITY;
+    frostDraft = updated.frost ?? DEFAULT_NOTE_FROST;
 
     if (options.closeIfUnpinned && !updated.isPinned) {
       await getCurrentWindow().close();
@@ -174,7 +201,9 @@
     if (clickThrough) return;
     isEditing = true;
     showPalette = false;
+    showTextColorPalette = false;
     showOpacityPanel = false;
+    showFrostPanel = false;
     await tick();
     editorEl?.focus();
     editorEl?.setSelectionRange(text.length, text.length);
@@ -258,7 +287,12 @@
     if (e.button !== 0) return;
     if (clickThrough) return;
     const target = /** @type {HTMLElement | null} */ (e.target);
-    if (target?.closest("button,textarea,.color-popover,.opacity-popover")) return;
+    dismissFloatingPanelsOnPointerDown(target);
+    if (
+      target?.closest("button,textarea,.color-popover,.text-color-popover,.opacity-popover,.frost-popover")
+    ) {
+      return;
+    }
     const inToolbar = !!target?.closest(".toolbar");
     const inPreview = !!target?.closest(".preview-text");
     if (isEditing) {
@@ -286,7 +320,8 @@
       const updated = findUpdatedFromList(all);
       if (updated) {
         note = updated;
-        opacityDraft = updated.opacity ?? 1;
+        opacityDraft = updated.opacity ?? DEFAULT_NOTE_OPACITY;
+        frostDraft = updated.frost ?? DEFAULT_NOTE_FROST;
       }
       await applyInteractionPolicy();
     } catch (e) {
@@ -314,6 +349,26 @@
     }
   }
 
+  /** @param {string} color */
+  async function setTextColor(color) {
+    if (!note) return;
+    try {
+      const all = await invoke("update_note_text_color", {
+        // @ts-ignore
+        id: note.id,
+        color,
+        sortMode: "custom",
+      });
+      const updated = findUpdatedFromList(all);
+      if (updated) {
+        note = updated;
+      }
+      showTextColorPalette = false;
+    } catch (e) {
+      console.error("setTextColor", e);
+    }
+  }
+
   /**
    * @param {number} opacity
    * @param {boolean} emitEvent
@@ -331,10 +386,35 @@
       const updated = findUpdatedFromList(all);
       if (updated) {
         note = updated;
-        opacityDraft = updated.opacity ?? 1;
+        opacityDraft = updated.opacity ?? DEFAULT_NOTE_OPACITY;
+        frostDraft = updated.frost ?? DEFAULT_NOTE_FROST;
       }
     } catch (e) {
       console.error("setOpacity", e);
+    }
+  }
+
+  /**
+   * @param {number} frost
+   * @param {boolean} emitEvent
+   */
+  async function setFrost(frost, emitEvent) {
+    if (!note) return;
+    try {
+      const all = await invoke("update_note_frost", {
+        // @ts-ignore
+        id: note.id,
+        frost,
+        sortMode: "custom",
+        emitEvent,
+      });
+      const updated = findUpdatedFromList(all);
+      if (updated) {
+        note = updated;
+        frostDraft = updated.frost ?? DEFAULT_NOTE_FROST;
+      }
+    } catch (e) {
+      console.error("setFrost", e);
     }
   }
 
@@ -343,6 +423,14 @@
     clearTimeout(opacitySaveTimer);
     opacitySaveTimer = setTimeout(() => {
       setOpacity(value, false);
+    }, 60);
+  }
+
+  /** @param {number} value */
+  function queueFrostSave(value) {
+    clearTimeout(frostSaveTimer);
+    frostSaveTimer = setTimeout(() => {
+      setFrost(value, false);
     }, 60);
   }
 
@@ -356,10 +444,26 @@
     queueOpacitySave(next);
   }
 
+  /** @param {number} value */
+  function applyFrostDraft(value) {
+    const next = Math.max(0, Math.min(1, Number(value) || 0));
+    frostDraft = next;
+    if (note) {
+      note = { ...note, frost: next };
+    }
+    queueFrostSave(next);
+  }
+
   /** @param {Event} e */
   function onOpacityInput(e) {
     const target = /** @type {HTMLInputElement} */ (e.currentTarget);
     applyOpacityDraft(Number(target.value));
+  }
+
+  /** @param {Event} e */
+  function onFrostInput(e) {
+    const target = /** @type {HTMLInputElement} */ (e.currentTarget);
+    applyFrostDraft(Number(target.value));
   }
 
   /** @param {WheelEvent} e */
@@ -375,11 +479,59 @@
   }
 
   /** @param {WheelEvent} e */
+  function onFrostWheel(e) {
+    e.preventDefault();
+    const step = e.deltaY < 0 ? 0.02 : -0.02;
+    applyFrostDraft(frostDraft + step);
+    showFrostValue = true;
+    clearTimeout(frostValueHideTimer);
+    frostValueHideTimer = setTimeout(() => {
+      showFrostValue = false;
+    }, 800);
+  }
+
+  /** @param {WheelEvent} e */
   function onOpacityIconWheel(e) {
     e.preventDefault();
     e.stopPropagation();
     showOpacityPanel = true;
     onOpacityWheel(e);
+  }
+
+  /** @param {WheelEvent} e */
+  function onFrostIconWheel(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    showFrostPanel = true;
+    onFrostWheel(e);
+  }
+
+  /** @param {HTMLElement | null} target */
+  function dismissFloatingPanelsOnPointerDown(target) {
+    if (!target) return;
+
+    if (showPalette && !target.closest(".color-popover") && !target.closest(".color-trigger")) {
+      showPalette = false;
+    }
+    if (
+      showTextColorPalette &&
+      !target.closest(".text-color-popover") &&
+      !target.closest(".text-color-trigger")
+    ) {
+      showTextColorPalette = false;
+    }
+    if (
+      showOpacityPanel &&
+      !target.closest(".opacity-popover") &&
+      !target.closest(".opacity-trigger")
+    ) {
+      showOpacityPanel = false;
+      showOpacityValue = false;
+    }
+    if (showFrostPanel && !target.closest(".frost-popover") && !target.closest(".frost-trigger")) {
+      showFrostPanel = false;
+      showFrostValue = false;
+    }
   }
 
   async function toggleDone() {
@@ -480,7 +632,9 @@
       }
       endManualWindowDrag();
       clearTimeout(opacitySaveTimer);
+      clearTimeout(frostSaveTimer);
       clearTimeout(opacityValueHideTimer);
+      clearTimeout(frostValueHideTimer);
     };
   });
 </script>
@@ -488,7 +642,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="note-window"
-  style="background: {noteBackground};"
+  style="background: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {noteFrostBlur}px; --frost-overlay: {noteFrostOverlay};"
   onpointerdown={handleDragPointerDown}
   onpointermove={onDragPointerMove}
   onpointerup={onDragPointerUp}
@@ -548,13 +702,62 @@
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zM7 9c0-2.76 2.24-5 5-5s5 2.24 5 5H7z"/></svg>
         </button>
 
-        <button class="tool-btn" onclick={() => (showPalette = !showPalette)} title="Change color">🎨</button>
+        <button class="tool-btn color-trigger" onclick={() => (showPalette = !showPalette)} title="Change color">🎨</button>
         <button
-          class="tool-btn"
-          onclick={() => (showOpacityPanel = !showOpacityPanel)}
-          onwheel={onOpacityIconWheel}
-          title="Opacity"
-        >◐</button>
+          class="tool-btn text-color-trigger"
+          onclick={() => (showTextColorPalette = !showTextColorPalette)}
+          title={strings.textColor}
+        >A</button>
+        <div class="tool-popover-anchor">
+          <button
+            class="tool-btn opacity-trigger"
+            onclick={() => (showOpacityPanel = !showOpacityPanel)}
+            onwheel={onOpacityIconWheel}
+            title={strings.glassAdjust}
+          >◐</button>
+          {#if showOpacityPanel}
+            <div class="opacity-popover">
+              <input
+                class="opacity-slider"
+                type="range"
+                min="0.35"
+                max="1"
+                step="0.01"
+                value={opacityDraft}
+                oninput={onOpacityInput}
+                onwheel={onOpacityWheel}
+              />
+              {#if showOpacityValue}
+                <div class="opacity-value">{Math.round(opacityDraft * 100)}%</div>
+              {/if}
+            </div>
+          {/if}
+        </div>
+        <div class="tool-popover-anchor">
+          <button
+            class="tool-btn frost-trigger"
+            onclick={() => (showFrostPanel = !showFrostPanel)}
+            onwheel={onFrostIconWheel}
+            title={strings.frost}
+          >❆</button>
+          {#if showFrostPanel}
+            <div class="frost-popover">
+              <input
+                class="frost-slider"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={frostDraft}
+                oninput={onFrostInput}
+                onwheel={onFrostWheel}
+              />
+              {#if showFrostValue}
+                <div class="frost-value">{Math.round(frostDraft * 100)}%</div>
+              {/if}
+            </div>
+          {/if}
+        </div>
 
       <button class="tool-btn" onclick={toggleDone} title={note.isDone ? strings.markUndone : strings.markDone}>
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2l-3.5-3.5 1.4-1.4 2.1 2.1 4.6-4.6 1.4 1.4-6 6z"/></svg>
@@ -587,24 +790,20 @@
           {/each}
         </div>
       {/if}
+      {#if showTextColorPalette}
+        <div class="text-color-popover">
+          {#each NOTE_TEXT_COLORS as c}
+            <button
+              class="text-color-dot"
+              class:active={c === noteTextColor}
+              style="background:{c};"
+              title={c}
+              onclick={() => setTextColor(c)}
+            ></button>
+          {/each}
+        </div>
+      {/if}
 
-        {#if showOpacityPanel}
-          <div class="opacity-popover">
-            <input
-              class="opacity-slider"
-              type="range"
-              min="0.35"
-              max="1"
-              step="0.01"
-              value={opacityDraft}
-              oninput={onOpacityInput}
-              onwheel={onOpacityWheel}
-            />
-            {#if showOpacityValue}
-              <div class="opacity-value">{Math.round(opacityDraft * 100)}%</div>
-            {/if}
-          </div>
-        {/if}
     </div>
   {:else}
     <div class="loading">Loading...</div>
@@ -626,6 +825,22 @@
     flex-direction: column;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     overflow: hidden;
+    backdrop-filter: blur(var(--frost-blur, 7px)) saturate(1.08);
+    -webkit-backdrop-filter: blur(var(--frost-blur, 7px)) saturate(1.08);
+  }
+
+  .note-window::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, var(--frost-overlay, 0.09));
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .note-window > * {
+    position: relative;
+    z-index: 1;
   }
 
   .editor {
@@ -640,6 +855,7 @@
     overflow: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    color: var(--note-text-color, #1f2937);
   }
 
   .editor::-webkit-scrollbar {
@@ -654,7 +870,7 @@
     font-family: "Segoe UI", sans-serif;
     font-size: 16px;
     line-height: 1.4;
-    color: #1f2937;
+    color: var(--note-text-color, #1f2937);
     white-space: pre-wrap;
     word-break: break-word;
     overflow: auto;
@@ -753,6 +969,12 @@
     color: #b91c1c;
   }
 
+  .tool-popover-anchor {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
   .color-popover {
     position: absolute;
     right: 84px;
@@ -767,9 +989,24 @@
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
   }
 
+  .text-color-popover {
+    position: absolute;
+    right: 114px;
+    bottom: 34px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 6px;
+    display: grid;
+    grid-template-columns: repeat(4, 18px);
+    gap: 6px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  }
+
   .opacity-popover {
     position: absolute;
-    right: 54px;
+    left: 50%;
+    transform: translateX(-50%);
     bottom: 34px;
     background: rgba(255, 255, 255, 0.96);
     border: 1px solid #d1d5db;
@@ -794,6 +1031,34 @@
     user-select: none;
   }
 
+  .frost-popover {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 34px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  }
+
+  .frost-slider {
+    width: 110px;
+    cursor: pointer;
+  }
+
+  .frost-value {
+    font-size: 11px;
+    color: #1f2937;
+    text-align: right;
+    font-weight: 600;
+    user-select: none;
+  }
+
   .color-dot {
     width: 18px;
     height: 18px;
@@ -803,7 +1068,21 @@
     padding: 0;
   }
 
+  .text-color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    padding: 0;
+  }
+
   .color-dot.active {
+    outline: 2px solid #374151;
+    outline-offset: 1px;
+  }
+
+  .text-color-dot.active {
     outline: 2px solid #374151;
     outline-offset: 1px;
   }

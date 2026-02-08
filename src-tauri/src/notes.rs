@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub const DEFAULT_NOTE_OPACITY: f64 = 1.0;
+pub const DEFAULT_NOTE_FROST: f64 = 0.22;
+pub const DEFAULT_NOTE_TEXT_COLOR: &str = "#1f2937";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Note {
@@ -16,7 +20,11 @@ pub struct Note {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bg_color: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub text_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opacity: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frost: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_order: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -44,7 +52,9 @@ impl Note {
             // New notes start at desktop-bottom layer by default.
             is_always_on_top: false,
             bg_color: None,
-            opacity: None,
+            text_color: Some(DEFAULT_NOTE_TEXT_COLOR.to_string()),
+            opacity: Some(DEFAULT_NOTE_OPACITY),
+            frost: Some(DEFAULT_NOTE_FROST),
             custom_order: None,
             x: None,
             y: None,

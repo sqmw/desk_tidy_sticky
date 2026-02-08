@@ -202,6 +202,19 @@ fn update_note_color(
 }
 
 #[tauri::command]
+fn update_note_text_color(
+    app: tauri::AppHandle,
+    id: String,
+    color: String,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes =
+        notes_service::update_note_text_color(&id, color, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
+}
+
+#[tauri::command]
 fn update_note_opacity(
     app: tauri::AppHandle,
     id: String,
@@ -211,6 +224,21 @@ fn update_note_opacity(
 ) -> Result<Vec<notes::Note>, String> {
     let notes =
         notes_service::update_note_opacity(&id, opacity, parse_sort_mode(sort_mode.as_str()))?;
+    if emit_event.unwrap_or(true) {
+        emit_notes_changed(&app);
+    }
+    Ok(notes)
+}
+
+#[tauri::command]
+fn update_note_frost(
+    app: tauri::AppHandle,
+    id: String,
+    frost: f64,
+    sort_mode: String,
+    emit_event: Option<bool>,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::update_note_frost(&id, frost, parse_sort_mode(sort_mode.as_str()))?;
     if emit_event.unwrap_or(true) {
         emit_notes_changed(&app);
     }
@@ -574,7 +602,9 @@ pub fn run() {
             update_note_position,
             update_note_text,
             update_note_color,
+            update_note_text_color,
             update_note_opacity,
+            update_note_frost,
             toggle_pin,
             toggle_z_order_and_apply,
             toggle_done,

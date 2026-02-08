@@ -165,6 +165,21 @@ pub fn update_note_color(
     Ok(notes)
 }
 
+pub fn update_note_text_color(
+    id: &str,
+    color: String,
+    sort_mode: NoteSortMode,
+) -> Result<Vec<Note>, String> {
+    let mut notes = load_notes_from_file()?;
+    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+        n.text_color = Some(color);
+        n.updated_at = chrono_now();
+    }
+    sort_notes(&mut notes, sort_mode);
+    save_notes_to_file(&notes)?;
+    Ok(notes)
+}
+
 pub fn update_note_opacity(
     id: &str,
     opacity: f64,
@@ -174,6 +189,22 @@ pub fn update_note_opacity(
     let clamped = opacity.clamp(0.35, 1.0);
     if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
         n.opacity = Some(clamped);
+        n.updated_at = chrono_now();
+    }
+    sort_notes(&mut notes, sort_mode);
+    save_notes_to_file(&notes)?;
+    Ok(notes)
+}
+
+pub fn update_note_frost(
+    id: &str,
+    frost: f64,
+    sort_mode: NoteSortMode,
+) -> Result<Vec<Note>, String> {
+    let mut notes = load_notes_from_file()?;
+    let clamped = frost.clamp(0.0, 1.0);
+    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+        n.frost = Some(clamped);
         n.updated_at = chrono_now();
     }
     sort_notes(&mut notes, sort_mode);
