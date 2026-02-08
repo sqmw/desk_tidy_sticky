@@ -37,7 +37,7 @@ export function createWindowSync(deps) {
       transparent: true,
       alwaysOnTop: !!note?.isAlwaysOnTop,
       skipTaskbar: true,
-      resizable: false,
+      resizable: true,
       maximizable: false,
     });
 

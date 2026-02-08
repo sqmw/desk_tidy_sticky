@@ -255,3 +255,29 @@ pub fn disable_aero_snap(hwnd_isize: isize) -> Result<(), String> {
     }
     Ok(())
 }
+
+pub fn disable_aero_snap_keep_resizable(hwnd_isize: isize) -> Result<(), String> {
+    let hwnd = HWND(hwnd_isize as *mut c_void);
+    unsafe {
+        if hwnd.0.is_null() || !IsWindow(hwnd).as_bool() {
+            return Err("disable_aero_snap_keep_resizable target hwnd invalid".to_string());
+        }
+
+        let style = GetWindowLongPtrW(hwnd, GWL_STYLE) as u32;
+        // Keep WS_THICKFRAME so sticky notes remain user-resizable.
+        let no_snap_style = style & !(WS_MAXIMIZEBOX.0 as u32);
+        if no_snap_style != style {
+            let _ = SetWindowLongPtrW(hwnd, GWL_STYLE, no_snap_style as isize);
+            let _ = SetWindowPos(
+                hwnd,
+                HWND_TOP,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED,
+            );
+        }
+    }
+    Ok(())
+}

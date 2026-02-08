@@ -507,6 +507,7 @@
       <div class="preview-text">{text || note.text}</div>
     {/if}
 
+    <div class="toolbar-mask" aria-hidden="true"></div>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="toolbar">
         <div class="toolbar-drag-pad"></div>
@@ -618,11 +619,13 @@
   }
 
   .note-window {
+    position: relative;
     width: 100vw;
     height: 100vh;
     display: flex;
     flex-direction: column;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
   }
 
   .editor {
@@ -634,6 +637,15 @@
     font-family: "Segoe UI", sans-serif;
     font-size: 16px;
     outline: none;
+    overflow: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .editor::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 
   .preview-text {
@@ -648,17 +660,36 @@
     overflow: auto;
     user-select: none;
     cursor: default;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .preview-text::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 
   .toolbar {
-    position: relative;
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
     min-height: 36px;
     display: flex;
     align-items: center;
-    padding: 0 8px;
+    padding: 4px 8px;
     opacity: 0;
     transition: opacity 0.2s;
     gap: 2px;
+    pointer-events: none;
+    z-index: 2;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
   }
 
   .toolbar-drag-pad {
@@ -666,7 +697,25 @@
     min-height: 28px;
   }
 
+  .toolbar-mask {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 96px;
+    background: linear-gradient(to top, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.78) 45%, rgba(255, 255, 255, 0) 100%);
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+    z-index: 1;
+  }
+
   .note-window:hover .toolbar {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .note-window:hover .toolbar-mask {
     opacity: 1;
   }
 

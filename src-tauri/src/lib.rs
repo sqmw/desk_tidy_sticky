@@ -375,7 +375,11 @@ fn apply_window_no_snap_by_label(app: tauri::AppHandle, label: String) -> Result
         return Ok(());
     };
     let hwnd = w.hwnd().map_err(|e| e.to_string())?;
-    windows::disable_aero_snap(hwnd.0 as isize)
+    if label == "main" {
+        windows::disable_aero_snap(hwnd.0 as isize)
+    } else {
+        windows::disable_aero_snap_keep_resizable(hwnd.0 as isize)
+    }
 }
 
 #[tauri::command]
