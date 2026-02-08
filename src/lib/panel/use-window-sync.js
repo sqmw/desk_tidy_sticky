@@ -7,12 +7,26 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
  * }} deps
  */
 export function createWindowSync(deps) {
+  /** @type {Set<string>} */
+  const creatingLabels = new Set();
+  /** @type {Promise<void> | null} */
+  let syncInFlight = null;
+
   /** @param {any} note */
   async function openNoteWindow(note) {
     const noteId = note?.id;
     if (!noteId) return;
 
     const label = `note-${noteId}`;
+    const existing = await WebviewWindow.getByLabel(label);
+    if (existing) {
+      await existing.show();
+      await existing.setFocus();
+      return;
+    }
+    if (creatingLabels.has(label)) return;
+    creatingLabels.add(label);
+
     const webview = new WebviewWindow(label, {
       url: `/note/${noteId}`,
       title: "Sticky Note",
@@ -26,9 +40,16 @@ export function createWindowSync(deps) {
 
     webview.once("tauri://created", function () {});
     webview.once("tauri://error", async function (e) {
-      console.error(e);
+      const payload = String(e?.payload || "");
+      if (!payload.includes("already exists")) {
+        console.error(e);
+      }
       const w = await WebviewWindow.getByLabel(label);
       if (w) await w.setFocus();
+      creatingLabels.delete(label);
+    });
+    webview.once("tauri://created", function () {
+      creatingLabels.delete(label);
     });
   }
 
@@ -42,6 +63,12 @@ export function createWindowSync(deps) {
   }
 
   async function syncWindows() {
+    if (syncInFlight) {
+      await syncInFlight;
+      return;
+    }
+
+    syncInFlight = (async () => {
     if (!deps.getStickiesVisible()) {
       const wins = await WebviewWindow.getAll();
       for (const w of wins) {
@@ -78,6 +105,12 @@ export function createWindowSync(deps) {
           await openNoteWindow(n);
         }
       }
+    }
+    })();
+    try {
+      await syncInFlight;
+    } finally {
+      syncInFlight = null;
     }
   }
 

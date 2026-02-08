@@ -14,6 +14,10 @@ pub struct Note {
     pub is_deleted: bool,
     pub is_always_on_top: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub bg_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub opacity: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_order: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub x: Option<f64>,
@@ -37,7 +41,10 @@ impl Note {
             is_archived: false,
             is_done: false,
             is_deleted: false,
+            // New notes start at desktop-bottom layer by default.
             is_always_on_top: false,
+            bg_color: None,
+            opacity: None,
             custom_order: None,
             x: None,
             y: None,

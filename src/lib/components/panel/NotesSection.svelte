@@ -64,7 +64,11 @@
               <span class="note-text" class:done={note.isDone}>{note.text}</span>
               <span class="note-date">{formatDate(note.updatedAt)}</span>
             </div>
-            <div class="note-actions">
+            <div
+              class="note-actions"
+              onpointerdown={(e) => e.stopPropagation()}
+              onpointerup={(e) => e.stopPropagation()}
+            >
               {#if viewMode === "trash"}
                 <button type="button" class="action-btn" title={strings.restore} onclick={() => restoreNote(note)}
                   >{@render iconRestore()}</button
@@ -106,10 +110,16 @@
                     <button
                       type="button"
                       class="action-btn"
+                      class:zorder-toggle={true}
+                      class:active={note.isAlwaysOnTop}
                       title={note.isAlwaysOnTop ? strings.pinToBottom : strings.pinToTop}
                       onclick={() => toggleZOrder(note)}
                     >
-                      {note.isAlwaysOnTop ? "▴" : "▾"}
+                      {#if note.isAlwaysOnTop}
+                        {@render iconLayerTop()}
+                      {:else}
+                        {@render iconLayerBottom()}
+                      {/if}
                     </button>
                   {/if}
                 {/if}
@@ -240,6 +250,22 @@
     <path
       d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2S7 7.1 7 6s.9-2 2-2 2 .9 2 2zm6 12c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2z"
     />
+  </svg>
+{/snippet}
+
+{#snippet iconLayerTop()}
+  <svg class="zorder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+    <rect x="5" y="15" width="14" height="4" rx="1.3"></rect>
+    <path d="M12 5v7"></path>
+    <path d="M9 9.8 12 12.8l3-3"></path>
+  </svg>
+{/snippet}
+
+{#snippet iconLayerBottom()}
+  <svg class="zorder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+    <rect x="5" y="5" width="14" height="4" rx="1.3"></rect>
+    <path d="M12 19v-7"></path>
+    <path d="M9 14.2 12 11.2l3 3"></path>
   </svg>
 {/snippet}
 
@@ -427,5 +453,19 @@
 
   .action-btn.danger {
     color: #e53935;
+  }
+
+  .action-btn.zorder-toggle {
+    color: #6e7785;
+  }
+
+  .action-btn.zorder-toggle.active {
+    color: #0f4c81;
+  }
+
+  .zorder-icon {
+    width: 15px;
+    height: 15px;
+    display: block;
   }
 </style>

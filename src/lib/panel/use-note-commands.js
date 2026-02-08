@@ -8,6 +8,7 @@
  *   setNewNoteText: (v: string) => void;
  *   getNotes: () => any[];
  *   setNotes: (v: any[]) => void;
+ *   suppressNotesReload?: (ms: number) => void;
  *   syncWindows: () => Promise<void>;
  *   openNoteWindow: (note: any) => Promise<void>;
  *   closeNoteWindow: (noteId: string | number) => Promise<void>;
@@ -21,6 +22,11 @@ export function createNoteCommands(deps) {
       const next = await deps.invoke("load_notes", { sortMode });
       deps.setNotes(next);
       await deps.syncWindows();
+      try {
+        await deps.invoke("sync_all_note_window_layers");
+      } catch (e) {
+        console.error("sync_all_note_window_layers failed", e);
+      }
     } catch (e) {
       console.error("loadNotes", e);
     }
@@ -50,15 +56,6 @@ export function createNoteCommands(deps) {
     try {
       await deps.invoke("toggle_pin", { id: note.id, sortMode: deps.getSortMode() });
       await loadNotes();
-
-      const updated = deps.getNotes().find((n) => n.id === note.id);
-      if (!updated) return;
-
-      if (updated.isPinned) {
-        await deps.openNoteWindow(updated);
-      } else {
-        await deps.closeNoteWindow(updated.id);
-      }
     } catch (e) {
       console.error("togglePin", e);
     }
@@ -67,8 +64,14 @@ export function createNoteCommands(deps) {
   /** @param {any} note */
   async function toggleZOrder(note) {
     try {
-      await deps.invoke("toggle_z_order", { id: note.id, sortMode: deps.getSortMode() });
-      await loadNotes();
+      deps.suppressNotesReload?.(300);
+      const next = await deps.invoke("toggle_z_order_and_apply", {
+        id: note.id,
+        sortMode: deps.getSortMode(),
+      });
+      // Apply returned list directly to avoid full-list flicker on each toggle.
+      deps.setNotes(next);
+      await deps.syncWindows();
     } catch (e) {
       console.error("toggleZOrder", e);
     }
@@ -132,6 +135,7 @@ export function createNoteCommands(deps) {
     const reordered = reorderedVisible.map((n, i) => ({ id: n.id, order: i }));
     const viewMode = deps.getViewMode();
 
+    /** @param {any} n */
     const inCurrentView = (n) => {
       if (viewMode === "active") return !n.isArchived && !n.isDeleted;
       if (viewMode === "archived") return n.isArchived && !n.isDeleted;

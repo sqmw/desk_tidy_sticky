@@ -116,6 +116,37 @@
 - 效果：
   - 下拖可连续跨多项，不再“一步后冻结”。
 
+## Sticky Interaction Recovery (2026-02-07)
+
+### Problem
+- 某些贴纸打开后，工具栏按钮不可见，且窗口无法拖动/点击。
+- 表现为“贴纸像被锁死”，只能看到内容。
+
+### Root Cause
+- `note/[id]` 页面把 `isAlwaysOnTop=false` 视为 `isBottomLocked`，并强制：
+  - `setIgnoreCursorEvents(true)`
+  - 禁止进入编辑/拖动
+  - 直接不渲染工具栏
+- 同时，Rust 端新建 pinned 便签默认 `is_always_on_top=false`，会更容易触发该“锁死组合”。
+
+### Fix
+1. Rust 默认行为修正（新 pinned 默认可交互）
+- `src-tauri/src/notes.rs`：
+  - `Note::new(..., is_pinned=true)` 时默认 `is_always_on_top=true`。
+- `src-tauri/src/notes_service.rs`：
+  - `toggle_pin` 切到 pinned 时，自动设 `is_always_on_top=true`。
+
+2. 前端交互策略修正（不再强制底层锁死）
+- `src/routes/note/[id]/+page.svelte`：
+  - `applyInteractionPolicy` 仅由 `clickThrough` 决定是否 ignore cursor events。
+  - 去掉 `isBottomLocked` 对编辑、拖动、鼠标交互切换的硬阻断。
+  - 工具栏改为始终渲染（不再 `if note.isAlwaysOnTop`）。
+
+### Verification
+- `npx svelte-check --tsconfig ./jsconfig.json`：通过（0 error / 0 warning）。
+- 说明：
+  - `npm run check` 与 `cargo check` 在当前机器出现 `EPERM/Access denied`（系统文件锁权限问题），不是代码编译错误。
+
 ## Validation
 执行：
 - `npm run check`

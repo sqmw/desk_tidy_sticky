@@ -5,12 +5,12 @@ mod windows;
 
 use notes_service::NoteSortMode;
 use preferences::PanelPreferences;
+use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 use tauri::Manager;
-use std::sync::{Arc, Mutex};
 
-use tauri::menu::MenuItem;
 use std::collections::HashMap;
+use tauri::menu::MenuItem;
 
 struct TrayMenuState {
     show: MenuItem<tauri::Wry>,
@@ -20,7 +20,7 @@ struct TrayMenuState {
     quit: MenuItem<tauri::Wry>,
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 struct OverlayInputState(Arc<Mutex<bool>>);
 
 impl OverlayInputState {
@@ -31,11 +31,16 @@ impl OverlayInputState {
     }
 }
 
+impl Default for OverlayInputState {
+    fn default() -> Self {
+        // Start in click-through mode so newly pinned notes follow their own z-order policy
+        // and default to desktop-bottom unless explicitly set always-on-top.
+        Self(Arc::new(Mutex::new(true)))
+    }
+}
+
 #[tauri::command]
-fn update_tray_texts(
-    app: tauri::AppHandle,
-    texts: HashMap<String, String>,
-) -> Result<(), String> {
+fn update_tray_texts(app: tauri::AppHandle, texts: HashMap<String, String>) -> Result<(), String> {
     if let Some(state) = app.try_state::<TrayMenuState>() {
         if let Some(t) = texts.get("trayShowNotes") {
             let _ = state.show.set_text(t);
@@ -60,11 +65,25 @@ fn update_tray_texts(
 }
 
 fn apply_overlay_input_state(app: &tauri::AppHandle, click_through: bool) {
+    let notes = notes_service::load_notes(NoteSortMode::Custom).unwrap_or_default();
     for (label, w) in app.webview_windows() {
         if label.starts_with("note-") {
             let _ = w.set_ignore_cursor_events(click_through);
+            let note_id = label.trim_start_matches("note-");
+            if let Some(n) = notes.iter().find(|x| x.id == note_id) {
+                let _ = apply_note_window_layer_with_interaction_by_label(
+                    app,
+                    &label,
+                    n.is_always_on_top,
+                    click_through,
+                );
+            }
         }
     }
+}
+
+fn emit_notes_changed(app: &tauri::AppHandle) {
+    let _ = app.emit("notes_changed", ());
 }
 
 fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
@@ -75,79 +94,205 @@ fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
     }
 }
 
+fn apply_note_window_layer_with_interaction_by_label(
+    app: &tauri::AppHandle,
+    label: &str,
+    is_always_on_top: bool,
+    click_through: bool,
+) -> Result<(), String> {
+    let Some(w) = app.get_webview_window(label) else {
+        return Ok(());
+    };
+
+    let hwnd = match w.hwnd() {
+        Ok(v) => v,
+        Err(e) => {
+            let msg = e.to_string();
+            if msg
+                .to_lowercase()
+                .contains("underlying handle is not available")
+            {
+                return Ok(());
+            }
+            return Err(msg);
+        }
+    };
+    let hwnd_isize = hwnd.0 as isize;
+    let should_be_top = !click_through || is_always_on_top;
+
+    if should_be_top {
+        let _ = w.set_always_on_top(true);
+        windows::detach_from_worker_w(hwnd_isize)?;
+        windows::set_topmost_no_activate(hwnd_isize, true)?;
+    } else {
+        let _ = w.set_always_on_top(false);
+        windows::set_topmost_no_activate(hwnd_isize, false)?;
+        windows::attach_to_worker_w(hwnd_isize)?;
+    }
+
+    Ok(())
+}
+
+fn get_overlay_click_through(app: &tauri::AppHandle) -> bool {
+    if let Some(state) = app.try_state::<OverlayInputState>() {
+        if let Ok(guard) = state.0.lock() {
+            return *guard;
+        }
+    }
+    true
+}
+
 #[tauri::command]
 fn load_notes(sort_mode: String) -> Result<Vec<notes::Note>, String> {
     notes_service::load_notes(parse_sort_mode(sort_mode.as_str()))
 }
 
 #[tauri::command]
-fn add_note(text: String, is_pinned: bool, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    notes_service::add_note(text, is_pinned, parse_sort_mode(sort_mode.as_str()))
+fn add_note(
+    app: tauri::AppHandle,
+    text: String,
+    is_pinned: bool,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::add_note(text, is_pinned, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
-fn update_note(note: notes::Note, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    notes_service::update_note(note, parse_sort_mode(sort_mode.as_str()))
+fn update_note(
+    app: tauri::AppHandle,
+    note: notes::Note,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::update_note(note, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
-fn update_note_position(id: String, x: f64, y: f64) -> Result<(), String> {
-    notes_service::update_note_position(&id, x, y)
+fn update_note_position(app: tauri::AppHandle, id: String, x: f64, y: f64) -> Result<(), String> {
+    notes_service::update_note_position(&id, x, y)?;
+    emit_notes_changed(&app);
+    Ok(())
 }
 
 #[tauri::command]
 fn update_note_text(
+    app: tauri::AppHandle,
     id: String,
     text: String,
     sort_mode: String,
 ) -> Result<Vec<notes::Note>, String> {
-    notes_service::update_note_text(&id, text, parse_sort_mode(sort_mode.as_str()))
+    let notes = notes_service::update_note_text(&id, text, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
-fn toggle_pin(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    notes_service::toggle_pin(&id, parse_sort_mode(sort_mode.as_str()))
+fn update_note_color(
+    app: tauri::AppHandle,
+    id: String,
+    color: String,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::update_note_color(&id, color, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
-fn toggle_z_order(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    notes_service::toggle_z_order(&id, parse_sort_mode(sort_mode.as_str()))
+fn update_note_opacity(
+    app: tauri::AppHandle,
+    id: String,
+    opacity: f64,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes =
+        notes_service::update_note_opacity(&id, opacity, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
-fn toggle_done(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    notes_service::toggle_done(&id, parse_sort_mode(sort_mode.as_str()))
+fn toggle_pin(
+    app: tauri::AppHandle,
+    id: String,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::toggle_pin(&id, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
-fn toggle_archive(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    notes_service::toggle_archive(&id, parse_sort_mode(sort_mode.as_str()))
+fn toggle_done(
+    app: tauri::AppHandle,
+    id: String,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::toggle_done(&id, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
-fn delete_note(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    notes_service::delete_note(&id, parse_sort_mode(sort_mode.as_str()))
+fn toggle_archive(
+    app: tauri::AppHandle,
+    id: String,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::toggle_archive(&id, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
-fn restore_note(id: String, sort_mode: String) -> Result<Vec<notes::Note>, String> {
-    notes_service::restore_note(&id, parse_sort_mode(sort_mode.as_str()))
+fn delete_note(
+    app: tauri::AppHandle,
+    id: String,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::delete_note(&id, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
-fn permanently_delete_note(id: String) -> Result<(), String> {
-    notes_service::permanently_delete_note(&id)
+fn restore_note(
+    app: tauri::AppHandle,
+    id: String,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::restore_note(&id, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
-fn empty_trash() -> Result<(), String> {
-    notes_service::empty_trash()
+fn permanently_delete_note(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    notes_service::permanently_delete_note(&id)?;
+    emit_notes_changed(&app);
+    Ok(())
 }
 
 #[tauri::command]
-fn reorder_notes(reordered: Vec<ReorderItem>, is_archived_view: bool) -> Result<(), String> {
+fn empty_trash(app: tauri::AppHandle) -> Result<(), String> {
+    notes_service::empty_trash()?;
+    emit_notes_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+fn reorder_notes(
+    app: tauri::AppHandle,
+    reordered: Vec<ReorderItem>,
+    is_archived_view: bool,
+) -> Result<(), String> {
     let items: Vec<(String, i32)> = reordered.into_iter().map(|r| (r.id, r.order)).collect();
-    notes_service::reorder_notes(items, is_archived_view)
+    notes_service::reorder_notes(items, is_archived_view)?;
+    emit_notes_changed(&app);
+    Ok(())
 }
 
 #[derive(serde::Deserialize)]
@@ -176,13 +321,74 @@ fn set_preferences(prefs: PanelPreferences) -> Result<(), String> {
 #[tauri::command]
 fn pin_window_to_desktop(window: tauri::WebviewWindow) -> Result<(), String> {
     let hwnd = window.hwnd().map_err(|e| e.to_string())?;
+    windows::set_topmost_no_activate(hwnd.0 as isize, false)?;
     windows::attach_to_worker_w(hwnd.0 as isize).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn unpin_window_from_desktop(window: tauri::WebviewWindow) -> Result<(), String> {
     let hwnd = window.hwnd().map_err(|e| e.to_string())?;
-    windows::detach_from_worker_w(hwnd.0 as isize).map_err(|e| e.to_string())
+    windows::detach_from_worker_w(hwnd.0 as isize).map_err(|e| e.to_string())?;
+    windows::set_topmost_no_activate(hwnd.0 as isize, true)?;
+    Ok(())
+}
+
+#[tauri::command]
+fn apply_note_window_layer(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+    is_always_on_top: bool,
+) -> Result<(), String> {
+    apply_note_window_layer_with_interaction_by_label(
+        &app,
+        window.label(),
+        is_always_on_top,
+        get_overlay_click_through(&app),
+    )
+}
+
+#[tauri::command]
+fn sync_all_note_window_layers(app: tauri::AppHandle) -> Result<(), String> {
+    let notes = notes_service::load_notes(NoteSortMode::Custom)?;
+    let click_through = get_overlay_click_through(&app);
+    for n in notes {
+        if !n.is_pinned || n.is_archived || n.is_deleted {
+            continue;
+        }
+        let label = format!("note-{}", n.id);
+        let _ = apply_note_window_layer_with_interaction_by_label(
+            &app,
+            &label,
+            n.is_always_on_top,
+            click_through,
+        );
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn toggle_z_order_and_apply(
+    app: tauri::AppHandle,
+    id: String,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::toggle_z_order(&id, parse_sort_mode(sort_mode.as_str()))?;
+    if let Some(updated) = notes.iter().find(|n| n.id == id) {
+        let label = format!("note-{}", updated.id);
+        if let Err(e) = apply_note_window_layer_with_interaction_by_label(
+            &app,
+            &label,
+            updated.is_always_on_top,
+            get_overlay_click_through(&app),
+        ) {
+            eprintln!(
+                "toggle_z_order_and_apply layer switch failed for {}: {}",
+                label, e
+            );
+        }
+    }
+    emit_notes_changed(&app);
+    Ok(notes)
 }
 
 #[tauri::command]
@@ -225,12 +431,13 @@ pub fn run() {
                     tauri_plugin_autostart::MacosLauncher::LaunchAgent,
                     Some(vec![]),
                 ));
+                use tauri::image::Image;
                 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
                 use tauri::tray::TrayIconBuilder;
-                use tauri::image::Image;
 
                 let show_i = MenuItem::with_id(app, "show", "Show notes", true, None::<&str>)?;
-                let github_i = MenuItem::with_id(app, "github", "Star on GitHub", true, None::<&str>)?;
+                let github_i =
+                    MenuItem::with_id(app, "github", "Star on GitHub", true, None::<&str>)?;
                 let sep1 = PredefinedMenuItem::separator(app)?;
                 let toggle_stickies_i = MenuItem::with_id(
                     app,
@@ -248,7 +455,7 @@ pub fn run() {
                 )?;
                 let sep2 = PredefinedMenuItem::separator(app)?;
                 let quit_i = MenuItem::with_id(app, "quit", "Exit", true, None::<&str>)?;
-                
+
                 let menu = Menu::with_items(
                     app,
                     &[
@@ -344,8 +551,10 @@ pub fn run() {
             update_note,
             update_note_position,
             update_note_text,
+            update_note_color,
+            update_note_opacity,
             toggle_pin,
-            toggle_z_order,
+            toggle_z_order_and_apply,
             toggle_done,
             toggle_archive,
             delete_note,
@@ -357,6 +566,8 @@ pub fn run() {
             set_preferences,
             pin_window_to_desktop,
             unpin_window_from_desktop,
+            apply_note_window_layer,
+            sync_all_note_window_layers,
             update_tray_texts,
             toggle_overlay_interaction,
             get_overlay_interaction,

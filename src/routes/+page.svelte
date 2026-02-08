@@ -48,6 +48,7 @@
   let interactionDisabled = $state(false);
   let stickiesVisible = $state(true);
   let isSortMenuOpen = $state(false);
+  let suppressNotesReloadUntil = 0;
 
   let drag = $state({
     draggedNoteId: /** @type {string | null} */ (null),
@@ -132,6 +133,9 @@
     getNotes: () => notes,
     setNotes: (v) => {
       notes = v;
+    },
+    suppressNotesReload: (ms) => {
+      suppressNotesReloadUntil = Date.now() + ms;
     },
     syncWindows: windowSync.syncWindows,
     openNoteWindow: windowSync.openNoteWindow,
@@ -364,7 +368,26 @@
       }),
     );
 
+    let notesChangedTimer = /** @type {ReturnType<typeof setTimeout> | null} */ (null);
+    unsubs.push(
+      listen("notes_changed", () => {
+        if (Date.now() < suppressNotesReloadUntil) {
+          return;
+        }
+        if (notesChangedTimer) clearTimeout(notesChangedTimer);
+        notesChangedTimer = setTimeout(() => {
+          if (Date.now() < suppressNotesReloadUntil) {
+            return;
+          }
+          loadNotes();
+        }, 80);
+      }),
+    );
+
     return () => {
+      if (notesChangedTimer) {
+        clearTimeout(notesChangedTimer);
+      }
       for (const p of unsubs) {
         Promise.resolve(p)
           .then((u) => u())

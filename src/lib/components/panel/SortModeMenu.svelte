@@ -6,6 +6,7 @@
     setSortMode,
   } = $props();
 
+  /** @param {"custom" | "newest" | "oldest"} mode */
   function applySortMode(mode) {
     setSortMode(mode);
     isSortMenuOpen = false;
