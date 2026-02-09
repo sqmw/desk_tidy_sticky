@@ -16,7 +16,6 @@
   import WorkspaceSidebar from "$lib/components/workspace/WorkspaceSidebar.svelte";
   import WorkspaceToolbar from "$lib/components/workspace/WorkspaceToolbar.svelte";
   import WorkspaceNoteInspector from "$lib/components/workspace/WorkspaceNoteInspector.svelte";
-  import WorkspaceThemeTransition from "$lib/components/workspace/WorkspaceThemeTransition.svelte";
   import { calcInspectorLayout, calcSidebarWidth } from "$lib/workspace/layout-resize.js";
 
   const NOTE_VIEW_MODES = ["active", "todo", "quadrant", "archived", "trash"];
@@ -51,10 +50,6 @@
   let interactionDisabled = $state(false);
   let workspaceTheme = $state("light");
   let themeTransitionShape = $state("circle");
-  let transitionActive = $state(false);
-  let transitionX = $state(0);
-  let transitionY = $state(0);
-  let transitionTargetTheme = $state("light");
   let sidebarCollapsed = $derived(sidebarWidth <= 104);
 
   const strings = $derived(getStrings(locale));
@@ -274,21 +269,28 @@
   /** @param {MouseEvent | undefined} e */
   async function toggleTheme(e) {
     const nextTheme = workspaceTheme === "dark" ? "light" : "dark";
-    const btn = /** @type {HTMLElement | null} */ (e?.currentTarget instanceof HTMLElement ? e.currentTarget : null);
-    const rect = btn?.getBoundingClientRect();
-    transitionX = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
-    transitionY = rect ? rect.top + rect.height / 2 : 48;
-    transitionTargetTheme = nextTheme;
-    transitionActive = false;
-    queueMicrotask(() => {
-      transitionActive = true;
-    });
+    const root = document.documentElement;
+    const leftInset = 26;
+    const bottomInset = 26;
+    root.style.setProperty("--ws-vt-x", `${leftInset}px`);
+    root.style.setProperty("--ws-vt-y", `${window.innerHeight - bottomInset}px`);
+    root.dataset.wsVtShape = themeTransitionShape === "heart" ? "heart" : "circle";
+    root.classList.add("ws-vt-running");
 
-    workspaceTheme = nextTheme;
-    await savePrefs({ workspaceTheme });
-    setTimeout(() => {
-      transitionActive = false;
-    }, 620);
+    const doc = /** @type {any} */ (document);
+    try {
+      if (typeof doc.startViewTransition === "function") {
+        const transition = doc.startViewTransition(() => {
+          workspaceTheme = nextTheme;
+        });
+        await transition.finished;
+      } else {
+        workspaceTheme = nextTheme;
+      }
+      await savePrefs({ workspaceTheme });
+    } finally {
+      root.classList.remove("ws-vt-running");
+    }
   }
 
   /** @param {string} shape */
@@ -552,14 +554,6 @@
   </main>
 </div>
 
-<WorkspaceThemeTransition
-  active={transitionActive}
-  shape={themeTransitionShape}
-  x={transitionX}
-  y={transitionY}
-  targetTheme={transitionTargetTheme}
-/>
-
 <svelte:window
   onpointermove={onWindowPointerMove}
   onpointerup={onWindowPointerUp}
@@ -611,6 +605,7 @@
     color: #111827;
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
     cursor: default;
+    view-transition-name: workspace-root;
   }
 
   .workspace.theme-dark {
@@ -762,6 +757,108 @@
 
     .inspector-splitter {
       display: none;
+    }
+  }
+
+  :global(html.ws-vt-running::view-transition) {
+    background: transparent;
+  }
+
+  :global(html.ws-vt-running::view-transition-group(root)) {
+    animation: none;
+  }
+
+  :global(html.ws-vt-running::view-transition-old(root)),
+  :global(html.ws-vt-running::view-transition-new(root)) {
+    animation: none;
+    opacity: 0;
+  }
+
+  :global(html.ws-vt-running::view-transition-group(workspace-root)) {
+    animation-duration: 760ms;
+  }
+
+  :global(html.ws-vt-running::view-transition-old(workspace-root)),
+  :global(html.ws-vt-running::view-transition-new(workspace-root)) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  :global(html.ws-vt-running[data-ws-vt-shape="circle"]::view-transition-new(workspace-root)) {
+    clip-path: circle(0 at var(--ws-vt-x) var(--ws-vt-y));
+    animation: ws-vt-circle-in 760ms cubic-bezier(0.22, 0.78, 0.17, 1) forwards;
+  }
+
+  :global(html.ws-vt-running[data-ws-vt-shape="heart"]::view-transition-new(workspace-root)) {
+    --ws-heart-size: 0px;
+    clip-path: polygon(
+      var(--ws-vt-x) calc(var(--ws-vt-y) + (var(--ws-heart-size) * 0.52)),
+      calc(var(--ws-vt-x) - (var(--ws-heart-size) * 0.12)) calc(var(--ws-vt-y) + (var(--ws-heart-size) * 0.40)),
+      calc(var(--ws-vt-x) - (var(--ws-heart-size) * 0.30)) calc(var(--ws-vt-y) + (var(--ws-heart-size) * 0.22)),
+      calc(var(--ws-vt-x) - (var(--ws-heart-size) * 0.45)) calc(var(--ws-vt-y) + (var(--ws-heart-size) * 0.02)),
+      calc(var(--ws-vt-x) - (var(--ws-heart-size) * 0.48)) calc(var(--ws-vt-y) - (var(--ws-heart-size) * 0.18)),
+      calc(var(--ws-vt-x) - (var(--ws-heart-size) * 0.38)) calc(var(--ws-vt-y) - (var(--ws-heart-size) * 0.33)),
+      calc(var(--ws-vt-x) - (var(--ws-heart-size) * 0.20)) calc(var(--ws-vt-y) - (var(--ws-heart-size) * 0.36)),
+      var(--ws-vt-x) calc(var(--ws-vt-y) - (var(--ws-heart-size) * 0.22)),
+      calc(var(--ws-vt-x) + (var(--ws-heart-size) * 0.20)) calc(var(--ws-vt-y) - (var(--ws-heart-size) * 0.36)),
+      calc(var(--ws-vt-x) + (var(--ws-heart-size) * 0.38)) calc(var(--ws-vt-y) - (var(--ws-heart-size) * 0.33)),
+      calc(var(--ws-vt-x) + (var(--ws-heart-size) * 0.48)) calc(var(--ws-vt-y) - (var(--ws-heart-size) * 0.18)),
+      calc(var(--ws-vt-x) + (var(--ws-heart-size) * 0.45)) calc(var(--ws-vt-y) + (var(--ws-heart-size) * 0.02)),
+      calc(var(--ws-vt-x) + (var(--ws-heart-size) * 0.30)) calc(var(--ws-vt-y) + (var(--ws-heart-size) * 0.22)),
+      calc(var(--ws-vt-x) + (var(--ws-heart-size) * 0.12)) calc(var(--ws-vt-y) + (var(--ws-heart-size) * 0.40))
+    );
+    animation: ws-vt-heart-in 820ms cubic-bezier(0.2, 0.78, 0.18, 1) forwards;
+  }
+
+  :global(html.ws-vt-running[data-ws-vt-shape="circle"]::view-transition-old(workspace-root)) {
+    animation: ws-vt-old-fade 760ms ease forwards;
+  }
+
+  :global(html.ws-vt-running[data-ws-vt-shape="heart"]::view-transition-old(workspace-root)) {
+    animation: ws-vt-old-fade-heart 760ms ease forwards;
+  }
+
+  @keyframes ws-vt-circle-in {
+    to {
+      clip-path: circle(180vmax at var(--ws-vt-x) var(--ws-vt-y));
+    }
+  }
+
+  @property --ws-heart-size {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+  }
+
+  @keyframes ws-vt-heart-in {
+    0% {
+      --ws-heart-size: 0px;
+    }
+    68% {
+      --ws-heart-size: 206vmax;
+    }
+    100% {
+      --ws-heart-size: 188vmax;
+    }
+  }
+
+  @keyframes ws-vt-old-fade {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0.88;
+    }
+  }
+
+  @keyframes ws-vt-old-fade-heart {
+    0% {
+      opacity: 1;
+      filter: saturate(1);
+    }
+    100% {
+      opacity: 0.84;
+      filter: saturate(0.92);
     }
   }
 </style>
