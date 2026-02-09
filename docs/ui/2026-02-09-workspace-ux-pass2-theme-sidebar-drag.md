@@ -59,3 +59,11 @@
 说明：
 - `all-scroll` 只在“明确可拖拽”区域展示（顶部栏、侧栏）。
 - 主内容区（卡片区域）保持正常箭头，避免误导用户。
+
+## 拖动热区收敛（内容区误触修复）
+- 问题：workspace 内容卡片区域（含操作图标 SVG）仍可触发窗口拖动。
+- 处理：
+  1. 移除 `workspace` 根容器的 `onpointerdown` 拖动入口；
+  2. 仅保留顶部 `WorkspaceWindowBar` 与左侧 `WorkspaceSidebar` 的拖动入口；
+  3. 拖动入口内将目标类型从 `HTMLElement` 放宽到 `Element`，避免 `SVGPathElement` 被漏判导致误拖。
+- 结果：主内容区不再可拖动，拖动仅限顶部和左侧，且按钮/输入等交互位不会误触窗口拖动。

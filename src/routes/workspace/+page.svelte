@@ -202,7 +202,7 @@
     await getCurrentWindow().hide();
   }
 
-  /** @param {HTMLElement} el */
+  /** @param {Element} el */
   function isInteractiveTarget(el) {
     return !!el.closest(
       'button, input, select, textarea, a, [contenteditable="true"], .card, .actions, .note-text, .notes-list, .quadrant-list, [data-no-drag="true"]',
@@ -212,7 +212,7 @@
   /** @param {PointerEvent} e */
   async function startWorkspaceDragPointer(e) {
     if (e.button !== 0) return;
-    const target = /** @type {HTMLElement | null} */ (e.target instanceof HTMLElement ? e.target : null);
+    const target = /** @type {Element | null} */ (e.target instanceof Element ? e.target : null);
     if (target && isInteractiveTarget(target)) return;
     try {
       await getCurrentWindow().startDragging();
@@ -296,7 +296,6 @@
   class="workspace"
   class:theme-dark={workspaceTheme === "dark"}
   class:sidebar-collapsed={sidebarCollapsed}
-  onpointerdown={startWorkspaceDragPointer}
 >
   <WorkspaceSidebar
     {strings}
