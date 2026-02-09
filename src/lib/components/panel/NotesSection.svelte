@@ -57,6 +57,13 @@
     const safe = clampPriority(q);
     return renderedNotes.filter((/** @type {{ priority?: number }} */ n) => clampPriority(n.priority) === safe);
   }
+
+  /** @param {PointerEvent} e */
+  function stopActionPointerIfNotReorder(e) {
+    const target = /** @type {HTMLElement | null} */ (e.target instanceof HTMLElement ? e.target : null);
+    if (target?.closest('[data-reorder-handle="true"]')) return;
+    e.stopPropagation();
+  }
 </script>
 
 {#if viewMode === "quadrant"}
@@ -147,8 +154,8 @@
             </div>
             <div
               class="note-actions"
-              onpointerdown={(e) => e.stopPropagation()}
-              onpointerup={(e) => e.stopPropagation()}
+              onpointerdown={stopActionPointerIfNotReorder}
+              onpointerup={stopActionPointerIfNotReorder}
             >
               {#if viewMode === "trash"}
                 <button type="button" class="action-btn" title={strings.restore} onclick={() => restoreNote(note)}
@@ -367,16 +374,28 @@
     overflow-y: auto;
     padding: 4px 6px 10px;
     scrollbar-width: thin;
-    scrollbar-color: #ddd transparent;
+    scrollbar-color: #aeb7c4 transparent;
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
 
   .notes-list::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
+    width: 7px;
+    height: 7px;
+  }
+
+  .notes-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .notes-list::-webkit-scrollbar-thumb {
+    background: rgba(120, 130, 145, 0.72);
+    border-radius: 999px;
+  }
+
+  .notes-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(95, 105, 120, 0.82);
   }
 
   .note-wrapper {
@@ -594,6 +613,26 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #aeb7c4 transparent;
+  }
+
+  .quadrant-board::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+
+  .quadrant-board::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .quadrant-board::-webkit-scrollbar-thumb {
+    background: rgba(120, 130, 145, 0.72);
+    border-radius: 999px;
+  }
+
+  .quadrant-board::-webkit-scrollbar-thumb:hover {
+    background: rgba(95, 105, 120, 0.82);
   }
 
   .quadrant-cell {

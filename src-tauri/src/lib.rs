@@ -42,7 +42,10 @@ impl Default for OverlayInputState {
 #[tauri::command]
 fn update_tray_texts(app: tauri::AppHandle, texts: HashMap<String, String>) -> Result<(), String> {
     if let Some(state) = app.try_state::<TrayMenuState>() {
-        if let Some(t) = texts.get("trayShowNotes") {
+        if let Some(t) = texts
+            .get("trayShowMain")
+            .or_else(|| texts.get("trayShowNotes"))
+        {
             let _ = state.show.set_text(t);
         }
         if let Some(t) = texts.get("trayGithub") {
@@ -424,7 +427,19 @@ fn apply_window_no_snap_by_label(app: tauri::AppHandle, label: String) -> Result
     let Some(w) = app.get_webview_window(label.as_str()) else {
         return Ok(());
     };
-    let hwnd = w.hwnd().map_err(|e| e.to_string())?;
+    let hwnd = match w.hwnd() {
+        Ok(v) => v,
+        Err(e) => {
+            let msg = e.to_string();
+            if msg
+                .to_lowercase()
+                .contains("underlying handle is not available")
+            {
+                return Ok(());
+            }
+            return Err(msg);
+        }
+    };
     if label == "main" {
         windows::disable_aero_snap(hwnd.0 as isize)
     } else {
@@ -484,6 +499,9 @@ pub fn run() {
     tauri::Builder::default()
         .manage(OverlayInputState::default())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(w) = app.get_webview_window("workspace") {
+                let _ = w.hide();
+            }
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.show();
                 let _ = w.set_focus();
@@ -507,7 +525,8 @@ pub fn run() {
                 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
                 use tauri::tray::TrayIconBuilder;
 
-                let show_i = MenuItem::with_id(app, "show", "Show notes", true, None::<&str>)?;
+                let show_i =
+                    MenuItem::with_id(app, "show", "Show main window", true, None::<&str>)?;
                 let github_i =
                     MenuItem::with_id(app, "github", "Star on GitHub", true, None::<&str>)?;
                 let sep1 = PredefinedMenuItem::separator(app)?;
@@ -555,6 +574,9 @@ pub fn run() {
                     .show_menu_on_left_click(true)
                     .on_menu_event(|app, event| {
                         if event.id.as_ref() == "show" {
+                            if let Some(w) = app.get_webview_window("workspace") {
+                                let _ = w.hide();
+                            }
                             if let Some(w) = app.get_webview_window("main") {
                                 let _ = w.show();
                                 let _ = w.set_focus();

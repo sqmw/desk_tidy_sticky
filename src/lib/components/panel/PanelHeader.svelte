@@ -23,6 +23,7 @@
     toggleLanguage,
     adjustGlass,
     hideWindow,
+    switchToWorkspace,
     saveNote,
     setViewMode,
     setSortMode,
@@ -48,6 +49,7 @@
       {toggleLanguage}
       {adjustGlass}
       {hideWindow}
+      {switchToWorkspace}
       onOpenSettings={() => (showSettings = true)}
     />
   </div>

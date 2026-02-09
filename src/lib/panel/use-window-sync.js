@@ -1,4 +1,5 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { applyNoSnapWhenReady } from "$lib/panel/window-effects.js";
 
 /**
  * @param {{
@@ -42,11 +43,7 @@ export function createWindowSync(deps) {
     });
 
     webview.once("tauri://created", async function () {
-      try {
-        await deps.invoke("apply_window_no_snap_by_label", { label });
-      } catch (e) {
-        console.error("apply_window_no_snap_by_label", e);
-      }
+      await applyNoSnapWhenReady(deps.invoke, label);
     });
     webview.once("tauri://error", async function (e) {
       const payload = String(e?.payload || "");

@@ -114,7 +114,7 @@ function buildImageTag(options) {
     if (meta.height) styles.push(`height: ${meta.height}`);
     styleAttr = ` style="${escapeHtml(styles.join("; "))}"`;
   }
-  return `<img src="${safeSrc}" alt="${safeAlt}" loading="lazy"${titleAttr}${styleAttr} />`;
+  return `<img src="${safeSrc}" alt="${safeAlt}" loading="eager" decoding="async"${titleAttr}${styleAttr} />`;
 }
 
 /**

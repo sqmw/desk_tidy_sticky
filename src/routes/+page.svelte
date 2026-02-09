@@ -15,6 +15,7 @@
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
   import { createDragReorder } from "$lib/panel/use-drag-reorder.js";
+  import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
   import PanelHeader from "$lib/components/panel/PanelHeader.svelte";
   import NotesSection from "$lib/components/panel/NotesSection.svelte";
   import EditDialog from "$lib/components/panel/EditDialog.svelte";
@@ -347,6 +348,10 @@
     await getCurrentWindow().hide();
   }
 
+  async function switchToWorkspace() {
+    await switchPanelWindow("workspace", invoke);
+  }
+
   $effect(() => {
     loadPrefs().then(() => {
       loadNotes();
@@ -444,6 +449,7 @@
       {toggleLanguage}
       {adjustGlass}
       {hideWindow}
+      {switchToWorkspace}
       {saveNote}
       {setViewMode}
       {setSortMode}

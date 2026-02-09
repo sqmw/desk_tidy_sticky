@@ -43,6 +43,10 @@ pub struct PanelPreferences {
     pub overlay_enabled: bool,
     #[serde(default)]
     pub show_panel_on_startup: bool,
+    #[serde(default = "default_workspace_theme")]
+    pub workspace_theme: String,
+    #[serde(default)]
+    pub workspace_sidebar_collapsed: bool,
 }
 
 fn default_true() -> bool {
@@ -50,6 +54,9 @@ fn default_true() -> bool {
 }
 fn default_glass() -> f64 {
     0.18
+}
+fn default_workspace_theme() -> String {
+    "light".to_string()
 }
 
 pub fn read_show_panel_on_startup() -> bool {
