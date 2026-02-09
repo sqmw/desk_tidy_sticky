@@ -391,7 +391,7 @@
       linear-gradient(165deg, #edf3ff 0%, #f7faff 46%, #fff8f1 100%);
     color: #111827;
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-    cursor: crosshair;
+    cursor: default;
   }
 
   .workspace.theme-dark {
@@ -432,6 +432,7 @@
     flex-direction: column;
     gap: 10px;
     padding: 12px;
+    cursor: default;
   }
 
   .workspace :global(button),

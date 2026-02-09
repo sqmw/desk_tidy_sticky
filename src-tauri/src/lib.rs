@@ -89,6 +89,27 @@ fn emit_notes_changed(app: &tauri::AppHandle) {
     let _ = app.emit("notes_changed", ());
 }
 
+fn show_preferred_panel_window(app: &tauri::AppHandle) {
+    let preferred = preferences::read_last_panel_window();
+    if preferred == "workspace" {
+        if let Some(w) = app.get_webview_window("workspace") {
+            let _ = w.show();
+            let _ = w.set_focus();
+            if let Some(main) = app.get_webview_window("main") {
+                let _ = main.hide();
+            }
+            return;
+        }
+    }
+    if let Some(ws) = app.get_webview_window("workspace") {
+        let _ = ws.hide();
+    }
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+}
+
 fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
     match sort_mode {
         "newest" => NoteSortMode::Newest,
@@ -499,13 +520,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(OverlayInputState::default())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            if let Some(w) = app.get_webview_window("workspace") {
-                let _ = w.hide();
-            }
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.show();
-                let _ = w.set_focus();
-            }
+            show_preferred_panel_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -574,13 +589,7 @@ pub fn run() {
                     .show_menu_on_left_click(true)
                     .on_menu_event(|app, event| {
                         if event.id.as_ref() == "show" {
-                            if let Some(w) = app.get_webview_window("workspace") {
-                                let _ = w.hide();
-                            }
-                            if let Some(w) = app.get_webview_window("main") {
-                                let _ = w.show();
-                                let _ = w.set_focus();
-                            }
+                            show_preferred_panel_window(app);
                         } else if event.id.as_ref() == "github" {
                             let _ = open::that("https://github.com/sqmw/desk_tidy_sticky");
                         } else if event.id.as_ref() == "toggle_stickies" {

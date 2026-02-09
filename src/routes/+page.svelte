@@ -115,11 +115,7 @@
   );
   const draggedNote = $derived.by(() => {
     if (!drag.draggedNoteId) return null;
-    return (
-      (drag.dragPreviewNotes ?? visibleNotes).find(
-        (n) => n.id === drag.draggedNoteId,
-      ) ?? null
-    );
+    return renderedNotes.find((n) => n.id === drag.draggedNoteId) ?? null;
   });
 
   const windowSync = createWindowSync({

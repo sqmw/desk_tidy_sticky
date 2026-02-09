@@ -72,7 +72,7 @@
     gap: 14px;
     position: relative;
     color: var(--ws-text, #111827);
-    cursor: crosshair;
+    cursor: all-scroll;
   }
 
   .sidebar.collapsed {

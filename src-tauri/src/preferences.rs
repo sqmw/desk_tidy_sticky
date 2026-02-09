@@ -47,6 +47,8 @@ pub struct PanelPreferences {
     pub workspace_theme: String,
     #[serde(default)]
     pub workspace_sidebar_collapsed: bool,
+    #[serde(default = "default_last_panel_window")]
+    pub last_panel_window: String,
 }
 
 fn default_true() -> bool {
@@ -57,6 +59,9 @@ fn default_glass() -> f64 {
 }
 fn default_workspace_theme() -> String {
     "light".to_string()
+}
+fn default_last_panel_window() -> String {
+    "main".to_string()
 }
 
 pub fn read_show_panel_on_startup() -> bool {
@@ -76,6 +81,28 @@ pub fn read_show_panel_on_startup() -> bool {
         Err(_) => return false,
     };
     prefs.show_panel_on_startup
+}
+
+pub fn read_last_panel_window() -> String {
+    let path = match prefs_path() {
+        Ok(p) => p,
+        Err(_) => return "main".to_string(),
+    };
+    if !path.exists() {
+        return "main".to_string();
+    }
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => return "main".to_string(),
+    };
+    let prefs: PanelPreferences = match serde_json::from_str(&content) {
+        Ok(p) => p,
+        Err(_) => return "main".to_string(),
+    };
+    match prefs.last_panel_window.as_str() {
+        "workspace" => "workspace".to_string(),
+        _ => "main".to_string(),
+    }
 }
 
 pub fn prefs_path() -> Result<std::path::PathBuf, String> {

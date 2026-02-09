@@ -49,9 +49,13 @@
 ## 补充（Cursor 一致性）
 根据后续反馈，工作台拖拽光标进一步统一：
 - 文件：`src/routes/workspace/+page.svelte`
-  - 工作台根容器默认 `cursor: crosshair`。
+  - 修正为：工作台根容器保持 `cursor: default`，避免内容区误显示拖拽光标。
   - 交互控件（`button/input/select/textarea`）维持各自合适光标（`pointer/text`）。
 - 文件：`src/lib/components/workspace/WorkspaceWindowBar.svelte`
-  - 顶部拖拽栏光标由 `move` 统一为 `crosshair`。
+  - 顶部拖拽栏光标统一为 `all-scroll`。
 - 文件：`src/lib/components/workspace/WorkspaceSidebar.svelte`
-  - 左侧栏空白可拖区域统一 `crosshair`。
+  - 左侧栏空白可拖区域统一 `all-scroll`。
+
+说明：
+- `all-scroll` 只在“明确可拖拽”区域展示（顶部栏、侧栏）。
+- 主内容区（卡片区域）保持正常箭头，避免误导用户。

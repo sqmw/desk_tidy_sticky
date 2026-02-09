@@ -56,7 +56,7 @@
     padding: 8px 10px;
     background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 92%, transparent);
     backdrop-filter: blur(8px);
-    cursor: crosshair;
+    cursor: all-scroll;
     user-select: none;
   }
 

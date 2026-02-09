@@ -60,7 +60,7 @@
 
   /** @param {PointerEvent} e */
   function stopActionPointerIfNotReorder(e) {
-    const target = /** @type {HTMLElement | null} */ (e.target instanceof HTMLElement ? e.target : null);
+    const target = /** @type {Element | null} */ (e.target instanceof Element ? e.target : null);
     if (target?.closest('[data-reorder-handle="true"]')) return;
     e.stopPropagation();
   }
