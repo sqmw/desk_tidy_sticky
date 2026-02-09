@@ -7,39 +7,28 @@
   import { page } from "$app/stores";
   import { getStrings } from "$lib/strings.js";
   import BlockEditor from "$lib/components/note/BlockEditor.svelte";
+  import NotePreview from "$lib/components/note/NotePreview.svelte";
+  import NoteToolbar from "$lib/components/note/NoteToolbar.svelte";
+  import SourceEditorPane from "$lib/components/note/SourceEditorPane.svelte";
   import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
   import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
+  import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
+  import {
+    DEFAULT_NOTE_COLOR,
+    DEFAULT_NOTE_FROST,
+    DEFAULT_NOTE_OPACITY,
+    DEFAULT_NOTE_TEXT_COLOR,
+    NOTE_COLORS,
+    NOTE_TEXT_COLORS,
+    hexToRgba,
+    toColorPickerHex,
+  } from "$lib/note/note-theme.js";
   import {
     EDITOR_DISPLAY_MODE,
     loadEditorDisplayMode,
     nextEditorDisplayMode,
     saveEditorDisplayMode,
   } from "$lib/note/editor-display-mode.js";
-
-  const DEFAULT_NOTE_COLOR = "#fff9c4";
-  const DEFAULT_NOTE_TEXT_COLOR = "#1f2937";
-  const DEFAULT_NOTE_OPACITY = 1;
-  const DEFAULT_NOTE_FROST = 0.22;
-  const NOTE_COLORS = [
-    "#fff9c4",
-    "#ffe0b2",
-    "#ffccbc",
-    "#f8bbd0",
-    "#d1c4e9",
-    "#c5cae9",
-    "#b3e5fc",
-    "#c8e6c9",
-  ];
-  const NOTE_TEXT_COLORS = [
-    "#111827",
-    "#1f2937",
-    "#334155",
-    "#374151",
-    "#4b5563",
-    "#0f4c81",
-    "#7c2d12",
-    "#7f1d1d",
-  ];
   /** @type {any} */
   let note = $state(null);
   const noteId = $derived($page.params.id);
@@ -85,40 +74,6 @@
   const noteFrostOverlay = $derived((0.04 + noteFrost * 0.24).toFixed(3));
   const backgroundPickerValue = $derived(toColorPickerHex(noteBgColor, DEFAULT_NOTE_COLOR));
   const textPickerValue = $derived(toColorPickerHex(noteTextColor, DEFAULT_NOTE_TEXT_COLOR));
-
-  /**
-   * @param {string} hex
-   * @param {number} alpha
-   */
-  function hexToRgba(hex, alpha) {
-    const value = hex.replace("#", "");
-    const normalized =
-      value.length === 3
-        ? value
-            .split("")
-            .map((c) => `${c}${c}`)
-            .join("")
-        : value;
-    const n = Number.parseInt(normalized, 16);
-    const r = (n >> 16) & 255;
-    const g = (n >> 8) & 255;
-    const b = n & 255;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-
-  /**
-   * @param {string} value
-   * @param {string} fallback
-   */
-  function toColorPickerHex(value, fallback) {
-    const raw = String(value || "").trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
-    if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
-      const [r, g, b] = raw.slice(1).split("");
-      return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
-    }
-    return fallback;
-  }
 
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
   const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
@@ -653,15 +608,13 @@
       showCommandSuggestions = false;
       return;
     }
-    const caret = target.selectionStart ?? 0;
-    const beforeCaret = text.slice(0, caret);
-    const token = /(^|\s)@([a-zA-Z]*)$/.exec(beforeCaret);
+    const token = findSourceCommandToken(text, target.selectionStart ?? 0);
     if (!token) {
       showCommandSuggestions = false;
       commandQuery = "";
       return;
     }
-    commandQuery = token[2] || "";
+    commandQuery = token.query;
     showCommandSuggestions = true;
     commandActiveIndex = 0;
   }
@@ -675,15 +628,14 @@
     if (!items.length) return;
     const selected = items[Math.max(0, Math.min(index, items.length - 1))];
     const caret = editorEl.selectionStart ?? 0;
-    const beforeCaret = text.slice(0, caret);
-    const token = /(^|\s)@([a-zA-Z]*)$/.exec(beforeCaret);
-    if (!token) return;
-
-    const tokenLen = (token[2] || "").length + 1;
-    const tokenStart = beforeCaret.length - tokenLen;
     const suffix = text.slice(caret);
-    const nextText = text.slice(0, tokenStart) + selected.insert + suffix;
-    const transformed = expandNoteCommands(nextText);
+    const inserted = applySourceCommandInsert({
+      text,
+      caret,
+      insert: selected.insert,
+    });
+    if (!inserted) return;
+    const transformed = expandNoteCommands(inserted.nextText);
     text = transformed;
     showCommandSuggestions = false;
     commandQuery = "";
@@ -868,221 +820,65 @@
       {#if isBlockEditor}
         <BlockEditor bind:text noteId={note?.id || noteId} onTextChange={handleBlockEditorChange} />
       {:else}
-        <div class="editor-shell">
-          <textarea
-            bind:value={text}
-            bind:this={editorEl}
-            oninput={handleInput}
-            onpaste={onEditorPaste}
-            onkeydown={onEditorKeydown}
-            class="editor"
-            spellcheck="false"
-          ></textarea>
-        </div>
-      {/if}
-      {#if !isBlockEditor && showCommandSuggestions && commandSuggestionItems.length > 0}
-        <div class="command-popover">
-          {#each commandSuggestionItems as cmd, idx (cmd.name)}
-            <button
-              class="command-item"
-              class:active={idx === commandActiveIndex}
-              onclick={() => applyCommandSuggestion(idx)}
-              type="button"
-            >
-              <span class="command-name">{cmd.name}</span>
-              <span class="command-preview">{cmd.preview}</span>
-            </button>
-          {/each}
-        </div>
+        <SourceEditorPane
+          bind:text
+          bind:editorEl
+          {showCommandSuggestions}
+          {commandSuggestionItems}
+          {commandActiveIndex}
+          onInput={handleInput}
+          onPaste={onEditorPaste}
+          onKeydown={onEditorKeydown}
+          onApplyCommandSuggestion={applyCommandSuggestion}
+        />
       {/if}
     {:else}
-      <div class="preview-text preview-markdown">{@html renderedMarkdown}</div>
+      <NotePreview html={renderedMarkdown} />
     {/if}
 
-    <div class="toolbar-mask" aria-hidden="true"></div>
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="toolbar">
-        <div class="toolbar-drag-pad"></div>
-        <button
-          class="tool-btn"
-          onclick={() => (isEditing ? exitEditMode() : enterEditMode())}
-          title={isEditing ? strings.saveNote : strings.edit}
-        >
-          {#if isEditing}
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 00-2 2v14l4-4h10a2 2 0 002-2V5a2 2 0 00-2-2zm-1 8H8V9h8v2z"/></svg>
-          {:else}
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42L18.37 3.29a1.003 1.003 0 00-1.42 0L15.13 5.1l3.75 3.75 1.83-1.81z"/></svg>
-          {/if}
-        </button>
-        {#if isEditing}
-          <button
-            class="tool-btn"
-            onclick={toggleEditorLayoutMode}
-            title={editorModeHint()}
-          >
-            {#if isBlockEditor}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="5" y="6" width="14" height="12" rx="2"></rect>
-                <path d="M8 10h8"></path>
-                <path d="M8 13h6"></path>
-              </svg>
-            {:else}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="4" y="5" width="16" height="14" rx="2"></rect>
-                <path d="M7.5 9h9"></path>
-                <path d="M7.5 12h9"></path>
-                <path d="M7.5 15h6"></path>
-              </svg>
-            {/if}
-          </button>
-        {/if}
-
-        <button
-          class="tool-btn"
-          class:active={note.isAlwaysOnTop}
-          onclick={toggleTopmost}
-          title={note.isAlwaysOnTop ? strings.pinToBottom : strings.pinToTop}
-        >
-          {#if note.isAlwaysOnTop}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="5" y="14.5" width="14" height="4.5" rx="1.6"></rect>
-              <path d="M12 4.5v8"></path>
-              <path d="M8.8 9.6 12 12.8l3.2-3.2"></path>
-            </svg>
-          {:else}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="5" y="4.8" width="14" height="4.5" rx="1.6"></rect>
-              <path d="M12 19.5v-8"></path>
-              <path d="M8.8 14.4 12 11.2l3.2 3.2"></path>
-            </svg>
-          {/if}
-        </button>
-
-        <button class="tool-btn" onclick={toggleMouseInteraction} title={strings.overlayClickThrough}>
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zM7 9c0-2.76 2.24-5 5-5s5 2.24 5 5H7z"/></svg>
-        </button>
-
-        <button class="tool-btn color-trigger" onclick={() => (showPalette = !showPalette)} title="Change color">🎨</button>
-        <button
-          class="tool-btn text-color-trigger"
-          onclick={() => (showTextColorPalette = !showTextColorPalette)}
-          title={strings.textColor}
-        >A</button>
-        <div class="tool-popover-anchor">
-          <button
-            class="tool-btn opacity-trigger"
-            onclick={() => (showOpacityPanel = !showOpacityPanel)}
-            onwheel={onOpacityIconWheel}
-            title={strings.glassAdjust}
-          >◐</button>
-          {#if showOpacityPanel}
-            <div class="opacity-popover">
-              <input
-                class="opacity-slider"
-                type="range"
-                min="0.35"
-                max="1"
-                step="0.01"
-                value={opacityDraft}
-                oninput={onOpacityInput}
-                onwheel={onOpacityWheel}
-              />
-              {#if showOpacityValue}
-                <div class="opacity-value">{Math.round(opacityDraft * 100)}%</div>
-              {/if}
-            </div>
-          {/if}
-        </div>
-        <div class="tool-popover-anchor">
-          <button
-            class="tool-btn frost-trigger"
-            onclick={() => (showFrostPanel = !showFrostPanel)}
-            onwheel={onFrostIconWheel}
-            title={strings.frost}
-          >❆</button>
-          {#if showFrostPanel}
-            <div class="frost-popover">
-              <input
-                class="frost-slider"
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={frostDraft}
-                oninput={onFrostInput}
-                onwheel={onFrostWheel}
-              />
-              {#if showFrostValue}
-                <div class="frost-value">{Math.round(frostDraft * 100)}%</div>
-              {/if}
-            </div>
-          {/if}
-        </div>
-
-      <button class="tool-btn" onclick={toggleDone} title={note.isDone ? strings.markUndone : strings.markDone}>
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2l-3.5-3.5 1.4-1.4 2.1 2.1 4.6-4.6 1.4 1.4-6 6z"/></svg>
-      </button>
-
-      <button class="tool-btn" onclick={toggleArchive} title={note.isArchived ? strings.unarchive : strings.archive}>
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/></svg>
-      </button>
-
-      <button class="tool-btn" onclick={unpinNote} title={strings.unpinNote}>
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zm-2-2h-4V4h4v6z"/></svg>
-      </button>
-
-      <button class="tool-btn danger" onclick={moveToTrash} title={strings.delete}>
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-      </button>
-
-      {#if showPalette}
-        <div class="color-popover">
-          {#each NOTE_COLORS as c}
-            <button
-              class="color-dot"
-              class:active={c === noteBgColor}
-              style="background:{c};"
-              title={c}
-              onclick={() => setBackgroundColor(c)}
-            ></button>
-          {/each}
-          <div class="color-picker-row">
-            <span class="color-picker-label">{strings.customColor}</span>
-            <input
-              class="color-picker-input"
-              type="color"
-              value={backgroundPickerValue}
-              onchange={onBackgroundColorPickerChange}
-              aria-label={strings.customColor}
-            />
-          </div>
-        </div>
-      {/if}
-      {#if showTextColorPalette}
-        <div class="text-color-popover">
-          {#each NOTE_TEXT_COLORS as c}
-            <button
-              class="text-color-dot"
-              class:active={c === noteTextColor}
-              style="background:{c};"
-              title={c}
-              onclick={() => setTextColor(c)}
-            ></button>
-          {/each}
-          <div class="color-picker-row">
-            <span class="color-picker-label">{strings.customColor}</span>
-            <input
-              class="color-picker-input"
-              type="color"
-              value={textPickerValue}
-              onchange={onTextColorPickerChange}
-              aria-label={strings.customColor}
-            />
-          </div>
-        </div>
-      {/if}
-
-    </div>
+    <NoteToolbar
+      {strings}
+      {isEditing}
+      {isBlockEditor}
+      note={note}
+      showPalette={showPalette}
+      showTextColorPalette={showTextColorPalette}
+      showOpacityPanel={showOpacityPanel}
+      showFrostPanel={showFrostPanel}
+      showOpacityValue={showOpacityValue}
+      showFrostValue={showFrostValue}
+      opacityDraft={opacityDraft}
+      frostDraft={frostDraft}
+      noteBgColor={noteBgColor}
+      noteTextColor={noteTextColor}
+      backgroundPickerValue={backgroundPickerValue}
+      textPickerValue={textPickerValue}
+      noteColors={NOTE_COLORS}
+      noteTextColors={NOTE_TEXT_COLORS}
+      onToggleEdit={() => (isEditing ? exitEditMode() : enterEditMode())}
+      onToggleEditorLayoutMode={toggleEditorLayoutMode}
+      {editorModeHint}
+      onToggleTopmost={toggleTopmost}
+      onToggleMouseInteraction={toggleMouseInteraction}
+      onTogglePalette={() => (showPalette = !showPalette)}
+      onToggleTextColorPalette={() => (showTextColorPalette = !showTextColorPalette)}
+      onToggleOpacityPanel={() => (showOpacityPanel = !showOpacityPanel)}
+      onOpacityIconWheel={onOpacityIconWheel}
+      onOpacityInput={onOpacityInput}
+      onOpacityWheel={onOpacityWheel}
+      onToggleFrostPanel={() => (showFrostPanel = !showFrostPanel)}
+      onFrostIconWheel={onFrostIconWheel}
+      onFrostInput={onFrostInput}
+      onFrostWheel={onFrostWheel}
+      onToggleDone={toggleDone}
+      onToggleArchive={toggleArchive}
+      onUnpin={unpinNote}
+      onMoveToTrash={moveToTrash}
+      onSetBackgroundColor={setBackgroundColor}
+      onSetTextColor={setTextColor}
+      onBackgroundColorPickerChange={onBackgroundColorPickerChange}
+      onTextColorPickerChange={onTextColorPickerChange}
+    />
   {:else}
     <div class="loading">Loading...</div>
   {/if}
@@ -1121,449 +917,4 @@
     z-index: 1;
   }
 
-  .editor {
-    flex: 1;
-    background: transparent;
-    border: none;
-    resize: none;
-    padding: 16px;
-    font-family: "Segoe UI", sans-serif;
-    font-size: 16px;
-    outline: none;
-    overflow: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    color: var(--note-text-color, #1f2937);
-  }
-
-  .editor-shell {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .editor::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
-  }
-
-  .preview-text {
-    flex: 1;
-    padding: 16px;
-    font-family: "Segoe UI", sans-serif;
-    font-size: 16px;
-    line-height: 1.4;
-    color: var(--note-text-color, #1f2937);
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow: auto;
-    user-select: none;
-    cursor: default;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .preview-text::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
-  }
-
-  .command-popover {
-    position: absolute;
-    left: 14px;
-    right: 14px;
-    bottom: 62px;
-    max-height: 180px;
-    overflow: auto;
-    border: 1px solid rgba(148, 163, 184, 0.45);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.97);
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
-    z-index: 4;
-    padding: 4px;
-  }
-
-  .command-item {
-    width: 100%;
-    border: none;
-    border-radius: 8px;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 6px 8px;
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .command-item:hover,
-  .command-item.active {
-    background: rgba(15, 76, 129, 0.1);
-  }
-
-  .command-name {
-    font-size: 12px;
-    font-weight: 700;
-    color: #1f2937;
-  }
-
-  .command-preview {
-    font-size: 11px;
-    color: #64748b;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-left: auto;
-  }
-
-  .preview-markdown :global(h1),
-  .preview-markdown :global(h2),
-  .preview-markdown :global(h3) {
-    margin: 0 0 8px;
-    line-height: 1.3;
-  }
-
-  .preview-markdown :global(h1) {
-    font-size: 1.15rem;
-  }
-
-  .preview-markdown :global(h2) {
-    font-size: 1.05rem;
-  }
-
-  .preview-markdown :global(h3) {
-    font-size: 0.98rem;
-  }
-
-  .preview-markdown :global(p) {
-    margin: 0 0 8px;
-  }
-
-  .preview-markdown :global(ul),
-  .preview-markdown :global(ol) {
-    margin: 0 0 8px 18px;
-    padding: 0;
-  }
-
-  .preview-markdown :global(blockquote) {
-    margin: 0 0 8px;
-    padding: 4px 10px;
-    border-left: 3px solid rgba(15, 76, 129, 0.38);
-    background: rgba(255, 255, 255, 0.28);
-    border-radius: 4px;
-  }
-
-  .preview-markdown :global(hr) {
-    border: none;
-    height: 1px;
-    background: rgba(55, 65, 81, 0.2);
-    margin: 8px 0;
-  }
-
-  .preview-markdown :global(code) {
-    font-family: Consolas, "Cascadia Code", monospace;
-    background: rgba(15, 23, 42, 0.08);
-    border-radius: 4px;
-    padding: 1px 4px;
-    font-size: 0.88em;
-  }
-
-  .preview-markdown :global(pre) {
-    margin: 0 0 8px;
-    padding: 8px;
-    border-radius: 8px;
-    background: rgba(15, 23, 42, 0.1);
-    overflow: auto;
-  }
-
-  .preview-markdown :global(pre code) {
-    background: transparent;
-    padding: 0;
-  }
-
-  .preview-markdown :global(table) {
-    border-collapse: collapse;
-    margin: 0 0 8px;
-    width: 100%;
-    font-size: 0.92em;
-  }
-
-  .preview-markdown :global(img) {
-    max-width: 100%;
-    height: auto;
-    display: inline-block;
-    vertical-align: middle;
-    margin: 2px 4px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
-  }
-
-  .preview-markdown :global(th),
-  .preview-markdown :global(td) {
-    border: 1px solid rgba(55, 65, 81, 0.25);
-    padding: 4px 6px;
-  }
-
-  .preview-markdown :global(th) {
-    background: rgba(255, 255, 255, 0.45);
-    text-align: left;
-  }
-
-  .preview-markdown :global(ul.task-list) {
-    list-style: none;
-    margin-left: 0;
-  }
-
-  .preview-markdown :global(li.task-item) {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  .preview-markdown :global(li.task-item input[type="checkbox"]) {
-    margin-top: 2px;
-    accent-color: #0f4c81;
-  }
-
-  .toolbar {
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    min-height: 36px;
-    display: flex;
-    align-items: center;
-    padding: 4px 8px;
-    opacity: 0;
-    transition: opacity 0.2s;
-    gap: 2px;
-    pointer-events: none;
-    z-index: 2;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.86);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
-  }
-
-  .toolbar-drag-pad {
-    flex: 1;
-    min-height: 28px;
-  }
-
-  .toolbar-mask {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 96px;
-    background: linear-gradient(to top, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.78) 45%, rgba(255, 255, 255, 0) 100%);
-    opacity: 0;
-    transition: opacity 0.2s;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .note-window:hover .toolbar {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .note-window:hover .toolbar-mask {
-    opacity: 1;
-  }
-
-  .tool-btn {
-    width: 24px;
-    height: 24px;
-    background: rgba(255, 255, 255, 0.52);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 6px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #4b5563;
-    padding: 0;
-    font-size: 13px;
-  }
-
-  .tool-btn:hover {
-    background: rgba(255, 255, 255, 0.8);
-    color: #111827;
-  }
-
-  .tool-btn.active {
-    color: #0f4c81;
-  }
-
-  .tool-btn svg {
-    width: 14px;
-    height: 14px;
-    display: block;
-  }
-
-  .tool-btn.danger {
-    color: #b91c1c;
-  }
-
-  .tool-popover-anchor {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .color-popover {
-    position: absolute;
-    right: 84px;
-    bottom: 34px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 6px;
-    display: grid;
-    grid-template-columns: repeat(4, 18px);
-    gap: 6px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-    min-width: 104px;
-  }
-
-  .text-color-popover {
-    position: absolute;
-    right: 114px;
-    bottom: 34px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 6px;
-    display: grid;
-    grid-template-columns: repeat(4, 18px);
-    gap: 6px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-    min-width: 104px;
-  }
-
-  .color-picker-row {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding-top: 2px;
-    border-top: 1px solid rgba(148, 163, 184, 0.35);
-  }
-
-  .color-picker-label {
-    font-size: 11px;
-    color: #475569;
-    user-select: none;
-  }
-
-  .color-picker-input {
-    width: 24px;
-    height: 18px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
-    padding: 0;
-    background: transparent;
-    cursor: pointer;
-  }
-
-  .color-picker-input::-webkit-color-swatch-wrapper {
-    padding: 0;
-  }
-
-  .color-picker-input::-webkit-color-swatch {
-    border: none;
-    border-radius: 3px;
-  }
-
-  .opacity-popover {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 34px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-  }
-
-  .opacity-slider {
-    width: 110px;
-    cursor: pointer;
-  }
-
-  .opacity-value {
-    font-size: 11px;
-    color: #1f2937;
-    text-align: right;
-    font-weight: 600;
-    user-select: none;
-  }
-
-  .frost-popover {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: 34px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-  }
-
-  .frost-slider {
-    width: 110px;
-    cursor: pointer;
-  }
-
-  .frost-value {
-    font-size: 11px;
-    color: #1f2937;
-    text-align: right;
-    font-weight: 600;
-    user-select: none;
-  }
-
-  .color-dot {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .text-color-dot {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .color-dot.active {
-    outline: 2px solid #374151;
-    outline-offset: 1px;
-  }
-
-  .text-color-dot.active {
-    outline: 2px solid #374151;
-    outline-offset: 1px;
-  }
 </style>

@@ -21,6 +21,18 @@
 4. 块编辑改为单画布 WYSIWYG
  - `src/lib/components/note/BlockEditor.svelte` 从 `textarea` 切换为 `contenteditable`。
  - 页面层不再为块编辑叠加“左右编辑+预览”的旁路模式。
+5. 抽离贴纸工具栏组件
+ - 新增 `src/lib/components/note/NoteToolbar.svelte`
+ - 将颜色面板、透明度/磨砂面板、置顶/归档/删除等工具栏 UI 与样式从 `+page.svelte` 拆出。
+6. 抽离预览渲染组件
+ - 新增 `src/lib/components/note/NotePreview.svelte`
+ - 收敛预览容器与 markdown 样式，页面仅负责传入渲染结果。
+7. 抽离源码编辑区组件
+ - 新增 `src/lib/components/note/SourceEditorPane.svelte`
+ - 收敛 `textarea`、`@` 命令建议弹层与对应样式，页面仅做事件编排。
+8. 抽离主题与命令规则工具
+ - 新增 `src/lib/note/note-theme.js`（默认主题常量、颜色转换）
+ - 新增 `src/lib/note/source-command.js`（源码模式 `@` 命令 token 识别与插入）
 
 ## 对应原则收益
 1. SRP（单一职责）：
@@ -31,12 +43,14 @@
  - 组件依赖抽象工具函数而非底层选区 API 细节。
 4. ISP（接口隔离）：
  - 快捷语法匹配、块数据操作、光标定位各自模块化，减少大组件内部耦合接口。
+5. 组合复用：
+ - `NoteToolbar` 可在后续多窗口/浮层场景复用，不再耦合页面文件。
 
 ## 仍待优化（后续）
 1. `src/routes/note/[id]/+page.svelte` 体积依然较大，建议继续拆：
- - `NoteToolbar.svelte`
  - `NoteWindowFrame.svelte`
  - `SourceEditorPane.svelte`
+ - `useNoteWindowDrag.js`（窗口拖拽策略）
 2. 块编辑可继续补：
  - 选中文本浮动工具条
  - 块菜单（复制/删除/duplicate）
