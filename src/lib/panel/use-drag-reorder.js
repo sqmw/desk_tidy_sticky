@@ -24,32 +24,23 @@ export function createDragReorder(deps) {
   }
 
   /** @param {number} pointerY */
-  function findDropIndexByPointer(pointerY) {
+  function findDropInsertionIndex(pointerY) {
     const notesListEl = deps.getNotesListEl();
     const drag = deps.drag;
     if (!notesListEl || !drag.draggedNoteId) return 0;
 
-    const wrappers = notesListEl.querySelectorAll(".note-wrapper");
-    const len = wrappers.length;
-    if (len <= 1) return 0;
-
-    const activeList = drag.dragPreviewNotes ?? deps.getVisibleNotes();
-    const currentIndex = activeList.findIndex((n) => n.id === drag.draggedNoteId);
-    if (currentIndex < 0) return 0;
+    const wrappers = Array.from(notesListEl.querySelectorAll(".note-wrapper")).filter(
+      (el) => !el.classList.contains("drag-placeholder"),
+    );
+    if (wrappers.length === 0) return 0;
 
     let insertionIndex = 0;
-    for (let i = 0; i < len; i += 1) {
+    for (let i = 0; i < wrappers.length; i += 1) {
       const rect = wrappers[i].getBoundingClientRect();
       const centerY = rect.top + rect.height / 2;
       if (pointerY > centerY) insertionIndex = i + 1;
     }
-
-    let targetIndex = insertionIndex;
-    if (insertionIndex > currentIndex) {
-      targetIndex = insertionIndex - 1;
-    }
-
-    return Math.max(0, Math.min(len - 1, targetIndex));
+    return insertionIndex;
   }
 
   /** @param {number} pointerY */
@@ -118,16 +109,32 @@ export function createDragReorder(deps) {
     drag.dragGhostTop = clientY - drag.dragPointerOffsetY;
     autoScrollNotesList(clientY);
 
-    const nextTarget = findDropIndexByPointer(clientY);
-    drag.dragTargetIndex = nextTarget;
+    applyDropTargetByPointer(clientY);
+  }
 
-    if (!drag.dragPreviewNotes) return;
-    const from = drag.dragPreviewNotes.findIndex((n) => n.id === drag.draggedNoteId);
-    if (from < 0 || from === nextTarget) return;
+  /** @param {number} pointerY */
+  function applyDropTargetByPointer(pointerY) {
+    const drag = deps.drag;
+    if (!drag.draggedNoteId) return;
 
-    const next = [...drag.dragPreviewNotes];
-    const [item] = next.splice(from, 1);
-    next.splice(nextTarget, 0, item);
+    const active = drag.dragPreviewNotes ?? deps.getVisibleNotes();
+    const from = active.findIndex((n) => n.id === drag.draggedNoteId);
+    if (from < 0) return;
+
+    const insertionIndex = findDropInsertionIndex(pointerY);
+    const rest = [...active];
+    const [item] = rest.splice(from, 1);
+    const clampedInsert = Math.max(0, Math.min(rest.length, insertionIndex));
+    rest.splice(clampedInsert, 0, item);
+
+    if (clampedInsert === from) {
+      drag.dragTargetIndex = from;
+      drag.dragPreviewNotes = active;
+      return;
+    }
+
+    const next = rest;
+    drag.dragTargetIndex = clampedInsert;
     drag.dragPreviewNotes = next;
   }
 
@@ -155,7 +162,10 @@ export function createDragReorder(deps) {
 
   /** @param {PointerEvent | TouchEvent | MouseEvent} e */
   function handleVerticalDragEnd(e) {
-    void e;
+    if (deps.getCanReorder() && deps.drag.draggedNoteId) {
+      const clientY = getEventClientY(e);
+      applyDropTargetByPointer(clientY);
+    }
     void finalizeVerticalDrag();
   }
 
@@ -194,6 +204,7 @@ export function createDragReorder(deps) {
   function handleWindowPointerUp(e) {
     if (e.button !== 0) return;
     if (!deps.drag.draggedNoteId) return;
+    applyDropTargetByPointer(e.clientY);
     void finalizeVerticalDrag();
   }
 
