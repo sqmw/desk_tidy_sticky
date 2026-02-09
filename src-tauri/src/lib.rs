@@ -190,6 +190,15 @@ fn update_note_text(
 }
 
 #[tauri::command]
+fn save_clipboard_image(
+    note_id: String,
+    mime_type: String,
+    data_base64: String,
+) -> Result<String, String> {
+    notes_service::save_clipboard_image(&note_id, &mime_type, &data_base64)
+}
+
+#[tauri::command]
 fn update_note_color(
     app: tauri::AppHandle,
     id: String,
@@ -601,6 +610,7 @@ pub fn run() {
             update_note,
             update_note_position,
             update_note_text,
+            save_clipboard_image,
             update_note_color,
             update_note_text_color,
             update_note_opacity,

@@ -1,13 +1,20 @@
 <script>
   import { onMount, tick } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
+  import { convertFileSrc, invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { LogicalPosition } from "@tauri-apps/api/dpi";
   import { listen } from "@tauri-apps/api/event";
   import { page } from "$app/stores";
   import { getStrings } from "$lib/strings.js";
+  import BlockEditor from "$lib/components/note/BlockEditor.svelte";
   import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
   import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
+  import {
+    EDITOR_DISPLAY_MODE,
+    loadEditorDisplayMode,
+    nextEditorDisplayMode,
+    saveEditorDisplayMode,
+  } from "$lib/note/editor-display-mode.js";
 
   const DEFAULT_NOTE_COLOR = "#fff9c4";
   const DEFAULT_NOTE_TEXT_COLOR = "#1f2937";
@@ -50,6 +57,7 @@
   let showCommandSuggestions = $state(false);
   let commandQuery = $state("");
   let commandActiveIndex = $state(0);
+  let editorDisplayMode = $state(EDITOR_DISPLAY_MODE.BLOCKS);
   let opacityDraft = $state(DEFAULT_NOTE_OPACITY);
   let frostDraft = $state(DEFAULT_NOTE_FROST);
   /** @type {any} */
@@ -102,6 +110,8 @@
   const commandSuggestionItems = $derived(
     commandSuggestions.map((cmd) => ({ ...cmd, preview: getNoteCommandPreview(cmd) })),
   );
+  const isBlockEditor = $derived(editorDisplayMode === EDITOR_DISPLAY_MODE.BLOCKS);
+  const isSplitEditor = $derived(editorDisplayMode === EDITOR_DISPLAY_MODE.SPLIT);
 
   async function loadNote() {
     try {
@@ -202,6 +212,23 @@
 
   /** @type {any} */
   let timeout;
+
+  /**
+   * @param {Blob} blob
+   * @returns {Promise<string>}
+   */
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const raw = String(reader.result || "");
+        const base64 = raw.startsWith("data:") ? raw.split(",")[1] || "" : raw;
+        resolve(base64);
+      };
+      reader.onerror = () => reject(reader.error || new Error("read blob failed"));
+      reader.readAsDataURL(blob);
+    });
+  }
   /** @param {Event} [event] */
   function handleInput(event) {
     clearTimeout(timeout);
@@ -209,6 +236,51 @@
     const target =
       /** @type {HTMLTextAreaElement | null} */ (event?.currentTarget) || editorEl;
     updateCommandSuggestions(target);
+  }
+
+  /** @param {string} _nextText */
+  function handleBlockEditorChange(_nextText) {
+    clearTimeout(timeout);
+    timeout = setTimeout(save, 500);
+    showCommandSuggestions = false;
+    commandQuery = "";
+  }
+
+  /** @param {ClipboardEvent} event */
+  async function onEditorPaste(event) {
+    const items = event.clipboardData?.items;
+    if (!items || !editorEl) return;
+    const imageItem = Array.from(items).find(
+      (item) => item.kind === "file" && item.type.startsWith("image/"),
+    );
+    if (!imageItem) return;
+    const file = imageItem.getAsFile();
+    if (!file) return;
+
+    event.preventDefault();
+    try {
+      const dataBase64 = await blobToBase64(file);
+      const savedPath = await invoke("save_clipboard_image", {
+        noteId: note?.id || noteId,
+        mimeType: file.type || "image/png",
+        dataBase64,
+      });
+      const imageSrc = convertFileSrc(savedPath);
+      const start = editorEl.selectionStart ?? text.length;
+      const end = editorEl.selectionEnd ?? start;
+      const label = `pasted-${new Date().toISOString().replaceAll(":", "-")}`;
+      const md = `![${label}](${imageSrc})`;
+      text = text.slice(0, start) + md + text.slice(end);
+      showCommandSuggestions = false;
+      await tick();
+      const caret = start + md.length;
+      editorEl.focus();
+      editorEl.setSelectionRange(caret, caret);
+      clearTimeout(timeout);
+      timeout = setTimeout(save, 500);
+    } catch (e) {
+      console.error("onEditorPaste", e);
+    }
   }
 
   async function enterEditMode() {
@@ -227,6 +299,20 @@
     await save();
     isEditing = false;
     showCommandSuggestions = false;
+  }
+
+  function toggleEditorLayoutMode() {
+    const next = nextEditorDisplayMode(editorDisplayMode);
+    editorDisplayMode = next;
+    saveEditorDisplayMode(next);
+    showCommandSuggestions = false;
+  }
+
+  function editorModeHint() {
+    const next = nextEditorDisplayMode(editorDisplayMode);
+    if (next === EDITOR_DISPLAY_MODE.BLOCKS) return strings.editorBlockMode;
+    if (next === EDITOR_DISPLAY_MODE.SOURCE) return strings.editorSourceMode;
+    return strings.editorSplitMode;
   }
 
   async function toggleMouseInteraction() {
@@ -702,6 +788,8 @@
       }),
     );
 
+    editorDisplayMode = loadEditorDisplayMode();
+
     loadLocale()
       .then(loadOverlayInteractionState)
       .then(loadNote)
@@ -739,15 +827,26 @@
 >
   {#if note}
     {#if isEditing}
-      <textarea
-        bind:value={text}
-        bind:this={editorEl}
-        oninput={handleInput}
-        onkeydown={onEditorKeydown}
-        class="editor"
-        spellcheck="false"
-      ></textarea>
-      {#if showCommandSuggestions && commandSuggestionItems.length > 0}
+      {#if isBlockEditor}
+        <BlockEditor bind:text noteId={note?.id || noteId} onTextChange={handleBlockEditorChange} />
+      {:else}
+        <div class="editor-shell" class:split={isSplitEditor}>
+          <textarea
+            bind:value={text}
+            bind:this={editorEl}
+            oninput={handleInput}
+            onpaste={onEditorPaste}
+            onkeydown={onEditorKeydown}
+            class="editor"
+            class:split={isSplitEditor}
+            spellcheck="false"
+          ></textarea>
+          {#if isSplitEditor}
+            <div class="editor-live-preview preview-markdown">{@html renderedMarkdown}</div>
+          {/if}
+        </div>
+      {/if}
+      {#if !isBlockEditor && showCommandSuggestions && commandSuggestionItems.length > 0}
         <div class="command-popover">
           {#each commandSuggestionItems as cmd, idx (cmd.name)}
             <button
@@ -781,6 +880,33 @@
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42L18.37 3.29a1.003 1.003 0 00-1.42 0L15.13 5.1l3.75 3.75 1.83-1.81z"/></svg>
           {/if}
         </button>
+        {#if isEditing}
+          <button
+            class="tool-btn"
+            onclick={toggleEditorLayoutMode}
+            title={editorModeHint()}
+          >
+            {#if isBlockEditor}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="6" width="14" height="12" rx="2"></rect>
+                <path d="M8 10h8"></path>
+                <path d="M8 13h6"></path>
+              </svg>
+            {:else if isSplitEditor}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="5" width="16" height="14" rx="2"></rect>
+                <path d="M12 5v14"></path>
+              </svg>
+            {:else}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="5" width="16" height="14" rx="2"></rect>
+                <path d="M7.5 9h9"></path>
+                <path d="M7.5 12h9"></path>
+                <path d="M7.5 15h6"></path>
+              </svg>
+            {/if}
+          </button>
+        {/if}
 
         <button
           class="tool-btn"
@@ -963,6 +1089,53 @@
     color: var(--note-text-color, #1f2937);
   }
 
+  .editor-shell {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .editor-shell.split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
+    gap: 10px;
+    padding: 10px 10px 0;
+  }
+
+  .editor.split {
+    flex: 1;
+    min-height: 0;
+    border-right: 1px dashed rgba(100, 116, 139, 0.45);
+    padding: 6px 12px 10px 4px;
+  }
+
+  .editor-live-preview {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 12px 14px;
+    font-family: "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--note-text-color, #1f2937);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+
+  .editor-live-preview::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+
   .editor::-webkit-scrollbar {
     width: 0;
     height: 0;
@@ -1115,6 +1288,9 @@
   .preview-markdown :global(img) {
     max-width: 100%;
     height: auto;
+    display: inline-block;
+    vertical-align: middle;
+    margin: 2px 4px;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
   }

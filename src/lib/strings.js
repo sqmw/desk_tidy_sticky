@@ -60,7 +60,10 @@ const strings = {
     shortcutEsc: 'Hide/Exit Interaction: Escape',
     shortcutPinSave: 'Pin & Save: Ctrl+Enter',
     version: 'Version v1.0.0',
-    close: 'Close'
+    close: 'Close',
+    editorBlockMode: 'Block editor',
+    editorSplitMode: 'Split edit + preview',
+    editorSourceMode: 'Source only'
   },
   zh: {
     appName: 'Desk Tidy 便笺',
@@ -121,7 +124,10 @@ const strings = {
     shortcutEsc: '隐藏/退出交互: Escape (Esc)',
     shortcutPinSave: '保存并置顶: Ctrl+Enter',
     version: '版本 v1.0.0',
-    close: '关闭'
+    close: '关闭',
+    editorBlockMode: '块编辑',
+    editorSplitMode: '分栏编辑预览',
+    editorSourceMode: '仅源码'
   }
 };
 
