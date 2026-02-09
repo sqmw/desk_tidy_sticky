@@ -21,6 +21,12 @@
   } from "$lib/note/block-ops.js";
   import { matchBlockShortcut } from "$lib/note/block-shortcuts.js";
   import {
+    blobToBase64,
+    createPastedImageMarkdown,
+    findPastedImageItem,
+    normalizeBlockInput,
+  } from "$lib/note/block-editor-helpers.js";
+  import {
     getSelectionOffsets,
     isCaretAtStart,
     setSelectionOffsets,
@@ -61,23 +67,6 @@
   }
 
   /**
-   * @param {Blob} blob
-   * @returns {Promise<string>}
-   */
-  function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const raw = String(reader.result || "");
-        const base64 = raw.startsWith("data:") ? raw.split(",")[1] || "" : raw;
-        resolve(base64);
-      };
-      reader.onerror = () => reject(reader.error || new Error("read blob failed"));
-      reader.readAsDataURL(blob);
-    });
-  }
-
-  /**
    * @param {Array<{ id: string; type: string; text: string; checked: boolean }>} nextBlocks
    */
   function commit(nextBlocks) {
@@ -101,18 +90,6 @@
     const len = (input.textContent ?? "").length;
     const nextPos = Math.max(0, Math.min(pos, len));
     setSelectionOffsets(input, nextPos, nextPos);
-  }
-
-  /**
-   * @param {string} type
-   * @param {string} raw
-   */
-  function normalizeBlockInput(type, raw) {
-    const base = String(raw ?? "").replaceAll("\r", "");
-    if (type === BLOCK_TYPE.CODE) {
-      return base;
-    }
-    return base.replaceAll("\n", " ");
   }
 
   /**
@@ -297,11 +274,7 @@
    * @param {ClipboardEvent} event
    */
   async function onBlockPaste(idx, event) {
-    const items = event.clipboardData?.items;
-    if (!items) return;
-    const imageItem = Array.from(items).find(
-      (item) => item.kind === "file" && item.type.startsWith("image/"),
-    );
+    const imageItem = findPastedImageItem(event.clipboardData?.items);
     if (!imageItem) return;
     const file = imageItem.getAsFile();
     if (!file) return;
@@ -318,8 +291,7 @@
         dataBase64: base64,
       });
       const imageSrc = convertFileSrc(savedPath);
-      const stamp = new Date().toISOString().replaceAll(":", "-");
-      const md = `![pasted-${stamp}](${imageSrc})`;
+      const md = createPastedImageMarkdown(imageSrc);
 
       const current = blocks[idx];
       if (!current) return;

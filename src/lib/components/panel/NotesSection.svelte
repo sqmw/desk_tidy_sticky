@@ -2,6 +2,7 @@
   import Dismissible from "$lib/Dismissible.svelte";
   import { slide } from "svelte/transition";
   import { flip } from "svelte/animate";
+  import { buildQuadrants, filterNotesByQuadrant, nextPriority, priorityBadge } from "$lib/panel/note-priority.js";
 
   let {
     strings,
@@ -29,33 +30,11 @@
     createVerticalDragEndHandler,
   } = $props();
 
-  const QUADRANTS = [
-    { key: 1, title: () => strings.quadrantQ1, subtitle: () => strings.quadrantQ1Desc },
-    { key: 2, title: () => strings.quadrantQ2, subtitle: () => strings.quadrantQ2Desc },
-    { key: 3, title: () => strings.quadrantQ3, subtitle: () => strings.quadrantQ3Desc },
-    { key: 4, title: () => strings.quadrantQ4, subtitle: () => strings.quadrantQ4Desc },
-  ];
-
-  /** @param {number | undefined | null} p */
-  function clampPriority(p) {
-    return Math.max(1, Math.min(4, Number(p) || 4));
-  }
-
-  /** @param {number} p */
-  function nextPriority(p) {
-    const safe = clampPriority(p);
-    return safe >= 4 ? 1 : safe + 1;
-  }
-
-  /** @param {number} p */
-  function priorityBadge(p) {
-    return `Q${clampPriority(p)}`;
-  }
+  const quadrants = $derived(buildQuadrants(strings));
 
   /** @param {number} q */
   function quadrantNotes(q) {
-    const safe = clampPriority(q);
-    return renderedNotes.filter((/** @type {{ priority?: number }} */ n) => clampPriority(n.priority) === safe);
+    return filterNotesByQuadrant(renderedNotes, q);
   }
 
   /** @param {PointerEvent} e */
@@ -68,11 +47,11 @@
 
 {#if viewMode === "quadrant"}
   <div class="quadrant-board">
-    {#each QUADRANTS as q (q.key)}
+    {#each quadrants as q (q.key)}
       <section class="quadrant-cell">
         <header class="quadrant-head">
-          <h4>{q.title()}</h4>
-          <p>{q.subtitle()}</p>
+          <h4>{q.title}</h4>
+          <p>{q.subtitle}</p>
         </header>
         <div class="quadrant-list">
           {#if quadrantNotes(q.key).length === 0}

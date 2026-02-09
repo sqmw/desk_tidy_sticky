@@ -16,6 +16,7 @@
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
   import { createDragReorder } from "$lib/panel/use-drag-reorder.js";
   import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
+  import { getPreferences, updatePreferences } from "$lib/preferences/preferences-store.js";
   import PanelHeader from "$lib/components/panel/PanelHeader.svelte";
   import NotesSection from "$lib/components/panel/NotesSection.svelte";
   import EditDialog from "$lib/components/panel/EditDialog.svelte";
@@ -174,7 +175,7 @@
 
   async function loadPrefs() {
     try {
-      const p = await invoke("get_preferences");
+      const p = await getPreferences(invoke);
       hideAfterSave = p.hideAfterSave ?? true;
       viewMode = p.viewMode || "active";
       sortMode = p.sortMode || "custom";
@@ -189,8 +190,7 @@
   /** @param {any} updates */
   async function savePrefs(updates) {
     try {
-      const p = await invoke("get_preferences");
-      await invoke("set_preferences", { prefs: { ...p, ...updates } });
+      await updatePreferences(invoke, updates);
     } catch (e) {
       console.error("savePrefs", e);
     }

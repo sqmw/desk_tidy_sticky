@@ -16,7 +16,10 @@
   import WorkspaceSidebar from "$lib/components/workspace/WorkspaceSidebar.svelte";
   import WorkspaceToolbar from "$lib/components/workspace/WorkspaceToolbar.svelte";
   import WorkspaceNoteInspector from "$lib/components/workspace/WorkspaceNoteInspector.svelte";
-  import { calcInspectorLayout, calcSidebarWidth } from "$lib/workspace/layout-resize.js";
+  import { loadWorkspacePreferences, saveWorkspacePreferences, normalizeWorkspaceThemeTransitionShape } from "$lib/workspace/preferences-service.js";
+  import { tryStartWorkspaceWindowDrag } from "$lib/workspace/window-drag.js";
+  import { runWorkspaceThemeTransition } from "$lib/workspace/theme-transition.js";
+  import { createWorkspaceResizeController } from "$lib/workspace/resize-controller.js";
 
   const NOTE_VIEW_MODES = ["active", "todo", "quadrant", "archived", "trash"];
   const SORT_MODES = ["custom", "newest", "oldest"];
@@ -37,11 +40,7 @@
   let inspectorDraftText = $state("");
   let inspectorWidth = $state(430);
   let inspectorListCollapsed = $state(false);
-  let isResizingInspector = $state(false);
-  let resizePointerId = $state(-1);
   let sidebarWidth = $state(260);
-  let isResizingSidebar = $state(false);
-  let sidebarResizePointerId = $state(-1);
   let windowMaximized = $state(false);
   /** @type {HTMLDivElement | null} */
   let workbenchShellEl = $state(null);
@@ -144,12 +143,12 @@
 
   async function loadPrefs() {
     try {
-      const p = await invoke("get_preferences");
-      viewMode = p.viewMode || "active";
-      sortMode = p.sortMode || "custom";
-      locale = p.language || "en";
-      workspaceTheme = p.workspaceTheme === "dark" ? "dark" : "light";
-      themeTransitionShape = p.workspaceThemeTransitionShape === "heart" ? "heart" : "circle";
+      const next = await loadWorkspacePreferences(invoke);
+      viewMode = next.viewMode;
+      sortMode = next.sortMode;
+      locale = next.locale;
+      workspaceTheme = next.workspaceTheme;
+      themeTransitionShape = next.themeTransitionShape;
     } catch (e) {
       console.error("loadPrefs(workspace)", e);
     }
@@ -158,8 +157,7 @@
   /** @param {any} updates */
   async function savePrefs(updates) {
     try {
-      const p = await invoke("get_preferences");
-      await invoke("set_preferences", { prefs: { ...p, ...updates } });
+      await saveWorkspacePreferences(invoke, updates);
     } catch (e) {
       console.error("savePrefs(workspace)", e);
     }
@@ -247,55 +245,30 @@
     await getCurrentWindow().hide();
   }
 
-  /** @param {Element} el */
-  function isInteractiveTarget(el) {
-    return !!el.closest(
-      'button, input, select, textarea, a, [contenteditable="true"], .card, .actions, .note-text, .notes-list, .quadrant-list, [data-no-drag="true"]',
-    );
-  }
-
   /** @param {PointerEvent} e */
   async function startWorkspaceDragPointer(e) {
-    if (e.button !== 0) return;
-    const target = /** @type {Element | null} */ (e.target instanceof Element ? e.target : null);
-    if (target && isInteractiveTarget(target)) return;
     try {
-      await getCurrentWindow().startDragging();
+      await tryStartWorkspaceWindowDrag(e, getCurrentWindow);
     } catch (err) {
       console.error("startDragging(workspace) failed", err);
     }
   }
 
-  /** @param {MouseEvent | undefined} e */
-  async function toggleTheme(e) {
+  async function toggleTheme() {
     const nextTheme = workspaceTheme === "dark" ? "light" : "dark";
-    const root = document.documentElement;
-    const leftInset = 26;
-    const bottomInset = 26;
-    root.style.setProperty("--ws-vt-x", `${leftInset}px`);
-    root.style.setProperty("--ws-vt-y", `${window.innerHeight - bottomInset}px`);
-    root.dataset.wsVtShape = themeTransitionShape === "heart" ? "heart" : "circle";
-    root.classList.add("ws-vt-running");
-
-    const doc = /** @type {any} */ (document);
-    try {
-      if (typeof doc.startViewTransition === "function") {
-        const transition = doc.startViewTransition(() => {
-          workspaceTheme = nextTheme;
-        });
-        await transition.finished;
-      } else {
+    await runWorkspaceThemeTransition({
+      doc: document,
+      shape: themeTransitionShape,
+      onApplyTheme: () => {
         workspaceTheme = nextTheme;
-      }
-      await savePrefs({ workspaceTheme });
-    } finally {
-      root.classList.remove("ws-vt-running");
-    }
+      },
+    });
+    await savePrefs({ workspaceTheme });
   }
 
   /** @param {string} shape */
   async function changeThemeTransitionShape(shape) {
-    themeTransitionShape = shape === "heart" ? "heart" : "circle";
+    themeTransitionShape = normalizeWorkspaceThemeTransitionShape(shape);
     await savePrefs({ workspaceThemeTransitionShape: themeTransitionShape });
   }
 
@@ -328,79 +301,19 @@
     }
   }
 
-  function endInspectorResize() {
-    isResizingInspector = false;
-    resizePointerId = -1;
-  }
-
-  function endSidebarResize() {
-    isResizingSidebar = false;
-    sidebarResizePointerId = -1;
-  }
-
-  /** @param {number} clientX */
-  function applyInspectorResizeByClientX(clientX) {
-    if (!workbenchShellEl) return;
-    const rect = workbenchShellEl.getBoundingClientRect();
-    const next = calcInspectorLayout({ clientX, rect, isCollapsed: inspectorListCollapsed });
-    inspectorListCollapsed = next.collapsed;
-    inspectorWidth = next.width;
-  }
-
-  /** @param {PointerEvent} e */
-  function startInspectorResize(e) {
-    if (e.button !== 0) return;
-    if (!inspectorOpen) return;
-    isResizingInspector = true;
-    resizePointerId = e.pointerId;
-    const target = /** @type {HTMLElement | null} */ (e.currentTarget);
-    target?.setPointerCapture?.(e.pointerId);
-    e.preventDefault();
-  }
-
-  /** @param {number} clientX */
-  function applySidebarResizeByClientX(clientX) {
-    sidebarWidth = calcSidebarWidth(clientX);
-  }
-
-  /** @param {PointerEvent} e */
-  function startSidebarResize(e) {
-    if (e.button !== 0) return;
-    isResizingSidebar = true;
-    sidebarResizePointerId = e.pointerId;
-    const target = /** @type {HTMLElement | null} */ (e.currentTarget);
-    target?.setPointerCapture?.(e.pointerId);
-    e.preventDefault();
-  }
-
-  /** @param {PointerEvent} e */
-  function onWindowPointerMove(e) {
-    if (isResizingSidebar) {
-      if (sidebarResizePointerId !== -1 && e.pointerId !== sidebarResizePointerId) return;
-      applySidebarResizeByClientX(e.clientX);
-      return;
-    }
-    if (isResizingInspector) {
-      if (resizePointerId !== -1 && e.pointerId !== resizePointerId) return;
-      applyInspectorResizeByClientX(e.clientX);
-    }
-  }
-
-  /** @param {PointerEvent} e */
-  function onWindowPointerUp(e) {
-    if (isResizingSidebar) {
-      if (sidebarResizePointerId !== -1 && e.pointerId !== sidebarResizePointerId) return;
-      applySidebarResizeByClientX(e.clientX);
-      if (sidebarWidth <= 120) sidebarWidth = 86;
-      endSidebarResize();
-      return;
-    }
-    if (isResizingInspector) {
-      if (resizePointerId !== -1 && e.pointerId !== resizePointerId) return;
-      applyInspectorResizeByClientX(e.clientX);
-      endInspectorResize();
-    }
-  }
+  const resizeController = createWorkspaceResizeController({
+    getWorkbenchShellRect: () => workbenchShellEl?.getBoundingClientRect() ?? null,
+    getInspectorOpen: () => inspectorOpen,
+    getInspectorListCollapsed: () => inspectorListCollapsed,
+    setInspectorLayout: (next) => {
+      inspectorListCollapsed = next.collapsed;
+      inspectorWidth = next.width;
+    },
+    getSidebarWidth: () => sidebarWidth,
+    setSidebarWidth: (nextWidth) => {
+      sidebarWidth = nextWidth;
+    },
+  });
 
   onMount(() => {
     loadPrefs().then(loadNotes).then(() => emit("workspace_ready", { label: "workspace" }));
@@ -485,7 +398,7 @@
     onHideWindow={hideWindow}
   />
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="sidebar-splitter" onpointerdown={startSidebarResize} ondblclick={() => (sidebarWidth = 260)}></div>
+  <div class="sidebar-splitter" onpointerdown={resizeController.startSidebarResize} ondblclick={() => (sidebarWidth = 260)}></div>
 
   <main class="main">
     <WorkspaceWindowBar
@@ -537,7 +450,11 @@
       </div>
       {#if inspectorOpen && inspectorNote}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="inspector-splitter" onpointerdown={startInspectorResize} ondblclick={() => (inspectorWidth = 430)}></div>
+        <div
+          class="inspector-splitter"
+          onpointerdown={resizeController.startInspectorResize}
+          ondblclick={() => (inspectorWidth = 430)}
+        ></div>
         <WorkspaceNoteInspector
           {strings}
           note={inspectorNote}
@@ -555,11 +472,10 @@
 </div>
 
 <svelte:window
-  onpointermove={onWindowPointerMove}
-  onpointerup={onWindowPointerUp}
+  onpointermove={resizeController.onWindowPointerMove}
+  onpointerup={resizeController.onWindowPointerUp}
   onpointercancel={() => {
-    endSidebarResize();
-    endInspectorResize();
+    resizeController.cancelAllResizing();
   }}
 />
 
