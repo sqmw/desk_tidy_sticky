@@ -382,6 +382,9 @@
     --ws-border-soft: #d9e2ef;
     --ws-border-hover: #c6d5e8;
     --ws-border-active: #94a3b8;
+    --ws-scrollbar-track: rgba(148, 163, 184, 0.14);
+    --ws-scrollbar-thumb: rgba(71, 85, 105, 0.45);
+    --ws-scrollbar-thumb-hover: rgba(51, 65, 85, 0.62);
     height: 100vh;
     display: grid;
     grid-template-columns: 260px 1fr;
@@ -410,6 +413,9 @@
     --ws-border-soft: #31445f;
     --ws-border-hover: #415981;
     --ws-border-active: #6389c9;
+    --ws-scrollbar-track: rgba(148, 163, 184, 0.14);
+    --ws-scrollbar-thumb: rgba(148, 163, 184, 0.42);
+    --ws-scrollbar-thumb-hover: rgba(186, 201, 224, 0.58);
     background:
       radial-gradient(circle at 8% 6%, rgba(56, 189, 248, 0.12), transparent 35%),
       radial-gradient(circle at 92% 90%, rgba(251, 146, 60, 0.12), transparent 32%),

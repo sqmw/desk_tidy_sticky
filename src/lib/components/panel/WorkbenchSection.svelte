@@ -296,6 +296,30 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
+      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+  }
+
+  .workbench::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+
+  .workbench::-webkit-scrollbar-track {
+    background: var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+    border-radius: 999px;
+  }
+
+  .workbench::-webkit-scrollbar-thumb {
+    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .workbench::-webkit-scrollbar-thumb:hover {
+    background: var(--ws-scrollbar-thumb-hover, rgba(51, 65, 85, 0.62));
   }
 
   .summary {
