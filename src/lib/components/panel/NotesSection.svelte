@@ -102,6 +102,7 @@
       transition:slide={{ duration: 200, axis: "y" }}
       animate:flip={{ duration: 200 }}
       class="note-wrapper"
+      data-note-id={note.id}
       class:drag-placeholder={draggedNoteId === note.id}
       class:drop-target={dragTargetIndex === index && draggedNoteId !== note.id}
     >

@@ -17,30 +17,60 @@
  * }} deps
  */
 export function createDragReorder(deps) {
+  /** @type {boolean | null} */
+  let draggedPinned = null;
+
   /** @param {PointerEvent | TouchEvent | MouseEvent} e */
   function getEventClientY(e) {
     // @ts-ignore
     return e.touches ? e.touches[0].clientY : e.clientY;
   }
 
-  /** @param {number} pointerY */
-  function findDropInsertionIndex(pointerY) {
+  /**
+   * @param {number} pointerY
+   * @param {any[]} rest
+   * @param {boolean} pinGroup
+   */
+  function findDropInsertionIndex(pointerY, rest, pinGroup) {
     const notesListEl = deps.getNotesListEl();
     const drag = deps.drag;
     if (!notesListEl || !drag.draggedNoteId) return 0;
 
-    const wrappers = Array.from(notesListEl.querySelectorAll(".note-wrapper")).filter(
-      (el) => !el.classList.contains("drag-placeholder"),
-    );
-    if (wrappers.length === 0) return 0;
+    const wrappers = Array.from(notesListEl.querySelectorAll(".note-wrapper"))
+      .filter((el) => !el.classList.contains("drag-placeholder"));
+    if (wrappers.length === 0) return pinGroup ? 0 : rest.length;
 
-    let insertionIndex = 0;
-    for (let i = 0; i < wrappers.length; i += 1) {
-      const rect = wrappers[i].getBoundingClientRect();
-      const centerY = rect.top + rect.height / 2;
-      if (pointerY > centerY) insertionIndex = i + 1;
+    /** @type {Array<{ id: string; centerY: number }>} */
+    const wrapperRows = [];
+    for (const el of wrappers) {
+      const id = String(el.getAttribute("data-note-id") || "");
+      if (!id) continue;
+      const rect = el.getBoundingClientRect();
+      wrapperRows.push({ id, centerY: rect.top + rect.height / 2 });
     }
-    return insertionIndex;
+
+    const groupIds = rest.filter((n) => !!n?.isPinned === pinGroup).map((n) => String(n.id));
+    const groupSet = new Set(groupIds);
+    const groupRows = wrapperRows.filter((row) => groupSet.has(row.id));
+    if (groupRows.length === 0) return pinGroup ? 0 : rest.length;
+
+    let groupInsertPos = 0;
+    for (let i = 0; i < groupRows.length; i += 1) {
+      if (pointerY > groupRows[i].centerY) groupInsertPos = i + 1;
+    }
+    if (groupInsertPos <= 0) {
+      const firstId = groupRows[0].id;
+      const firstIndex = rest.findIndex((n) => String(n.id) === firstId);
+      return firstIndex >= 0 ? firstIndex : 0;
+    }
+    if (groupInsertPos >= groupRows.length) {
+      const lastId = groupRows[groupRows.length - 1].id;
+      const lastIndex = rest.findIndex((n) => String(n.id) === lastId);
+      return lastIndex >= 0 ? lastIndex + 1 : rest.length;
+    }
+    const nextId = groupRows[groupInsertPos].id;
+    const nextIndex = rest.findIndex((n) => String(n.id) === nextId);
+    return nextIndex >= 0 ? nextIndex : rest.length;
   }
 
   /** @param {number} pointerY */
@@ -88,6 +118,7 @@ export function createDragReorder(deps) {
     }
 
     drag.draggedNoteId = current.id;
+    draggedPinned = !!current.isPinned;
     drag.dragTargetIndex = index;
     drag.verticalDragStartY = clientY;
     drag.dragPreviewNotes = startList;
@@ -108,7 +139,6 @@ export function createDragReorder(deps) {
 
     drag.dragGhostTop = clientY - drag.dragPointerOffsetY;
     autoScrollNotesList(clientY);
-
     applyDropTargetByPointer(clientY);
   }
 
@@ -121,9 +151,11 @@ export function createDragReorder(deps) {
     const from = active.findIndex((n) => n.id === drag.draggedNoteId);
     if (from < 0) return;
 
-    const insertionIndex = findDropInsertionIndex(pointerY);
     const rest = [...active];
     const [item] = rest.splice(from, 1);
+    if (!item) return;
+    const pinGroup = draggedPinned ?? !!item.isPinned;
+    const insertionIndex = findDropInsertionIndex(pointerY, rest, pinGroup);
     const clampedInsert = Math.max(0, Math.min(rest.length, insertionIndex));
     rest.splice(clampedInsert, 0, item);
 
@@ -133,18 +165,15 @@ export function createDragReorder(deps) {
       return;
     }
 
-    const next = rest;
     drag.dragTargetIndex = clampedInsert;
-    drag.dragPreviewNotes = next;
+    drag.dragPreviewNotes = rest;
   }
 
   async function finalizeVerticalDrag() {
     const drag = deps.drag;
     if (!deps.getCanReorder() || !drag.draggedNoteId) return;
 
-    const originIndex = deps
-      .getVisibleNotes()
-      .findIndex((n) => n.id === drag.draggedNoteId);
+    const originIndex = deps.getVisibleNotes().findIndex((n) => n.id === drag.draggedNoteId);
     const finalVisible = drag.dragPreviewNotes ?? deps.getVisibleNotes();
     const finalIndex = finalVisible.findIndex((n) => n.id === drag.draggedNoteId);
     const shouldPersist = originIndex >= 0 && finalIndex >= 0 && originIndex !== finalIndex;
@@ -155,17 +184,16 @@ export function createDragReorder(deps) {
     drag.dragPreviewNotes = null;
     drag.dragGhostWidth = 0;
     drag.dragPointerOffsetY = 0;
+    draggedPinned = null;
 
     if (!shouldPersist) return;
     await deps.persistReorderedVisible(finalVisible);
   }
 
-  /** @param {PointerEvent | TouchEvent | MouseEvent} e */
-  function handleVerticalDragEnd(e) {
-    if (deps.getCanReorder() && deps.drag.draggedNoteId) {
-      const clientY = getEventClientY(e);
-      applyDropTargetByPointer(clientY);
-    }
+  /** @param {PointerEvent | TouchEvent | MouseEvent} _e */
+  function handleVerticalDragEnd(_e) {
+    // Keep final order exactly as previewed during drag move.
+    // Recomputing insertion on pointerup can shift by one slot in fast drags.
     void finalizeVerticalDrag();
   }
 
@@ -204,12 +232,13 @@ export function createDragReorder(deps) {
   function handleWindowPointerUp(e) {
     if (e.button !== 0) return;
     if (!deps.drag.draggedNoteId) return;
-    applyDropTargetByPointer(e.clientY);
+    // Keep final order exactly as previewed during drag move.
     void finalizeVerticalDrag();
   }
 
   function handleWindowPointerCancel() {
     if (!deps.drag.draggedNoteId) return;
+    draggedPinned = null;
     void finalizeVerticalDrag();
   }
 
