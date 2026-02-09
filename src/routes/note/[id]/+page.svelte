@@ -83,6 +83,8 @@
   const noteFrost = $derived(note?.frost ?? DEFAULT_NOTE_FROST);
   const noteFrostBlur = $derived((4 + noteFrost * 16).toFixed(2));
   const noteFrostOverlay = $derived((0.04 + noteFrost * 0.24).toFixed(3));
+  const backgroundPickerValue = $derived(toColorPickerHex(noteBgColor, DEFAULT_NOTE_COLOR));
+  const textPickerValue = $derived(toColorPickerHex(noteTextColor, DEFAULT_NOTE_TEXT_COLOR));
 
   /**
    * @param {string} hex
@@ -102,6 +104,20 @@
     const g = (n >> 8) & 255;
     const b = n & 255;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  /**
+   * @param {string} value
+   * @param {string} fallback
+   */
+  function toColorPickerHex(value, fallback) {
+    const raw = String(value || "").trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
+    if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+      const [r, g, b] = raw.slice(1).split("");
+      return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    }
+    return fallback;
   }
 
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
@@ -428,9 +444,13 @@
     }
   }
 
-  /** @param {string} color */
-  async function setBackgroundColor(color) {
+  /**
+   * @param {string} color
+   * @param {{ closePopover?: boolean }} [options]
+   */
+  async function setBackgroundColor(color, options = {}) {
     if (!note) return;
+    const closePopover = options.closePopover ?? true;
     try {
       const all = await invoke("update_note_color", {
         // @ts-ignore
@@ -442,15 +462,21 @@
       if (updated) {
         note = updated;
       }
-      showPalette = false;
+      if (closePopover) {
+        showPalette = false;
+      }
     } catch (e) {
       console.error("setBackgroundColor", e);
     }
   }
 
-  /** @param {string} color */
-  async function setTextColor(color) {
+  /**
+   * @param {string} color
+   * @param {{ closePopover?: boolean }} [options]
+   */
+  async function setTextColor(color, options = {}) {
     if (!note) return;
+    const closePopover = options.closePopover ?? true;
     try {
       const all = await invoke("update_note_text_color", {
         // @ts-ignore
@@ -462,10 +488,24 @@
       if (updated) {
         note = updated;
       }
-      showTextColorPalette = false;
+      if (closePopover) {
+        showTextColorPalette = false;
+      }
     } catch (e) {
       console.error("setTextColor", e);
     }
+  }
+
+  /** @param {Event} e */
+  function onBackgroundColorPickerChange(e) {
+    const target = /** @type {HTMLInputElement} */ (e.currentTarget);
+    setBackgroundColor(target.value, { closePopover: false });
+  }
+
+  /** @param {Event} e */
+  function onTextColorPickerChange(e) {
+    const target = /** @type {HTMLInputElement} */ (e.currentTarget);
+    setTextColor(target.value, { closePopover: false });
   }
 
   /**
@@ -995,8 +1035,6 @@
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
       </button>
 
-      <button class="tool-btn" onclick={() => getCurrentWindow().close()} title={strings.close}>✕</button>
-
       {#if showPalette}
         <div class="color-popover">
           {#each NOTE_COLORS as c}
@@ -1008,6 +1046,16 @@
               onclick={() => setBackgroundColor(c)}
             ></button>
           {/each}
+          <div class="color-picker-row">
+            <span class="color-picker-label">{strings.customColor}</span>
+            <input
+              class="color-picker-input"
+              type="color"
+              value={backgroundPickerValue}
+              onchange={onBackgroundColorPickerChange}
+              aria-label={strings.customColor}
+            />
+          </div>
         </div>
       {/if}
       {#if showTextColorPalette}
@@ -1021,6 +1069,16 @@
               onclick={() => setTextColor(c)}
             ></button>
           {/each}
+          <div class="color-picker-row">
+            <span class="color-picker-label">{strings.customColor}</span>
+            <input
+              class="color-picker-input"
+              type="color"
+              value={textPickerValue}
+              onchange={onTextColorPickerChange}
+              aria-label={strings.customColor}
+            />
+          </div>
         </div>
       {/if}
 
@@ -1372,6 +1430,7 @@
     grid-template-columns: repeat(4, 18px);
     gap: 6px;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+    min-width: 104px;
   }
 
   .text-color-popover {
@@ -1386,6 +1445,42 @@
     grid-template-columns: repeat(4, 18px);
     gap: 6px;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+    min-width: 104px;
+  }
+
+  .color-picker-row {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 2px;
+    border-top: 1px solid rgba(148, 163, 184, 0.35);
+  }
+
+  .color-picker-label {
+    font-size: 11px;
+    color: #475569;
+    user-select: none;
+  }
+
+  .color-picker-input {
+    width: 24px;
+    height: 18px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .color-picker-input::-webkit-color-swatch-wrapper {
+    padding: 0;
+  }
+
+  .color-picker-input::-webkit-color-swatch {
+    border: none;
+    border-radius: 3px;
   }
 
   .opacity-popover {
