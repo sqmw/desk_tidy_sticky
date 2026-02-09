@@ -6,6 +6,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { page } from "$app/stores";
   import { getStrings } from "$lib/strings.js";
+  import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
   import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
 
   const DEFAULT_NOTE_COLOR = "#fff9c4";
@@ -46,6 +47,9 @@
   let showOpacityValue = $state(false);
   let showFrostValue = $state(false);
   let isEditing = $state(false);
+  let showCommandSuggestions = $state(false);
+  let commandQuery = $state("");
+  let commandActiveIndex = $state(0);
   let opacityDraft = $state(DEFAULT_NOTE_OPACITY);
   let frostDraft = $state(DEFAULT_NOTE_FROST);
   /** @type {any} */
@@ -94,6 +98,10 @@
 
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
   const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
+  const commandSuggestions = $derived(filterNoteCommands(commandQuery));
+  const commandSuggestionItems = $derived(
+    commandSuggestions.map((cmd) => ({ ...cmd, preview: getNoteCommandPreview(cmd) })),
+  );
 
   async function loadNote() {
     try {
@@ -180,15 +188,11 @@
 
   async function save() {
     if (!note) return;
-    const transformed = expandNoteCommands(text).trimEnd();
-    if (transformed !== text) {
-      text = transformed;
-    }
     try {
       await invoke("update_note_text", {
         // @ts-ignore
         id: note.id,
-        text: transformed,
+        text,
         sortMode: "custom",
       });
     } catch (e) {
@@ -198,9 +202,13 @@
 
   /** @type {any} */
   let timeout;
-  function handleInput() {
+  /** @param {Event} [event] */
+  function handleInput(event) {
     clearTimeout(timeout);
     timeout = setTimeout(save, 500);
+    const target =
+      /** @type {HTMLTextAreaElement | null} */ (event?.currentTarget) || editorEl;
+    updateCommandSuggestions(target);
   }
 
   async function enterEditMode() {
@@ -218,6 +226,7 @@
   async function exitEditMode() {
     await save();
     isEditing = false;
+    showCommandSuggestions = false;
   }
 
   async function toggleMouseInteraction() {
@@ -512,9 +521,83 @@
     onFrostWheel(e);
   }
 
+  /**
+   * @param {HTMLTextAreaElement | null} target
+   */
+  function updateCommandSuggestions(target) {
+    if (!target) {
+      showCommandSuggestions = false;
+      return;
+    }
+    const caret = target.selectionStart ?? 0;
+    const beforeCaret = text.slice(0, caret);
+    const token = /(^|\s)@([a-zA-Z]*)$/.exec(beforeCaret);
+    if (!token) {
+      showCommandSuggestions = false;
+      commandQuery = "";
+      return;
+    }
+    commandQuery = token[2] || "";
+    showCommandSuggestions = true;
+    commandActiveIndex = 0;
+  }
+
+  /**
+   * @param {number} index
+   */
+  async function applyCommandSuggestion(index) {
+    if (!editorEl) return;
+    const items = commandSuggestions;
+    if (!items.length) return;
+    const selected = items[Math.max(0, Math.min(index, items.length - 1))];
+    const caret = editorEl.selectionStart ?? 0;
+    const beforeCaret = text.slice(0, caret);
+    const token = /(^|\s)@([a-zA-Z]*)$/.exec(beforeCaret);
+    if (!token) return;
+
+    const tokenLen = (token[2] || "").length + 1;
+    const tokenStart = beforeCaret.length - tokenLen;
+    const suffix = text.slice(caret);
+    const nextText = text.slice(0, tokenStart) + selected.insert + suffix;
+    const transformed = expandNoteCommands(nextText);
+    text = transformed;
+    showCommandSuggestions = false;
+    commandQuery = "";
+    await tick();
+    const nextCaret = Math.max(0, transformed.length - suffix.length);
+    editorEl.focus();
+    editorEl.setSelectionRange(nextCaret, nextCaret);
+    clearTimeout(timeout);
+    timeout = setTimeout(save, 500);
+  }
+
+  /** @param {KeyboardEvent} e */
+  function onEditorKeydown(e) {
+    if (!showCommandSuggestions || commandSuggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      commandActiveIndex = Math.min(
+        commandActiveIndex + 1,
+        commandSuggestions.length - 1,
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      commandActiveIndex = Math.max(commandActiveIndex - 1, 0);
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      applyCommandSuggestion(commandActiveIndex);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      showCommandSuggestions = false;
+    }
+  }
+
   /** @param {HTMLElement | null} target */
   function dismissFloatingPanelsOnPointerDown(target) {
     if (!target) return;
+    if (showCommandSuggestions && !target.closest(".command-popover")) {
+      showCommandSuggestions = false;
+    }
 
     if (showPalette && !target.closest(".color-popover") && !target.closest(".color-trigger")) {
       showPalette = false;
@@ -660,9 +743,25 @@
         bind:value={text}
         bind:this={editorEl}
         oninput={handleInput}
+        onkeydown={onEditorKeydown}
         class="editor"
         spellcheck="false"
       ></textarea>
+      {#if showCommandSuggestions && commandSuggestionItems.length > 0}
+        <div class="command-popover">
+          {#each commandSuggestionItems as cmd, idx (cmd.name)}
+            <button
+              class="command-item"
+              class:active={idx === commandActiveIndex}
+              onclick={() => applyCommandSuggestion(idx)}
+              type="button"
+            >
+              <span class="command-name">{cmd.name}</span>
+              <span class="command-preview">{cmd.preview}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
     {:else}
       <div class="preview-text preview-markdown">{@html renderedMarkdown}</div>
     {/if}
@@ -892,6 +991,55 @@
     display: none;
   }
 
+  .command-popover {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 62px;
+    max-height: 180px;
+    overflow: auto;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+    z-index: 4;
+    padding: 4px;
+  }
+
+  .command-item {
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .command-item:hover,
+  .command-item.active {
+    background: rgba(15, 76, 129, 0.1);
+  }
+
+  .command-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .command-preview {
+    font-size: 11px;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-left: auto;
+  }
+
   .preview-markdown :global(h1),
   .preview-markdown :global(h2),
   .preview-markdown :global(h3) {
@@ -929,6 +1077,13 @@
     border-radius: 4px;
   }
 
+  .preview-markdown :global(hr) {
+    border: none;
+    height: 1px;
+    background: rgba(55, 65, 81, 0.2);
+    margin: 8px 0;
+  }
+
   .preview-markdown :global(code) {
     font-family: Consolas, "Cascadia Code", monospace;
     background: rgba(15, 23, 42, 0.08);
@@ -957,6 +1112,13 @@
     font-size: 0.92em;
   }
 
+  .preview-markdown :global(img) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
+  }
+
   .preview-markdown :global(th),
   .preview-markdown :global(td) {
     border: 1px solid rgba(55, 65, 81, 0.25);
@@ -966,6 +1128,22 @@
   .preview-markdown :global(th) {
     background: rgba(255, 255, 255, 0.45);
     text-align: left;
+  }
+
+  .preview-markdown :global(ul.task-list) {
+    list-style: none;
+    margin-left: 0;
+  }
+
+  .preview-markdown :global(li.task-item) {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .preview-markdown :global(li.task-item input[type="checkbox"]) {
+    margin-top: 2px;
+    accent-color: #0f4c81;
   }
 
   .toolbar {
