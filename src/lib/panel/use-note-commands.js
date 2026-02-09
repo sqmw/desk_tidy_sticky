@@ -1,3 +1,5 @@
+import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
+
 /**
  * @param {{
  *   invoke: typeof import("@tauri-apps/api/core").invoke;
@@ -28,7 +30,7 @@ export function createNoteCommands(deps) {
   }
 
   async function saveNote(pin = false) {
-    const text = deps.getNewNoteText().trim();
+    const text = expandNoteCommands(deps.getNewNoteText().trim()).trim();
     if (!text) return;
 
     try {

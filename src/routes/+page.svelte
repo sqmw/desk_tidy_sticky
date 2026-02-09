@@ -11,6 +11,7 @@
 
   import { getStrings } from "$lib/strings.js";
   import { matchNote } from "$lib/note-search.js";
+  import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
   import { createDragReorder } from "$lib/panel/use-drag-reorder.js";
@@ -212,14 +213,15 @@
   }
 
   async function submitEdit() {
-    if (!editingNote || !editText.trim()) {
+    const transformed = expandNoteCommands(editText.trim()).trim();
+    if (!editingNote || !transformed) {
       showEditDialog = false;
       return;
     }
     try {
       await invoke("update_note_text", {
         id: editingNote.id,
-        text: editText.trim(),
+        text: transformed,
         sortMode,
       });
       await loadNotes();

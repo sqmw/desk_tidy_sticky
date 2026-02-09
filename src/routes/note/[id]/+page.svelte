@@ -6,6 +6,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { page } from "$app/stores";
   import { getStrings } from "$lib/strings.js";
+  import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
 
   const DEFAULT_NOTE_COLOR = "#fff9c4";
   const DEFAULT_NOTE_TEXT_COLOR = "#1f2937";
@@ -92,6 +93,7 @@
   }
 
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
+  const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
 
   async function loadNote() {
     try {
@@ -178,11 +180,15 @@
 
   async function save() {
     if (!note) return;
+    const transformed = expandNoteCommands(text).trimEnd();
+    if (transformed !== text) {
+      text = transformed;
+    }
     try {
       await invoke("update_note_text", {
         // @ts-ignore
         id: note.id,
-        text,
+        text: transformed,
         sortMode: "custom",
       });
     } catch (e) {
@@ -658,7 +664,7 @@
         spellcheck="false"
       ></textarea>
     {:else}
-      <div class="preview-text">{text || note.text}</div>
+      <div class="preview-text preview-markdown">{@html renderedMarkdown}</div>
     {/if}
 
     <div class="toolbar-mask" aria-hidden="true"></div>
@@ -884,6 +890,82 @@
     width: 0;
     height: 0;
     display: none;
+  }
+
+  .preview-markdown :global(h1),
+  .preview-markdown :global(h2),
+  .preview-markdown :global(h3) {
+    margin: 0 0 8px;
+    line-height: 1.3;
+  }
+
+  .preview-markdown :global(h1) {
+    font-size: 1.15rem;
+  }
+
+  .preview-markdown :global(h2) {
+    font-size: 1.05rem;
+  }
+
+  .preview-markdown :global(h3) {
+    font-size: 0.98rem;
+  }
+
+  .preview-markdown :global(p) {
+    margin: 0 0 8px;
+  }
+
+  .preview-markdown :global(ul),
+  .preview-markdown :global(ol) {
+    margin: 0 0 8px 18px;
+    padding: 0;
+  }
+
+  .preview-markdown :global(blockquote) {
+    margin: 0 0 8px;
+    padding: 4px 10px;
+    border-left: 3px solid rgba(15, 76, 129, 0.38);
+    background: rgba(255, 255, 255, 0.28);
+    border-radius: 4px;
+  }
+
+  .preview-markdown :global(code) {
+    font-family: Consolas, "Cascadia Code", monospace;
+    background: rgba(15, 23, 42, 0.08);
+    border-radius: 4px;
+    padding: 1px 4px;
+    font-size: 0.88em;
+  }
+
+  .preview-markdown :global(pre) {
+    margin: 0 0 8px;
+    padding: 8px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.1);
+    overflow: auto;
+  }
+
+  .preview-markdown :global(pre code) {
+    background: transparent;
+    padding: 0;
+  }
+
+  .preview-markdown :global(table) {
+    border-collapse: collapse;
+    margin: 0 0 8px;
+    width: 100%;
+    font-size: 0.92em;
+  }
+
+  .preview-markdown :global(th),
+  .preview-markdown :global(td) {
+    border: 1px solid rgba(55, 65, 81, 0.25);
+    padding: 4px 6px;
+  }
+
+  .preview-markdown :global(th) {
+    background: rgba(255, 255, 255, 0.45);
+    text-align: left;
   }
 
   .toolbar {
