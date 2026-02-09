@@ -6,8 +6,6 @@
     draftText = $bindable(""),
     formatDate,
     onClose = () => {},
-    expanded = false,
-    onToggleExpand = () => {},
     onStartEdit = () => {},
     onCancelEdit = () => {},
     onSave = () => {},
@@ -52,9 +50,6 @@
           <button type="button" class="btn primary" onclick={() => onSave()}>{strings.saveNote}</button>
           <button type="button" class="btn" onclick={() => onCancelEdit()}>{strings.cancel}</button>
         {/if}
-        <button type="button" class="btn" onclick={() => onToggleExpand()}>
-          {expanded ? strings.inspectorRestore : strings.inspectorExpand}
-        </button>
         <button type="button" class="btn danger" onclick={() => onClose()}>{strings.close}</button>
       </div>
     </header>
@@ -138,9 +133,21 @@
   }
 
   .btn.danger {
-    border-color: #fecaca;
-    background: #fff5f5;
-    color: #b91c1c;
+    border-color: var(--ws-border-soft, #dbe4ef);
+    background: var(--ws-btn-bg, #fbfdff);
+    color: var(--ws-text, #334155);
+  }
+
+  :global(.workspace.theme-dark) .btn.danger {
+    border-color: var(--ws-border-soft, #31445f);
+    background: var(--ws-btn-bg, #1a2740);
+    color: var(--ws-text, #c6d0dd);
+  }
+
+  :global(.workspace.theme-dark) .btn.danger:hover {
+    border-color: color-mix(in srgb, #f97316 48%, var(--ws-border-hover, #415981));
+    background: color-mix(in srgb, #7c2d12 26%, var(--ws-btn-hover, #233454));
+    color: #ffe7d6;
   }
 
   .content {

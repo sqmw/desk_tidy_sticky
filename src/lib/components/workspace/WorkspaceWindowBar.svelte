@@ -3,12 +3,45 @@
     strings,
     theme,
     isMaximized = false,
+    themeTransitionShape = "circle",
     onDragStart,
     onBackToCompact,
     onHide,
     onToggleTheme,
     onToggleMaximize,
+    onChangeThemeTransitionShape = () => {},
   } = $props();
+
+  let showThemeMenu = $state(false);
+  let menuX = $state(0);
+  let menuY = $state(0);
+  /** @type {HTMLElement | null} */
+  let themeBtnEl = $state(null);
+  /** @type {HTMLElement | null} */
+  let themeMenuEl = $state(null);
+
+  /** @param {MouseEvent} e */
+  function onThemeContextMenu(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    menuX = e.clientX;
+    menuY = e.clientY;
+    showThemeMenu = true;
+  }
+
+  /** @param {string} shape */
+  function selectThemeShape(shape) {
+    onChangeThemeTransitionShape(shape);
+    showThemeMenu = false;
+  }
+
+  /** @param {PointerEvent} e */
+  function onWindowPointerDown(e) {
+    const target = /** @type {Element | null} */ (e.target instanceof Element ? e.target : null);
+    if (!target) return;
+    if (target === themeBtnEl || themeBtnEl?.contains(target) || themeMenuEl?.contains(target)) return;
+    showThemeMenu = false;
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -22,7 +55,9 @@
       <button
         type="button"
         class="bar-btn icon-btn"
-        onclick={onToggleTheme}
+        bind:this={themeBtnEl}
+        onclick={(e) => onToggleTheme(e)}
+        oncontextmenu={onThemeContextMenu}
         onpointerdown={(e) => e.stopPropagation()}
         title={theme === "dark" ? strings.themeLight : strings.themeDark}
       >
@@ -66,6 +101,31 @@
     </div>
   </div>
 </header>
+
+{#if showThemeMenu}
+  <div class="theme-menu" bind:this={themeMenuEl} style={`left:${menuX}px;top:${menuY}px;`}>
+    <button
+      type="button"
+      class="theme-item"
+      class:active={themeTransitionShape === "circle"}
+      onclick={() => selectThemeShape("circle")}
+    >
+      <span class="shape circle"></span>
+      <span>{strings.themeTransitionCircle}</span>
+    </button>
+    <button
+      type="button"
+      class="theme-item"
+      class:active={themeTransitionShape === "heart"}
+      onclick={() => selectThemeShape("heart")}
+    >
+      <span class="shape heart">❤</span>
+      <span>{strings.themeTransitionHeart}</span>
+    </button>
+  </div>
+{/if}
+
+<svelte:window onpointerdown={onWindowPointerDown} />
 
 {#snippet iconMoon()}
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7">
@@ -203,13 +263,81 @@
   }
 
   .bar-btn.close {
-    border-color: color-mix(in srgb, #ef4444 34%, var(--ws-border-soft, #d8e2ef));
-    color: color-mix(in srgb, #b91c1c 84%, var(--ws-text, #334155));
-    background: color-mix(in srgb, #fff1f2 65%, var(--ws-btn-bg, #fff));
+    border-color: var(--ws-border-soft, #d8e2ef);
+    color: var(--ws-text, #334155);
+    background: var(--ws-btn-bg, #fff);
   }
 
   .bar-btn.close:hover {
-    border-color: color-mix(in srgb, #ef4444 46%, var(--ws-border-hover, #c6d5e8));
-    background: color-mix(in srgb, #ffe4e6 74%, var(--ws-btn-hover, #f4f8ff));
+    border-color: var(--ws-border-hover, #c6d5e8);
+    background: var(--ws-btn-hover, #f4f8ff);
+  }
+
+  :global(.workspace.theme-dark) .bar-btn.close {
+    border-color: var(--ws-border-soft, #31445f);
+    color: var(--ws-text, #c6d0dd);
+    background: var(--ws-btn-bg, #1a2740);
+  }
+
+  :global(.workspace.theme-dark) .bar-btn.close:hover {
+    border-color: color-mix(in srgb, #f97316 48%, var(--ws-border-hover, #415981));
+    color: #ffe7d6;
+    background: color-mix(in srgb, #7c2d12 26%, var(--ws-btn-hover, #233454));
+  }
+
+  .theme-menu {
+    position: fixed;
+    z-index: 2200;
+    min-width: 150px;
+    padding: 6px;
+    border: 1px solid var(--ws-border-soft, #d8e2ef);
+    border-radius: 10px;
+    background: var(--ws-panel-bg, rgba(255, 255, 255, 0.92));
+    backdrop-filter: blur(8px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+    display: grid;
+    gap: 4px;
+  }
+
+  .theme-item {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ws-text, #334155);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+  }
+
+  .theme-item:hover {
+    background: var(--ws-btn-hover, #f4f8ff);
+    border-color: var(--ws-border-hover, #c6d5e8);
+  }
+
+  .theme-item.active {
+    background: var(--ws-btn-hover, #f4f8ff);
+    border-color: var(--ws-border-active, #94a3b8);
+  }
+
+  .shape {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ws-accent, #1d4ed8);
+  }
+
+  .shape.circle {
+    border-radius: 999px;
+    border: 1.5px solid currentColor;
+  }
+
+  .shape.heart {
+    font-size: 14px;
+    line-height: 1;
   }
 </style>

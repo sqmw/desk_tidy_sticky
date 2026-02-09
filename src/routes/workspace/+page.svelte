@@ -16,6 +16,8 @@
   import WorkspaceSidebar from "$lib/components/workspace/WorkspaceSidebar.svelte";
   import WorkspaceToolbar from "$lib/components/workspace/WorkspaceToolbar.svelte";
   import WorkspaceNoteInspector from "$lib/components/workspace/WorkspaceNoteInspector.svelte";
+  import WorkspaceThemeTransition from "$lib/components/workspace/WorkspaceThemeTransition.svelte";
+  import { calcInspectorLayout, calcSidebarWidth } from "$lib/workspace/layout-resize.js";
 
   const NOTE_VIEW_MODES = ["active", "todo", "quadrant", "archived", "trash"];
   const SORT_MODES = ["custom", "newest", "oldest"];
@@ -34,9 +36,8 @@
   let inspectorNoteId = $state(null);
   let inspectorMode = $state("view");
   let inspectorDraftText = $state("");
-  let inspectorExpanded = $state(false);
   let inspectorWidth = $state(430);
-  let inspectorPrevWidth = $state(430);
+  let inspectorListCollapsed = $state(false);
   let isResizingInspector = $state(false);
   let resizePointerId = $state(-1);
   let sidebarWidth = $state(260);
@@ -49,6 +50,11 @@
   let stickiesVisible = $state(true);
   let interactionDisabled = $state(false);
   let workspaceTheme = $state("light");
+  let themeTransitionShape = $state("circle");
+  let transitionActive = $state(false);
+  let transitionX = $state(0);
+  let transitionY = $state(0);
+  let transitionTargetTheme = $state("light");
   let sidebarCollapsed = $derived(sidebarWidth <= 104);
 
   const strings = $derived(getStrings(locale));
@@ -148,6 +154,7 @@
       sortMode = p.sortMode || "custom";
       locale = p.language || "en";
       workspaceTheme = p.workspaceTheme === "dark" ? "dark" : "light";
+      themeTransitionShape = p.workspaceThemeTransitionShape === "heart" ? "heart" : "circle";
     } catch (e) {
       console.error("loadPrefs(workspace)", e);
     }
@@ -184,7 +191,7 @@
     inspectorNoteId = null;
     inspectorMode = "view";
     inspectorDraftText = "";
-    inspectorExpanded = false;
+    inspectorListCollapsed = false;
   }
 
   function startInspectorEdit() {
@@ -264,9 +271,30 @@
     }
   }
 
-  async function toggleTheme() {
-    workspaceTheme = workspaceTheme === "dark" ? "light" : "dark";
+  /** @param {MouseEvent | undefined} e */
+  async function toggleTheme(e) {
+    const nextTheme = workspaceTheme === "dark" ? "light" : "dark";
+    const btn = /** @type {HTMLElement | null} */ (e?.currentTarget instanceof HTMLElement ? e.currentTarget : null);
+    const rect = btn?.getBoundingClientRect();
+    transitionX = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    transitionY = rect ? rect.top + rect.height / 2 : 48;
+    transitionTargetTheme = nextTheme;
+    transitionActive = false;
+    queueMicrotask(() => {
+      transitionActive = true;
+    });
+
+    workspaceTheme = nextTheme;
     await savePrefs({ workspaceTheme });
+    setTimeout(() => {
+      transitionActive = false;
+    }, 620);
+  }
+
+  /** @param {string} shape */
+  async function changeThemeTransitionShape(shape) {
+    themeTransitionShape = shape === "heart" ? "heart" : "circle";
+    await savePrefs({ workspaceThemeTransitionShape: themeTransitionShape });
   }
 
   async function toggleInteraction() {
@@ -298,23 +326,6 @@
     }
   }
 
-  function toggleInspectorExpanded() {
-    if (!workbenchShellEl) {
-      inspectorExpanded = !inspectorExpanded;
-      return;
-    }
-    if (!inspectorExpanded) {
-      inspectorPrevWidth = inspectorWidth;
-      const rect = workbenchShellEl.getBoundingClientRect();
-      const max = Math.max(420, Math.floor(rect.width * 0.78));
-      inspectorWidth = max;
-      inspectorExpanded = true;
-      return;
-    }
-    inspectorWidth = Math.max(340, inspectorPrevWidth || 430);
-    inspectorExpanded = false;
-  }
-
   function endInspectorResize() {
     isResizingInspector = false;
     resizePointerId = -1;
@@ -329,16 +340,15 @@
   function applyInspectorResizeByClientX(clientX) {
     if (!workbenchShellEl) return;
     const rect = workbenchShellEl.getBoundingClientRect();
-    const min = 340;
-    const max = Math.max(420, Math.floor(rect.width * 0.78));
-    const next = Math.round(rect.right - clientX);
-    inspectorWidth = Math.max(min, Math.min(max, next));
+    const next = calcInspectorLayout({ clientX, rect, isCollapsed: inspectorListCollapsed });
+    inspectorListCollapsed = next.collapsed;
+    inspectorWidth = next.width;
   }
 
   /** @param {PointerEvent} e */
   function startInspectorResize(e) {
     if (e.button !== 0) return;
-    if (!inspectorOpen || inspectorExpanded) return;
+    if (!inspectorOpen) return;
     isResizingInspector = true;
     resizePointerId = e.pointerId;
     const target = /** @type {HTMLElement | null} */ (e.currentTarget);
@@ -348,9 +358,7 @@
 
   /** @param {number} clientX */
   function applySidebarResizeByClientX(clientX) {
-    const min = 86;
-    const max = 260;
-    sidebarWidth = Math.max(min, Math.min(max, Math.round(clientX)));
+    sidebarWidth = calcSidebarWidth(clientX);
   }
 
   /** @param {PointerEvent} e */
@@ -451,7 +459,7 @@
 
   $effect(() => {
     if (inspectorOpen) return;
-    inspectorExpanded = false;
+    inspectorListCollapsed = false;
   });
 </script>
 
@@ -482,11 +490,13 @@
       {strings}
       theme={workspaceTheme}
       isMaximized={windowMaximized}
+      {themeTransitionShape}
       onDragStart={startWorkspaceDragPointer}
       onBackToCompact={switchToCompact}
       onHide={hideWindow}
       onToggleMaximize={toggleWindowMaximize}
       onToggleTheme={toggleTheme}
+      onChangeThemeTransitionShape={changeThemeTransitionShape}
     />
 
     <WorkspaceToolbar
@@ -502,6 +512,7 @@
     <div
       class="workbench-shell"
       class:inspector-open={inspectorOpen}
+      class:list-collapsed={inspectorListCollapsed}
       bind:this={workbenchShellEl}
       style={`--inspector-width: ${inspectorWidth}px;`}
     >
@@ -529,11 +540,9 @@
           {strings}
           note={inspectorNote}
           mode={inspectorMode}
-          expanded={inspectorExpanded}
           bind:draftText={inspectorDraftText}
           {formatDate}
           onClose={closeInspector}
-          onToggleExpand={toggleInspectorExpanded}
           onStartEdit={startInspectorEdit}
           onCancelEdit={cancelInspectorEdit}
           onSave={saveInspectorEdit}
@@ -542,6 +551,14 @@
     </div>
   </main>
 </div>
+
+<WorkspaceThemeTransition
+  active={transitionActive}
+  shape={themeTransitionShape}
+  x={transitionX}
+  y={transitionY}
+  targetTheme={transitionTargetTheme}
+/>
 
 <svelte:window
   onpointermove={onWindowPointerMove}
@@ -652,6 +669,10 @@
     grid-template-columns: minmax(0, 1fr) 8px minmax(340px, var(--inspector-width, 430px));
   }
 
+  .workbench-shell.inspector-open.list-collapsed {
+    grid-template-columns: 0 8px minmax(340px, 1fr);
+  }
+
   .inspector-splitter {
     border-radius: 999px;
     background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 70%, transparent);
@@ -680,6 +701,8 @@
 
   .workbench-pane {
     min-height: 0;
+    min-width: 0;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
   }
