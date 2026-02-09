@@ -23,14 +23,95 @@
     togglePin,
     toggleZOrder,
     toggleDone,
+    updatePriority,
     createVerticalDragStartHandler,
     createVerticalDragMoveHandler,
     createVerticalDragEndHandler,
   } = $props();
+
+  const QUADRANTS = [
+    { key: 1, title: () => strings.quadrantQ1, subtitle: () => strings.quadrantQ1Desc },
+    { key: 2, title: () => strings.quadrantQ2, subtitle: () => strings.quadrantQ2Desc },
+    { key: 3, title: () => strings.quadrantQ3, subtitle: () => strings.quadrantQ3Desc },
+    { key: 4, title: () => strings.quadrantQ4, subtitle: () => strings.quadrantQ4Desc },
+  ];
+
+  /** @param {number | undefined | null} p */
+  function clampPriority(p) {
+    return Math.max(1, Math.min(4, Number(p) || 4));
+  }
+
+  /** @param {number} p */
+  function nextPriority(p) {
+    const safe = clampPriority(p);
+    return safe >= 4 ? 1 : safe + 1;
+  }
+
+  /** @param {number} p */
+  function priorityBadge(p) {
+    return `Q${clampPriority(p)}`;
+  }
+
+  /** @param {number} q */
+  function quadrantNotes(q) {
+    const safe = clampPriority(q);
+    return renderedNotes.filter((/** @type {{ priority?: number }} */ n) => clampPriority(n.priority) === safe);
+  }
 </script>
 
-<div class="notes-list" bind:this={notesListEl}>
-  {#each renderedNotes as note, index (note.id)}
+{#if viewMode === "quadrant"}
+  <div class="quadrant-board">
+    {#each QUADRANTS as q (q.key)}
+      <section class="quadrant-cell">
+        <header class="quadrant-head">
+          <h4>{q.title()}</h4>
+          <p>{q.subtitle()}</p>
+        </header>
+        <div class="quadrant-list">
+          {#if quadrantNotes(q.key).length === 0}
+            <div class="quadrant-empty">{strings.emptyInQuadrant}</div>
+          {:else}
+            {#each quadrantNotes(q.key) as note (note.id)}
+              <div class="quadrant-note" role="listitem">
+                <div class="note-content">
+                  <div class="note-text rendered" class:done={note.isDone}>{@html note.renderedHtml}</div>
+                  <span class="note-date">{formatDate(note.updatedAt)}</span>
+                </div>
+                <div class="note-actions">
+                  <button type="button" class="action-btn" title={strings.edit} onclick={() => openEdit(note)}
+                    >{@render iconEdit()}</button
+                  >
+                  <button
+                    type="button"
+                    class="action-btn"
+                    title={note.isDone ? strings.markUndone : strings.markDone}
+                    onclick={() => toggleDone(note)}
+                  >
+                    {#if note.isDone}
+                      {@render iconCheckBox()}
+                    {:else}
+                      {@render iconCheckBoxOutline()}
+                    {/if}
+                  </button>
+                  <button
+                    type="button"
+                    class="action-btn priority-btn"
+                    title={`${strings.priority}: ${priorityBadge(note.priority)}`}
+                    onclick={() => updatePriority(note, nextPriority(note.priority))}
+                  >
+                    {priorityBadge(note.priority)}
+                  </button>
+                </div>
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </section>
+    {/each}
+  </div>
+{:else}
+  <div class="notes-list" bind:this={notesListEl}>
+    {#each renderedNotes as note, index (note.id)}
     <div
       transition:slide={{ duration: 200, axis: "y" }}
       animate:flip={{ duration: 200 }}
@@ -61,7 +142,7 @@
             role="listitem"
           >
             <div class="note-content">
-              <span class="note-text" class:done={note.isDone}>{note.text}</span>
+              <div class="note-text rendered" class:done={note.isDone}>{@html note.renderedHtml}</div>
               <span class="note-date">{formatDate(note.updatedAt)}</span>
             </div>
             <div
@@ -133,8 +214,18 @@
                     {@render iconCheckBox()}
                   {:else}
                     {@render iconCheckBoxOutline()}
-                  {/if}
+                    {/if}
                 </button>
+                {#if viewMode !== "trash"}
+                  <button
+                    type="button"
+                    class="action-btn priority-btn"
+                    title={`${strings.priority}: ${priorityBadge(note.priority)}`}
+                    onclick={() => updatePriority(note, nextPriority(note.priority))}
+                  >
+                    {priorityBadge(note.priority)}
+                  </button>
+                {/if}
                 <button
                   type="button"
                   class="action-btn"
@@ -163,14 +254,15 @@
         {/snippet}
       </Dismissible>
     </div>
-  {/each}
-</div>
+    {/each}
+  </div>
+{/if}
 
 {#if draggedNote}
   <div class="drag-ghost" style="top: {dragGhostTop}px; left: {dragGhostLeft}px; width: {dragGhostWidth}px;">
     <div class="note-item ghost">
       <div class="note-content">
-        <span class="note-text" class:done={draggedNote.isDone}>{draggedNote.text}</span>
+        <div class="note-text rendered" class:done={draggedNote.isDone}>{@html draggedNote.renderedHtml}</div>
         <span class="note-date">{formatDate(draggedNote.updatedAt)}</span>
       </div>
     </div>
@@ -386,6 +478,28 @@
     -webkit-box-orient: vertical;
   }
 
+  .note-text.rendered {
+    display: block;
+    max-height: 62px;
+    overflow: hidden;
+  }
+
+  .note-text.rendered :global(*) {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.35;
+  }
+
+  .note-text.rendered :global(ul),
+  .note-text.rendered :global(ol) {
+    padding-left: 16px;
+  }
+
+  .note-text.rendered :global(p + p),
+  .note-text.rendered :global(li + li) {
+    margin-top: 2px;
+  }
+
   .note-date {
     font-size: 11px;
     color: #9aa3af;
@@ -461,6 +575,85 @@
 
   .action-btn.zorder-toggle.active {
     color: #0f4c81;
+  }
+
+  .action-btn.priority-btn {
+    width: auto;
+    min-width: 28px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #334155;
+    border-color: #dbe3ee;
+  }
+
+  .quadrant-board {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 6px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .quadrant-cell {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #e4e8ef;
+    border-radius: 10px;
+    padding: 8px;
+    min-height: 160px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .quadrant-head h4 {
+    margin: 0;
+    font-size: 12px;
+    color: #1f2937;
+  }
+
+  .quadrant-head p {
+    margin: 2px 0 0;
+    font-size: 10px;
+    color: #64748b;
+  }
+
+  .quadrant-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+    overflow: auto;
+    scrollbar-width: none;
+  }
+
+  .quadrant-list::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  .quadrant-empty {
+    font-size: 11px;
+    color: #94a3b8;
+    padding: 6px 2px;
+  }
+
+  .quadrant-note {
+    border: 1px solid #e6ebf3;
+    border-radius: 8px;
+    background: #fff;
+    padding: 8px;
+    display: flex;
+    gap: 6px;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 760px) {
+    .quadrant-board {
+      grid-template-columns: 1fr;
+    }
   }
 
   .zorder-icon {

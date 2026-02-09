@@ -11,7 +11,7 @@
 
   import { getStrings } from "$lib/strings.js";
   import { matchNote } from "$lib/note-search.js";
-  import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
+  import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
   import { createDragReorder } from "$lib/panel/use-drag-reorder.js";
@@ -20,7 +20,7 @@
   import EditDialog from "$lib/components/panel/EditDialog.svelte";
   import SettingsDialog from "$lib/components/panel/SettingsDialog.svelte";
 
-  const NOTE_VIEW_MODES = ["active", "archived", "trash"];
+  const NOTE_VIEW_MODES = ["active", "todo", "quadrant", "archived", "trash"];
 
   /** @type {any[]} */
   let notes = $state([]);
@@ -78,6 +78,15 @@
     let base = notes;
     if (viewMode === "active") {
       base = base.filter((n) => !n.isArchived && !n.isDeleted);
+    } else if (viewMode === "todo") {
+      base = base
+        .filter((n) => !n.isArchived && !n.isDeleted)
+        .sort((a, b) => {
+          if (!!a.isDone !== !!b.isDone) return a.isDone ? 1 : -1;
+          return String(b.updatedAt).localeCompare(String(a.updatedAt));
+        });
+    } else if (viewMode === "quadrant") {
+      base = base.filter((n) => !n.isArchived && !n.isDeleted);
     } else if (viewMode === "archived") {
       base = base.filter((n) => n.isArchived && !n.isDeleted);
     } else {
@@ -94,9 +103,15 @@
   });
 
   const canReorder = $derived(
-    sortMode === "custom" && viewMode !== "trash" && !searchQuery.trim(),
+    sortMode === "custom" && viewMode === "active" && !searchQuery.trim(),
   );
-  const renderedNotes = $derived(drag.dragPreviewNotes ?? visibleNotes);
+  const renderedNotes = $derived.by(() =>
+    (drag.dragPreviewNotes ?? visibleNotes).map((n) => ({
+      ...n,
+      renderedHtml: renderNoteMarkdown(n.text || ""),
+      priority: Number(n.priority || 4),
+    })),
+  );
   const draggedNote = $derived.by(() => {
     if (!drag.draggedNoteId) return null;
     return (
@@ -118,6 +133,7 @@
     togglePin,
     toggleZOrder,
     toggleDone,
+    updatePriority,
     toggleArchive,
     deleteNote,
     restoreNote,
@@ -457,6 +473,7 @@
       {togglePin}
       {toggleZOrder}
       {toggleDone}
+      {updatePriority}
       {createVerticalDragStartHandler}
       {createVerticalDragMoveHandler}
       {createVerticalDragEndHandler}

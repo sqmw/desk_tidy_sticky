@@ -84,6 +84,23 @@ export function createNoteCommands(deps) {
     }
   }
 
+  /**
+   * @param {any} note
+   * @param {number} priority
+   */
+  async function updatePriority(note, priority) {
+    try {
+      await deps.invoke("update_note_priority", {
+        id: note.id,
+        priority,
+        sortMode: deps.getSortMode(),
+      });
+      await loadNotes();
+    } catch (e) {
+      console.error("updatePriority", e);
+    }
+  }
+
   /** @param {any} note */
   async function toggleArchive(note) {
     try {
@@ -165,6 +182,7 @@ export function createNoteCommands(deps) {
     togglePin,
     toggleZOrder,
     toggleDone,
+    updatePriority,
     toggleArchive,
     deleteNote,
     restoreNote,

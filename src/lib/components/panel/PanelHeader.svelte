@@ -75,7 +75,17 @@
           class:active={viewMode === mode}
           onclick={() => setViewMode(mode)}
         >
-          {strings[mode === "active" ? "active" : mode === "archived" ? "archived" : "trash"]}
+          {strings[
+            mode === "active"
+              ? "active"
+              : mode === "todo"
+                ? "todo"
+                : mode === "quadrant"
+                  ? "quadrant"
+                  : mode === "archived"
+                    ? "archived"
+                    : "trash"
+          ]}
         </button>
       {/each}
     </div>
