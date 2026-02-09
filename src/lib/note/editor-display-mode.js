@@ -1,7 +1,6 @@
 export const EDITOR_DISPLAY_MODE = {
   BLOCKS: "blocks",
   SOURCE: "source",
-  SPLIT: "split",
 };
 
 const STORAGE_KEY = "note_editor_display_mode";
@@ -11,9 +10,7 @@ const STORAGE_KEY = "note_editor_display_mode";
  */
 function normalizeMode(value) {
   if (value === EDITOR_DISPLAY_MODE.BLOCKS) return EDITOR_DISPLAY_MODE.BLOCKS;
-  return value === EDITOR_DISPLAY_MODE.SOURCE
-    ? EDITOR_DISPLAY_MODE.SOURCE
-    : EDITOR_DISPLAY_MODE.SPLIT;
+  return value === EDITOR_DISPLAY_MODE.SOURCE ? EDITOR_DISPLAY_MODE.SOURCE : EDITOR_DISPLAY_MODE.BLOCKS;
 }
 
 export function loadEditorDisplayMode() {
@@ -43,6 +40,5 @@ export function saveEditorDisplayMode(mode) {
 export function nextEditorDisplayMode(current) {
   const mode = normalizeMode(current);
   if (mode === EDITOR_DISPLAY_MODE.BLOCKS) return EDITOR_DISPLAY_MODE.SOURCE;
-  if (mode === EDITOR_DISPLAY_MODE.SOURCE) return EDITOR_DISPLAY_MODE.SPLIT;
   return EDITOR_DISPLAY_MODE.BLOCKS;
 }

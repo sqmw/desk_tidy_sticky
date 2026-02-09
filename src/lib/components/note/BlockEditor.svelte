@@ -10,6 +10,7 @@
   } from "$lib/note/block-model.js";
   import {
     applyBlockCommandAt,
+    applyShortcutAt,
     insertParagraphAfter,
     mergeBlockWithPrevious,
     moveBlock,
@@ -18,6 +19,12 @@
     splitBlockAtCaret,
     toggleTodoAt,
   } from "$lib/note/block-ops.js";
+  import { matchBlockShortcut } from "$lib/note/block-shortcuts.js";
+  import {
+    getSelectionOffsets,
+    isCaretAtStart,
+    setSelectionOffsets,
+  } from "$lib/note/contenteditable-caret.js";
 
   let {
     text = $bindable(""),
@@ -87,12 +94,25 @@
    */
   async function focusBlock(blockId, pos = 0) {
     await tick();
-    const selector = `textarea[data-block-id="${blockId}"]`;
-    const input = /** @type {HTMLTextAreaElement | null} */ (rootEl?.querySelector(selector));
+    const selector = `.block-input[data-block-id="${blockId}"]`;
+    const input = /** @type {HTMLElement | null} */ (rootEl?.querySelector(selector));
     if (!input) return;
     input.focus();
-    const nextPos = Math.max(0, Math.min(pos, input.value.length));
-    input.setSelectionRange(nextPos, nextPos);
+    const len = (input.textContent ?? "").length;
+    const nextPos = Math.max(0, Math.min(pos, len));
+    setSelectionOffsets(input, nextPos, nextPos);
+  }
+
+  /**
+   * @param {string} type
+   * @param {string} raw
+   */
+  function normalizeBlockInput(type, raw) {
+    const base = String(raw ?? "").replaceAll("\r", "");
+    if (type === BLOCK_TYPE.CODE) {
+      return base;
+    }
+    return base.replaceAll("\n", " ");
   }
 
   /**
@@ -120,6 +140,36 @@
     const next = replaceBlockText(blocks, idx, value);
     commit(next);
     updateSlashByText(idx, value);
+  }
+
+  /**
+   * @param {number} idx
+   * @param {Event} event
+   */
+  function onBlockInput(idx, event) {
+    const current = blocks[idx];
+    if (!current) return;
+    const target = /** @type {HTMLElement | null} */ (event.currentTarget);
+    if (!target) return;
+    const value = normalizeBlockInput(current.type, target.innerText);
+    const { start, end } = getSelectionOffsets(target);
+    const shortcut = matchBlockShortcut({
+      currentType: current.type,
+      text: value,
+      selectionStart: start,
+      selectionEnd: end,
+    });
+    if (!shortcut) {
+      setBlockText(idx, value);
+      return;
+    }
+    const next = applyShortcutAt(blocks, idx, shortcut);
+    commit(next);
+    hideSlash();
+    const nextBlock = next[idx];
+    if (nextBlock) {
+      focusBlock(nextBlock.id, shortcut.caret);
+    }
   }
 
   /**
@@ -184,11 +234,12 @@
       }
     }
 
-    const target = /** @type {HTMLTextAreaElement} */ (event.currentTarget);
+    const target = /** @type {HTMLElement} */ (event.currentTarget);
+    const { start, end } = getSelectionOffsets(target);
 
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      const caret = target.selectionStart ?? current.text.length;
+      const caret = start;
       const head = current.text.slice(0, caret);
       const tail = current.text.slice(caret);
 
@@ -209,11 +260,9 @@
     }
 
     if (event.key === "Backspace") {
-      const caret = target.selectionStart ?? 0;
-      const selectionEnd = target.selectionEnd ?? 0;
-      if (selectionEnd !== caret) return;
+      if (start !== end) return;
 
-      if (caret === 0) {
+      if (isCaretAtStart(target)) {
         if (!current.text && current.type !== BLOCK_TYPE.PARAGRAPH) {
           event.preventDefault();
           const next = normalizeBlockAtToParagraph(blocks, idx);
@@ -259,8 +308,9 @@
 
     event.preventDefault();
     try {
-      const target = /** @type {HTMLTextAreaElement | null} */ (event.currentTarget);
+      const target = /** @type {HTMLElement | null} */ (event.currentTarget);
       if (!target) return;
+      const { start, end } = getSelectionOffsets(target);
       const base64 = await blobToBase64(file);
       const savedPath = await invoke("save_clipboard_image", {
         noteId,
@@ -268,8 +318,6 @@
         dataBase64: base64,
       });
       const imageSrc = convertFileSrc(savedPath);
-      const start = target.selectionStart ?? 0;
-      const end = target.selectionEnd ?? start;
       const stamp = new Date().toISOString().replaceAll(":", "-");
       const md = `![pasted-${stamp}](${imageSrc})`;
 
@@ -389,23 +437,24 @@
           aria-label="todo checked"
         />
       {/if}
-      <textarea
+      <div
         data-block-id={block.id}
+        contenteditable="true"
+        tabindex="0"
+        role="textbox"
+        aria-multiline={block.type === BLOCK_TYPE.CODE ? "true" : "false"}
         class="block-input"
         class:code={block.type === BLOCK_TYPE.CODE}
         class:heading1={block.type === BLOCK_TYPE.HEADING1}
         class:heading2={block.type === BLOCK_TYPE.HEADING2}
         class:heading3={block.type === BLOCK_TYPE.HEADING3}
         class:quote={block.type === BLOCK_TYPE.QUOTE}
-        value={block.text}
-        rows={block.type === BLOCK_TYPE.CODE ? 4 : 1}
+        data-placeholder={idx === 0 ? "Type '/' for blocks..." : ""}
         onfocus={() => (activeIndex = idx)}
-        oninput={(event) =>
-          setBlockText(idx, /** @type {HTMLTextAreaElement} */ (event.currentTarget).value)}
+        oninput={(event) => onBlockInput(idx, event)}
         onkeydown={(event) => onBlockKeydown(idx, event)}
         onpaste={(event) => onBlockPaste(idx, event)}
-        placeholder={idx === 0 ? "Type '/' for blocks..." : ""}
-      ></textarea>
+      >{block.text}</div>
       {#if slashVisible && slashIndex === idx && slashCommands.length > 0}
         <div class="slash-menu">
           {#each slashCommands as cmd, cmdIdx (cmd.key)}
@@ -549,12 +598,19 @@
     background: transparent;
     color: var(--note-text-color, #1f2937);
     outline: none;
-    resize: vertical;
     min-height: 24px;
+    white-space: pre-wrap;
+    word-break: break-word;
     line-height: 1.45;
     font-size: 15px;
     padding: 4px 0;
     font-family: "Segoe UI", sans-serif;
+  }
+
+  .block-input:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(100, 116, 139, 0.85);
+    pointer-events: none;
   }
 
   .block-input.heading1 {
@@ -585,6 +641,7 @@
     background: rgba(15, 23, 42, 0.08);
     border-radius: 8px;
     padding: 8px;
+    min-height: 68px;
   }
 
   .slash-menu {

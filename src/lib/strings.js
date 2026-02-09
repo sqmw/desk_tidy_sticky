@@ -62,7 +62,6 @@ const strings = {
     version: 'Version v1.0.0',
     close: 'Close',
     editorBlockMode: 'Block editor',
-    editorSplitMode: 'Split edit + preview',
     editorSourceMode: 'Source only'
   },
   zh: {
@@ -126,7 +125,6 @@ const strings = {
     version: '版本 v1.0.0',
     close: '关闭',
     editorBlockMode: '块编辑',
-    editorSplitMode: '分栏编辑预览',
     editorSourceMode: '仅源码'
   }
 };

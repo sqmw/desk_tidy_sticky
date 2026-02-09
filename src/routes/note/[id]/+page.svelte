@@ -111,7 +111,6 @@
     commandSuggestions.map((cmd) => ({ ...cmd, preview: getNoteCommandPreview(cmd) })),
   );
   const isBlockEditor = $derived(editorDisplayMode === EDITOR_DISPLAY_MODE.BLOCKS);
-  const isSplitEditor = $derived(editorDisplayMode === EDITOR_DISPLAY_MODE.SPLIT);
 
   async function loadNote() {
     try {
@@ -311,8 +310,7 @@
   function editorModeHint() {
     const next = nextEditorDisplayMode(editorDisplayMode);
     if (next === EDITOR_DISPLAY_MODE.BLOCKS) return strings.editorBlockMode;
-    if (next === EDITOR_DISPLAY_MODE.SOURCE) return strings.editorSourceMode;
-    return strings.editorSplitMode;
+    return strings.editorSourceMode;
   }
 
   async function toggleMouseInteraction() {
@@ -830,7 +828,7 @@
       {#if isBlockEditor}
         <BlockEditor bind:text noteId={note?.id || noteId} onTextChange={handleBlockEditorChange} />
       {:else}
-        <div class="editor-shell" class:split={isSplitEditor}>
+        <div class="editor-shell">
           <textarea
             bind:value={text}
             bind:this={editorEl}
@@ -838,12 +836,8 @@
             onpaste={onEditorPaste}
             onkeydown={onEditorKeydown}
             class="editor"
-            class:split={isSplitEditor}
             spellcheck="false"
           ></textarea>
-          {#if isSplitEditor}
-            <div class="editor-live-preview preview-markdown">{@html renderedMarkdown}</div>
-          {/if}
         </div>
       {/if}
       {#if !isBlockEditor && showCommandSuggestions && commandSuggestionItems.length > 0}
@@ -891,11 +885,6 @@
                 <rect x="5" y="6" width="14" height="12" rx="2"></rect>
                 <path d="M8 10h8"></path>
                 <path d="M8 13h6"></path>
-              </svg>
-            {:else if isSplitEditor}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="4" y="5" width="16" height="14" rx="2"></rect>
-                <path d="M12 5v14"></path>
               </svg>
             {:else}
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -1095,46 +1084,6 @@
     display: flex;
     flex-direction: column;
   }
-
-  .editor-shell.split {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr);
-    gap: 10px;
-    padding: 10px 10px 0;
-  }
-
-  .editor.split {
-    flex: 1;
-    min-height: 0;
-    border-right: 1px dashed rgba(100, 116, 139, 0.45);
-    padding: 6px 12px 10px 4px;
-  }
-
-  .editor-live-preview {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
-    padding: 12px 14px;
-    font-family: "Segoe UI", sans-serif;
-    font-size: 14px;
-    line-height: 1.45;
-    color: var(--note-text-color, #1f2937);
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    border-radius: 12px;
-    border: 1px solid rgba(148, 163, 184, 0.45);
-    background: rgba(255, 255, 255, 0.7);
-    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16);
-    backdrop-filter: blur(5px);
-    -webkit-backdrop-filter: blur(5px);
-  }
-
-  .editor-live-preview::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
-  }
-
 
   .editor::-webkit-scrollbar {
     width: 0;

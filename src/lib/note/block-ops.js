@@ -44,6 +44,23 @@ export function applyBlockCommandAt(blocks, idx, cmd) {
 /**
  * @param {NoteBlock[]} blocks
  * @param {number} idx
+ * @param {{ nextType: string; nextText: string; checked?: boolean }} shortcut
+ */
+export function applyShortcutAt(blocks, idx, shortcut) {
+  const current = blocks[idx];
+  if (!current) return blocks;
+  const nextBlock = {
+    ...current,
+    type: shortcut.nextType,
+    text: shortcut.nextText,
+    checked: shortcut.nextType === BLOCK_TYPE.TODO ? !!shortcut.checked : false,
+  };
+  return blocks.map((block, i) => (i === idx ? nextBlock : block));
+}
+
+/**
+ * @param {NoteBlock[]} blocks
+ * @param {number} idx
  */
 export function normalizeBlockAtToParagraph(blocks, idx) {
   return blocks.map((block, i) =>
