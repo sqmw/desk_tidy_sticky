@@ -12,10 +12,10 @@
   import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
 
   import WorkbenchSection from "$lib/components/panel/WorkbenchSection.svelte";
-  import EditDialog from "$lib/components/panel/EditDialog.svelte";
   import WorkspaceWindowBar from "$lib/components/workspace/WorkspaceWindowBar.svelte";
   import WorkspaceSidebar from "$lib/components/workspace/WorkspaceSidebar.svelte";
   import WorkspaceToolbar from "$lib/components/workspace/WorkspaceToolbar.svelte";
+  import WorkspaceNoteInspector from "$lib/components/workspace/WorkspaceNoteInspector.svelte";
 
   const NOTE_VIEW_MODES = ["active", "todo", "quadrant", "archived", "trash"];
   const SORT_MODES = ["custom", "newest", "oldest"];
@@ -29,15 +29,27 @@
   let locale = $state("en");
   let newNoteText = $state("");
 
-  let showEditDialog = $state(false);
-  /** @type {any} */
-  let editingNote = $state(null);
-  let editText = $state("");
+  let inspectorOpen = $state(false);
+  /** @type {string | null} */
+  let inspectorNoteId = $state(null);
+  let inspectorMode = $state("view");
+  let inspectorDraftText = $state("");
+  let inspectorExpanded = $state(false);
+  let inspectorWidth = $state(430);
+  let inspectorPrevWidth = $state(430);
+  let isResizingInspector = $state(false);
+  let resizePointerId = $state(-1);
+  let sidebarWidth = $state(260);
+  let isResizingSidebar = $state(false);
+  let sidebarResizePointerId = $state(-1);
+  let windowMaximized = $state(false);
+  /** @type {HTMLDivElement | null} */
+  let workbenchShellEl = $state(null);
   let suppressNotesReloadUntil = 0;
   let stickiesVisible = $state(true);
   let interactionDisabled = $state(false);
   let workspaceTheme = $state("light");
-  let sidebarCollapsed = $state(false);
+  let sidebarCollapsed = $derived(sidebarWidth <= 104);
 
   const strings = $derived(getStrings(locale));
 
@@ -86,6 +98,10 @@
       priority: Number(n.priority || 4),
     })),
   );
+  const inspectorNote = $derived.by(() => {
+    if (!inspectorNoteId) return null;
+    return renderedNotes.find((n) => n.id === inspectorNoteId) ?? null;
+  });
 
   const windowSync = createWindowSync({
     getNotes: () => notes,
@@ -132,7 +148,6 @@
       sortMode = p.sortMode || "custom";
       locale = p.language || "en";
       workspaceTheme = p.workspaceTheme === "dark" ? "dark" : "light";
-      sidebarCollapsed = !!p.workspaceSidebarCollapsed;
     } catch (e) {
       console.error("loadPrefs(workspace)", e);
     }
@@ -149,30 +164,58 @@
   }
 
   /** @param {any} note */
-  function openEdit(note) {
-    editingNote = note;
-    editText = note.text;
-    showEditDialog = true;
+  function openInspectorView(note) {
+    inspectorOpen = true;
+    inspectorNoteId = note.id;
+    inspectorMode = "view";
+    inspectorDraftText = note.text || "";
   }
 
-  async function submitEdit() {
-    const transformed = expandNoteCommands(editText.trim()).trim();
-    if (!editingNote || !transformed) {
-      showEditDialog = false;
+  /** @param {any} note */
+  function openInspectorEdit(note) {
+    inspectorOpen = true;
+    inspectorNoteId = note.id;
+    inspectorMode = "edit";
+    inspectorDraftText = note.text || "";
+  }
+
+  function closeInspector() {
+    inspectorOpen = false;
+    inspectorNoteId = null;
+    inspectorMode = "view";
+    inspectorDraftText = "";
+    inspectorExpanded = false;
+  }
+
+  function startInspectorEdit() {
+    if (!inspectorNote) return;
+    inspectorMode = "edit";
+    inspectorDraftText = inspectorNote.text || "";
+  }
+
+  function cancelInspectorEdit() {
+    if (!inspectorNote) return;
+    inspectorMode = "view";
+    inspectorDraftText = inspectorNote.text || "";
+  }
+
+  async function saveInspectorEdit() {
+    const transformed = expandNoteCommands(inspectorDraftText.trim()).trim();
+    if (!inspectorNote || !transformed) {
       return;
     }
     try {
       await invoke("update_note_text", {
-        id: editingNote.id,
+        id: inspectorNote.id,
         text: transformed,
         sortMode,
       });
       await loadNotes();
+      inspectorMode = "view";
+      inspectorDraftText = transformed;
     } catch (e) {
-      console.error("submitEdit(workspace)", e);
+      console.error("saveInspectorEdit(workspace)", e);
     }
-    showEditDialog = false;
-    editingNote = null;
   }
 
   /** @param {string} mode */
@@ -226,11 +269,6 @@
     await savePrefs({ workspaceTheme });
   }
 
-  async function toggleSidebar() {
-    sidebarCollapsed = !sidebarCollapsed;
-    await savePrefs({ workspaceSidebarCollapsed: sidebarCollapsed });
-  }
-
   async function toggleInteraction() {
     try {
       const newState = await invoke("toggle_overlay_interaction");
@@ -250,8 +288,118 @@
     }
   }
 
+  async function toggleWindowMaximize() {
+    try {
+      const win = getCurrentWindow();
+      await win.toggleMaximize();
+      windowMaximized = await win.isMaximized();
+    } catch (e) {
+      console.error("toggleWindowMaximize(workspace)", e);
+    }
+  }
+
+  function toggleInspectorExpanded() {
+    if (!workbenchShellEl) {
+      inspectorExpanded = !inspectorExpanded;
+      return;
+    }
+    if (!inspectorExpanded) {
+      inspectorPrevWidth = inspectorWidth;
+      const rect = workbenchShellEl.getBoundingClientRect();
+      const max = Math.max(420, Math.floor(rect.width * 0.78));
+      inspectorWidth = max;
+      inspectorExpanded = true;
+      return;
+    }
+    inspectorWidth = Math.max(340, inspectorPrevWidth || 430);
+    inspectorExpanded = false;
+  }
+
+  function endInspectorResize() {
+    isResizingInspector = false;
+    resizePointerId = -1;
+  }
+
+  function endSidebarResize() {
+    isResizingSidebar = false;
+    sidebarResizePointerId = -1;
+  }
+
+  /** @param {number} clientX */
+  function applyInspectorResizeByClientX(clientX) {
+    if (!workbenchShellEl) return;
+    const rect = workbenchShellEl.getBoundingClientRect();
+    const min = 340;
+    const max = Math.max(420, Math.floor(rect.width * 0.78));
+    const next = Math.round(rect.right - clientX);
+    inspectorWidth = Math.max(min, Math.min(max, next));
+  }
+
+  /** @param {PointerEvent} e */
+  function startInspectorResize(e) {
+    if (e.button !== 0) return;
+    if (!inspectorOpen || inspectorExpanded) return;
+    isResizingInspector = true;
+    resizePointerId = e.pointerId;
+    const target = /** @type {HTMLElement | null} */ (e.currentTarget);
+    target?.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+  }
+
+  /** @param {number} clientX */
+  function applySidebarResizeByClientX(clientX) {
+    const min = 86;
+    const max = 260;
+    sidebarWidth = Math.max(min, Math.min(max, Math.round(clientX)));
+  }
+
+  /** @param {PointerEvent} e */
+  function startSidebarResize(e) {
+    if (e.button !== 0) return;
+    isResizingSidebar = true;
+    sidebarResizePointerId = e.pointerId;
+    const target = /** @type {HTMLElement | null} */ (e.currentTarget);
+    target?.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+  }
+
+  /** @param {PointerEvent} e */
+  function onWindowPointerMove(e) {
+    if (isResizingSidebar) {
+      if (sidebarResizePointerId !== -1 && e.pointerId !== sidebarResizePointerId) return;
+      applySidebarResizeByClientX(e.clientX);
+      return;
+    }
+    if (isResizingInspector) {
+      if (resizePointerId !== -1 && e.pointerId !== resizePointerId) return;
+      applyInspectorResizeByClientX(e.clientX);
+    }
+  }
+
+  /** @param {PointerEvent} e */
+  function onWindowPointerUp(e) {
+    if (isResizingSidebar) {
+      if (sidebarResizePointerId !== -1 && e.pointerId !== sidebarResizePointerId) return;
+      applySidebarResizeByClientX(e.clientX);
+      if (sidebarWidth <= 120) sidebarWidth = 86;
+      endSidebarResize();
+      return;
+    }
+    if (isResizingInspector) {
+      if (resizePointerId !== -1 && e.pointerId !== resizePointerId) return;
+      applyInspectorResizeByClientX(e.clientX);
+      endInspectorResize();
+    }
+  }
+
   onMount(() => {
     loadPrefs().then(loadNotes).then(() => emit("workspace_ready", { label: "workspace" }));
+    getCurrentWindow()
+      .isMaximized()
+      .then((v) => {
+        windowMaximized = !!v;
+      })
+      .catch(() => {});
 
     invoke("get_overlay_interaction")
       .then((state) => {
@@ -289,13 +437,29 @@
       }
     };
   });
+
+  $effect(() => {
+    if (!inspectorOpen || !inspectorNoteId) return;
+    if (!inspectorNote) {
+      closeInspector();
+      return;
+    }
+    if (inspectorMode === "view") {
+      inspectorDraftText = inspectorNote.text || "";
+    }
+  });
+
+  $effect(() => {
+    if (inspectorOpen) return;
+    inspectorExpanded = false;
+  });
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="workspace"
   class:theme-dark={workspaceTheme === "dark"}
-  class:sidebar-collapsed={sidebarCollapsed}
+  style={`--sidebar-width: ${sidebarWidth}px;`}
 >
   <WorkspaceSidebar
     {strings}
@@ -310,16 +474,18 @@
     onToggleInteraction={toggleInteraction}
     onHideWindow={hideWindow}
   />
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="sidebar-splitter" onpointerdown={startSidebarResize} ondblclick={() => (sidebarWidth = 260)}></div>
 
   <main class="main">
     <WorkspaceWindowBar
       {strings}
-      sidebarCollapsed={sidebarCollapsed}
       theme={workspaceTheme}
+      isMaximized={windowMaximized}
       onDragStart={startWorkspaceDragPointer}
       onBackToCompact={switchToCompact}
       onHide={hideWindow}
-      onToggleSidebar={toggleSidebar}
+      onToggleMaximize={toggleWindowMaximize}
       onToggleTheme={toggleTheme}
     />
 
@@ -333,24 +499,58 @@
       onSetSortMode={setSortMode}
     />
 
-    <WorkbenchSection
-      {strings}
-      {viewMode}
-      {renderedNotes}
-      {formatDate}
-      {restoreNote}
-      {toggleArchive}
-      {deleteNote}
-      {openEdit}
-      {togglePin}
-      {toggleZOrder}
-      {toggleDone}
-      {updatePriority}
-    />
+    <div
+      class="workbench-shell"
+      class:inspector-open={inspectorOpen}
+      bind:this={workbenchShellEl}
+      style={`--inspector-width: ${inspectorWidth}px;`}
+    >
+      <div class="workbench-pane">
+        <WorkbenchSection
+          {strings}
+          {viewMode}
+          {renderedNotes}
+          {formatDate}
+          {restoreNote}
+          {toggleArchive}
+          {deleteNote}
+          openEdit={openInspectorEdit}
+          openView={openInspectorView}
+          {togglePin}
+          {toggleZOrder}
+          {toggleDone}
+          {updatePriority}
+        />
+      </div>
+      {#if inspectorOpen && inspectorNote}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="inspector-splitter" onpointerdown={startInspectorResize} ondblclick={() => (inspectorWidth = 430)}></div>
+        <WorkspaceNoteInspector
+          {strings}
+          note={inspectorNote}
+          mode={inspectorMode}
+          expanded={inspectorExpanded}
+          bind:draftText={inspectorDraftText}
+          {formatDate}
+          onClose={closeInspector}
+          onToggleExpand={toggleInspectorExpanded}
+          onStartEdit={startInspectorEdit}
+          onCancelEdit={cancelInspectorEdit}
+          onSave={saveInspectorEdit}
+        />
+      {/if}
+    </div>
   </main>
 </div>
 
-<EditDialog {strings} bind:showEditDialog bind:editText {submitEdit} />
+<svelte:window
+  onpointermove={onWindowPointerMove}
+  onpointerup={onWindowPointerUp}
+  onpointercancel={() => {
+    endSidebarResize();
+    endInspectorResize();
+  }}
+/>
 
 <style>
   :global(html, body) {
@@ -386,7 +586,7 @@
     --ws-scrollbar-thumb-hover: rgba(51, 65, 85, 0.62);
     height: 100vh;
     display: grid;
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: var(--sidebar-width, 260px) 8px 1fr;
     background:
       radial-gradient(circle at 8% 6%, rgba(56, 189, 248, 0.09), transparent 35%),
       radial-gradient(circle at 92% 90%, rgba(251, 146, 60, 0.08), transparent 32%),
@@ -440,6 +640,50 @@
     cursor: default;
   }
 
+  .workbench-shell {
+    min-height: 0;
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .workbench-shell.inspector-open {
+    grid-template-columns: minmax(0, 1fr) 8px minmax(340px, var(--inspector-width, 430px));
+  }
+
+  .inspector-splitter {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 70%, transparent);
+    cursor: col-resize;
+    min-height: 0;
+    position: relative;
+  }
+
+  .inspector-splitter::after {
+    content: "";
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 60px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-border-active, #94a3b8) 46%, transparent);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .inspector-splitter:hover::after {
+    opacity: 1;
+  }
+
+  .workbench-pane {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .workspace :global(button),
   .workspace :global([role="button"]) {
     cursor: pointer;
@@ -454,13 +698,47 @@
     cursor: pointer;
   }
 
-  .workspace.sidebar-collapsed {
-    grid-template-columns: 86px 1fr;
+  .sidebar-splitter {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 72%, transparent);
+    cursor: col-resize;
+    min-height: 0;
+    position: relative;
+  }
+
+  .sidebar-splitter::after {
+    content: "";
+    position: absolute;
+    top: 46%;
+    left: 2px;
+    right: 2px;
+    height: 70px;
+    transform: translateY(-50%);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-border-active, #94a3b8) 45%, transparent);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .sidebar-splitter:hover::after {
+    opacity: 1;
   }
 
   @media (max-width: 920px) {
     .workspace {
       grid-template-columns: 1fr;
+    }
+
+    .sidebar-splitter {
+      display: none;
+    }
+
+    .workbench-shell.inspector-open {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .inspector-splitter {
+      display: none;
     }
   }
 </style>

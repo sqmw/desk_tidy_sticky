@@ -8,6 +8,7 @@
     toggleArchive,
     deleteNote,
     openEdit,
+    openView,
     togglePin,
     toggleZOrder,
     toggleDone,
@@ -67,7 +68,7 @@
               <div class="empty">{strings.emptyInQuadrant}</div>
             {:else}
               {#each quadrantNotes(q.key) as note (note.id)}
-                <article class="card">
+                <article class="card" ondblclick={() => openView(note)}>
                   <div class="card-top">
                     <span class="priority-tag">{priorityBadge(note.priority)}</span>
                     <span class="date">{formatDate(note.updatedAt)}</span>
@@ -110,7 +111,7 @@
   {:else}
     <div class="grid">
       {#each renderedNotes as note (note.id)}
-        <article class="card">
+        <article class="card" ondblclick={() => openView(note)}>
           <div class="card-top">
             <span class="priority-tag">{priorityBadge(note.priority)}</span>
             <span class="date">{formatDate(note.updatedAt)}</span>
