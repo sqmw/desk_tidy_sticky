@@ -18,7 +18,7 @@
     bind:value={newNoteText}
     onkeydown={(e) => e.key === "Enter" && onSave()}
   />
-  <button type="button" class="primary-btn" onclick={onSave}>{strings.saveNote}</button>
+  <button type="button" class="primary-btn" onclick={onSave}>{strings.workspaceCreateNote || strings.saveNote}</button>
   <input type="text" class="search" placeholder={strings.searchHint} bind:value={searchQuery} />
   <select class="sort" value={sortMode} onchange={(e) => onSetSortMode(/** @type {HTMLSelectElement} */ (e.target).value)}>
     {#each sortModes as mode}
@@ -64,6 +64,7 @@
     cursor: pointer;
     font-weight: 700;
     transition: transform 0.15s ease;
+    min-width: 84px;
   }
 
   .primary-btn:hover {
