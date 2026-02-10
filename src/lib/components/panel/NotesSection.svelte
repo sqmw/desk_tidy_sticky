@@ -37,6 +37,12 @@
     return filterNotesByQuadrant(renderedNotes, q);
   }
 
+  /** @param {number | undefined | null} p */
+  function priorityActionLabel(p) {
+    const badge = priorityBadge(p);
+    return badge || strings.priorityUnassigned;
+  }
+
   /** @param {PointerEvent} e */
   function stopActionPointerIfNotReorder(e) {
     const target = /** @type {Element | null} */ (e.target instanceof Element ? e.target : null);
@@ -82,10 +88,10 @@
                   <button
                     type="button"
                     class="action-btn priority-btn"
-                    title={`${strings.priority}: ${priorityBadge(note.priority)}`}
+                    title={`${strings.priority}: ${priorityActionLabel(note.priority)}`}
                     onclick={() => updatePriority(note, nextPriority(note.priority))}
                   >
-                    {priorityBadge(note.priority)}
+                    {priorityActionLabel(note.priority)}
                   </button>
                 </div>
               </div>
@@ -207,10 +213,10 @@
                   <button
                     type="button"
                     class="action-btn priority-btn"
-                    title={`${strings.priority}: ${priorityBadge(note.priority)}`}
+                    title={`${strings.priority}: ${priorityActionLabel(note.priority)}`}
                     onclick={() => updatePriority(note, nextPriority(note.priority))}
                   >
-                    {priorityBadge(note.priority)}
+                    {priorityActionLabel(note.priority)}
                   </button>
                 {/if}
                 <button

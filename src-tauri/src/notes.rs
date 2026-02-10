@@ -4,7 +4,6 @@ use uuid::Uuid;
 pub const DEFAULT_NOTE_OPACITY: f64 = 1.0;
 pub const DEFAULT_NOTE_FROST: f64 = 0.22;
 pub const DEFAULT_NOTE_TEXT_COLOR: &str = "#1f2937";
-pub const DEFAULT_NOTE_PRIORITY: u8 = 4;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,7 +53,7 @@ impl Note {
             is_deleted: false,
             // New notes start at desktop-bottom layer by default.
             is_always_on_top: false,
-            priority: Some(DEFAULT_NOTE_PRIORITY),
+            priority: None,
             bg_color: None,
             text_color: Some(DEFAULT_NOTE_TEXT_COLOR.to_string()),
             opacity: Some(DEFAULT_NOTE_OPACITY),

@@ -111,7 +111,7 @@
     (drag.dragPreviewNotes ?? visibleNotes).map((n) => ({
       ...n,
       renderedHtml: renderNoteMarkdown(n.text || ""),
-      priority: Number(n.priority || 4),
+      priority: n.priority ?? null,
     })),
   );
   const draggedNote = $derived.by(() => {

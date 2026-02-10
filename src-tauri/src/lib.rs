@@ -292,6 +292,17 @@ fn update_note_priority(
 }
 
 #[tauri::command]
+fn clear_note_priority(
+    app: tauri::AppHandle,
+    id: String,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::clear_note_priority(&id, parse_sort_mode(sort_mode.as_str()))?;
+    emit_notes_changed(&app);
+    Ok(notes)
+}
+
+#[tauri::command]
 fn toggle_pin(
     app: tauri::AppHandle,
     id: String,
@@ -660,6 +671,7 @@ pub fn run() {
             update_note_opacity,
             update_note_frost,
             update_note_priority,
+            clear_note_priority,
             toggle_pin,
             toggle_z_order_and_apply,
             toggle_done,

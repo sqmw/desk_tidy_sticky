@@ -86,15 +86,22 @@ export function createNoteCommands(deps) {
 
   /**
    * @param {any} note
-   * @param {number} priority
+   * @param {number | null | undefined} priority
    */
   async function updatePriority(note, priority) {
     try {
-      await deps.invoke("update_note_priority", {
-        id: note.id,
-        priority,
-        sortMode: deps.getSortMode(),
-      });
+      if (priority == null) {
+        await deps.invoke("clear_note_priority", {
+          id: note.id,
+          sortMode: deps.getSortMode(),
+        });
+      } else {
+        await deps.invoke("update_note_priority", {
+          id: note.id,
+          priority,
+          sortMode: deps.getSortMode(),
+        });
+      }
       await loadNotes();
     } catch (e) {
       console.error("updatePriority", e);
@@ -151,7 +158,9 @@ export function createNoteCommands(deps) {
 
     /** @param {any} n */
     const inCurrentView = (n) => {
-      if (viewMode === "active") return !n.isArchived && !n.isDeleted;
+      if (viewMode === "active" || viewMode === "todo" || viewMode === "quadrant") {
+        return !n.isArchived && !n.isDeleted;
+      }
       if (viewMode === "archived") return n.isArchived && !n.isDeleted;
       return n.isDeleted;
     };

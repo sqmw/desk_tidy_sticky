@@ -80,6 +80,9 @@
 
   const strings = $derived(getStrings(locale));
   const deadlineTasks = $derived(getFocusDeadlinesForToday(focusTasks, focusStats));
+  const canQuadrantReorder = $derived(
+    sortMode === "custom" && !searchQuery.trim() && viewMode === "quadrant",
+  );
 
   /** @param {string} isoStr */
   function formatDate(isoStr) {
@@ -123,7 +126,7 @@
     visibleNotes.map((n) => ({
       ...n,
       renderedHtml: renderNoteMarkdown(n.text || ""),
-      priority: Number(n.priority || 4),
+      priority: n.priority ?? null,
     })),
   );
   const inspectorNote = $derived.by(() => {
@@ -147,6 +150,7 @@
     toggleArchive,
     deleteNote,
     restoreNote,
+    persistReorderedVisible,
   } = createNoteCommands({
     invoke,
     getSortMode: () => sortMode,
@@ -586,6 +590,7 @@
             {strings}
             {viewMode}
             {renderedNotes}
+            {canQuadrantReorder}
             {formatDate}
             {restoreNote}
             {toggleArchive}
@@ -596,6 +601,7 @@
             {toggleZOrder}
             {toggleDone}
             {updatePriority}
+            {persistReorderedVisible}
           />
         </div>
         {#if inspectorOpen && inspectorNote}

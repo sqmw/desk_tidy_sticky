@@ -293,6 +293,17 @@ pub fn update_note_priority(
     Ok(notes)
 }
 
+pub fn clear_note_priority(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
+    let mut notes = load_notes_from_file()?;
+    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+        n.priority = None;
+        n.updated_at = chrono_now();
+    }
+    sort_notes(&mut notes, sort_mode);
+    save_notes_to_file(&notes)?;
+    Ok(notes)
+}
+
 pub fn toggle_pin(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
     let mut notes = load_notes_from_file()?;
     if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
