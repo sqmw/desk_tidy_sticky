@@ -12,20 +12,34 @@
   import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
 
   import WorkbenchSection from "$lib/components/panel/WorkbenchSection.svelte";
+  import WorkspaceFocusHub from "$lib/components/workspace/WorkspaceFocusHub.svelte";
   import WorkspaceWindowBar from "$lib/components/workspace/WorkspaceWindowBar.svelte";
   import WorkspaceSidebar from "$lib/components/workspace/WorkspaceSidebar.svelte";
   import WorkspaceToolbar from "$lib/components/workspace/WorkspaceToolbar.svelte";
   import WorkspaceNoteInspector from "$lib/components/workspace/WorkspaceNoteInspector.svelte";
-  import { loadWorkspacePreferences, saveWorkspacePreferences, normalizeWorkspaceThemeTransitionShape } from "$lib/workspace/preferences-service.js";
+  import {
+    loadWorkspacePreferences,
+    normalizePomodoroConfig,
+    normalizeWorkspaceThemeTransitionShape,
+    saveWorkspacePreferences,
+  } from "$lib/workspace/preferences-service.js";
   import { tryStartWorkspaceWindowDrag } from "$lib/workspace/window-drag.js";
   import { runWorkspaceThemeTransition } from "$lib/workspace/theme-transition.js";
   import { createWorkspaceResizeController } from "$lib/workspace/resize-controller.js";
+  import { getFocusDeadlinesForToday } from "$lib/workspace/focus/focus-deadlines.js";
+  import {
+    WORKSPACE_NOTE_VIEW_MODES,
+    WORKSPACE_MAIN_TAB_FOCUS,
+    WORKSPACE_MAIN_TAB_NOTES,
+    normalizeWorkspaceMainTab,
+    normalizeWorkspaceViewMode,
+  } from "$lib/workspace/workspace-tabs.js";
 
-  const NOTE_VIEW_MODES = ["active", "todo", "quadrant", "archived", "trash"];
   const SORT_MODES = ["custom", "newest", "oldest"];
 
   /** @type {any[]} */
   let notes = $state([]);
+  let mainTab = $state(WORKSPACE_MAIN_TAB_NOTES);
   let sortMode = $state("custom");
   let viewMode = $state("active");
   let searchQuery = $state("");
@@ -49,9 +63,21 @@
   let interactionDisabled = $state(false);
   let workspaceTheme = $state("light");
   let themeTransitionShape = $state("circle");
+  /** @type {any[]} */
+  let focusTasks = $state([]);
+  /** @type {Record<string, any>} */
+  let focusStats = $state({});
+  let focusSelectedTaskId = $state("");
+  let pomodoroConfig = $state({
+    focusMinutes: 25,
+    shortBreakMinutes: 5,
+    longBreakMinutes: 15,
+    longBreakEvery: 4,
+  });
   let sidebarCollapsed = $derived(sidebarWidth <= 104);
 
   const strings = $derived(getStrings(locale));
+  const deadlineTasks = $derived(getFocusDeadlinesForToday(focusTasks, focusStats));
 
   /** @param {string} isoStr */
   function formatDate(isoStr) {
@@ -144,11 +170,15 @@
   async function loadPrefs() {
     try {
       const next = await loadWorkspacePreferences(invoke);
-      viewMode = next.viewMode;
+      viewMode = normalizeWorkspaceViewMode(next.viewMode);
       sortMode = next.sortMode;
       locale = next.locale;
+      mainTab = next.mainTab;
       workspaceTheme = next.workspaceTheme;
       themeTransitionShape = next.themeTransitionShape;
+      focusTasks = next.focusTasks;
+      focusStats = next.focusStats;
+      pomodoroConfig = next.pomodoroConfig;
     } catch (e) {
       console.error("loadPrefs(workspace)", e);
     }
@@ -220,9 +250,25 @@
 
   /** @param {string} mode */
   async function setViewMode(mode) {
-    viewMode = mode;
-    await savePrefs({ viewMode: mode });
+    const safeMode = normalizeWorkspaceViewMode(mode);
+    viewMode = safeMode;
+    await savePrefs({ viewMode: safeMode });
     await loadNotes();
+  }
+
+  /** @param {string} tab */
+  async function setMainTab(tab) {
+    mainTab = normalizeWorkspaceMainTab(tab);
+    if (mainTab !== WORKSPACE_MAIN_TAB_NOTES) {
+      closeInspector();
+    }
+    await savePrefs({ workspaceMainTab: mainTab });
+  }
+
+  /** @param {string} taskId */
+  async function handleDeadlineAction(taskId) {
+    focusSelectedTaskId = String(taskId || "");
+    await setMainTab(WORKSPACE_MAIN_TAB_FOCUS);
   }
 
   /** @param {string} mode */
@@ -239,10 +285,6 @@
 
   async function switchToCompact() {
     await switchPanelWindow("compact", invoke);
-  }
-
-  async function hideWindow() {
-    await getCurrentWindow().hide();
   }
 
   /** @param {PointerEvent} e */
@@ -263,13 +305,43 @@
         workspaceTheme = nextTheme;
       },
     });
-    await savePrefs({ workspaceTheme });
+    workspaceTheme = nextTheme;
+    await savePrefs({ workspaceTheme: nextTheme });
   }
 
   /** @param {string} shape */
   async function changeThemeTransitionShape(shape) {
     themeTransitionShape = normalizeWorkspaceThemeTransitionShape(shape);
     await savePrefs({ workspaceThemeTransitionShape: themeTransitionShape });
+  }
+
+  /** @param {{focusMinutes:number;shortBreakMinutes:number;longBreakMinutes:number;longBreakEvery:number}} next */
+  async function changePomodoroConfig(next) {
+    const safe = normalizePomodoroConfig(next);
+    pomodoroConfig = safe;
+    await savePrefs({
+      pomodoroFocusMinutes: safe.focusMinutes,
+      pomodoroShortBreakMinutes: safe.shortBreakMinutes,
+      pomodoroLongBreakMinutes: safe.longBreakMinutes,
+      pomodoroLongBreakEvery: safe.longBreakEvery,
+    });
+  }
+
+  /** @param {any[]} next */
+  async function changeFocusTasks(next) {
+    focusTasks = Array.isArray(next) ? next : [];
+    await savePrefs({ focusTasksJson: JSON.stringify(focusTasks) });
+  }
+
+  /** @param {Record<string, any>} next */
+  async function changeFocusStats(next) {
+    focusStats = next && typeof next === "object" ? next : {};
+    await savePrefs({ focusStatsJson: JSON.stringify(focusStats) });
+  }
+
+  /** @param {string} nextTaskId */
+  function changeFocusSelectedTask(nextTaskId) {
+    focusSelectedTaskId = String(nextTaskId || "");
   }
 
   async function toggleInteraction() {
@@ -298,6 +370,14 @@
       windowMaximized = await win.isMaximized();
     } catch (e) {
       console.error("toggleWindowMaximize(workspace)", e);
+    }
+  }
+
+  async function hideWindow() {
+    try {
+      await getCurrentWindow().hide();
+    } catch (e) {
+      console.error("hideWindow(workspace)", e);
     }
   }
 
@@ -386,16 +466,20 @@
 >
   <WorkspaceSidebar
     {strings}
-    viewModes={NOTE_VIEW_MODES}
+    {mainTab}
+    viewModes={WORKSPACE_NOTE_VIEW_MODES}
     {viewMode}
     collapsed={sidebarCollapsed}
     onDragStart={startWorkspaceDragPointer}
+    onSetMainTab={setMainTab}
     onSetViewMode={setViewMode}
     {stickiesVisible}
+    {interactionDisabled}
+    focusDeadlines={deadlineTasks}
+    onDeadlineAction={handleDeadlineAction}
     onToggleLanguage={toggleLanguage}
     onToggleStickiesVisibility={toggleStickiesVisibility}
     onToggleInteraction={toggleInteraction}
-    onHideWindow={hideWindow}
   />
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="sidebar-splitter" onpointerdown={resizeController.startSidebarResize} ondblclick={() => (sidebarWidth = 260)}></div>
@@ -408,66 +492,82 @@
       {themeTransitionShape}
       onDragStart={startWorkspaceDragPointer}
       onBackToCompact={switchToCompact}
-      onHide={hideWindow}
       onToggleMaximize={toggleWindowMaximize}
       onToggleTheme={toggleTheme}
+      onHide={hideWindow}
       onChangeThemeTransitionShape={changeThemeTransitionShape}
     />
 
-    <WorkspaceToolbar
-      {strings}
-      bind:newNoteText
-      bind:searchQuery
-      {sortMode}
-      sortModes={SORT_MODES}
-      onSave={() => saveNote(false)}
-      onSetSortMode={setSortMode}
-    />
+    {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
+      <WorkspaceToolbar
+        {strings}
+        bind:newNoteText
+        bind:searchQuery
+        {sortMode}
+        sortModes={SORT_MODES}
+        onSave={() => saveNote(false)}
+        onSetSortMode={setSortMode}
+      />
 
-    <div
-      class="workbench-shell"
-      class:inspector-open={inspectorOpen}
-      class:list-collapsed={inspectorListCollapsed}
-      bind:this={workbenchShellEl}
-      style={`--inspector-width: ${inspectorWidth}px;`}
-    >
-      <div class="workbench-pane">
-        <WorkbenchSection
-          {strings}
-          {viewMode}
-          {renderedNotes}
-          {formatDate}
-          {restoreNote}
-          {toggleArchive}
-          {deleteNote}
-          openEdit={openInspectorEdit}
-          openView={openInspectorView}
-          {togglePin}
-          {toggleZOrder}
-          {toggleDone}
-          {updatePriority}
-        />
+      <div
+        class="workbench-shell"
+        class:inspector-open={inspectorOpen}
+        class:list-collapsed={inspectorListCollapsed}
+        bind:this={workbenchShellEl}
+        style={`--inspector-width: ${inspectorWidth}px;`}
+      >
+        <div class="workbench-pane">
+          <WorkbenchSection
+            {strings}
+            {viewMode}
+            {renderedNotes}
+            {formatDate}
+            {restoreNote}
+            {toggleArchive}
+            {deleteNote}
+            openEdit={openInspectorEdit}
+            openView={openInspectorView}
+            {togglePin}
+            {toggleZOrder}
+            {toggleDone}
+            {updatePriority}
+          />
+        </div>
+        {#if inspectorOpen && inspectorNote}
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div
+            class="inspector-splitter"
+            onpointerdown={resizeController.startInspectorResize}
+            ondblclick={() => (inspectorWidth = 430)}
+          ></div>
+          <WorkspaceNoteInspector
+            {strings}
+            note={inspectorNote}
+            mode={inspectorMode}
+            bind:draftText={inspectorDraftText}
+            {formatDate}
+            onClose={closeInspector}
+            onStartEdit={startInspectorEdit}
+            onCancelEdit={cancelInspectorEdit}
+            onSave={saveInspectorEdit}
+          />
+        {/if}
       </div>
-      {#if inspectorOpen && inspectorNote}
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div
-          class="inspector-splitter"
-          onpointerdown={resizeController.startInspectorResize}
-          ondblclick={() => (inspectorWidth = 430)}
-        ></div>
-        <WorkspaceNoteInspector
+    {:else}
+      <section class="focus-pane">
+        <WorkspaceFocusHub
           {strings}
-          note={inspectorNote}
-          mode={inspectorMode}
-          bind:draftText={inspectorDraftText}
-          {formatDate}
-          onClose={closeInspector}
-          onStartEdit={startInspectorEdit}
-          onCancelEdit={cancelInspectorEdit}
-          onSave={saveInspectorEdit}
+          tasks={focusTasks}
+          stats={focusStats}
+          selectedTaskId={focusSelectedTaskId}
+          {pomodoroConfig}
+          onTasksChange={changeFocusTasks}
+          onStatsChange={changeFocusStats}
+          onSelectedTaskIdChange={changeFocusSelectedTask}
+          onPomodoroConfigChange={changePomodoroConfig}
         />
-      {/if}
-    </div>
+      </section>
+    {/if}
   </main>
 </div>
 
@@ -566,6 +666,31 @@
     gap: 10px;
     padding: 12px;
     cursor: default;
+  }
+
+  .focus-pane {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+    padding-right: 1px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
+      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+  }
+
+  .focus-pane::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .focus-pane::-webkit-scrollbar-track {
+    background: var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+    border-radius: 999px;
+  }
+
+  .focus-pane::-webkit-scrollbar-thumb {
+    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
+    border-radius: 999px;
   }
 
   .workbench-shell {

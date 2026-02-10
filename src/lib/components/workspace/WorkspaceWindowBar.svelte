@@ -6,9 +6,9 @@
     themeTransitionShape = "circle",
     onDragStart,
     onBackToCompact,
-    onHide,
     onToggleTheme,
     onToggleMaximize,
+    onHide = () => {},
     onChangeThemeTransitionShape = () => {},
   } = $props();
 
@@ -45,8 +45,8 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<header class="window-bar" onpointerdown={onDragStart}>
-  <div class="drag-area">
+<header class="window-bar">
+  <div class="drag-area" data-drag-handle="workspace" onpointerdown={onDragStart}>
     <span class="dot"></span>
     <span class="title">{strings.workspaceTitle}</span>
   </div>
@@ -91,12 +91,12 @@
       </button>
       <button
         type="button"
-        class="bar-btn icon-btn close"
-        onclick={onHide}
+        class="bar-btn icon-btn close-btn"
+        onclick={() => onHide()}
         onpointerdown={(e) => e.stopPropagation()}
         title={strings.hideWindow}
       >
-        {@render iconClose()}
+        {@render iconCloseWindow()}
       </button>
     </div>
   </div>
@@ -153,9 +153,9 @@
   </svg>
 {/snippet}
 
-{#snippet iconClose()}
-  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
-    <path d="M6 6l12 12M18 6 6 18"></path>
+{#snippet iconCloseWindow()}
+  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8">
+    <path d="m6 6 12 12M18 6 6 18"></path>
   </svg>
 {/snippet}
 
@@ -262,27 +262,15 @@
     font-weight: 600;
   }
 
-  .bar-btn.close {
-    border-color: var(--ws-border-soft, #d8e2ef);
-    color: var(--ws-text, #334155);
-    background: var(--ws-btn-bg, #fff);
+  .close-btn {
+    color: color-mix(in srgb, #d14343 72%, var(--ws-text, #334155));
+    border-color: color-mix(in srgb, #ef9aa2 56%, var(--ws-border-soft, #d8e2ef));
   }
 
-  .bar-btn.close:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
-  }
-
-  :global(.workspace.theme-dark) .bar-btn.close {
-    border-color: var(--ws-border-soft, #31445f);
-    color: var(--ws-text, #c6d0dd);
-    background: var(--ws-btn-bg, #1a2740);
-  }
-
-  :global(.workspace.theme-dark) .bar-btn.close:hover {
-    border-color: color-mix(in srgb, #f97316 48%, var(--ws-border-hover, #415981));
-    color: #ffe7d6;
-    background: color-mix(in srgb, #7c2d12 26%, var(--ws-btn-hover, #233454));
+  .close-btn:hover {
+    color: #b4232d;
+    border-color: color-mix(in srgb, #ef4444 66%, var(--ws-border-hover, #c6d5e8));
+    background: color-mix(in srgb, #ef4444 12%, var(--ws-btn-hover, #f4f8ff));
   }
 
   .theme-menu {

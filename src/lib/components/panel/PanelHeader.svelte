@@ -69,91 +69,92 @@
   </div>
 
   <div class="tabs-row">
-    <div class="view-tabs">
-      {#each NOTE_VIEW_MODES as mode}
+    <div class="tabs-main">
+      <div class="view-tabs">
+        {#each NOTE_VIEW_MODES as mode}
+          <button
+            type="button"
+            class="tab"
+            class:active={viewMode === mode}
+            onclick={() => setViewMode(mode)}
+          >
+            {strings[
+              mode === "active"
+                ? "active"
+                : mode === "todo"
+                  ? "todo"
+                  : mode === "quadrant"
+                    ? "quadrant"
+                    : mode === "archived"
+                      ? "archived"
+                      : "trash"
+            ]}
+          </button>
+        {/each}
+      </div>
+
+      <SortModeMenu {strings} {sortMode} bind:isSortMenuOpen {setSortMode} />
+
+      {#if viewMode === "trash"}
         <button
           type="button"
-          class="tab"
-          class:active={viewMode === mode}
-          onclick={() => setViewMode(mode)}
+          class="icon-btn"
+          title={strings.emptyTrash}
+          onclick={emptyTrash}
+          style="margin-left: 2px;"
         >
-          {strings[
-            mode === "active"
-              ? "active"
-              : mode === "todo"
-                ? "todo"
-                : mode === "quadrant"
-                  ? "quadrant"
-                  : mode === "archived"
-                    ? "archived"
-                    : "trash"
-          ]}
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="color: #ef5350;">
+            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+          </svg>
         </button>
-      {/each}
+      {/if}
     </div>
 
-    <SortModeMenu {strings} {sortMode} bind:isSortMenuOpen {setSortMode} />
+    <div class="tabs-actions">
+      <label class="toggle-switch" title={strings.hideAfterSave}>
+        <input type="checkbox" bind:checked={hideAfterSave} onchange={onHideAfterSaveChange} />
+        <span class="slider round"></span>
+      </label>
 
-    {#if viewMode === "trash"}
       <button
         type="button"
         class="icon-btn"
-        title={strings.emptyTrash}
-        onclick={emptyTrash}
-        style="margin-left: 2px;"
+        class:active={stickiesVisible}
+        title={stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
+        onclick={toggleStickiesVisibility}
       >
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="color: #ef5350;">
-          <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          {#if stickiesVisible}
+            <path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+          {:else}
+            <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="13" rx="2" />
+              <path d="M12 16v4 M8 20h8" />
+            </g>
+          {/if}
         </svg>
       </button>
-    {/if}
 
-    <div class="filler"></div>
-
-    <label class="toggle-switch" title={strings.hideAfterSave}>
-      <input type="checkbox" bind:checked={hideAfterSave} onchange={onHideAfterSaveChange} />
-      <span class="slider round"></span>
-    </label>
-
-    <button
-      type="button"
-      class="icon-btn"
-      class:active={stickiesVisible}
-      title={stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
-      onclick={toggleStickiesVisibility}
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-        {#if stickiesVisible}
-          <path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
-        {:else}
-          <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="13" rx="2" />
-            <path d="M12 16v4 M8 20h8" />
-          </g>
-        {/if}
-      </svg>
-    </button>
-
-    <button
-      type="button"
-      class="icon-btn"
-      class:active={!interactionDisabled}
-      title={strings.trayInteraction}
-      onclick={toggleInteraction}
-      style="margin-left: 4px;"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-        {#if !interactionDisabled}
-          <path d="M13 1.1V9h7.4c0-3.9-3.1-7.1-6.8-7.8l-.6-.1zm-2 0C7.1 1.6 4.1 4.8 4.1 8.7V9H11V1.1zm-7.1 9.9v4.5C3.9 19.9 7.5 23.5 12 23.5S20 19.9 20 15.5V11H3.9z" />
-        {:else}
-          <path
-            fill-rule="evenodd"
-            clip-rule="evenodd"
-            d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zm0-6H7V9c0-2.76 2.24-5 5-5s5 2.24 5 5v0zm-4.5-5h1v5h-1V4z"
-          />
-        {/if}
-      </svg>
-    </button>
+      <button
+        type="button"
+        class="icon-btn"
+        class:active={!interactionDisabled}
+        title={strings.trayInteraction}
+        onclick={toggleInteraction}
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          {#if !interactionDisabled}
+            <path d="M13 1.1V9h7.4c0-3.9-3.1-7.1-6.8-7.8l-.6-.1zm-2 0C7.1 1.6 4.1 4.8 4.1 8.7V9H11V1.1zm-7.1 9.9v4.5C3.9 19.9 7.5 23.5 12 23.5S20 19.9 20 15.5V11H3.9z" />
+          {:else}
+            <path
+              fill-rule="evenodd"
+              clip-rule="evenodd"
+              d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zm0-6H7V9c0-2.76 2.24-5 5-5s5 2.24 5 5v0zm-4.5-5h1v5h-1V4z"
+            />
+          {/if}
+        </svg>
+      </button>
+    </div>
   </div>
 
   <SearchBar {strings} bind:searchQuery />
@@ -214,7 +215,27 @@
   .tabs-row {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .tabs-main {
+    min-width: 0;
+    display: flex;
+    align-items: center;
     gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .tabs-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
   }
 
   .view-tabs {
@@ -239,10 +260,6 @@
     background: var(--primary);
     color: #fff;
     font-weight: 600;
-  }
-
-  .filler {
-    flex: 1;
   }
 
   .icon-btn {
@@ -311,5 +328,14 @@
 
   input:checked + .slider:before {
     transform: translateX(16px);
+  }
+
+  .tabs-main::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .tabs-main::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--divider, #e4e7ed) 75%, #8fa3b8);
+    border-radius: 999px;
   }
 </style>

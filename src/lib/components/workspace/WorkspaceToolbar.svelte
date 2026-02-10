@@ -14,7 +14,7 @@
   <input
     type="text"
     class="add-input"
-    placeholder={strings.inputHint}
+    placeholder={strings.workspaceQuickNoteHint || strings.inputHint}
     bind:value={newNoteText}
     onkeydown={(e) => e.key === "Enter" && onSave()}
   />
@@ -39,6 +39,7 @@
     padding: 10px;
     background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.75)) 90%, transparent);
     backdrop-filter: blur(8px);
+    align-items: stretch;
   }
 
   .add-input,

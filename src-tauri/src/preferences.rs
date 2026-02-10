@@ -45,10 +45,26 @@ pub struct PanelPreferences {
     pub show_panel_on_startup: bool,
     #[serde(default = "default_workspace_theme")]
     pub workspace_theme: String,
+    #[serde(default = "default_workspace_theme_transition_shape")]
+    pub workspace_theme_transition_shape: String,
+    #[serde(default = "default_workspace_main_tab")]
+    pub workspace_main_tab: String,
     #[serde(default)]
     pub workspace_sidebar_collapsed: bool,
     #[serde(default = "default_last_panel_window")]
     pub last_panel_window: String,
+    #[serde(default = "default_pomodoro_focus_minutes")]
+    pub pomodoro_focus_minutes: i32,
+    #[serde(default = "default_pomodoro_short_break_minutes")]
+    pub pomodoro_short_break_minutes: i32,
+    #[serde(default = "default_pomodoro_long_break_minutes")]
+    pub pomodoro_long_break_minutes: i32,
+    #[serde(default = "default_pomodoro_long_break_every")]
+    pub pomodoro_long_break_every: i32,
+    #[serde(default = "default_focus_tasks_json")]
+    pub focus_tasks_json: String,
+    #[serde(default = "default_focus_stats_json")]
+    pub focus_stats_json: String,
 }
 
 fn default_true() -> bool {
@@ -60,8 +76,32 @@ fn default_glass() -> f64 {
 fn default_workspace_theme() -> String {
     "light".to_string()
 }
+fn default_workspace_theme_transition_shape() -> String {
+    "circle".to_string()
+}
+fn default_workspace_main_tab() -> String {
+    "notes".to_string()
+}
 fn default_last_panel_window() -> String {
     "main".to_string()
+}
+fn default_pomodoro_focus_minutes() -> i32 {
+    25
+}
+fn default_pomodoro_short_break_minutes() -> i32 {
+    5
+}
+fn default_pomodoro_long_break_minutes() -> i32 {
+    15
+}
+fn default_pomodoro_long_break_every() -> i32 {
+    4
+}
+fn default_focus_tasks_json() -> String {
+    "[]".to_string()
+}
+fn default_focus_stats_json() -> String {
+    "{}".to_string()
 }
 
 pub fn read_show_panel_on_startup() -> bool {
