@@ -52,6 +52,8 @@
   let inspectorNoteId = $state(null);
   let inspectorMode = $state("view");
   let inspectorDraftText = $state("");
+  /** @type {{ id: string } | null} */
+  let pendingLongDocDraft = $state(null);
   let inspectorWidth = $state(430);
   let inspectorListCollapsed = $state(false);
   let sidebarWidth = $state(260);
@@ -174,6 +176,7 @@
       sortMode = next.sortMode;
       locale = next.locale;
       mainTab = next.mainTab;
+      stickiesVisible = next.overlayEnabled;
       workspaceTheme = next.workspaceTheme;
       themeTransitionShape = next.themeTransitionShape;
       focusTasks = next.focusTasks;
@@ -217,14 +220,42 @@
     inspectorListCollapsed = false;
   }
 
+  async function handleInspectorClose() {
+    if (inspectorNote && pendingLongDocDraft && pendingLongDocDraft.id === String(inspectorNote.id)) {
+      await discardPendingLongDocDraft(String(inspectorNote.id));
+      return;
+    }
+    closeInspector();
+  }
+
   function startInspectorEdit() {
     if (!inspectorNote) return;
     inspectorMode = "edit";
     inspectorDraftText = inspectorNote.text || "";
   }
 
-  function cancelInspectorEdit() {
+  /**
+   * @param {string} noteId
+   */
+  async function discardPendingLongDocDraft(noteId) {
+    try {
+      await invoke("permanently_delete_note", { id: noteId });
+      await loadNotes();
+      await windowSync.syncWindows();
+    } catch (e) {
+      console.error("discardPendingLongDocDraft(workspace)", e);
+    } finally {
+      pendingLongDocDraft = null;
+      closeInspector();
+    }
+  }
+
+  async function cancelInspectorEdit() {
     if (!inspectorNote) return;
+    if (pendingLongDocDraft && pendingLongDocDraft.id === String(inspectorNote.id)) {
+      await discardPendingLongDocDraft(String(inspectorNote.id));
+      return;
+    }
     inspectorMode = "view";
     inspectorDraftText = inspectorNote.text || "";
   }
@@ -243,6 +274,9 @@
       await loadNotes();
       inspectorMode = "view";
       inspectorDraftText = transformed;
+      if (pendingLongDocDraft && pendingLongDocDraft.id === String(inspectorNote.id)) {
+        pendingLongDocDraft = null;
+      }
     } catch (e) {
       console.error("saveInspectorEdit(workspace)", e);
     }
@@ -276,6 +310,35 @@
     sortMode = mode;
     await savePrefs({ sortMode: mode });
     await loadNotes();
+  }
+
+  async function createLongDocument() {
+    const raw = newNoteText.trim();
+    const text = raw || (locale === "zh" ? "# 新文档\n\n" : "# New document\n\n");
+    const beforeIds = new Set(notes.map((n) => String(n.id)));
+    try {
+      const next = await invoke("add_note", { text, isPinned: false, sortMode });
+      if (Array.isArray(next)) {
+        notes = next;
+      } else {
+        await loadNotes();
+      }
+      await windowSync.syncWindows();
+      const source = Array.isArray(next) ? next : notes;
+      const created = [...source]
+        .filter((n) => !beforeIds.has(String(n.id)))
+        .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")))[0];
+      if (created) {
+        pendingLongDocDraft = { id: String(created.id) };
+        openInspectorEdit(created);
+      }
+      newNoteText = "";
+      if (mainTab !== WORKSPACE_MAIN_TAB_NOTES) {
+        await setMainTab(WORKSPACE_MAIN_TAB_NOTES);
+      }
+    } catch (e) {
+      console.error("createLongDocument(workspace)", e);
+    }
   }
 
   async function toggleLanguage() {
@@ -356,6 +419,7 @@
   async function toggleStickiesVisibility() {
     try {
       stickiesVisible = !stickiesVisible;
+      await savePrefs({ overlayEnabled: stickiesVisible });
       if (stickiesVisible) await loadNotes();
       await windowSync.syncWindows();
     } catch (e) {
@@ -506,6 +570,7 @@
         {sortMode}
         sortModes={SORT_MODES}
         onSave={() => saveNote(false)}
+        onCreateLongDoc={createLongDocument}
         onSetSortMode={setSortMode}
       />
 
@@ -546,7 +611,7 @@
             mode={inspectorMode}
             bind:draftText={inspectorDraftText}
             {formatDate}
-            onClose={closeInspector}
+            onClose={handleInspectorClose}
             onStartEdit={startInspectorEdit}
             onCancelEdit={cancelInspectorEdit}
             onSave={saveInspectorEdit}

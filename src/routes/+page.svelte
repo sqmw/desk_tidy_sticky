@@ -182,6 +182,7 @@
       glassOpacity = p.glassOpacity ?? 0.18;
       locale = p.language || "en";
       showPanelOnStartup = p.showPanelOnStartup ?? false;
+      stickiesVisible = p.overlayEnabled ?? true;
     } catch (e) {
       console.error("loadPrefs", e);
     }
@@ -331,6 +332,7 @@
   async function toggleStickiesVisibility() {
     try {
       stickiesVisible = !stickiesVisible;
+      await savePrefs({ overlayEnabled: stickiesVisible });
       if (stickiesVisible) {
         await loadNotes();
       }

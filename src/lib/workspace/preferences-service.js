@@ -77,6 +77,7 @@ export async function loadWorkspacePreferences(invoke) {
     viewMode: normalizeWorkspaceViewMode(prefs.viewMode || DEFAULT_VIEW_MODE),
     sortMode: prefs.sortMode || DEFAULT_SORT_MODE,
     locale: prefs.language || DEFAULT_LOCALE,
+    overlayEnabled: prefs.overlayEnabled ?? true,
     workspaceTheme: normalizeWorkspaceTheme(prefs.workspaceTheme),
     themeTransitionShape: normalizeWorkspaceThemeTransitionShape(prefs.workspaceThemeTransitionShape),
     pomodoroConfig,

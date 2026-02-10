@@ -51,7 +51,7 @@
     <span class="title">{strings.workspaceTitle}</span>
   </div>
   <div class="window-actions" onpointerdown={(e) => e.stopPropagation()}>
-    <div class="btn-group icon-group">
+    <div class="action-cluster quick-cluster">
       <button
         type="button"
         class="bar-btn icon-btn"
@@ -69,13 +69,14 @@
       </button>
     </div>
 
-    <div class="btn-group">
+    <div class="action-cluster mode-cluster">
       <button type="button" class="bar-btn back" onclick={onBackToCompact} onpointerdown={(e) => e.stopPropagation()}>
+        {@render iconBack()}
         {strings.switchToCompact}
       </button>
     </div>
 
-    <div class="btn-group window-group">
+    <div class="action-cluster window-cluster">
       <button
         type="button"
         class="bar-btn icon-btn"
@@ -159,6 +160,12 @@
   </svg>
 {/snippet}
 
+{#snippet iconBack()}
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8">
+    <path d="M15 18 9 12l6-6"></path>
+  </svg>
+{/snippet}
+
 <style>
   .window-bar {
     display: flex;
@@ -203,35 +210,34 @@
   .window-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     cursor: default;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    min-width: 0;
   }
 
-  .btn-group {
+  .action-cluster {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d8e2ef) 78%, transparent);
+    border-radius: 12px;
+    padding: 2px;
+    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.92)) 70%, transparent);
   }
 
-  .icon-group {
-    padding-right: 2px;
-    border-right: 1px solid color-mix(in srgb, var(--ws-border-soft, #d8e2ef) 80%, transparent);
-  }
-
-  .window-group {
-    padding-left: 2px;
-    border-left: 1px solid color-mix(in srgb, var(--ws-border-soft, #d8e2ef) 80%, transparent);
+  .mode-cluster {
+    margin-left: 2px;
   }
 
   .bar-btn {
     border: 1px solid var(--ws-border-soft, #d8e2ef);
-    border-radius: 10px;
+    border-radius: 9px;
     background: var(--ws-btn-bg, #fff);
     color: var(--ws-text, #334155);
     font-size: 13px;
-    height: 38px;
-    padding: 0 12px;
+    height: 36px;
+    padding: 0 10px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -254,12 +260,16 @@
   }
 
   .bar-btn.icon-btn {
-    width: 38px;
+    width: 36px;
     padding: 0;
   }
 
   .bar-btn.back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-weight: 600;
+    white-space: nowrap;
   }
 
   .close-btn {
@@ -327,5 +337,16 @@
   .shape.heart {
     font-size: 14px;
     line-height: 1;
+  }
+
+  @media (max-width: 920px) {
+    .window-actions {
+      gap: 6px;
+    }
+
+    .bar-btn.back {
+      padding: 0 8px;
+      font-size: 12px;
+    }
   }
 </style>
