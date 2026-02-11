@@ -7,6 +7,7 @@
     onDragStart,
     onBackToCompact,
     onToggleTheme,
+    onOpenSettings = () => {},
     onToggleMaximize,
     onHide = () => {},
     onChangeThemeTransitionShape = () => {},
@@ -52,6 +53,15 @@
   </div>
   <div class="window-actions" onpointerdown={(e) => e.stopPropagation()}>
     <div class="action-cluster quick-cluster">
+      <button
+        type="button"
+        class="bar-btn icon-btn"
+        onclick={() => onOpenSettings()}
+        onpointerdown={(e) => e.stopPropagation()}
+        title={strings.settings}
+      >
+        {@render iconSettings()}
+      </button>
       <button
         type="button"
         class="bar-btn icon-btn"
@@ -131,6 +141,15 @@
 {#snippet iconMoon()}
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7">
     <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 1 0 9.8 9.8z"></path>
+  </svg>
+{/snippet}
+
+{#snippet iconSettings()}
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8">
+    <path
+      d="M19.4 12.9a7.7 7.7 0 0 0 .05-.9 7.7 7.7 0 0 0-.05-.9l2.05-1.6a.5.5 0 0 0 .12-.64l-1.95-3.38a.5.5 0 0 0-.6-.22l-2.42.97a7.4 7.4 0 0 0-1.55-.9l-.37-2.58a.5.5 0 0 0-.5-.42h-3.9a.5.5 0 0 0-.5.42l-.37 2.58a7.4 7.4 0 0 0-1.55.9l-2.42-.97a.5.5 0 0 0-.6.22L2.43 8.86a.5.5 0 0 0 .12.64l2.05 1.6a7.7 7.7 0 0 0-.05.9c0 .3.02.6.05.9l-2.05 1.6a.5.5 0 0 0-.12.64l1.95 3.38c.12.22.38.31.6.22l2.42-.97c.48.37 1 .68 1.55.9l.37 2.58c.04.24.25.42.5.42h3.9c.25 0 .46-.18.5-.42l.37-2.58c.55-.22 1.07-.53 1.55-.9l2.42.97c.22.09.48 0 .6-.22l1.95-3.38a.5.5 0 0 0-.12-.64l-2.05-1.6Z"
+    ></path>
+    <circle cx="12" cy="12" r="2.8"></circle>
   </svg>
 {/snippet}
 

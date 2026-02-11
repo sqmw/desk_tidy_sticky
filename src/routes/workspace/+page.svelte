@@ -20,6 +20,7 @@
   import WorkspaceSidebar from "$lib/components/workspace/WorkspaceSidebar.svelte";
   import WorkspaceToolbar from "$lib/components/workspace/WorkspaceToolbar.svelte";
   import WorkspaceNoteInspector from "$lib/components/workspace/WorkspaceNoteInspector.svelte";
+  import WorkspaceSettingsDialog from "$lib/components/workspace/WorkspaceSettingsDialog.svelte";
   import {
     loadWorkspacePreferences,
     normalizePomodoroConfig,
@@ -80,9 +81,9 @@
   let suppressNotesReloadUntil = 0;
   let stickiesVisible = $state(true);
   let interactionDisabled = $state(false);
+  let showWorkspaceSettings = $state(false);
   let workspaceTheme = $state("light");
   let workspaceZoom = $state(1);
-  let workspaceAppliedZoom = $state(1);
   let workspaceZoomMode = $state("manual");
   let workspaceFontSize = $state("medium");
   let themeTransitionShape = $state("circle");
@@ -93,6 +94,9 @@
   let focusSelectedTaskId = $state("");
   let focusCommand = $state({ nonce: 0, type: "select", taskId: "" });
   let deadlineNowTick = $state(Date.now());
+  let viewportWidth = $state(1360);
+  let viewportHeight = $state(860);
+  let viewportDpr = $state(1);
   let pomodoroConfig = $state({
     focusMinutes: 25,
     shortBreakMinutes: 5,
@@ -101,11 +105,31 @@
   });
   let sidebarCollapsed = $derived(sidebarWidth <= 104);
   const workspaceZoomOption = $derived(workspaceZoomMode === "auto" ? "auto" : String(workspaceZoom));
-  const workspaceAppFontScale = $derived.by(() => {
+  const workspaceAdaptiveScale = $derived.by(() => {
+    const safeWidth = Math.max(320, viewportWidth);
+    const safeHeight = Math.max(320, viewportHeight);
+    const sidebarReserved = Math.min(420, Math.max(180, sidebarWidth)) + 24;
+    const windowChromeReserved = 42;
+    const contentWidth = Math.max(640, safeWidth - sidebarReserved);
+    const contentHeight = Math.max(540, safeHeight - windowChromeReserved);
+    const widthRatio = contentWidth / 1180;
+    const heightRatio = contentHeight / 860;
+    const dprCompensation = viewportDpr >= 2 ? 1.07 : viewportDpr >= 1.5 ? 1.04 : viewportDpr >= 1.25 ? 1.02 : 1;
+    const sidebarCompensation = sidebarCollapsed ? 1.02 : 1;
+    const scale = Math.min(widthRatio, heightRatio) * dprCompensation * sidebarCompensation;
+    return Math.max(0.88, Math.min(1.22, Number(scale.toFixed(2))));
+  });
+  const workspaceLayoutScale = $derived.by(() =>
+    workspaceZoomMode === "auto" ? workspaceAdaptiveScale : normalizeWorkspaceZoom(workspaceZoom),
+  );
+  const workspaceFontPresetScale = $derived.by(() => {
     if (workspaceFontSize === "small") return 0.94;
     if (workspaceFontSize === "large") return 1.08;
     return 1;
   });
+  const workspaceTextScale = $derived.by(() =>
+    Number((workspaceLayoutScale * workspaceFontPresetScale).toFixed(3)),
+  );
 
   const strings = $derived(getStrings(locale));
   const deadlineTasks = $derived.by(() => {
@@ -303,7 +327,6 @@
       focusTasks = next.focusTasks;
       focusStats = next.focusStats;
       pomodoroConfig = next.pomodoroConfig;
-      applyWorkspaceZoomByMode(next.workspaceZoomMode, next.workspaceZoom);
     } catch (e) {
       console.error("loadPrefs(workspace)", e);
     }
@@ -469,9 +492,11 @@
     await loadNotes();
   }
 
-  async function toggleLanguage() {
-    locale = locale === "en" ? "zh" : "en";
-    await savePrefs({ language: locale });
+  /** @param {string} nextLocale */
+  async function setLanguage(nextLocale) {
+    const safe = nextLocale === "zh" ? "zh" : "en";
+    locale = safe;
+    await savePrefs({ language: safe });
   }
 
   async function switchToCompact() {
@@ -500,34 +525,6 @@
     await savePrefs({ workspaceTheme: nextTheme });
   }
 
-  function computeAutoWorkspaceZoom() {
-    const width = window.innerWidth;
-    if (width <= 1020) return 0.9;
-    if (width <= 1220) return 0.95;
-    if (width >= 2200) return 1.1;
-    if (width >= 1800) return 1.05;
-    return 1;
-  }
-
-  /** @param {number} zoom */
-  function applyWorkspaceZoom(zoom) {
-    const safeZoom = normalizeWorkspaceZoom(zoom);
-    workspaceAppliedZoom = safeZoom;
-  }
-
-  /**
-   * @param {string} mode
-   * @param {number} manualZoom
-   */
-  function applyWorkspaceZoomByMode(mode, manualZoom) {
-    const safeMode = normalizeWorkspaceZoomMode(mode);
-    if (safeMode === "auto") {
-      applyWorkspaceZoom(computeAutoWorkspaceZoom());
-      return;
-    }
-    applyWorkspaceZoom(manualZoom);
-  }
-
   /**
    * @param {unknown} zoom
    * @param {{ persist?: boolean }} [options]
@@ -537,7 +534,6 @@
     const nextZoom = normalizeWorkspaceZoom(zoom);
     workspaceZoom = nextZoom;
     workspaceZoomMode = "manual";
-    applyWorkspaceZoom(nextZoom);
     if (persist) {
       await savePrefs({ workspaceZoom: nextZoom, workspaceZoomMode: "manual" });
     }
@@ -545,9 +541,9 @@
 
   /** @param {string} option */
   async function setWorkspaceZoomOption(option) {
+    const safeMode = normalizeWorkspaceZoomMode(option);
     if (option === "auto") {
-      workspaceZoomMode = "auto";
-      applyWorkspaceZoomByMode("auto", workspaceZoom);
+      workspaceZoomMode = safeMode;
       await savePrefs({ workspaceZoomMode: "auto", workspaceZoom });
       return;
     }
@@ -561,9 +557,14 @@
     await savePrefs({ workspaceFontSize: safeSize });
   }
 
+  function refreshViewportMetrics() {
+    viewportWidth = Math.max(1, window.innerWidth || 1);
+    viewportHeight = Math.max(1, window.innerHeight || 1);
+    viewportDpr = Math.max(1, window.devicePixelRatio || 1);
+  }
+
   function onWindowResize() {
-    if (workspaceZoomMode !== "auto") return;
-    applyWorkspaceZoomByMode("auto", workspaceZoom);
+    refreshViewportMetrics();
   }
 
   /** @param {string} shape */
@@ -637,6 +638,7 @@
   });
 
   onMount(() => {
+    refreshViewportMetrics();
     runtimeLifecycle.bootstrap();
     runtimeLifecycle.syncWindowMaximizedState((next) => {
       windowMaximized = next;
@@ -694,7 +696,7 @@
   <div
     class="workspace"
     class:theme-dark={workspaceTheme === "dark"}
-    style={`--sidebar-width: ${sidebarWidth}px; --ws-app-font-scale: ${workspaceAppFontScale}; --ws-app-zoom: ${workspaceAppliedZoom};`}
+    style={`--sidebar-width: ${sidebarWidth}px; --ws-layout-scale: ${workspaceLayoutScale}; --ws-text-scale: ${workspaceTextScale};`}
   >
   <WorkspaceSidebar
     {strings}
@@ -715,17 +717,12 @@
     {selectedTag}
     taggedNoteCount={taggedNoteCount}
     {initialViewMode}
-    {workspaceZoomOption}
-    {workspaceFontSize}
     {stickiesVisible}
     {interactionDisabled}
     focusDeadlines={deadlineTasks}
     onDeadlineAction={handleDeadlineAction}
-    onToggleLanguage={toggleLanguage}
     onToggleStickiesVisibility={toggleStickiesVisibility}
     onToggleInteraction={toggleInteraction}
-    onSetWorkspaceZoomOption={setWorkspaceZoomOption}
-    onSetWorkspaceFontSize={setWorkspaceFontSize}
   />
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="sidebar-splitter" onpointerdown={resizeController.startSidebarResize} ondblclick={() => (sidebarWidth = 260)}></div>
@@ -740,6 +737,7 @@
       onBackToCompact={switchToCompact}
       onToggleMaximize={toggleWindowMaximize}
       onToggleTheme={toggleTheme}
+      onOpenSettings={() => (showWorkspaceSettings = true)}
       onHide={hideWindow}
       onChangeThemeTransitionShape={changeThemeTransitionShape}
     />
@@ -826,6 +824,17 @@
   </div>
 </div>
 
+<WorkspaceSettingsDialog
+  {strings}
+  bind:show={showWorkspaceSettings}
+  {locale}
+  zoomOption={workspaceZoomOption}
+  fontSize={workspaceFontSize}
+  onChangeLanguage={setLanguage}
+  onChangeZoomOption={setWorkspaceZoomOption}
+  onChangeFontSize={setWorkspaceFontSize}
+/>
+
 <svelte:window
   onpointermove={resizeController.onWindowPointerMove}
   onpointerup={resizeController.onWindowPointerUp}
@@ -872,8 +881,8 @@
     --ws-scrollbar-track: rgba(148, 163, 184, 0.14);
     --ws-scrollbar-thumb: rgba(71, 85, 105, 0.45);
     --ws-scrollbar-thumb-hover: rgba(51, 65, 85, 0.62);
-    width: calc(100% / var(--ws-app-zoom, 1));
-    height: calc(100% / var(--ws-app-zoom, 1));
+    width: 100%;
+    height: 100%;
     display: grid;
     grid-template-columns: var(--sidebar-width, 260px) 8px 1fr;
     background:
@@ -883,8 +892,6 @@
     color: #111827;
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
     font-size: 14px;
-    transform: scale(var(--ws-app-zoom, 1));
-    transform-origin: top left;
     cursor: default;
     view-transition-name: workspace-root;
   }
@@ -1026,7 +1033,45 @@
   .workspace :global(.toolbar .search),
   .workspace :global(.toolbar .primary-btn),
   .workspace :global(.toolbar .ghost-btn) {
-    font-size: calc(1em * var(--ws-app-font-scale, 1)) !important;
+    font-size: calc(1em * var(--ws-text-scale, 1)) !important;
+  }
+
+  .workspace :global(.window-bar) {
+    padding: calc(8px * var(--ws-layout-scale, 1)) calc(10px * var(--ws-layout-scale, 1));
+    gap: calc(8px * var(--ws-layout-scale, 1));
+  }
+
+  .workspace :global(.window-bar .window-actions),
+  .workspace :global(.window-bar .action-cluster) {
+    gap: calc(6px * var(--ws-layout-scale, 1));
+  }
+
+  .workspace :global(.window-bar .bar-btn) {
+    min-height: calc(36px * var(--ws-layout-scale, 1));
+    padding: 0 calc(10px * var(--ws-layout-scale, 1));
+  }
+
+  .workspace :global(.window-bar .bar-btn.icon-btn) {
+    width: calc(36px * var(--ws-layout-scale, 1));
+    min-width: calc(36px * var(--ws-layout-scale, 1));
+  }
+
+  .workspace :global(.toolbar) {
+    padding: calc(10px * var(--ws-layout-scale, 1));
+    gap: calc(8px * var(--ws-layout-scale, 1));
+  }
+
+  .workspace :global(.toolbar .add-input),
+  .workspace :global(.toolbar .search) {
+    min-height: calc(40px * var(--ws-layout-scale, 1));
+    padding: calc(9px * var(--ws-layout-scale, 1)) calc(10px * var(--ws-layout-scale, 1));
+    border-radius: calc(12px * var(--ws-layout-scale, 1));
+  }
+
+  .workspace :global(.toolbar .primary-btn),
+  .workspace :global(.toolbar .ghost-btn) {
+    min-height: calc(38px * var(--ws-layout-scale, 1));
+    padding: 0 calc(14px * var(--ws-layout-scale, 1));
   }
 
   .workspace :global(input),

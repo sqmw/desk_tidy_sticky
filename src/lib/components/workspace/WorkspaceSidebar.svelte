@@ -28,10 +28,6 @@
     onSetSortMode = () => {},
     onSetSelectedTag = () => {},
     onSetInitialViewMode = () => {},
-    workspaceZoomOption = "1",
-    onSetWorkspaceZoomOption = () => {},
-    workspaceFontSize = "medium",
-    onSetWorkspaceFontSize = () => {},
     stickiesVisible,
     interactionDisabled = false,
     focusDeadlines = [],
@@ -39,7 +35,6 @@
     selectedTag = "",
     taggedNoteCount = 0,
     onDeadlineAction = () => {},
-    onToggleLanguage,
     onToggleStickiesVisibility,
     onToggleInteraction,
   } = $props();
@@ -54,8 +49,6 @@
   const secondaryViewModes = $derived(
     viewModes.filter((/** @type {string} */ mode) => SECONDARY_VIEW_MODES.includes(mode)),
   );
-  const zoomOptions = ["auto", "0.9", "1", "1.1", "1.25", "1.4"];
-
   function interactionLabel() {
     return interactionDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn;
   }
@@ -280,41 +273,10 @@
 
   <div class="sidebar-actions">
     <div class="block-title">{collapsed ? "•" : strings.settings}</div>
-    <button type="button" class="ghost-btn" onclick={onToggleLanguage}>{collapsed ? "语" : strings.language}</button>
     <button type="button" class="ghost-btn" onclick={onToggleStickiesVisibility}>
       {collapsed ? "贴" : stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
     </button>
     <button type="button" class="ghost-btn" onclick={onToggleInteraction}>{collapsed ? "交" : interactionLabel()}</button>
-    {#if !collapsed}
-      <div class="display-scale">
-        <label class="initial-view-label" for="workspace-display-scale">{strings.workspaceDisplayScale}</label>
-        <select
-          id="workspace-display-scale"
-          class="initial-view-select"
-          value={workspaceZoomOption}
-          onchange={(e) => onSetWorkspaceZoomOption(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-        >
-          {#each zoomOptions as value (value)}
-            <option value={value}>
-              {value === "auto" ? strings.workspaceDisplayScaleAuto : `${Math.round(Number(value) * 100)}%`}
-            </option>
-          {/each}
-        </select>
-      </div>
-      <div class="display-scale">
-        <label class="initial-view-label" for="workspace-font-size">{strings.workspaceFontSize}</label>
-        <select
-          id="workspace-font-size"
-          class="initial-view-select"
-          value={workspaceFontSize}
-          onchange={(e) => onSetWorkspaceFontSize(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-        >
-          <option value="small">{strings.workspaceFontSizeSmall}</option>
-          <option value="medium">{strings.workspaceFontSizeMedium}</option>
-          <option value="large">{strings.workspaceFontSizeLarge}</option>
-        </select>
-      </div>
-    {/if}
   </div>
 </aside>
 
@@ -331,7 +293,31 @@
     color: var(--ws-text, #111827);
     cursor: default;
     min-height: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
+      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+  }
+
+  .sidebar::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+
+  .sidebar::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 78%, transparent);
+    border-radius: 999px;
+  }
+
+  .sidebar::-webkit-scrollbar-thumb {
+    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.86)) 78%, transparent);
+  }
+
+  .sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--ws-scrollbar-thumb-hover, rgba(51, 65, 85, 0.62));
   }
 
   .sidebar.collapsed {
@@ -414,32 +400,13 @@
   .note-filters-block {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-height: 0;
   }
 
   .note-filters-block .view-sections {
     min-height: 0;
-    overflow: auto;
-    padding-right: 3px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
-      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
-  }
-
-  .note-filters-block .view-sections::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .note-filters-block .view-sections::-webkit-scrollbar-track {
-    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 80%, transparent);
-    border-radius: 999px;
-  }
-
-  .note-filters-block .view-sections::-webkit-scrollbar-thumb {
-    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
-    border-radius: 999px;
+    overflow: visible;
   }
 
   .view-separator {
@@ -468,7 +435,7 @@
   .tag-list {
     display: grid;
     gap: 5px;
-    max-height: none;
+    max-height: 160px;
     overflow: auto;
     padding-right: 3px;
     scrollbar-width: thin;
@@ -865,11 +832,6 @@
     gap: 6px;
     border-top: 1px dashed var(--ws-border-soft, #d8e2ef);
     padding-top: 12px;
-  }
-
-  .display-scale {
-    display: grid;
-    gap: 6px;
   }
 
   .ghost-btn {
