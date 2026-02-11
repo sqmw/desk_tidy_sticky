@@ -150,6 +150,26 @@ fn sort_notes(notes: &mut [Note], mode: NoteSortMode) {
     });
 }
 
+fn normalize_tags(input: Vec<String>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for raw in input {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let normalized = trimmed.trim_start_matches('#').trim().to_string();
+        if normalized.is_empty() {
+            continue;
+        }
+        let exists = out.iter().any(|item| item.eq_ignore_ascii_case(normalized.as_str()));
+        if exists {
+            continue;
+        }
+        out.push(normalized);
+    }
+    out
+}
+
 pub fn load_notes(sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
     let mut notes = load_notes_from_file()?;
     sort_notes(&mut notes, sort_mode);
@@ -161,6 +181,7 @@ pub fn add_note(
     is_pinned: bool,
     sort_mode: NoteSortMode,
     priority: Option<u8>,
+    tags: Option<Vec<String>>,
 ) -> Result<Vec<Note>, String> {
     let mut notes = load_notes_from_file()?;
     if sort_mode == NoteSortMode::Custom {
@@ -170,8 +191,25 @@ pub fn add_note(
     }
     let mut note = Note::new(text, is_pinned);
     note.priority = priority.map(|v| v.clamp(1, 4));
+    note.tags = normalize_tags(tags.unwrap_or_default());
     note.custom_order = Some(0);
     notes.insert(0, note);
+    sort_notes(&mut notes, sort_mode);
+    save_notes_to_file(&notes)?;
+    Ok(notes)
+}
+
+pub fn update_note_tags(
+    id: &str,
+    tags: Vec<String>,
+    sort_mode: NoteSortMode,
+) -> Result<Vec<Note>, String> {
+    let mut notes = load_notes_from_file()?;
+    let safe = normalize_tags(tags);
+    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+        n.tags = safe;
+        n.updated_at = chrono_now();
+    }
     sort_notes(&mut notes, sort_mode);
     save_notes_to_file(&notes)?;
     Ok(notes)

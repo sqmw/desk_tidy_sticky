@@ -5,6 +5,8 @@
     strings,
     value = $bindable(/** @type {number | null} */ (null)),
     compact = false,
+    label = "",
+    allowUnassigned = true,
     onChange = () => {},
   } = $props();
 
@@ -22,15 +24,17 @@
 
 <div class="tag-select" class:compact>
   {#if !compact}
-    <span class="tag-label">{strings.priority}</span>
+    <span class="tag-label">{label || strings.priority}</span>
   {/if}
   <select
     class="tag-input"
     value={value == null ? "none" : String(value)}
     onchange={(e) => setFromRaw(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-    title={strings.priority}
+    title={label || strings.priority}
   >
-    <option value="none">{strings.priorityUnassigned}</option>
+    {#if allowUnassigned}
+      <option value="none">{strings.priorityUnassigned}</option>
+    {/if}
     <option value="1">Q1</option>
     <option value="2">Q2</option>
     <option value="3">Q3</option>

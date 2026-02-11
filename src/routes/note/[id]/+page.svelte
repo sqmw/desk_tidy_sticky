@@ -775,6 +775,22 @@
     }
   }
 
+  /** @param {string[]} tags */
+  async function setNoteTags(tags) {
+    if (!note) return;
+    try {
+      const all = await invoke("update_note_tags", {
+        // @ts-ignore
+        id: note.id,
+        tags,
+        sortMode: "custom",
+      });
+      await syncAfterCommand(all);
+    } catch (e) {
+      console.error("setNoteTags", e);
+    }
+  }
+
   onMount(() => {
     /** @type {Array<Promise<() => void>>} */
     const unlistenPromises = [];
@@ -836,7 +852,13 @@
   onpointercancel={onDragPointerUp}
 >
   {#if note}
-    <NoteTagBar {strings} priority={note.priority ?? null} onChangePriority={setNotePriority} />
+    <NoteTagBar
+      {strings}
+      priority={note.priority ?? null}
+      tags={Array.isArray(note.tags) ? note.tags : []}
+      onChangePriority={setNotePriority}
+      onChangeTags={setNoteTags}
+    />
 
     {#if isEditing}
       {#if isBlockEditor}

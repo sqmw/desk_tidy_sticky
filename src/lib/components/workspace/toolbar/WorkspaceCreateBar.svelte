@@ -1,13 +1,18 @@
 <script>
   import CreateTagSelect from "$lib/components/note/CreateTagSelect.svelte";
+  import NoteTagsEditor from "$lib/components/note/NoteTagsEditor.svelte";
 
   let {
     strings,
+    viewMode = "active",
     newNoteText = $bindable(""),
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
+    newNoteTags = $bindable(/** @type {string[]} */ ([])),
     onSave = () => {},
     onCreateLongDoc = () => {},
   } = $props();
+
+  const isQuadrantView = $derived(viewMode === "quadrant");
 </script>
 
 <div class="create-bar">
@@ -19,7 +24,15 @@
     onkeydown={(e) => e.key === "Enter" && onSave()}
   />
 
-  <CreateTagSelect {strings} bind:value={newNotePriority} />
+  {#if isQuadrantView}
+    <CreateTagSelect
+      {strings}
+      label={strings.quadrantTag || strings.priority}
+      allowUnassigned={false}
+      bind:value={newNotePriority}
+    />
+  {/if}
+  <NoteTagsEditor {strings} compact={true} bind:tags={newNoteTags} />
 
   <div class="create-actions">
     <button type="button" class="primary-btn" onclick={() => onSave()}>
@@ -48,7 +61,7 @@
   }
 
   .add-input {
-    flex: 1 1 260px;
+    flex: 2 1 320px;
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 12px;
     background: var(--ws-card-bg, #fff);
@@ -60,8 +73,13 @@
   }
 
   .create-bar :global(.tag-select) {
-    flex: 0 0 120px;
-    min-width: 110px;
+    flex: 0 0 118px;
+    min-width: 108px;
+  }
+
+  .create-bar :global(.tags-editor.compact) {
+    flex: 1 1 240px;
+    min-width: 170px;
   }
 
   .primary-btn {
@@ -106,6 +124,11 @@
   }
 
   @media (max-width: 920px) {
+    .create-bar :global(.tags-editor.compact) {
+      flex-basis: 100%;
+      min-width: 0;
+    }
+
     .create-actions {
       justify-content: flex-start;
     }

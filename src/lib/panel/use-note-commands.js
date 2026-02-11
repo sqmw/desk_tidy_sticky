@@ -10,6 +10,8 @@ import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
  *   setNewNoteText: (v: string) => void;
  *   getNewNotePriority?: () => number | null;
  *   setNewNotePriority?: (v: number | null) => void;
+ *   getNewNoteTags?: () => string[];
+ *   setNewNoteTags?: (v: string[]) => void;
  *   getNotes: () => any[];
  *   setNotes: (v: any[]) => void;
  *   suppressNotesReload?: (ms: number) => void;
@@ -34,8 +36,12 @@ export function createNoteCommands(deps) {
   async function saveNote(pin = false, priorityOverride = undefined) {
     const text = expandNoteCommands(deps.getNewNoteText().trim()).trim();
     if (!text) return;
-    const selectedPriority =
+    let selectedPriority =
       priorityOverride === undefined ? (deps.getNewNotePriority?.() ?? null) : priorityOverride;
+    if (deps.getViewMode() === "quadrant" && selectedPriority == null) {
+      selectedPriority = 2;
+    }
+    const selectedTags = deps.getNewNoteTags?.() ?? [];
 
     try {
       const sortMode = deps.getSortMode();
@@ -44,9 +50,11 @@ export function createNoteCommands(deps) {
         isPinned: pin,
         sortMode,
         priority: selectedPriority,
+        tags: selectedTags,
       });
       deps.setNewNoteText("");
       deps.setNewNotePriority?.(null);
+      deps.setNewNoteTags?.([]);
       await loadNotes();
 
       if (deps.getHideAfterSave()) {
@@ -115,6 +123,23 @@ export function createNoteCommands(deps) {
       await loadNotes();
     } catch (e) {
       console.error("updatePriority", e);
+    }
+  }
+
+  /**
+   * @param {any} note
+   * @param {string[]} tags
+   */
+  async function updateTags(note, tags) {
+    try {
+      await deps.invoke("update_note_tags", {
+        id: note.id,
+        tags,
+        sortMode: deps.getSortMode(),
+      });
+      await loadNotes();
+    } catch (e) {
+      console.error("updateTags", e);
     }
   }
 
@@ -202,6 +227,7 @@ export function createNoteCommands(deps) {
     toggleZOrder,
     toggleDone,
     updatePriority,
+    updateTags,
     toggleArchive,
     deleteNote,
     restoreNote,

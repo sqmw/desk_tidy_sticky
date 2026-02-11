@@ -4,8 +4,10 @@
 
   let {
     strings,
+    viewMode = "active",
     newNoteText = $bindable(),
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
+    newNoteTags = $bindable(/** @type {string[]} */ ([])),
     searchQuery = $bindable(),
     sortMode,
     sortModes,
@@ -18,8 +20,10 @@
 <div class="toolbar">
   <WorkspaceCreateBar
     {strings}
+    {viewMode}
     bind:newNoteText
     bind:newNotePriority
+    bind:newNoteTags
     onSave={onSave}
     onCreateLongDoc={onCreateLongDoc}
   />
@@ -29,7 +33,7 @@
 <style>
   .toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
     gap: 8px;
     border: 1px solid var(--ws-border, #dbe5f2);
     border-radius: 14px;
@@ -39,7 +43,7 @@
     align-items: stretch;
   }
 
-  @media (max-width: 1180px) {
+  @media (max-width: 1700px) {
     .toolbar {
       grid-template-columns: 1fr;
     }

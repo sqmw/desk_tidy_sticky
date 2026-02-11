@@ -58,6 +58,7 @@
   let locale = $state("en");
   let newNoteText = $state("");
   let newNotePriority = $state(/** @type {number | null} */ (null));
+  let newNoteTags = $state(/** @type {string[]} */ ([]));
 
   let inspectorOpen = $state(false);
   /** @type {string | null} */
@@ -133,7 +134,10 @@
     if (!searchQuery.trim()) return base;
     const q = searchQuery.trim();
     return base
-      .map((n) => ({ note: n, ...matchNote(q, n.text) }))
+      .map((n) => {
+        const tagText = Array.isArray(n.tags) ? n.tags.join(" ") : "";
+        return { note: n, ...matchNote(q, `${n.text || ""}\n${tagText}`.trim()) };
+      })
       .filter((x) => x.matched)
       .sort((a, b) => b.score - a.score)
       .map((x) => x.note);
@@ -176,6 +180,7 @@
     toggleZOrder,
     toggleDone,
     updatePriority,
+    updateTags,
     toggleArchive,
     deleteNote,
     restoreNote,
@@ -192,6 +197,10 @@
     getNewNotePriority: () => newNotePriority,
     setNewNotePriority: (v) => {
       newNotePriority = v;
+    },
+    getNewNoteTags: () => newNoteTags,
+    setNewNoteTags: (v) => {
+      newNoteTags = v;
     },
     getNotes: () => notes,
     setNotes: (v) => {
@@ -254,6 +263,10 @@
     getNewNotePriority: () => newNotePriority,
     setNewNotePriority: (next) => {
       newNotePriority = next;
+    },
+    getNewNoteTags: () => newNoteTags,
+    setNewNoteTags: (next) => {
+      newNoteTags = next;
     },
     getInspectorNote: () => inspectorNote,
     getPendingLongDocDraft: () => pendingLongDocDraft,
@@ -453,6 +466,12 @@
     await updatePriority(inspectorNote, priority);
   }
 
+  /** @param {string[]} tags */
+  async function handleInspectorTagsChange(tags) {
+    if (!inspectorNote) return;
+    await updateTags(inspectorNote, tags);
+  }
+
   const resizeController = createWorkspaceResizeController({
     getWorkbenchShellRect: () => workbenchShellEl?.getBoundingClientRect() ?? null,
     getInspectorOpen: () => inspectorOpen,
@@ -496,6 +515,17 @@
   $effect(() => {
     if (inspectorOpen) return;
     inspectorListCollapsed = false;
+  });
+
+  $effect(() => {
+    if (mainTab !== WORKSPACE_MAIN_TAB_NOTES) return;
+    if (viewMode === WORKSPACE_NOTE_VIEW_QUADRANT) {
+      if (newNotePriority == null) {
+        newNotePriority = 2;
+      }
+      return;
+    }
+    newNotePriority = null;
   });
 </script>
 
@@ -545,8 +575,10 @@
     {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
       <WorkspaceToolbar
         {strings}
+        {viewMode}
         bind:newNoteText
         bind:newNotePriority
+        bind:newNoteTags
         bind:searchQuery
         {sortMode}
         sortModes={SORT_MODES}
@@ -599,6 +631,7 @@
             onCancelEdit={cancelInspectorEdit}
             onSave={saveInspectorEdit}
             onChangePriority={handleInspectorPriorityChange}
+            onChangeTags={handleInspectorTagsChange}
           />
         {/if}
       </div>

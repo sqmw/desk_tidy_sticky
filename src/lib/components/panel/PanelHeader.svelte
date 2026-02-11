@@ -65,7 +65,7 @@
       bind:this={noteInputEl}
       onkeydown={(e) => e.key === "Enter" && saveNote(false)}
     />
-    <CreateTagSelect {strings} bind:value={newNotePriority} compact={true} />
+    <CreateTagSelect {strings} label={strings.quadrantTag || strings.priority} bind:value={newNotePriority} compact={true} />
     <button type="button" class="send-btn" onclick={() => saveNote(false)} title={strings.saveNote}>
       ➤
     </button>

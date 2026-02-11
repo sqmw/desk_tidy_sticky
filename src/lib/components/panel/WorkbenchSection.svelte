@@ -33,13 +33,6 @@
   }
 
   /** @param {number | undefined | null} p */
-  function nextPriority(p) {
-    const normalized = normalizePriority(p);
-    if (normalized == null) return 1;
-    return normalized >= 4 ? null : normalized + 1;
-  }
-
-  /** @param {number | undefined | null} p */
   function priorityBadge(p) {
     const normalized = normalizePriority(p);
     return normalized == null ? "" : `Q${normalized}`;
@@ -49,6 +42,21 @@
   function priorityActionLabel(p) {
     const normalized = normalizePriority(p);
     return normalized == null ? strings.priorityUnassigned : `Q${normalized}`;
+  }
+
+  /**
+   * @param {any} note
+   * @returns {string[]}
+   */
+  function noteTags(note) {
+    if (!Array.isArray(note?.tags)) return [];
+    const raw = /** @type {any[]} */ (note.tags);
+    return raw
+      .map((/** @type {any} */ t) => String(t || "").trim())
+      .filter(
+        (/** @type {string} */ t, /** @type {number} */ idx, /** @type {string[]} */ arr) =>
+          !!t && arr.indexOf(t) === idx,
+      );
   }
 
   /** @param {number} q */
@@ -463,6 +471,13 @@
                     </div>
                     <div class="card-body">
                       <div class="text" class:done={note.isDone}>{@html note.renderedHtml}</div>
+                      {#if noteTags(note).length > 0}
+                        <div class="tag-row">
+                          {#each noteTags(note).slice(0, 4) as tag (tag)}
+                            <span class="tag-chip">#{tag}</span>
+                          {/each}
+                        </div>
+                      {/if}
                     </div>
                     <div class="actions quadrant-actions">
                       <button type="button" class="action-btn" title={strings.edit} onclick={() => openEdit(note)}
@@ -522,6 +537,13 @@
           </div>
           <div class="card-body">
             <div class="text" class:done={note.isDone}>{@html note.renderedHtml}</div>
+            {#if noteTags(note).length > 0}
+              <div class="tag-row">
+                {#each noteTags(note).slice(0, 4) as tag (tag)}
+                  <span class="tag-chip">#{tag}</span>
+                {/each}
+              </div>
+            {/if}
           </div>
           <div class="actions">
             {#if viewMode === "trash"}
@@ -552,14 +574,27 @@
                   {@render iconCheckBoxOutline()}
                 {/if}
               </button>
-              <button
-                type="button"
-                class="action-btn priority"
-                title={`${strings.priority}: ${priorityActionLabel(note.priority)}`}
-                onclick={() => updatePriority(note, nextPriority(note.priority))}
-              >
-                {priorityActionLabel(note.priority)}
-              </button>
+              <div class="priority-wrap">
+                <button
+                  type="button"
+                  class="action-btn priority"
+                  title={`${strings.priority}: ${priorityActionLabel(note.priority)}`}
+                  onclick={() => togglePriorityMenu(String(note.id))}
+                >
+                  {priorityActionLabel(note.priority)}
+                </button>
+                {#if priorityMenuNoteId === String(note.id)}
+                  <div class="priority-menu">
+                    <button type="button" class="priority-item" onclick={() => selectPriority(note, null)}>
+                      {strings.priorityUnassigned}
+                    </button>
+                    <button type="button" class="priority-item" onclick={() => selectPriority(note, 1)}>Q1</button>
+                    <button type="button" class="priority-item" onclick={() => selectPriority(note, 2)}>Q2</button>
+                    <button type="button" class="priority-item" onclick={() => selectPriority(note, 3)}>Q3</button>
+                    <button type="button" class="priority-item" onclick={() => selectPriority(note, 4)}>Q4</button>
+                  </div>
+                {/if}
+              </div>
               {#if viewMode === "active"}
                 <button
                   type="button"
@@ -878,6 +913,27 @@
   .text.done {
     text-decoration: line-through;
     color: var(--ws-muted, #94a3b8);
+  }
+
+  .tag-row {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .tag-chip {
+    border: 1px solid var(--ws-border-soft, #d7dfec);
+    border-radius: 999px;
+    background: var(--ws-btn-bg, #f8fafc);
+    color: var(--ws-muted, #64748b);
+    font-size: 10px;
+    line-height: 1;
+    padding: 4px 7px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .date {

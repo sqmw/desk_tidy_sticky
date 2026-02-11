@@ -12,6 +12,7 @@
     onCancelEdit = () => {},
     onSave = () => {},
     onChangePriority = () => {},
+    onChangeTags = () => {},
   } = $props();
   /** @type {HTMLTextAreaElement | null} */
   let editorEl = $state(null);
@@ -56,7 +57,13 @@
         <button type="button" class="btn danger" onclick={() => onClose()}>{strings.close}</button>
       </div>
     </header>
-    <NoteTagBar {strings} priority={note.priority ?? null} onChangePriority={onChangePriority} />
+    <NoteTagBar
+      {strings}
+      priority={note.priority ?? null}
+      tags={Array.isArray(note.tags) ? note.tags : []}
+      onChangePriority={onChangePriority}
+      onChangeTags={onChangeTags}
+    />
 
     {#if mode === "view"}
       <div class="content markdown">{@html note.renderedHtml}</div>

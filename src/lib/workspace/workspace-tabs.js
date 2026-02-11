@@ -70,7 +70,7 @@ export function getWorkspaceMainTabDefs(strings) {
  * @param {string} mode
  */
 export function getWorkspaceViewModeLabel(strings, mode) {
-  if (mode === WORKSPACE_NOTE_VIEW_TODO) return strings.todo;
+  if (mode === WORKSPACE_NOTE_VIEW_TODO) return strings.workspaceTodoView || strings.todo;
   if (mode === WORKSPACE_NOTE_VIEW_QUADRANT) return strings.quadrant;
   if (mode === WORKSPACE_NOTE_VIEW_ARCHIVED) return strings.archived;
   if (mode === WORKSPACE_NOTE_VIEW_TRASH) return strings.trash;
