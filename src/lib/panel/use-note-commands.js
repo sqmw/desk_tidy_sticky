@@ -12,6 +12,7 @@ import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
  *   setNewNotePriority?: (v: number | null) => void;
  *   getNewNoteTags?: () => string[];
  *   setNewNoteTags?: (v: string[]) => void;
+ *   getSelectedTag?: () => string;
  *   getNotes: () => any[];
  *   setNotes: (v: any[]) => void;
  *   suppressNotesReload?: (ms: number) => void;
@@ -42,6 +43,11 @@ export function createNoteCommands(deps) {
       selectedPriority = 2;
     }
     const selectedTags = deps.getNewNoteTags?.() ?? [];
+    const selectedTag = String(deps.getSelectedTag?.() ?? "").trim();
+    const finalTags =
+      selectedTag && !selectedTags.some((t) => String(t || "").trim().toLocaleLowerCase() === selectedTag.toLocaleLowerCase())
+        ? [...selectedTags, selectedTag]
+        : selectedTags;
 
     try {
       const sortMode = deps.getSortMode();
@@ -50,7 +56,7 @@ export function createNoteCommands(deps) {
         isPinned: pin,
         sortMode,
         priority: selectedPriority,
-        tags: selectedTags,
+        tags: finalTags,
       });
       deps.setNewNoteText("");
       deps.setNewNotePriority?.(null);
@@ -193,8 +199,11 @@ export function createNoteCommands(deps) {
 
     /** @param {any} n */
     const inCurrentView = (n) => {
-      if (viewMode === "active" || viewMode === "todo" || viewMode === "quadrant") {
+      if (viewMode === "active" || viewMode === "quadrant") {
         return !n.isArchived && !n.isDeleted;
+      }
+      if (viewMode === "todo") {
+        return !n.isArchived && !n.isDeleted && !n.isDone;
       }
       if (viewMode === "archived") return n.isArchived && !n.isDeleted;
       return n.isDeleted;

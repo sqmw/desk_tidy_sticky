@@ -8,12 +8,10 @@
     newNoteText = $bindable(),
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
     newNoteTags = $bindable(/** @type {string[]} */ ([])),
+    noteTagOptions = /** @type {string[]} */ ([]),
     searchQuery = $bindable(),
-    sortMode,
-    sortModes,
     onSave,
     onCreateLongDoc = () => {},
-    onSetSortMode,
   } = $props();
 </script>
 
@@ -24,10 +22,11 @@
     bind:newNoteText
     bind:newNotePriority
     bind:newNoteTags
+    {noteTagOptions}
     onSave={onSave}
     onCreateLongDoc={onCreateLongDoc}
   />
-  <WorkspaceQueryBar {strings} bind:searchQuery {sortMode} {sortModes} onSetSortMode={onSetSortMode} />
+  <WorkspaceQueryBar {strings} bind:searchQuery />
 </div>
 
 <style>

@@ -8,6 +8,7 @@
     newNoteText = $bindable(""),
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
     newNoteTags = $bindable(/** @type {string[]} */ ([])),
+    noteTagOptions = /** @type {string[]} */ ([]),
     onSave = () => {},
     onCreateLongDoc = () => {},
   } = $props();
@@ -32,7 +33,7 @@
       bind:value={newNotePriority}
     />
   {/if}
-  <NoteTagsEditor {strings} compact={true} bind:tags={newNoteTags} />
+  <NoteTagsEditor {strings} compact={true} bind:tags={newNoteTags} suggestions={noteTagOptions} />
 
   <div class="create-actions">
     <button type="button" class="primary-btn" onclick={() => onSave()}>

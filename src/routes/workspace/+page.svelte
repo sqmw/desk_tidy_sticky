@@ -54,6 +54,7 @@
   let viewMode = $state("active");
   let initialViewMode = $state("last");
   let searchQuery = $state("");
+  let selectedTag = $state("");
   /** @type {string} */
   let locale = $state("en");
   let newNoteText = $state("");
@@ -102,6 +103,39 @@
     sortMode === "custom" && !searchQuery.trim() && viewMode === "quadrant",
   );
 
+  /**
+   * @param {any[]} source
+   * @param {string} mode
+   */
+  function notesByView(source, mode) {
+    if (mode === "active" || mode === "quadrant") {
+      return source.filter((n) => !n.isArchived && !n.isDeleted);
+    }
+    if (mode === "todo") {
+      return source.filter((n) => !n.isArchived && !n.isDeleted && !n.isDone);
+    }
+    if (mode === "archived") {
+      return source.filter((n) => n.isArchived && !n.isDeleted);
+    }
+    return source.filter((n) => n.isDeleted);
+  }
+
+  /** @param {unknown} raw */
+  function normalizeTag(raw) {
+    return String(raw || "").trim().toLocaleLowerCase();
+  }
+
+  /**
+   * @param {any} note
+   * @param {string} tag
+   */
+  function noteHasTag(note, tag) {
+    const needle = normalizeTag(tag);
+    if (!needle || !Array.isArray(note?.tags)) return false;
+    const tags = /** @type {any[]} */ (note.tags);
+    return tags.some((/** @type {any} */ t) => normalizeTag(t) === needle);
+  }
+
   /** @param {string} isoStr */
   function formatDate(isoStr) {
     const d = new Date(isoStr);
@@ -113,22 +147,10 @@
   }
 
   const visibleNotes = $derived.by(() => {
-    let base = notes;
-    if (viewMode === "active") {
-      base = base.filter((n) => !n.isArchived && !n.isDeleted);
-    } else if (viewMode === "todo") {
-      base = base
-        .filter((n) => !n.isArchived && !n.isDeleted)
-        .sort((a, b) => {
-          if (!!a.isDone !== !!b.isDone) return a.isDone ? 1 : -1;
-          return String(b.updatedAt).localeCompare(String(a.updatedAt));
-        });
-    } else if (viewMode === "quadrant") {
-      base = base.filter((n) => !n.isArchived && !n.isDeleted);
-    } else if (viewMode === "archived") {
-      base = base.filter((n) => n.isArchived && !n.isDeleted);
-    } else {
-      base = base.filter((n) => n.isDeleted);
+    let base = notesByView(notes, viewMode);
+
+    if (selectedTag) {
+      base = base.filter((n) => noteHasTag(n, selectedTag));
     }
 
     if (!searchQuery.trim()) return base;
@@ -141,6 +163,41 @@
       .filter((x) => x.matched)
       .sort((a, b) => b.score - a.score)
       .map((x) => x.note);
+  });
+
+  const noteTagEntries = $derived.by(() => {
+    const scoped = notesByView(notes, viewMode);
+    /** @type {Map<string, { tag: string; count: number }>} */
+    const buckets = new Map();
+    for (const note of scoped) {
+      if (!Array.isArray(note?.tags)) continue;
+      const seenInNote = new Set();
+      for (const rawTag of note.tags) {
+        const text = String(rawTag || "").trim();
+        const key = normalizeTag(text);
+        if (!key || seenInNote.has(key)) continue;
+        seenInNote.add(key);
+        const prev = buckets.get(key);
+        if (prev) {
+          prev.count += 1;
+        } else {
+          buckets.set(key, { tag: text, count: 1 });
+        }
+      }
+    }
+    return [...buckets.values()]
+      .sort((a, b) => (b.count !== a.count ? b.count - a.count : a.tag.localeCompare(b.tag)))
+      .slice(0, 24);
+  });
+  const noteTagOptions = $derived(noteTagEntries.map((x) => x.tag));
+
+  const taggedNoteCount = $derived.by(() => {
+    const scoped = notesByView(notes, viewMode);
+    return scoped.filter((n) => {
+      if (!Array.isArray(n?.tags)) return false;
+      const tags = /** @type {any[]} */ (n.tags);
+      return tags.some((/** @type {any} */ t) => String(t || "").trim());
+    }).length;
   });
 
   const renderedNotes = $derived.by(() =>
@@ -202,6 +259,7 @@
     setNewNoteTags: (v) => {
       newNoteTags = v;
     },
+    getSelectedTag: () => selectedTag,
     getNotes: () => notes,
     setNotes: (v) => {
       notes = v;
@@ -268,6 +326,7 @@
     setNewNoteTags: (next) => {
       newNoteTags = next;
     },
+    getSelectedTag: () => selectedTag,
     getInspectorNote: () => inspectorNote,
     getPendingLongDocDraft: () => pendingLongDocDraft,
     setPendingLongDocDraft: (next) => {
@@ -355,8 +414,16 @@
   async function setViewMode(mode) {
     const safeMode = normalizeWorkspaceViewMode(mode);
     viewMode = safeMode;
+    if (safeMode === WORKSPACE_NOTE_VIEW_TRASH) {
+      selectedTag = "";
+    }
     await savePrefs({ viewMode: safeMode });
     await loadNotes();
+  }
+
+  /** @param {string} tag */
+  function setSelectedTag(tag) {
+    selectedTag = String(tag || "").trim();
   }
 
   /** @param {string} mode */
@@ -527,6 +594,14 @@
     }
     newNotePriority = null;
   });
+
+  $effect(() => {
+    if (!selectedTag) return;
+    const exists = noteTagEntries.some((x) => normalizeTag(x.tag) === normalizeTag(selectedTag));
+    if (!exists) {
+      selectedTag = "";
+    }
+  });
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -544,8 +619,15 @@
     onDragStart={startWorkspaceDragPointer}
     onSetMainTab={setMainTab}
     onSetViewMode={setViewMode}
+    onSetSortMode={setSortMode}
+    onSetSelectedTag={setSelectedTag}
     onSetInitialViewMode={setInitialViewMode}
+    {sortMode}
+    sortModes={SORT_MODES}
     {noteViewCounts}
+    noteTags={noteTagEntries}
+    {selectedTag}
+    taggedNoteCount={taggedNoteCount}
     {initialViewMode}
     {stickiesVisible}
     {interactionDisabled}
@@ -579,12 +661,10 @@
         bind:newNoteText
         bind:newNotePriority
         bind:newNoteTags
+        {noteTagOptions}
         bind:searchQuery
-        {sortMode}
-        sortModes={SORT_MODES}
         onSave={() => saveNote(false)}
         onCreateLongDoc={createLongDocument}
-        onSetSortMode={setSortMode}
       />
 
       <div
@@ -610,6 +690,7 @@
             {toggleZOrder}
             {toggleDone}
             {updatePriority}
+            {updateTags}
             {persistReorderedVisible}
           />
         </div>

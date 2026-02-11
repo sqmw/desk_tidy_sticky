@@ -18,6 +18,7 @@ import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
  *   setNewNotePriority?: (next: number | null) => void;
  *   getNewNoteTags?: () => string[];
  *   setNewNoteTags?: (next: string[]) => void;
+ *   getSelectedTag?: () => string;
  *   getInspectorNote: () => any | null;
  *   getPendingLongDocDraft: () => { id: string } | null;
  *   setPendingLongDocDraft: (next: { id: string } | null) => void;
@@ -126,13 +127,19 @@ export function createWorkspaceInspectorActions(deps) {
     const raw = deps.getNewNoteText().trim();
     const text = raw || (deps.getLocale() === "zh" ? "# 新文档\n\n" : "# New document\n\n");
     const beforeIds = new Set(deps.getNotes().map((n) => String(n.id)));
+    const selectedTag = String(deps.getSelectedTag?.() ?? "").trim();
+    const baseTags = deps.getNewNoteTags?.() ?? [];
+    const tags =
+      selectedTag && !baseTags.some((t) => String(t || "").trim().toLocaleLowerCase() === selectedTag.toLocaleLowerCase())
+        ? [...baseTags, selectedTag]
+        : baseTags;
     try {
       const next = await deps.invoke("add_note", {
         text,
         isPinned: false,
         sortMode: deps.getSortMode(),
         priority: deps.getNewNotePriority?.() ?? null,
-        tags: deps.getNewNoteTags?.() ?? [],
+        tags,
       });
       if (Array.isArray(next)) {
         deps.setNotes(next);

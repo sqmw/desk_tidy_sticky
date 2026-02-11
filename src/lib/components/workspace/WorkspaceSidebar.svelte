@@ -17,16 +17,23 @@
     mainTab = /** @type {string} */ (WORKSPACE_MAIN_TAB_NOTES),
     viewModes,
     viewMode,
+    sortMode = "custom",
+    sortModes = [],
     initialViewMode = "last",
     noteViewCounts = {},
     collapsed = false,
     onDragStart,
     onSetMainTab,
     onSetViewMode,
+    onSetSortMode = () => {},
+    onSetSelectedTag = () => {},
     onSetInitialViewMode = () => {},
     stickiesVisible,
     interactionDisabled = false,
     focusDeadlines = [],
+    noteTags = [],
+    selectedTag = "",
+    taggedNoteCount = 0,
     onDeadlineAction = () => {},
     onToggleLanguage,
     onToggleStickiesVisibility,
@@ -98,7 +105,7 @@
   </div>
 
   {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
-    <div class="sidebar-block">
+    <div class="sidebar-block note-filters-block">
       <div class="block-title">{collapsed ? "•" : strings.workspaceNoteFilters}</div>
       <div class="view-sections">
         <div class="view-list">
@@ -140,6 +147,52 @@
                 <option value={mode}>{getWorkspaceInitialViewModeLabel(strings, mode)}</option>
               {/each}
             </select>
+          </div>
+          <div class="sort-control">
+            <label class="initial-view-label" for="workspace-sort-mode">{strings.sortMode}</label>
+            <select
+              id="workspace-sort-mode"
+              class="initial-view-select"
+              value={sortMode}
+              onchange={(e) => onSetSortMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+            >
+              {#each sortModes as mode (mode)}
+                <option value={mode}>
+                  {mode === "newest" ? strings.sortByNewest : mode === "oldest" ? strings.sortByOldest : strings.sortByCustom}
+                </option>
+              {/each}
+            </select>
+          </div>
+          <div class="view-separator"></div>
+          <div class="tag-filter">
+            <div class="initial-view-label">{strings.workspaceTagsFilter}</div>
+            {#if noteTags.length === 0}
+              <div class="tag-empty">{strings.workspaceTagsEmpty}</div>
+            {:else}
+              <div class="tag-list">
+                <button
+                  type="button"
+                  class="tag-filter-btn"
+                  class:active={selectedTag === ""}
+                  onclick={() => onSetSelectedTag("")}
+                >
+                  <span>{strings.workspaceTagsAll}</span>
+                  <span class="view-count">{taggedNoteCount}</span>
+                </button>
+                {#each noteTags as item (item.tag)}
+                  <button
+                    type="button"
+                    class="tag-filter-btn"
+                    class:active={selectedTag === item.tag}
+                    onclick={() => onSetSelectedTag(item.tag)}
+                    title={`#${item.tag}`}
+                  >
+                    <span class="tag-name">#{item.tag}</span>
+                    <span class="view-count">{item.count}</span>
+                  </button>
+                {/each}
+              </div>
+            {/if}
           </div>
         {/if}
       </div>
@@ -323,6 +376,37 @@
     gap: 8px;
   }
 
+  .note-filters-block {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .note-filters-block .view-sections {
+    min-height: 0;
+    overflow: auto;
+    padding-right: 3px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
+      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+  }
+
+  .note-filters-block .view-sections::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .note-filters-block .view-sections::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 80%, transparent);
+    border-radius: 999px;
+  }
+
+  .note-filters-block .view-sections::-webkit-scrollbar-thumb {
+    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
+    border-radius: 999px;
+  }
+
   .view-separator {
     height: 1px;
     background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 90%, transparent);
@@ -332,7 +416,87 @@
     opacity: 0.95;
   }
 
+  .tag-filter {
+    display: grid;
+    gap: 6px;
+  }
+
+  .tag-empty {
+    border: 1px dashed var(--ws-border-soft, #d9e2ef);
+    border-radius: 9px;
+    color: var(--ws-muted, #64748b);
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 8px;
+  }
+
+  .tag-list {
+    display: grid;
+    gap: 5px;
+    max-height: none;
+    overflow: auto;
+    padding-right: 3px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
+      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+  }
+
+  .tag-list::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .tag-list::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 80%, transparent);
+    border-radius: 999px;
+  }
+
+  .tag-list::-webkit-scrollbar-thumb {
+    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
+    border-radius: 999px;
+  }
+
+  .tag-filter-btn {
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    border-radius: 9px;
+    background: var(--ws-btn-bg, #fbfdff);
+    color: var(--ws-text, #334155);
+    text-align: left;
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.16s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tag-filter-btn:hover {
+    border-color: var(--ws-border-hover, #c6d5e8);
+    background: var(--ws-btn-hover, #f4f8ff);
+  }
+
+  .tag-filter-btn.active {
+    border-color: var(--ws-border-active, #94a3b8);
+    color: var(--ws-text-strong, #0f172a);
+    background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
+  }
+
+  .tag-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .initial-view {
+    display: grid;
+    gap: 6px;
+  }
+
+  .sort-control {
     display: grid;
     gap: 6px;
   }
