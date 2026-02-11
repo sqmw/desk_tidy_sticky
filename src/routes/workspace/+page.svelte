@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { emit, listen } from "@tauri-apps/api/event";
 
   import { getStrings } from "$lib/strings.js";
@@ -23,6 +24,7 @@
   import {
     loadWorkspacePreferences,
     normalizePomodoroConfig,
+    normalizeWorkspaceZoom,
     normalizeWorkspaceThemeTransitionShape,
     saveWorkspacePreferences,
   } from "$lib/workspace/preferences-service.js";
@@ -78,6 +80,7 @@
   let stickiesVisible = $state(true);
   let interactionDisabled = $state(false);
   let workspaceTheme = $state("light");
+  let workspaceZoom = $state(1);
   let themeTransitionShape = $state("circle");
   /** @type {any[]} */
   let focusTasks = $state([]);
@@ -283,10 +286,12 @@
       mainTab = next.mainTab;
       stickiesVisible = next.overlayEnabled;
       workspaceTheme = next.workspaceTheme;
+      workspaceZoom = next.workspaceZoom;
       themeTransitionShape = next.themeTransitionShape;
       focusTasks = next.focusTasks;
       focusStats = next.focusStats;
       pomodoroConfig = next.pomodoroConfig;
+      await setWorkspaceZoom(next.workspaceZoom, { persist: false });
     } catch (e) {
       console.error("loadPrefs(workspace)", e);
     }
@@ -483,6 +488,24 @@
     await savePrefs({ workspaceTheme: nextTheme });
   }
 
+  /**
+   * @param {unknown} zoom
+   * @param {{ persist?: boolean }} [options]
+   */
+  async function setWorkspaceZoom(zoom, options = {}) {
+    const persist = options.persist ?? true;
+    const nextZoom = normalizeWorkspaceZoom(zoom);
+    workspaceZoom = nextZoom;
+    try {
+      await getCurrentWebview().setZoom(nextZoom);
+    } catch (e) {
+      console.error("setWorkspaceZoom(workspace)", e);
+    }
+    if (persist) {
+      await savePrefs({ workspaceZoom: nextZoom });
+    }
+  }
+
   /** @param {string} shape */
   async function changeThemeTransitionShape(shape) {
     themeTransitionShape = normalizeWorkspaceThemeTransitionShape(shape);
@@ -629,6 +652,7 @@
     {selectedTag}
     taggedNoteCount={taggedNoteCount}
     {initialViewMode}
+    {workspaceZoom}
     {stickiesVisible}
     {interactionDisabled}
     focusDeadlines={deadlineTasks}
@@ -636,6 +660,7 @@
     onToggleLanguage={toggleLanguage}
     onToggleStickiesVisibility={toggleStickiesVisibility}
     onToggleInteraction={toggleInteraction}
+    onSetWorkspaceZoom={setWorkspaceZoom}
   />
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="sidebar-splitter" onpointerdown={resizeController.startSidebarResize} ondblclick={() => (sidebarWidth = 260)}></div>

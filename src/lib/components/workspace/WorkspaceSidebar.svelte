@@ -28,6 +28,8 @@
     onSetSortMode = () => {},
     onSetSelectedTag = () => {},
     onSetInitialViewMode = () => {},
+    workspaceZoom = 1,
+    onSetWorkspaceZoom = () => {},
     stickiesVisible,
     interactionDisabled = false,
     focusDeadlines = [],
@@ -50,6 +52,7 @@
   const secondaryViewModes = $derived(
     viewModes.filter((/** @type {string} */ mode) => SECONDARY_VIEW_MODES.includes(mode)),
   );
+  const zoomOptions = [0.9, 1, 1.1, 1.25, 1.4];
 
   function interactionLabel() {
     return interactionDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn;
@@ -280,6 +283,22 @@
       {collapsed ? "贴" : stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
     </button>
     <button type="button" class="ghost-btn" onclick={onToggleInteraction}>{collapsed ? "交" : interactionLabel()}</button>
+    {#if !collapsed}
+      <div class="display-scale">
+        <label class="initial-view-label" for="workspace-display-scale">{strings.workspaceDisplayScale}</label>
+        <select
+          id="workspace-display-scale"
+          class="initial-view-select"
+          value={String(workspaceZoom)}
+          onchange={(e) =>
+            onSetWorkspaceZoom(Number(/** @type {HTMLSelectElement} */ (e.currentTarget).value))}
+        >
+          {#each zoomOptions as value (value)}
+            <option value={String(value)}>{Math.round(value * 100)}%</option>
+          {/each}
+        </select>
+      </div>
+    {/if}
   </div>
 </aside>
 
@@ -830,6 +849,11 @@
     gap: 6px;
     border-top: 1px dashed var(--ws-border-soft, #d8e2ef);
     padding-top: 12px;
+  }
+
+  .display-scale {
+    display: grid;
+    gap: 6px;
   }
 
   .ghost-btn {
