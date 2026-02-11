@@ -21,11 +21,11 @@
 
 <style>
   .query-bar {
-    display: grid;
-    grid-template-columns: minmax(220px, 1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     min-width: 0;
-    align-items: stretch;
+    align-items: center;
   }
 
   .search,
@@ -40,13 +40,18 @@
     min-width: 0;
   }
 
+  .search {
+    flex: 1 1 260px;
+  }
+
   .sort {
-    min-width: 96px;
+    flex: 0 0 96px;
+    min-width: 92px;
   }
 
   @media (max-width: 920px) {
-    .query-bar {
-      grid-template-columns: 1fr;
+    .sort {
+      flex-basis: 110px;
     }
   }
 </style>

@@ -1,11 +1,13 @@
 <script>
   import {
+    WORKSPACE_INITIAL_VIEW_MODES,
     WORKSPACE_MAIN_TAB_NOTES,
     WORKSPACE_NOTE_VIEW_ACTIVE,
     WORKSPACE_NOTE_VIEW_ARCHIVED,
     WORKSPACE_NOTE_VIEW_QUADRANT,
     WORKSPACE_NOTE_VIEW_TODO,
     WORKSPACE_NOTE_VIEW_TRASH,
+    getWorkspaceInitialViewModeLabel,
     getWorkspaceMainTabDefs,
     getWorkspaceViewModeLabel,
   } from "$lib/workspace/workspace-tabs.js";
@@ -15,11 +17,13 @@
     mainTab = /** @type {string} */ (WORKSPACE_MAIN_TAB_NOTES),
     viewModes,
     viewMode,
+    initialViewMode = "last",
     noteViewCounts = {},
     collapsed = false,
     onDragStart,
     onSetMainTab,
     onSetViewMode,
+    onSetInitialViewMode = () => {},
     stickiesVisible,
     interactionDisabled = false,
     focusDeadlines = [],
@@ -122,6 +126,22 @@
             </button>
           {/each}
         </div>
+        {#if !collapsed}
+          <div class="view-separator"></div>
+          <div class="initial-view">
+            <label class="initial-view-label" for="workspace-initial-view">{strings.workspaceInitialView}</label>
+            <select
+              id="workspace-initial-view"
+              class="initial-view-select"
+              value={initialViewMode}
+              onchange={(e) => onSetInitialViewMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+            >
+              {#each WORKSPACE_INITIAL_VIEW_MODES as mode (mode)}
+                <option value={mode}>{getWorkspaceInitialViewModeLabel(strings, mode)}</option>
+              {/each}
+            </select>
+          </div>
+        {/if}
       </div>
     </div>
   {:else}
@@ -310,6 +330,35 @@
 
   .view-list-secondary .view-btn {
     opacity: 0.95;
+  }
+
+  .initial-view {
+    display: grid;
+    gap: 6px;
+  }
+
+  .initial-view-label {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
+    font-weight: 600;
+  }
+
+  .initial-view-select {
+    width: 100%;
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    border-radius: 9px;
+    background: var(--ws-btn-bg, #fbfdff);
+    color: var(--ws-text, #334155);
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.14s ease;
+  }
+
+  .initial-view-select:hover {
+    border-color: var(--ws-border-hover, #c6d5e8);
   }
 
   .main-tabs {

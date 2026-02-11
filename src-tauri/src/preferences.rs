@@ -49,6 +49,8 @@ pub struct PanelPreferences {
     pub workspace_theme_transition_shape: String,
     #[serde(default = "default_workspace_main_tab")]
     pub workspace_main_tab: String,
+    #[serde(default = "default_workspace_initial_view_mode")]
+    pub workspace_initial_view_mode: String,
     #[serde(default)]
     pub workspace_sidebar_collapsed: bool,
     #[serde(default = "default_last_panel_window")]
@@ -81,6 +83,9 @@ fn default_workspace_theme_transition_shape() -> String {
 }
 fn default_workspace_main_tab() -> String {
     "notes".to_string()
+}
+fn default_workspace_initial_view_mode() -> String {
+    "last".to_string()
 }
 fn default_last_panel_window() -> String {
     "main".to_string()

@@ -1,4 +1,6 @@
 <script>
+  import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
+
   let {
     strings,
     note = null,
@@ -9,6 +11,7 @@
     onStartEdit = () => {},
     onCancelEdit = () => {},
     onSave = () => {},
+    onChangePriority = () => {},
   } = $props();
   /** @type {HTMLTextAreaElement | null} */
   let editorEl = $state(null);
@@ -53,6 +56,7 @@
         <button type="button" class="btn danger" onclick={() => onClose()}>{strings.close}</button>
       </div>
     </header>
+    <NoteTagBar {strings} priority={note.priority ?? null} onChangePriority={onChangePriority} />
 
     {#if mode === "view"}
       <div class="content markdown">{@html note.renderedHtml}</div>

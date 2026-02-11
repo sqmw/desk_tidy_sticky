@@ -35,6 +35,7 @@
   /** @type {string} */
   let locale = $state("en");
   let newNoteText = $state("");
+  let newNotePriority = $state(/** @type {number | null} */ (null));
   let showEditDialog = $state(false);
   /** @type {any} */
   let editingNote = $state(null);
@@ -145,6 +146,10 @@
     getNewNoteText: () => newNoteText,
     setNewNoteText: (v) => {
       newNoteText = v;
+    },
+    getNewNotePriority: () => newNotePriority,
+    setNewNotePriority: (v) => {
+      newNotePriority = v;
     },
     getNotes: () => notes,
     setNotes: (v) => {
@@ -434,6 +439,7 @@
       bind:showSettings
       {glassOpacity}
       bind:newNoteText
+      bind:newNotePriority
       bind:noteInputEl
       {viewMode}
       {sortMode}

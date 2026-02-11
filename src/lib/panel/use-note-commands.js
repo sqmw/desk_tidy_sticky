@@ -8,6 +8,8 @@ import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
  *   getHideAfterSave: () => boolean;
  *   getNewNoteText: () => string;
  *   setNewNoteText: (v: string) => void;
+ *   getNewNotePriority?: () => number | null;
+ *   setNewNotePriority?: (v: number | null) => void;
  *   getNotes: () => any[];
  *   setNotes: (v: any[]) => void;
  *   suppressNotesReload?: (ms: number) => void;
@@ -29,14 +31,22 @@ export function createNoteCommands(deps) {
     }
   }
 
-  async function saveNote(pin = false) {
+  async function saveNote(pin = false, priorityOverride = undefined) {
     const text = expandNoteCommands(deps.getNewNoteText().trim()).trim();
     if (!text) return;
+    const selectedPriority =
+      priorityOverride === undefined ? (deps.getNewNotePriority?.() ?? null) : priorityOverride;
 
     try {
       const sortMode = deps.getSortMode();
-      await deps.invoke("add_note", { text, isPinned: pin, sortMode });
+      await deps.invoke("add_note", {
+        text,
+        isPinned: pin,
+        sortMode,
+        priority: selectedPriority,
+      });
       deps.setNewNoteText("");
+      deps.setNewNotePriority?.(null);
       await loadNotes();
 
       if (deps.getHideAfterSave()) {

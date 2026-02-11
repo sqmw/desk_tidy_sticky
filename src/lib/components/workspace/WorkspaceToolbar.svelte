@@ -5,6 +5,7 @@
   let {
     strings,
     newNoteText = $bindable(),
+    newNotePriority = $bindable(/** @type {number | null} */ (null)),
     searchQuery = $bindable(),
     sortMode,
     sortModes,
@@ -15,14 +16,20 @@
 </script>
 
 <div class="toolbar">
-  <WorkspaceCreateBar {strings} bind:newNoteText onSave={onSave} onCreateLongDoc={onCreateLongDoc} />
+  <WorkspaceCreateBar
+    {strings}
+    bind:newNoteText
+    bind:newNotePriority
+    onSave={onSave}
+    onCreateLongDoc={onCreateLongDoc}
+  />
   <WorkspaceQueryBar {strings} bind:searchQuery {sortMode} {sortModes} onSetSortMode={onSetSortMode} />
 </div>
 
 <style>
   .toolbar {
     display: grid;
-    grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 8px;
     border: 1px solid var(--ws-border, #dbe5f2);
     border-radius: 14px;
@@ -32,7 +39,7 @@
     align-items: stretch;
   }
 
-  @media (max-width: 920px) {
+  @media (max-width: 1180px) {
     .toolbar {
       grid-template-columns: 1fr;
     }

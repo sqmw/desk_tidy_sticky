@@ -160,6 +160,7 @@ pub fn add_note(
     text: String,
     is_pinned: bool,
     sort_mode: NoteSortMode,
+    priority: Option<u8>,
 ) -> Result<Vec<Note>, String> {
     let mut notes = load_notes_from_file()?;
     if sort_mode == NoteSortMode::Custom {
@@ -168,6 +169,7 @@ pub fn add_note(
         }
     }
     let mut note = Note::new(text, is_pinned);
+    note.priority = priority.map(|v| v.clamp(1, 4));
     note.custom_order = Some(0);
     notes.insert(0, note);
     sort_notes(&mut notes, sort_mode);

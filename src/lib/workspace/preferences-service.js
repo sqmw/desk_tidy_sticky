@@ -1,7 +1,9 @@
 import { getPreferences, updatePreferences } from "$lib/preferences/preferences-store.js";
 import { normalizeFocusStats, normalizeFocusTasks } from "$lib/workspace/focus/focus-model.js";
 import {
+  normalizeWorkspaceInitialViewMode,
   normalizeWorkspaceMainTab,
+  resolveWorkspaceStartupViewMode,
   normalizeWorkspaceViewMode,
 } from "$lib/workspace/workspace-tabs.js";
 
@@ -74,7 +76,11 @@ export async function loadWorkspacePreferences(invoke) {
   }
   return {
     mainTab: normalizeWorkspaceMainTab(prefs.workspaceMainTab),
-    viewMode: normalizeWorkspaceViewMode(prefs.viewMode || DEFAULT_VIEW_MODE),
+    initialViewMode: normalizeWorkspaceInitialViewMode(prefs.workspaceInitialViewMode),
+    viewMode: resolveWorkspaceStartupViewMode(
+      prefs.workspaceInitialViewMode,
+      normalizeWorkspaceViewMode(prefs.viewMode || DEFAULT_VIEW_MODE),
+    ),
     sortMode: prefs.sortMode || DEFAULT_SORT_MODE,
     locale: prefs.language || DEFAULT_LOCALE,
     overlayEnabled: prefs.overlayEnabled ?? true,

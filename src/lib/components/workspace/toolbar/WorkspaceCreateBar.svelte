@@ -1,7 +1,10 @@
 <script>
+  import CreateTagSelect from "$lib/components/note/CreateTagSelect.svelte";
+
   let {
     strings,
     newNoteText = $bindable(""),
+    newNotePriority = $bindable(/** @type {number | null} */ (null)),
     onSave = () => {},
     onCreateLongDoc = () => {},
   } = $props();
@@ -16,6 +19,8 @@
     onkeydown={(e) => e.key === "Enter" && onSave()}
   />
 
+  <CreateTagSelect {strings} bind:value={newNotePriority} />
+
   <div class="create-actions">
     <button type="button" class="primary-btn" onclick={() => onSave()}>
       {strings.workspaceCreateNote || strings.saveNote}
@@ -28,20 +33,22 @@
 
 <style>
   .create-bar {
-    display: grid;
-    grid-template-columns: minmax(220px, 1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     min-width: 0;
-    align-items: stretch;
+    align-items: center;
   }
 
   .create-actions {
-    display: inline-flex;
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     align-items: center;
   }
 
   .add-input {
+    flex: 1 1 260px;
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 12px;
     background: var(--ws-card-bg, #fff);
@@ -50,6 +57,11 @@
     padding: 9px 10px;
     outline: none;
     min-width: 0;
+  }
+
+  .create-bar :global(.tag-select) {
+    flex: 0 0 120px;
+    min-width: 110px;
   }
 
   .primary-btn {
@@ -94,10 +106,6 @@
   }
 
   @media (max-width: 920px) {
-    .create-bar {
-      grid-template-columns: 1fr;
-    }
-
     .create-actions {
       justify-content: flex-start;
     }

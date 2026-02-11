@@ -177,8 +177,14 @@ fn add_note(
     text: String,
     is_pinned: bool,
     sort_mode: String,
+    priority: Option<u8>,
 ) -> Result<Vec<notes::Note>, String> {
-    let notes = notes_service::add_note(text, is_pinned, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = notes_service::add_note(
+        text,
+        is_pinned,
+        parse_sort_mode(sort_mode.as_str()),
+        priority,
+    )?;
     emit_notes_changed(&app);
     Ok(notes)
 }

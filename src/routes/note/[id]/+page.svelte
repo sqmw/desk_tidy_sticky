@@ -8,6 +8,7 @@
   import { getStrings } from "$lib/strings.js";
   import BlockEditor from "$lib/components/note/BlockEditor.svelte";
   import NotePreview from "$lib/components/note/NotePreview.svelte";
+  import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
   import NoteToolbar from "$lib/components/note/NoteToolbar.svelte";
   import SourceEditorPane from "$lib/components/note/SourceEditorPane.svelte";
   import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
@@ -359,7 +360,7 @@
     const target = /** @type {HTMLElement | null} */ (e.target);
     dismissFloatingPanelsOnPointerDown(target);
     if (
-      target?.closest("button,textarea,.color-popover,.text-color-popover,.opacity-popover,.frost-popover")
+      target?.closest("button,input,select,textarea,.note-tag-bar,.color-popover,.text-color-popover,.opacity-popover,.frost-popover")
     ) {
       return;
     }
@@ -755,6 +756,25 @@
     }
   }
 
+  /** @param {number | null} priority */
+  async function setNotePriority(priority) {
+    if (!note) return;
+    try {
+      const payload = {
+        // @ts-ignore
+        id: note.id,
+        sortMode: "custom",
+      };
+      const all =
+        priority == null
+          ? await invoke("clear_note_priority", payload)
+          : await invoke("update_note_priority", { ...payload, priority });
+      await syncAfterCommand(all);
+    } catch (e) {
+      console.error("setNotePriority", e);
+    }
+  }
+
   onMount(() => {
     /** @type {Array<Promise<() => void>>} */
     const unlistenPromises = [];
@@ -816,6 +836,8 @@
   onpointercancel={onDragPointerUp}
 >
   {#if note}
+    <NoteTagBar {strings} priority={note.priority ?? null} onChangePriority={setNotePriority} />
+
     {#if isEditing}
       {#if isBlockEditor}
         <BlockEditor bind:text noteId={note?.id || noteId} onTextChange={handleBlockEditorChange} />

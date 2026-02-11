@@ -40,6 +40,7 @@
     WORKSPACE_NOTE_VIEW_QUADRANT,
     WORKSPACE_NOTE_VIEW_TODO,
     WORKSPACE_NOTE_VIEW_TRASH,
+    normalizeWorkspaceInitialViewMode,
     normalizeWorkspaceMainTab,
     normalizeWorkspaceViewMode,
   } from "$lib/workspace/workspace-tabs.js";
@@ -51,10 +52,12 @@
   let mainTab = $state(WORKSPACE_MAIN_TAB_NOTES);
   let sortMode = $state("custom");
   let viewMode = $state("active");
+  let initialViewMode = $state("last");
   let searchQuery = $state("");
   /** @type {string} */
   let locale = $state("en");
   let newNoteText = $state("");
+  let newNotePriority = $state(/** @type {number | null} */ (null));
 
   let inspectorOpen = $state(false);
   /** @type {string | null} */
@@ -186,6 +189,10 @@
     setNewNoteText: (v) => {
       newNoteText = v;
     },
+    getNewNotePriority: () => newNotePriority,
+    setNewNotePriority: (v) => {
+      newNotePriority = v;
+    },
     getNotes: () => notes,
     setNotes: (v) => {
       notes = v;
@@ -203,6 +210,7 @@
     try {
       const next = await loadWorkspacePreferences(invoke);
       viewMode = normalizeWorkspaceViewMode(next.viewMode);
+      initialViewMode = normalizeWorkspaceInitialViewMode(next.initialViewMode);
       sortMode = next.sortMode;
       locale = next.locale;
       mainTab = next.mainTab;
@@ -242,6 +250,10 @@
     getNewNoteText: () => newNoteText,
     setNewNoteText: (text) => {
       newNoteText = text;
+    },
+    getNewNotePriority: () => newNotePriority,
+    setNewNotePriority: (next) => {
+      newNotePriority = next;
     },
     getInspectorNote: () => inspectorNote,
     getPendingLongDocDraft: () => pendingLongDocDraft,
@@ -332,6 +344,16 @@
     viewMode = safeMode;
     await savePrefs({ viewMode: safeMode });
     await loadNotes();
+  }
+
+  /** @param {string} mode */
+  async function setInitialViewMode(mode) {
+    const safeMode = normalizeWorkspaceInitialViewMode(mode);
+    initialViewMode = safeMode;
+    await savePrefs({ workspaceInitialViewMode: safeMode });
+    if (safeMode !== "last") {
+      await setViewMode(safeMode);
+    }
   }
 
   /** @param {string} tab */
@@ -425,6 +447,12 @@
     }
   }
 
+  /** @param {number | null} priority */
+  async function handleInspectorPriorityChange(priority) {
+    if (!inspectorNote) return;
+    await updatePriority(inspectorNote, priority);
+  }
+
   const resizeController = createWorkspaceResizeController({
     getWorkbenchShellRect: () => workbenchShellEl?.getBoundingClientRect() ?? null,
     getInspectorOpen: () => inspectorOpen,
@@ -486,7 +514,9 @@
     onDragStart={startWorkspaceDragPointer}
     onSetMainTab={setMainTab}
     onSetViewMode={setViewMode}
+    onSetInitialViewMode={setInitialViewMode}
     {noteViewCounts}
+    {initialViewMode}
     {stickiesVisible}
     {interactionDisabled}
     focusDeadlines={deadlineTasks}
@@ -516,6 +546,7 @@
       <WorkspaceToolbar
         {strings}
         bind:newNoteText
+        bind:newNotePriority
         bind:searchQuery
         {sortMode}
         sortModes={SORT_MODES}
@@ -567,6 +598,7 @@
             onStartEdit={startInspectorEdit}
             onCancelEdit={cancelInspectorEdit}
             onSave={saveInspectorEdit}
+            onChangePriority={handleInspectorPriorityChange}
           />
         {/if}
       </div>

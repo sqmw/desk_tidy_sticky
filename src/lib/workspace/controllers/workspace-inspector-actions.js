@@ -14,6 +14,8 @@ import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
  *   setNotes: (next: any[]) => void;
  *   getNewNoteText: () => string;
  *   setNewNoteText: (text: string) => void;
+ *   getNewNotePriority?: () => number | null;
+ *   setNewNotePriority?: (next: number | null) => void;
  *   getInspectorNote: () => any | null;
  *   getPendingLongDocDraft: () => { id: string } | null;
  *   setPendingLongDocDraft: (next: { id: string } | null) => void;
@@ -127,6 +129,7 @@ export function createWorkspaceInspectorActions(deps) {
         text,
         isPinned: false,
         sortMode: deps.getSortMode(),
+        priority: deps.getNewNotePriority?.() ?? null,
       });
       if (Array.isArray(next)) {
         deps.setNotes(next);
@@ -143,6 +146,7 @@ export function createWorkspaceInspectorActions(deps) {
         openInspectorEdit(created);
       }
       deps.setNewNoteText("");
+      deps.setNewNotePriority?.(null);
       if (deps.getMainTab() !== deps.notesTabKey) {
         await deps.setMainTab(deps.notesTabKey);
       }
