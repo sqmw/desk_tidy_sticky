@@ -2,7 +2,6 @@
   import { onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { getCurrentWebview } from "@tauri-apps/api/webview";
   import { emit, listen } from "@tauri-apps/api/event";
 
   import { getStrings } from "$lib/strings.js";
@@ -83,6 +82,7 @@
   let interactionDisabled = $state(false);
   let workspaceTheme = $state("light");
   let workspaceZoom = $state(1);
+  let workspaceAppliedZoom = $state(1);
   let workspaceZoomMode = $state("manual");
   let workspaceFontSize = $state("medium");
   let themeTransitionShape = $state("circle");
@@ -303,7 +303,7 @@
       focusTasks = next.focusTasks;
       focusStats = next.focusStats;
       pomodoroConfig = next.pomodoroConfig;
-      await applyWorkspaceZoomByMode(next.workspaceZoomMode, next.workspaceZoom);
+      applyWorkspaceZoomByMode(next.workspaceZoomMode, next.workspaceZoom);
     } catch (e) {
       console.error("loadPrefs(workspace)", e);
     }
@@ -510,26 +510,22 @@
   }
 
   /** @param {number} zoom */
-  async function applyWorkspaceZoom(zoom) {
+  function applyWorkspaceZoom(zoom) {
     const safeZoom = normalizeWorkspaceZoom(zoom);
-    try {
-      await getCurrentWebview().setZoom(safeZoom);
-    } catch (e) {
-      console.error("setWorkspaceZoom(workspace)", e);
-    }
+    workspaceAppliedZoom = safeZoom;
   }
 
   /**
    * @param {string} mode
    * @param {number} manualZoom
    */
-  async function applyWorkspaceZoomByMode(mode, manualZoom) {
+  function applyWorkspaceZoomByMode(mode, manualZoom) {
     const safeMode = normalizeWorkspaceZoomMode(mode);
     if (safeMode === "auto") {
-      await applyWorkspaceZoom(computeAutoWorkspaceZoom());
+      applyWorkspaceZoom(computeAutoWorkspaceZoom());
       return;
     }
-    await applyWorkspaceZoom(manualZoom);
+    applyWorkspaceZoom(manualZoom);
   }
 
   /**
@@ -541,7 +537,7 @@
     const nextZoom = normalizeWorkspaceZoom(zoom);
     workspaceZoom = nextZoom;
     workspaceZoomMode = "manual";
-    await applyWorkspaceZoom(nextZoom);
+    applyWorkspaceZoom(nextZoom);
     if (persist) {
       await savePrefs({ workspaceZoom: nextZoom, workspaceZoomMode: "manual" });
     }
@@ -551,7 +547,7 @@
   async function setWorkspaceZoomOption(option) {
     if (option === "auto") {
       workspaceZoomMode = "auto";
-      await applyWorkspaceZoomByMode("auto", workspaceZoom);
+      applyWorkspaceZoomByMode("auto", workspaceZoom);
       await savePrefs({ workspaceZoomMode: "auto", workspaceZoom });
       return;
     }
@@ -694,11 +690,12 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-  class="workspace"
-  class:theme-dark={workspaceTheme === "dark"}
-  style={`--sidebar-width: ${sidebarWidth}px; --ws-app-font-scale: ${workspaceAppFontScale};`}
->
+<div class="workspace-viewport">
+  <div
+    class="workspace"
+    class:theme-dark={workspaceTheme === "dark"}
+    style={`--sidebar-width: ${sidebarWidth}px; --ws-app-font-scale: ${workspaceAppFontScale}; --ws-app-zoom: ${workspaceAppliedZoom};`}
+  >
   <WorkspaceSidebar
     {strings}
     {mainTab}
@@ -826,6 +823,7 @@
       </section>
     {/if}
   </main>
+  </div>
 </div>
 
 <svelte:window
@@ -849,6 +847,12 @@
     box-sizing: border-box;
   }
 
+  .workspace-viewport {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
   .workspace {
     --ws-text-strong: #0f172a;
     --ws-text: #334155;
@@ -868,7 +872,8 @@
     --ws-scrollbar-track: rgba(148, 163, 184, 0.14);
     --ws-scrollbar-thumb: rgba(71, 85, 105, 0.45);
     --ws-scrollbar-thumb-hover: rgba(51, 65, 85, 0.62);
-    height: 100vh;
+    width: calc(100% / var(--ws-app-zoom, 1));
+    height: calc(100% / var(--ws-app-zoom, 1));
     display: grid;
     grid-template-columns: var(--sidebar-width, 260px) 8px 1fr;
     background:
@@ -878,6 +883,8 @@
     color: #111827;
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
     font-size: 14px;
+    transform: scale(var(--ws-app-zoom, 1));
+    transform-origin: top left;
     cursor: default;
     view-transition-name: workspace-root;
   }
