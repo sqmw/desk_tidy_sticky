@@ -38,6 +38,7 @@
     tasks = [],
     stats = {},
     selectedTaskId: selectedTaskIdProp = "",
+    command = { nonce: 0, type: "select", taskId: "" },
     pomodoroConfig = {
       focusMinutes: 25,
       shortBreakMinutes: 5,
@@ -57,6 +58,7 @@
   let completedFocusCount = $state(0);
   let selectedTaskId = $state("");
   let lastSyncedSelectedTaskId = $state("");
+  let lastCommandNonce = $state(0);
   let showConfig = $state(false);
   let showStats = $state(false);
 
@@ -264,6 +266,20 @@
     if (next && next !== selectedTaskId) {
       selectedTaskId = next;
     }
+  });
+
+  $effect(() => {
+    const nonce = Number(command?.nonce || 0);
+    if (!nonce || nonce === lastCommandNonce) return;
+    lastCommandNonce = nonce;
+    const taskId = String(command?.taskId || "");
+    if (!taskId) return;
+    if (!todayTasks.some((task) => task.id === taskId)) return;
+    if (command?.type === "start") {
+      startTaskFocus(taskId);
+      return;
+    }
+    selectTask(taskId);
   });
 
   $effect(() => {

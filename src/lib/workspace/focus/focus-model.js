@@ -43,6 +43,16 @@ function pad2(n) {
 }
 
 /**
+ * @param {number} minutes
+ */
+export function minutesToTime(minutes) {
+  const safe = ((Math.floor(Number(minutes) || 0) % 1440) + 1440) % 1440;
+  const hh = Math.floor(safe / 60);
+  const mm = safe % 60;
+  return `${pad2(hh)}:${pad2(mm)}`;
+}
+
+/**
  * @param {Date} [date]
  */
 export function getDateKey(date = new Date()) {

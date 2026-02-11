@@ -34,6 +34,24 @@ export function getFocusDeadlinesForToday(tasks, stats, now = new Date(), limit 
         targetPomodoros: Number(task.targetPomodoros || 1),
       };
     })
-    .sort((a, b) => a.startMinutes - b.startMinutes)
+    .sort((a, b) => {
+      // Overdue first, then running, then upcoming.
+      /** @param {{ isOverdue: boolean; started: boolean }} item */
+      const rank = (item) => (item.isOverdue ? 0 : item.started ? 1 : 2);
+      const rankDiff = rank(a) - rank(b);
+      if (rankDiff !== 0) return rankDiff;
+
+      // Same rank ordering by urgency.
+      if (a.isOverdue && b.isOverdue) {
+        // More overdue first.
+        return a.minutesLeft - b.minutesLeft;
+      }
+      if (a.started && b.started) {
+        // Less time left first.
+        return a.minutesLeft - b.minutesLeft;
+      }
+      // Upcoming: starts sooner first.
+      return a.minutesUntilStart - b.minutesUntilStart;
+    })
     .slice(0, Math.max(1, Math.floor(limit)));
 }

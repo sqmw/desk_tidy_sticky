@@ -1,6 +1,11 @@
 <script>
   import {
     WORKSPACE_MAIN_TAB_NOTES,
+    WORKSPACE_NOTE_VIEW_ACTIVE,
+    WORKSPACE_NOTE_VIEW_ARCHIVED,
+    WORKSPACE_NOTE_VIEW_QUADRANT,
+    WORKSPACE_NOTE_VIEW_TODO,
+    WORKSPACE_NOTE_VIEW_TRASH,
     getWorkspaceMainTabDefs,
     getWorkspaceViewModeLabel,
   } from "$lib/workspace/workspace-tabs.js";
@@ -10,6 +15,7 @@
     mainTab = /** @type {string} */ (WORKSPACE_MAIN_TAB_NOTES),
     viewModes,
     viewMode,
+    noteViewCounts = {},
     collapsed = false,
     onDragStart,
     onSetMainTab,
@@ -25,6 +31,15 @@
 
   const mainTabs = $derived(getWorkspaceMainTabDefs(strings));
 
+  const PRIMARY_VIEW_MODES = [WORKSPACE_NOTE_VIEW_ACTIVE, WORKSPACE_NOTE_VIEW_TODO, WORKSPACE_NOTE_VIEW_QUADRANT];
+  const SECONDARY_VIEW_MODES = [WORKSPACE_NOTE_VIEW_ARCHIVED, WORKSPACE_NOTE_VIEW_TRASH];
+  const primaryViewModes = $derived(
+    viewModes.filter((/** @type {string} */ mode) => PRIMARY_VIEW_MODES.includes(mode)),
+  );
+  const secondaryViewModes = $derived(
+    viewModes.filter((/** @type {string} */ mode) => SECONDARY_VIEW_MODES.includes(mode)),
+  );
+
   function interactionLabel() {
     return interactionDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn;
   }
@@ -34,6 +49,20 @@
     if (item.isOverdue) return `${strings.workspaceDeadlineOverdue} ${Math.abs(item.minutesLeft)}m`;
     if (!item.started) return `${strings.workspaceDeadlineStartsIn} ${Math.max(0, item.minutesUntilStart ?? 0)}m`;
     return `${strings.workspaceDeadlineDueIn} ${Math.max(0, item.minutesLeft)}m`;
+  }
+
+  /** @param {{ isOverdue: boolean; started?: boolean }} item */
+  function deadlineStateLabel(item) {
+    if (item.isOverdue) return strings.workspaceDeadlineStateOverdue || strings.workspaceDeadlineOverdue;
+    if (!item.started) return strings.workspaceDeadlineStateUpcoming || strings.workspaceDeadlineStartsIn;
+    return strings.workspaceDeadlineStateRunning || strings.workspaceDeadlineDueIn;
+  }
+
+  /** @param {string} mode */
+  function viewCount(mode) {
+    const value = Number(noteViewCounts?.[mode] ?? 0);
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(0, Math.trunc(value));
   }
 </script>
 
@@ -67,20 +96,36 @@
   {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
     <div class="sidebar-block">
       <div class="block-title">{collapsed ? "•" : strings.workspaceNoteFilters}</div>
-      <div class="view-list">
-        {#each viewModes as mode}
-          <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
-            {#if collapsed}
-              <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
-            {:else}
-              {getWorkspaceViewModeLabel(strings, mode)}
-            {/if}
-          </button>
-        {/each}
+      <div class="view-sections">
+        <div class="view-list">
+          {#each primaryViewModes as mode}
+            <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
+              {#if collapsed}
+                <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
+              {:else}
+                <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
+                <span class="view-count">{viewCount(mode)}</span>
+              {/if}
+            </button>
+          {/each}
+        </div>
+        <div class="view-separator"></div>
+        <div class="view-list view-list-secondary">
+          {#each secondaryViewModes as mode}
+            <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
+              {#if collapsed}
+                <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
+              {:else}
+                <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
+                <span class="view-count">{viewCount(mode)}</span>
+              {/if}
+            </button>
+          {/each}
+        </div>
       </div>
     </div>
   {:else}
-    <div class="sidebar-block">
+    <div class="sidebar-block deadline-block">
       <div class="block-title">{collapsed ? "•" : strings.workspaceDeadlineTitle}</div>
       {#if collapsed}
         <div class="deadline-count">{focusDeadlines.length}</div>
@@ -89,18 +134,66 @@
       {:else}
         <div class="deadline-list">
           {#each focusDeadlines as item (item.id)}
-            <button
-              type="button"
+            <div
+              role="button"
+              tabindex="0"
               class="deadline-item"
               class:overdue={item.isOverdue}
               onclick={() => onDeadlineAction(item.id)}
+              onkeydown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onDeadlineAction(item.id);
+                }
+              }}
             >
-              <div class="deadline-title">{item.title}</div>
+              <div class="deadline-head">
+                <div class="deadline-title">{item.title}</div>
+                <span class="deadline-state" class:overdue={item.isOverdue}>
+                  {#if item.isOverdue}
+                    <span class="deadline-alert-dot" aria-hidden="true"></span>
+                  {/if}
+                  {deadlineStateLabel(item)}
+                </span>
+              </div>
               <div class="deadline-meta">
                 <span>{item.startTime} - {item.endTime}</span>
                 <span>{deadlineLabel(item)}</span>
               </div>
-            </button>
+              <div class="deadline-progress-row">
+                <span>🍅 {item.donePomodoros}/{item.targetPomodoros}</span>
+                <span>{Math.min(100, Math.round((item.donePomodoros / Math.max(1, item.targetPomodoros)) * 100))}%</span>
+              </div>
+              <div class="deadline-progress">
+                <span style={`width:${Math.min(100, Math.round((item.donePomodoros / Math.max(1, item.targetPomodoros)) * 100))}%`}></span>
+              </div>
+              <div class="deadline-actions">
+                <button type="button" class="deadline-action-btn" onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "select"); }}>
+                  {strings.workspaceDeadlineActionView || strings.details}
+                </button>
+                <button
+                  type="button"
+                  class="deadline-action-btn primary"
+                  onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "start"); }}
+                >
+                  {strings.workspaceDeadlineActionStart || strings.pomodoroStart || strings.pomodoroResume}
+                </button>
+                <button
+                  type="button"
+                  class="deadline-action-btn"
+                  onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "snooze15"); }}
+                >
+                  {strings.workspaceDeadlineActionSnooze15 || "+15m"}
+                </button>
+                <button
+                  type="button"
+                  class="deadline-action-btn"
+                  onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "snooze30"); }}
+                >
+                  {strings.workspaceDeadlineActionSnooze30 || "+30m"}
+                </button>
+              </div>
+            </div>
           {/each}
         </div>
       {/if}
@@ -129,6 +222,8 @@
     position: relative;
     color: var(--ws-text, #111827);
     cursor: default;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .sidebar.collapsed {
@@ -182,6 +277,7 @@
     border-radius: 12px;
     background: var(--ws-card-bg, #fdfefe);
     padding: 10px;
+    min-height: 0;
   }
 
   .sidebar.collapsed .sidebar-block {
@@ -200,6 +296,20 @@
   .view-list {
     display: grid;
     gap: 6px;
+  }
+
+  .view-sections {
+    display: grid;
+    gap: 8px;
+  }
+
+  .view-separator {
+    height: 1px;
+    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 90%, transparent);
+  }
+
+  .view-list-secondary .view-btn {
+    opacity: 0.95;
   }
 
   .main-tabs {
@@ -249,6 +359,10 @@
     font-size: 15px;
     font-weight: 600;
     transition: all 0.16s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
   }
 
   .sidebar.collapsed .view-btn {
@@ -267,6 +381,20 @@
     border-color: var(--ws-border-active, #94a3b8);
     color: var(--ws-text-strong, #0f172a);
     background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
+  }
+
+  .view-count {
+    display: inline-flex;
+    min-width: 22px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    background: var(--ws-card-bg, #fdfefe);
+    color: var(--ws-muted, #64748b);
+    font-size: 11px;
+    font-weight: 700;
+    justify-content: center;
+    line-height: 1.1;
   }
 
   .deadline-empty {
@@ -288,9 +416,51 @@
     padding: 8px 0;
   }
 
+  .deadline-block {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
   .deadline-list {
     display: grid;
     gap: 6px;
+    min-height: 0;
+    max-height: none;
+    flex: 1 1 auto;
+    overflow: auto;
+    padding-right: 4px;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
+      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+  }
+
+  .deadline-list::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .deadline-list::-webkit-scrollbar-button {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  .deadline-list::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 70%, transparent);
+    border-radius: 999px;
+  }
+
+  .deadline-list::-webkit-scrollbar-thumb {
+    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.86)) 80%, transparent);
+  }
+
+  .deadline-list::-webkit-scrollbar-thumb:hover {
+    background: var(--ws-scrollbar-thumb-hover, rgba(51, 65, 85, 0.62));
   }
 
   .deadline-item {
@@ -317,6 +487,7 @@
   .deadline-item.overdue {
     border-color: color-mix(in srgb, #ef4444 45%, var(--ws-border-soft, #d9e2ef));
     background: color-mix(in srgb, #ef4444 10%, var(--ws-btn-bg, #fbfdff));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #ef4444 24%, transparent);
   }
 
   .deadline-title {
@@ -328,6 +499,42 @@
     text-overflow: ellipsis;
   }
 
+  .deadline-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .deadline-state {
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    border-radius: 999px;
+    padding: 2px 7px;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--ws-muted, #64748b);
+    background: var(--ws-card-bg, #fdfefe);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .deadline-state.overdue {
+    color: #b91c1c;
+    border-color: color-mix(in srgb, #ef4444 55%, var(--ws-border-soft, #d9e2ef));
+    background: color-mix(in srgb, #ef4444 12%, var(--ws-card-bg, #fdfefe));
+  }
+
+  .deadline-alert-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #ef4444;
+    box-shadow: 0 0 0 0 color-mix(in srgb, #ef4444 55%, transparent);
+    animation: deadline-overdue-pulse 1.8s ease infinite;
+  }
+
   .deadline-meta {
     margin-top: 4px;
     display: flex;
@@ -335,6 +542,73 @@
     gap: 6px;
     font-size: 11px;
     color: var(--ws-muted, #64748b);
+  }
+
+  .deadline-progress-row {
+    margin-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--ws-muted, #64748b);
+  }
+
+  .deadline-progress {
+    margin-top: 4px;
+    height: 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 62%, transparent);
+    overflow: hidden;
+  }
+
+  .deadline-progress > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--ws-accent, #1d4ed8) 65%, #60a5fa) 0%, var(--ws-accent, #1d4ed8) 100%);
+  }
+
+  .deadline-actions {
+    margin-top: 7px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .deadline-action-btn {
+    flex: 1;
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    border-radius: 8px;
+    background: var(--ws-btn-bg, #fbfdff);
+    color: var(--ws-text, #334155);
+    font-size: 11px;
+    font-weight: 700;
+    min-height: 26px;
+    cursor: pointer;
+    transition: all 0.14s ease;
+  }
+
+  .deadline-action-btn:hover {
+    border-color: var(--ws-border-hover, #c6d5e8);
+    background: var(--ws-btn-hover, #f4f8ff);
+  }
+
+  .deadline-action-btn.primary {
+    border-color: var(--ws-border-active, #94a3b8);
+    background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
+    color: var(--ws-text-strong, #0f172a);
+  }
+
+  @keyframes deadline-overdue-pulse {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, #ef4444 45%, transparent);
+    }
+    70% {
+      box-shadow: 0 0 0 6px color-mix(in srgb, #ef4444 0%, transparent);
+    }
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, #ef4444 0%, transparent);
+    }
   }
 
   .sidebar-actions {

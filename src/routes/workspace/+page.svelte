@@ -27,10 +27,16 @@
   import { runWorkspaceThemeTransition } from "$lib/workspace/theme-transition.js";
   import { createWorkspaceResizeController } from "$lib/workspace/resize-controller.js";
   import { getFocusDeadlinesForToday } from "$lib/workspace/focus/focus-deadlines.js";
+  import { minutesToTime, timeToMinutes } from "$lib/workspace/focus/focus-model.js";
   import {
     WORKSPACE_NOTE_VIEW_MODES,
     WORKSPACE_MAIN_TAB_FOCUS,
     WORKSPACE_MAIN_TAB_NOTES,
+    WORKSPACE_NOTE_VIEW_ACTIVE,
+    WORKSPACE_NOTE_VIEW_ARCHIVED,
+    WORKSPACE_NOTE_VIEW_QUADRANT,
+    WORKSPACE_NOTE_VIEW_TODO,
+    WORKSPACE_NOTE_VIEW_TRASH,
     normalizeWorkspaceMainTab,
     normalizeWorkspaceViewMode,
   } from "$lib/workspace/workspace-tabs.js";
@@ -70,6 +76,8 @@
   /** @type {Record<string, any>} */
   let focusStats = $state({});
   let focusSelectedTaskId = $state("");
+  let focusCommand = $state({ nonce: 0, type: "select", taskId: "" });
+  let deadlineNowTick = $state(Date.now());
   let pomodoroConfig = $state({
     focusMinutes: 25,
     shortBreakMinutes: 5,
@@ -79,7 +87,10 @@
   let sidebarCollapsed = $derived(sidebarWidth <= 104);
 
   const strings = $derived(getStrings(locale));
-  const deadlineTasks = $derived(getFocusDeadlinesForToday(focusTasks, focusStats));
+  const deadlineTasks = $derived.by(() => {
+    const now = new Date(deadlineNowTick);
+    return getFocusDeadlinesForToday(focusTasks, focusStats, now);
+  });
   const canQuadrantReorder = $derived(
     sortMode === "custom" && !searchQuery.trim() && viewMode === "quadrant",
   );
@@ -129,6 +140,18 @@
       priority: n.priority ?? null,
     })),
   );
+
+  const noteViewCounts = $derived.by(() => {
+    const activeNotes = notes.filter((n) => !n.isArchived && !n.isDeleted);
+    return {
+      [WORKSPACE_NOTE_VIEW_ACTIVE]: activeNotes.length,
+      [WORKSPACE_NOTE_VIEW_TODO]: activeNotes.filter((n) => !n.isDone).length,
+      [WORKSPACE_NOTE_VIEW_QUADRANT]: activeNotes.length,
+      [WORKSPACE_NOTE_VIEW_ARCHIVED]: notes.filter((n) => n.isArchived && !n.isDeleted).length,
+      [WORKSPACE_NOTE_VIEW_TRASH]: notes.filter((n) => n.isDeleted).length,
+    };
+  });
+
   const inspectorNote = $derived.by(() => {
     if (!inspectorNoteId) return null;
     return renderedNotes.find((n) => n.id === inspectorNoteId) ?? null;
@@ -304,8 +327,34 @@
   }
 
   /** @param {string} taskId */
-  async function handleDeadlineAction(taskId) {
-    focusSelectedTaskId = String(taskId || "");
+  /**
+   * @param {string} taskId
+   * @param {"select" | "start" | "snooze15" | "snooze30"} [action]
+   */
+  async function handleDeadlineAction(taskId, action = "select") {
+    const nextTaskId = String(taskId || "");
+    if (action === "snooze15" || action === "snooze30") {
+      const deltaMinutes = action === "snooze30" ? 30 : 15;
+      const nextTasks = focusTasks.map((task) => {
+        if (String(task.id) !== nextTaskId) return task;
+        const startM = timeToMinutes(task.startTime || "09:00");
+        const endM = timeToMinutes(task.endTime || "10:00");
+        return {
+          ...task,
+          startTime: minutesToTime(startM + deltaMinutes),
+          endTime: minutesToTime(endM + deltaMinutes),
+        };
+      });
+      await changeFocusTasks(nextTasks);
+      return;
+    }
+
+    focusSelectedTaskId = nextTaskId;
+    focusCommand = {
+      nonce: Date.now(),
+      type: action === "start" ? "start" : "select",
+      taskId: nextTaskId,
+    };
     await setMainTab(WORKSPACE_MAIN_TAB_FOCUS);
   }
 
@@ -481,6 +530,9 @@
     /** @type {Array<Promise<() => void>>} */
     const unsubs = [];
     let notesChangedTimer = /** @type {ReturnType<typeof setTimeout> | null} */ (null);
+    const deadlineTickTimer = setInterval(() => {
+      deadlineNowTick = Date.now();
+    }, 15000);
 
     unsubs.push(
       listen("notes_changed", () => {
@@ -501,6 +553,7 @@
 
     return () => {
       if (notesChangedTimer) clearTimeout(notesChangedTimer);
+      clearInterval(deadlineTickTimer);
       for (const p of unsubs) {
         Promise.resolve(p)
           .then((u) => u())
@@ -541,6 +594,7 @@
     onDragStart={startWorkspaceDragPointer}
     onSetMainTab={setMainTab}
     onSetViewMode={setViewMode}
+    {noteViewCounts}
     {stickiesVisible}
     {interactionDisabled}
     focusDeadlines={deadlineTasks}
@@ -631,6 +685,7 @@
           tasks={focusTasks}
           stats={focusStats}
           selectedTaskId={focusSelectedTaskId}
+          command={focusCommand}
           {pomodoroConfig}
           onTasksChange={changeFocusTasks}
           onStatsChange={changeFocusStats}
