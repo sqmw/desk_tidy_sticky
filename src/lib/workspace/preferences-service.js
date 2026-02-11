@@ -11,6 +11,8 @@ const DEFAULT_VIEW_MODE = "active";
 const DEFAULT_SORT_MODE = "custom";
 const DEFAULT_LOCALE = "en";
 const DEFAULT_WORKSPACE_ZOOM = 1;
+const DEFAULT_WORKSPACE_ZOOM_MODE = "manual";
+const DEFAULT_WORKSPACE_FONT_SIZE = "medium";
 const DEFAULT_POMODORO = {
   focusMinutes: 25,
   shortBreakMinutes: 5,
@@ -33,6 +35,17 @@ export function normalizeWorkspaceZoom(zoom) {
   const value = Number(zoom);
   if (!Number.isFinite(value)) return DEFAULT_WORKSPACE_ZOOM;
   return Math.min(1.4, Math.max(0.85, Number(value.toFixed(2))));
+}
+
+/** @param {unknown} mode */
+export function normalizeWorkspaceZoomMode(mode) {
+  return mode === "auto" ? "auto" : DEFAULT_WORKSPACE_ZOOM_MODE;
+}
+
+/** @param {unknown} size */
+export function normalizeWorkspaceFontSize(size) {
+  if (size === "small" || size === "large") return size;
+  return DEFAULT_WORKSPACE_FONT_SIZE;
 }
 
 /** @param {unknown} input */
@@ -93,6 +106,8 @@ export async function loadWorkspacePreferences(invoke) {
     locale: prefs.language || DEFAULT_LOCALE,
     overlayEnabled: prefs.overlayEnabled ?? true,
     workspaceZoom: normalizeWorkspaceZoom(prefs.workspaceZoom),
+    workspaceZoomMode: normalizeWorkspaceZoomMode(prefs.workspaceZoomMode),
+    workspaceFontSize: normalizeWorkspaceFontSize(prefs.workspaceFontSize),
     workspaceTheme: normalizeWorkspaceTheme(prefs.workspaceTheme),
     themeTransitionShape: normalizeWorkspaceThemeTransitionShape(prefs.workspaceThemeTransitionShape),
     pomodoroConfig,

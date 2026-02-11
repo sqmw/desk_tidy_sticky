@@ -24,7 +24,9 @@
   import {
     loadWorkspacePreferences,
     normalizePomodoroConfig,
+    normalizeWorkspaceFontSize,
     normalizeWorkspaceZoom,
+    normalizeWorkspaceZoomMode,
     normalizeWorkspaceThemeTransitionShape,
     saveWorkspacePreferences,
   } from "$lib/workspace/preferences-service.js";
@@ -81,6 +83,8 @@
   let interactionDisabled = $state(false);
   let workspaceTheme = $state("light");
   let workspaceZoom = $state(1);
+  let workspaceZoomMode = $state("manual");
+  let workspaceFontSize = $state("medium");
   let themeTransitionShape = $state("circle");
   /** @type {any[]} */
   let focusTasks = $state([]);
@@ -96,6 +100,12 @@
     longBreakEvery: 4,
   });
   let sidebarCollapsed = $derived(sidebarWidth <= 104);
+  const workspaceZoomOption = $derived(workspaceZoomMode === "auto" ? "auto" : String(workspaceZoom));
+  const workspaceAppFontScale = $derived.by(() => {
+    if (workspaceFontSize === "small") return 0.94;
+    if (workspaceFontSize === "large") return 1.08;
+    return 1;
+  });
 
   const strings = $derived(getStrings(locale));
   const deadlineTasks = $derived.by(() => {
@@ -287,11 +297,13 @@
       stickiesVisible = next.overlayEnabled;
       workspaceTheme = next.workspaceTheme;
       workspaceZoom = next.workspaceZoom;
+      workspaceZoomMode = next.workspaceZoomMode;
+      workspaceFontSize = next.workspaceFontSize;
       themeTransitionShape = next.themeTransitionShape;
       focusTasks = next.focusTasks;
       focusStats = next.focusStats;
       pomodoroConfig = next.pomodoroConfig;
-      await setWorkspaceZoom(next.workspaceZoom, { persist: false });
+      await applyWorkspaceZoomByMode(next.workspaceZoomMode, next.workspaceZoom);
     } catch (e) {
       console.error("loadPrefs(workspace)", e);
     }
@@ -488,6 +500,38 @@
     await savePrefs({ workspaceTheme: nextTheme });
   }
 
+  function computeAutoWorkspaceZoom() {
+    const width = window.innerWidth;
+    if (width <= 1020) return 0.9;
+    if (width <= 1220) return 0.95;
+    if (width >= 2200) return 1.1;
+    if (width >= 1800) return 1.05;
+    return 1;
+  }
+
+  /** @param {number} zoom */
+  async function applyWorkspaceZoom(zoom) {
+    const safeZoom = normalizeWorkspaceZoom(zoom);
+    try {
+      await getCurrentWebview().setZoom(safeZoom);
+    } catch (e) {
+      console.error("setWorkspaceZoom(workspace)", e);
+    }
+  }
+
+  /**
+   * @param {string} mode
+   * @param {number} manualZoom
+   */
+  async function applyWorkspaceZoomByMode(mode, manualZoom) {
+    const safeMode = normalizeWorkspaceZoomMode(mode);
+    if (safeMode === "auto") {
+      await applyWorkspaceZoom(computeAutoWorkspaceZoom());
+      return;
+    }
+    await applyWorkspaceZoom(manualZoom);
+  }
+
   /**
    * @param {unknown} zoom
    * @param {{ persist?: boolean }} [options]
@@ -496,14 +540,34 @@
     const persist = options.persist ?? true;
     const nextZoom = normalizeWorkspaceZoom(zoom);
     workspaceZoom = nextZoom;
-    try {
-      await getCurrentWebview().setZoom(nextZoom);
-    } catch (e) {
-      console.error("setWorkspaceZoom(workspace)", e);
-    }
+    workspaceZoomMode = "manual";
+    await applyWorkspaceZoom(nextZoom);
     if (persist) {
-      await savePrefs({ workspaceZoom: nextZoom });
+      await savePrefs({ workspaceZoom: nextZoom, workspaceZoomMode: "manual" });
     }
+  }
+
+  /** @param {string} option */
+  async function setWorkspaceZoomOption(option) {
+    if (option === "auto") {
+      workspaceZoomMode = "auto";
+      await applyWorkspaceZoomByMode("auto", workspaceZoom);
+      await savePrefs({ workspaceZoomMode: "auto", workspaceZoom });
+      return;
+    }
+    await setWorkspaceZoom(Number(option), { persist: true });
+  }
+
+  /** @param {string} size */
+  async function setWorkspaceFontSize(size) {
+    const safeSize = normalizeWorkspaceFontSize(size);
+    workspaceFontSize = safeSize;
+    await savePrefs({ workspaceFontSize: safeSize });
+  }
+
+  function onWindowResize() {
+    if (workspaceZoomMode !== "auto") return;
+    applyWorkspaceZoomByMode("auto", workspaceZoom);
   }
 
   /** @param {string} shape */
@@ -586,7 +650,9 @@
     runtimeLifecycle.mountRuntimeListeners().then((fn) => {
       cleanup = fn;
     });
+    window.addEventListener("resize", onWindowResize);
     return () => {
+      window.removeEventListener("resize", onWindowResize);
       cleanup?.();
     };
   });
@@ -631,7 +697,7 @@
 <div
   class="workspace"
   class:theme-dark={workspaceTheme === "dark"}
-  style={`--sidebar-width: ${sidebarWidth}px;`}
+  style={`--sidebar-width: ${sidebarWidth}px; --ws-app-font-scale: ${workspaceAppFontScale};`}
 >
   <WorkspaceSidebar
     {strings}
@@ -652,7 +718,8 @@
     {selectedTag}
     taggedNoteCount={taggedNoteCount}
     {initialViewMode}
-    {workspaceZoom}
+    {workspaceZoomOption}
+    {workspaceFontSize}
     {stickiesVisible}
     {interactionDisabled}
     focusDeadlines={deadlineTasks}
@@ -660,7 +727,8 @@
     onToggleLanguage={toggleLanguage}
     onToggleStickiesVisibility={toggleStickiesVisibility}
     onToggleInteraction={toggleInteraction}
-    onSetWorkspaceZoom={setWorkspaceZoom}
+    onSetWorkspaceZoomOption={setWorkspaceZoomOption}
+    onSetWorkspaceFontSize={setWorkspaceFontSize}
   />
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="sidebar-splitter" onpointerdown={resizeController.startSidebarResize} ondblclick={() => (sidebarWidth = 260)}></div>
@@ -809,6 +877,7 @@
       linear-gradient(165deg, #edf3ff 0%, #f7faff 46%, #fff8f1 100%);
     color: #111827;
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
     cursor: default;
     view-transition-name: workspace-root;
   }
@@ -935,6 +1004,22 @@
   .workspace :global(button),
   .workspace :global([role="button"]) {
     cursor: pointer;
+  }
+
+  .workspace :global(.sidebar .block-title),
+  .workspace :global(.sidebar .main-tab-btn),
+  .workspace :global(.sidebar .view-btn),
+  .workspace :global(.sidebar .tag-filter-btn),
+  .workspace :global(.sidebar .initial-view-label),
+  .workspace :global(.sidebar .initial-view-select),
+  .workspace :global(.sidebar .ghost-btn),
+  .workspace :global(.window-bar .title),
+  .workspace :global(.window-bar .bar-btn),
+  .workspace :global(.toolbar .add-input),
+  .workspace :global(.toolbar .search),
+  .workspace :global(.toolbar .primary-btn),
+  .workspace :global(.toolbar .ghost-btn) {
+    font-size: calc(1em * var(--ws-app-font-scale, 1)) !important;
   }
 
   .workspace :global(input),

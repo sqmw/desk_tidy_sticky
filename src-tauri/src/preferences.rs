@@ -49,6 +49,10 @@ pub struct PanelPreferences {
     pub workspace_theme_transition_shape: String,
     #[serde(default = "default_workspace_zoom")]
     pub workspace_zoom: f64,
+    #[serde(default = "default_workspace_zoom_mode")]
+    pub workspace_zoom_mode: String,
+    #[serde(default = "default_workspace_font_size")]
+    pub workspace_font_size: String,
     #[serde(default = "default_workspace_main_tab")]
     pub workspace_main_tab: String,
     #[serde(default = "default_workspace_initial_view_mode")]
@@ -85,6 +89,12 @@ fn default_workspace_theme_transition_shape() -> String {
 }
 fn default_workspace_zoom() -> f64 {
     1.0
+}
+fn default_workspace_zoom_mode() -> String {
+    "manual".to_string()
+}
+fn default_workspace_font_size() -> String {
+    "medium".to_string()
 }
 fn default_workspace_main_tab() -> String {
     "notes".to_string()

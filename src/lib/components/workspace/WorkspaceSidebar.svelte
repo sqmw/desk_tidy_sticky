@@ -28,8 +28,10 @@
     onSetSortMode = () => {},
     onSetSelectedTag = () => {},
     onSetInitialViewMode = () => {},
-    workspaceZoom = 1,
-    onSetWorkspaceZoom = () => {},
+    workspaceZoomOption = "1",
+    onSetWorkspaceZoomOption = () => {},
+    workspaceFontSize = "medium",
+    onSetWorkspaceFontSize = () => {},
     stickiesVisible,
     interactionDisabled = false,
     focusDeadlines = [],
@@ -52,7 +54,7 @@
   const secondaryViewModes = $derived(
     viewModes.filter((/** @type {string} */ mode) => SECONDARY_VIEW_MODES.includes(mode)),
   );
-  const zoomOptions = [0.9, 1, 1.1, 1.25, 1.4];
+  const zoomOptions = ["auto", "0.9", "1", "1.1", "1.25", "1.4"];
 
   function interactionLabel() {
     return interactionDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn;
@@ -289,13 +291,27 @@
         <select
           id="workspace-display-scale"
           class="initial-view-select"
-          value={String(workspaceZoom)}
-          onchange={(e) =>
-            onSetWorkspaceZoom(Number(/** @type {HTMLSelectElement} */ (e.currentTarget).value))}
+          value={workspaceZoomOption}
+          onchange={(e) => onSetWorkspaceZoomOption(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
         >
           {#each zoomOptions as value (value)}
-            <option value={String(value)}>{Math.round(value * 100)}%</option>
+            <option value={value}>
+              {value === "auto" ? strings.workspaceDisplayScaleAuto : `${Math.round(Number(value) * 100)}%`}
+            </option>
           {/each}
+        </select>
+      </div>
+      <div class="display-scale">
+        <label class="initial-view-label" for="workspace-font-size">{strings.workspaceFontSize}</label>
+        <select
+          id="workspace-font-size"
+          class="initial-view-select"
+          value={workspaceFontSize}
+          onchange={(e) => onSetWorkspaceFontSize(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+        >
+          <option value="small">{strings.workspaceFontSizeSmall}</option>
+          <option value="medium">{strings.workspaceFontSizeMedium}</option>
+          <option value="large">{strings.workspaceFontSizeLarge}</option>
         </select>
       </div>
     {/if}
