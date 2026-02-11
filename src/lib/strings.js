@@ -247,7 +247,7 @@ const strings = {
     workspaceInitialView: '初始视图',
     workspaceInitialViewLast: '跟随上次',
     workspaceFocusHint: '专注任务与番茄规划',
-    workspaceDeadlineTitle: '今日截止任务',
+    workspaceDeadlineTitle: '今日任务',
     workspaceDeadlineEmpty: '暂无待截止任务',
     workspaceDeadlineOverdue: '已超时',
     workspaceDeadlineStartsIn: '开始于',
