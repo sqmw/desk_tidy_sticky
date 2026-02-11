@@ -12,6 +12,7 @@
   import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
   import { createWorkspaceInspectorActions } from "$lib/workspace/controllers/workspace-inspector-actions.js";
   import { createWorkspaceFocusActions } from "$lib/workspace/controllers/workspace-focus-actions.js";
+  import { createWorkspaceRuntimeLifecycle } from "$lib/workspace/controllers/workspace-runtime-lifecycle.js";
 
   import WorkbenchSection from "$lib/components/panel/WorkbenchSection.svelte";
   import WorkspaceFocusHub from "$lib/components/workspace/WorkspaceFocusHub.svelte";
@@ -309,6 +310,22 @@
     handleDeadlineAction,
   } = focusActions;
 
+  const runtimeLifecycle = createWorkspaceRuntimeLifecycle({
+    emit,
+    listen,
+    invoke,
+    loadPrefs,
+    loadNotes,
+    getCurrentWindow,
+    suppressNotesReloadUntilRef: () => suppressNotesReloadUntil,
+    setInteractionDisabled: (next) => {
+      interactionDisabled = next;
+    },
+    updateDeadlineTick: () => {
+      deadlineNowTick = Date.now();
+    },
+  });
+
   /** @param {string} mode */
   async function setViewMode(mode) {
     const safeMode = normalizeWorkspaceViewMode(mode);
@@ -423,52 +440,17 @@
   });
 
   onMount(() => {
-    loadPrefs().then(loadNotes).then(() => emit("workspace_ready", { label: "workspace" }));
-    getCurrentWindow()
-      .isMaximized()
-      .then((v) => {
-        windowMaximized = !!v;
-      })
-      .catch(() => {});
-
-    invoke("get_overlay_interaction")
-      .then((state) => {
-        interactionDisabled = /** @type {boolean} */ (state);
-      })
-      .catch(() => {});
-
-    /** @type {Array<Promise<() => void>>} */
-    const unsubs = [];
-    let notesChangedTimer = /** @type {ReturnType<typeof setTimeout> | null} */ (null);
-    const deadlineTickTimer = setInterval(() => {
-      deadlineNowTick = Date.now();
-    }, 15000);
-
-    unsubs.push(
-      listen("notes_changed", () => {
-        if (Date.now() < suppressNotesReloadUntil) return;
-        if (notesChangedTimer) clearTimeout(notesChangedTimer);
-        notesChangedTimer = setTimeout(() => {
-          if (Date.now() < suppressNotesReloadUntil) return;
-          loadNotes();
-        }, 80);
-      }),
-    );
-
-    unsubs.push(
-      listen("overlay_input_changed", (event) => {
-        interactionDisabled = /** @type {boolean} */ (event.payload);
-      }),
-    );
-
+    runtimeLifecycle.bootstrap();
+    runtimeLifecycle.syncWindowMaximizedState((next) => {
+      windowMaximized = next;
+    });
+    runtimeLifecycle.syncOverlayInteractionState();
+    let cleanup = /** @type {(() => void) | null} */ (null);
+    runtimeLifecycle.mountRuntimeListeners().then((fn) => {
+      cleanup = fn;
+    });
     return () => {
-      if (notesChangedTimer) clearTimeout(notesChangedTimer);
-      clearInterval(deadlineTickTimer);
-      for (const p of unsubs) {
-        Promise.resolve(p)
-          .then((u) => u())
-          .catch(() => {});
-      }
+      cleanup?.();
     };
   });
 
