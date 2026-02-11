@@ -6,10 +6,12 @@
 
   import { getStrings } from "$lib/strings.js";
   import { matchNote } from "$lib/note-search.js";
-  import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
+  import { renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
   import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
+  import { createWorkspaceInspectorActions } from "$lib/workspace/controllers/workspace-inspector-actions.js";
+  import { createWorkspaceFocusActions } from "$lib/workspace/controllers/workspace-focus-actions.js";
 
   import WorkbenchSection from "$lib/components/panel/WorkbenchSection.svelte";
   import WorkspaceFocusHub from "$lib/components/workspace/WorkspaceFocusHub.svelte";
@@ -223,91 +225,89 @@
     }
   }
 
-  /** @param {any} note */
-  function openInspectorView(note) {
-    inspectorOpen = true;
-    inspectorNoteId = note.id;
-    inspectorMode = "view";
-    inspectorDraftText = note.text || "";
-  }
+  const inspectorActions = createWorkspaceInspectorActions({
+    invoke,
+    loadNotes,
+    syncWindows: windowSync.syncWindows,
+    getSortMode: () => sortMode,
+    getLocale: () => locale,
+    getMainTab: () => mainTab,
+    setMainTab,
+    notesTabKey: WORKSPACE_MAIN_TAB_NOTES,
+    getNotes: () => notes,
+    setNotes: (next) => {
+      notes = next;
+    },
+    getNewNoteText: () => newNoteText,
+    setNewNoteText: (text) => {
+      newNoteText = text;
+    },
+    getInspectorNote: () => inspectorNote,
+    getPendingLongDocDraft: () => pendingLongDocDraft,
+    setPendingLongDocDraft: (next) => {
+      pendingLongDocDraft = next;
+    },
+    setInspectorOpen: (open) => {
+      inspectorOpen = open;
+    },
+    setInspectorNoteId: (id) => {
+      inspectorNoteId = id;
+    },
+    setInspectorMode: (mode) => {
+      inspectorMode = mode;
+    },
+    getInspectorDraftText: () => inspectorDraftText,
+    setInspectorDraftText: (text) => {
+      inspectorDraftText = text;
+    },
+    setInspectorListCollapsed: (collapsed) => {
+      inspectorListCollapsed = collapsed;
+    },
+  });
 
-  /** @param {any} note */
-  function openInspectorEdit(note) {
-    inspectorOpen = true;
-    inspectorNoteId = note.id;
-    inspectorMode = "edit";
-    inspectorDraftText = note.text || "";
-  }
+  const {
+    openInspectorView,
+    openInspectorEdit,
+    closeInspector,
+    handleInspectorClose,
+    startInspectorEdit,
+    cancelInspectorEdit,
+    saveInspectorEdit,
+    createLongDocument,
+  } = inspectorActions;
 
-  function closeInspector() {
-    inspectorOpen = false;
-    inspectorNoteId = null;
-    inspectorMode = "view";
-    inspectorDraftText = "";
-    inspectorListCollapsed = false;
-  }
+  const focusActions = createWorkspaceFocusActions({
+    normalizePomodoroConfig,
+    savePrefs,
+    getFocusTasks: () => focusTasks,
+    setFocusTasks: (next) => {
+      focusTasks = next;
+    },
+    setFocusStats: (next) => {
+      focusStats = next;
+    },
+    setFocusSelectedTaskId: (nextTaskId) => {
+      focusSelectedTaskId = nextTaskId;
+    },
+    setFocusCommand: (next) => {
+      focusCommand = next;
+    },
+    setPomodoroConfig: (next) => {
+      pomodoroConfig = next;
+    },
+    setMainTab,
+    focusTabKey: WORKSPACE_MAIN_TAB_FOCUS,
+    timeToMinutes,
+    minutesToTime,
+  });
 
-  async function handleInspectorClose() {
-    if (inspectorNote && pendingLongDocDraft && pendingLongDocDraft.id === String(inspectorNote.id)) {
-      await discardPendingLongDocDraft(String(inspectorNote.id));
-      return;
-    }
-    closeInspector();
-  }
-
-  function startInspectorEdit() {
-    if (!inspectorNote) return;
-    inspectorMode = "edit";
-    inspectorDraftText = inspectorNote.text || "";
-  }
-
-  /**
-   * @param {string} noteId
-   */
-  async function discardPendingLongDocDraft(noteId) {
-    try {
-      await invoke("permanently_delete_note", { id: noteId });
-      await loadNotes();
-      await windowSync.syncWindows();
-    } catch (e) {
-      console.error("discardPendingLongDocDraft(workspace)", e);
-    } finally {
-      pendingLongDocDraft = null;
-      closeInspector();
-    }
-  }
-
-  async function cancelInspectorEdit() {
-    if (!inspectorNote) return;
-    if (pendingLongDocDraft && pendingLongDocDraft.id === String(inspectorNote.id)) {
-      await discardPendingLongDocDraft(String(inspectorNote.id));
-      return;
-    }
-    inspectorMode = "view";
-    inspectorDraftText = inspectorNote.text || "";
-  }
-
-  async function saveInspectorEdit() {
-    const transformed = expandNoteCommands(inspectorDraftText.trim()).trim();
-    if (!inspectorNote || !transformed) {
-      return;
-    }
-    try {
-      await invoke("update_note_text", {
-        id: inspectorNote.id,
-        text: transformed,
-        sortMode,
-      });
-      await loadNotes();
-      inspectorMode = "view";
-      inspectorDraftText = transformed;
-      if (pendingLongDocDraft && pendingLongDocDraft.id === String(inspectorNote.id)) {
-        pendingLongDocDraft = null;
-      }
-    } catch (e) {
-      console.error("saveInspectorEdit(workspace)", e);
-    }
-  }
+  const {
+    changePomodoroConfig,
+    changeFocusTasks,
+    changeFocusStats,
+    changeFocusSelectedTask,
+    handleDeadlineAction,
+  } = focusActions;
 
   /** @param {string} mode */
   async function setViewMode(mode) {
@@ -326,72 +326,11 @@
     await savePrefs({ workspaceMainTab: mainTab });
   }
 
-  /** @param {string} taskId */
-  /**
-   * @param {string} taskId
-   * @param {"select" | "start" | "snooze15" | "snooze30"} [action]
-   */
-  async function handleDeadlineAction(taskId, action = "select") {
-    const nextTaskId = String(taskId || "");
-    if (action === "snooze15" || action === "snooze30") {
-      const deltaMinutes = action === "snooze30" ? 30 : 15;
-      const nextTasks = focusTasks.map((task) => {
-        if (String(task.id) !== nextTaskId) return task;
-        const startM = timeToMinutes(task.startTime || "09:00");
-        const endM = timeToMinutes(task.endTime || "10:00");
-        return {
-          ...task,
-          startTime: minutesToTime(startM + deltaMinutes),
-          endTime: minutesToTime(endM + deltaMinutes),
-        };
-      });
-      await changeFocusTasks(nextTasks);
-      return;
-    }
-
-    focusSelectedTaskId = nextTaskId;
-    focusCommand = {
-      nonce: Date.now(),
-      type: action === "start" ? "start" : "select",
-      taskId: nextTaskId,
-    };
-    await setMainTab(WORKSPACE_MAIN_TAB_FOCUS);
-  }
-
   /** @param {string} mode */
   async function setSortMode(mode) {
     sortMode = mode;
     await savePrefs({ sortMode: mode });
     await loadNotes();
-  }
-
-  async function createLongDocument() {
-    const raw = newNoteText.trim();
-    const text = raw || (locale === "zh" ? "# 新文档\n\n" : "# New document\n\n");
-    const beforeIds = new Set(notes.map((n) => String(n.id)));
-    try {
-      const next = await invoke("add_note", { text, isPinned: false, sortMode });
-      if (Array.isArray(next)) {
-        notes = next;
-      } else {
-        await loadNotes();
-      }
-      await windowSync.syncWindows();
-      const source = Array.isArray(next) ? next : notes;
-      const created = [...source]
-        .filter((n) => !beforeIds.has(String(n.id)))
-        .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")))[0];
-      if (created) {
-        pendingLongDocDraft = { id: String(created.id) };
-        openInspectorEdit(created);
-      }
-      newNoteText = "";
-      if (mainTab !== WORKSPACE_MAIN_TAB_NOTES) {
-        await setMainTab(WORKSPACE_MAIN_TAB_NOTES);
-      }
-    } catch (e) {
-      console.error("createLongDocument(workspace)", e);
-    }
   }
 
   async function toggleLanguage() {
@@ -429,35 +368,6 @@
   async function changeThemeTransitionShape(shape) {
     themeTransitionShape = normalizeWorkspaceThemeTransitionShape(shape);
     await savePrefs({ workspaceThemeTransitionShape: themeTransitionShape });
-  }
-
-  /** @param {{focusMinutes:number;shortBreakMinutes:number;longBreakMinutes:number;longBreakEvery:number}} next */
-  async function changePomodoroConfig(next) {
-    const safe = normalizePomodoroConfig(next);
-    pomodoroConfig = safe;
-    await savePrefs({
-      pomodoroFocusMinutes: safe.focusMinutes,
-      pomodoroShortBreakMinutes: safe.shortBreakMinutes,
-      pomodoroLongBreakMinutes: safe.longBreakMinutes,
-      pomodoroLongBreakEvery: safe.longBreakEvery,
-    });
-  }
-
-  /** @param {any[]} next */
-  async function changeFocusTasks(next) {
-    focusTasks = Array.isArray(next) ? next : [];
-    await savePrefs({ focusTasksJson: JSON.stringify(focusTasks) });
-  }
-
-  /** @param {Record<string, any>} next */
-  async function changeFocusStats(next) {
-    focusStats = next && typeof next === "object" ? next : {};
-    await savePrefs({ focusStatsJson: JSON.stringify(focusStats) });
-  }
-
-  /** @param {string} nextTaskId */
-  function changeFocusSelectedTask(nextTaskId) {
-    focusSelectedTaskId = String(nextTaskId || "");
   }
 
   async function toggleInteraction() {
