@@ -127,9 +127,7 @@
     if (workspaceFontSize === "large") return 1.08;
     return 1;
   });
-  const workspaceTextScale = $derived.by(() =>
-    Number((workspaceLayoutScale * workspaceFontPresetScale).toFixed(3)),
-  );
+  const workspaceTextScale = $derived.by(() => Number(workspaceFontPresetScale.toFixed(3)));
 
   const strings = $derived(getStrings(locale));
   const deadlineTasks = $derived.by(() => {
@@ -696,7 +694,7 @@
   <div
     class="workspace"
     class:theme-dark={workspaceTheme === "dark"}
-    style={`--sidebar-width: ${sidebarWidth}px; --ws-layout-scale: ${workspaceLayoutScale}; --ws-text-scale: ${workspaceTextScale};`}
+    style={`--sidebar-width: ${sidebarWidth}px; --ws-ui-scale: ${workspaceLayoutScale}; --ws-layout-scale: 1; --ws-text-scale: ${workspaceTextScale};`}
   >
   <WorkspaceSidebar
     {strings}
@@ -881,8 +879,8 @@
     --ws-scrollbar-track: rgba(148, 163, 184, 0.14);
     --ws-scrollbar-thumb: rgba(71, 85, 105, 0.45);
     --ws-scrollbar-thumb-hover: rgba(51, 65, 85, 0.62);
-    width: 100%;
-    height: 100%;
+    width: calc(100% / var(--ws-ui-scale, 1));
+    height: calc(100% / var(--ws-ui-scale, 1));
     display: grid;
     grid-template-columns: var(--sidebar-width, 260px) 8px 1fr;
     background:
@@ -892,6 +890,8 @@
     color: #111827;
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
     font-size: 14px;
+    transform: scale(var(--ws-ui-scale, 1));
+    transform-origin: top left;
     cursor: default;
     view-transition-name: workspace-root;
   }
