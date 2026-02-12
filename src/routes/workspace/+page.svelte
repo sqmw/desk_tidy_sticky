@@ -102,6 +102,11 @@
     shortBreakMinutes: 5,
     longBreakMinutes: 15,
     longBreakEvery: 4,
+    miniBreakEveryMinutes: 10,
+    miniBreakDurationSeconds: 20,
+    longBreakEveryMinutes: 30,
+    longBreakDurationMinutes: 5,
+    breakNotifyBeforeSeconds: 10,
   });
   let sidebarCollapsed = $derived(sidebarWidth <= 104);
   const workspaceZoomOption = $derived(workspaceZoomMode === "auto" ? "auto" : String(workspaceZoom));

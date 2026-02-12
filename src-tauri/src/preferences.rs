@@ -69,6 +69,16 @@ pub struct PanelPreferences {
     pub pomodoro_long_break_minutes: i32,
     #[serde(default = "default_pomodoro_long_break_every")]
     pub pomodoro_long_break_every: i32,
+    #[serde(default = "default_pomodoro_mini_break_every_minutes")]
+    pub pomodoro_mini_break_every_minutes: i32,
+    #[serde(default = "default_pomodoro_mini_break_duration_seconds")]
+    pub pomodoro_mini_break_duration_seconds: i32,
+    #[serde(default = "default_pomodoro_long_break_every_minutes")]
+    pub pomodoro_long_break_every_minutes: i32,
+    #[serde(default = "default_pomodoro_long_break_duration_minutes")]
+    pub pomodoro_long_break_duration_minutes: i32,
+    #[serde(default = "default_pomodoro_break_notify_before_seconds")]
+    pub pomodoro_break_notify_before_seconds: i32,
     #[serde(default = "default_focus_tasks_json")]
     pub focus_tasks_json: String,
     #[serde(default = "default_focus_stats_json")]
@@ -116,6 +126,21 @@ fn default_pomodoro_long_break_minutes() -> i32 {
 }
 fn default_pomodoro_long_break_every() -> i32 {
     4
+}
+fn default_pomodoro_mini_break_every_minutes() -> i32 {
+    10
+}
+fn default_pomodoro_mini_break_duration_seconds() -> i32 {
+    20
+}
+fn default_pomodoro_long_break_every_minutes() -> i32 {
+    30
+}
+fn default_pomodoro_long_break_duration_minutes() -> i32 {
+    5
+}
+fn default_pomodoro_break_notify_before_seconds() -> i32 {
+    10
 }
 fn default_focus_tasks_json() -> String {
     "[]".to_string()

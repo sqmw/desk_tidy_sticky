@@ -10,6 +10,11 @@
     taskOptions = [],
     selectedTaskDonePomodoros = 0,
     selectedTaskTargetPomodoros = 0,
+    nextMiniBreakText = "",
+    nextLongBreakText = "",
+    breakNotifyBeforeSeconds = 10,
+    notifyEnabled = false,
+    notifyChecked = false,
     roundText = "",
     taskText = "",
     phaseProgress = 0,
@@ -20,6 +25,11 @@
     draftShortBreakMinutes = $bindable(5),
     draftLongBreakMinutes = $bindable(15),
     draftLongBreakEvery = $bindable(4),
+    draftMiniBreakEveryMinutes = $bindable(10),
+    draftMiniBreakDurationSeconds = $bindable(20),
+    draftLongBreakEveryMinutes = $bindable(30),
+    draftLongBreakDurationMinutes = $bindable(5),
+    draftBreakNotifyBeforeSeconds = $bindable(10),
     onApplyFocusPreset = () => {},
     onSelectTask = () => {},
     onToggleRunning = () => {},
@@ -57,6 +67,12 @@
   <div class="timer-meta">
     <span>{strings.pomodoroRound}: {roundText}</span>
     <span>{strings.pomodoroTask}: {taskText}</span>
+    <span>{strings.pomodoroMiniBreakIn || "Mini break in"}: {nextMiniBreakText}</span>
+    <span>{strings.pomodoroLongBreakIn || "Long break in"}: {nextLongBreakText}</span>
+    <span>
+      {strings.pomodoroBreakNotifyStatus || "Notify"}:
+      {notifyChecked ? (notifyEnabled ? (strings.pomodoroBreakNotifyOn || "On") : (strings.pomodoroBreakNotifyOff || "Off")) : "..."}
+    </span>
   </div>
   {#if selectedTaskId}
     <div class="task-progress">
@@ -128,6 +144,57 @@
         <span>{strings.pomodoroLongBreakEvery}</span>
         <TargetPomodoroInput bind:value={draftLongBreakEvery} min={2} max={8} title={strings.pomodoroLongBreakEvery} />
       </label>
+      <label>
+        <span>{strings.pomodoroMiniBreakEveryMinutes || "Mini break every (min)"}</span>
+        <TargetPomodoroInput
+          bind:value={draftMiniBreakEveryMinutes}
+          min={5}
+          max={60}
+          title={strings.pomodoroMiniBreakEveryMinutes || "Mini break every (min)"}
+        />
+      </label>
+      <label>
+        <span>{strings.pomodoroMiniBreakDurationSeconds || "Mini break duration (sec)"}</span>
+        <TargetPomodoroInput
+          bind:value={draftMiniBreakDurationSeconds}
+          min={10}
+          max={300}
+          title={strings.pomodoroMiniBreakDurationSeconds || "Mini break duration (sec)"}
+        />
+      </label>
+      <label>
+        <span>{strings.pomodoroLongBreakEveryMinutes || "Long break every (min)"}</span>
+        <TargetPomodoroInput
+          bind:value={draftLongBreakEveryMinutes}
+          min={15}
+          max={180}
+          title={strings.pomodoroLongBreakEveryMinutes || "Long break every (min)"}
+        />
+      </label>
+      <label>
+        <span>{strings.pomodoroLongBreakDurationMinutes || "Long break duration (min)"}</span>
+        <TargetPomodoroInput
+          bind:value={draftLongBreakDurationMinutes}
+          min={1}
+          max={30}
+          title={strings.pomodoroLongBreakDurationMinutes || "Long break duration (min)"}
+        />
+      </label>
+      <label>
+        <span>{strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}</span>
+        <TargetPomodoroInput
+          bind:value={draftBreakNotifyBeforeSeconds}
+          min={0}
+          max={120}
+          title={strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}
+        />
+      </label>
+      <div class="notify-tip">
+        {strings.pomodoroBreakNotifyHint || "Desktop notification permission is required for break reminders."}
+        {#if breakNotifyBeforeSeconds > 0}
+          · {strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}: {breakNotifyBeforeSeconds}s
+        {/if}
+      </div>
       <div class="timer-settings-actions">
         <button type="button" class="btn primary" onclick={() => onSaveSettings()}>{strings.saveNote}</button>
         <button type="button" class="btn" onclick={() => onCancelSettings()}>{strings.cancel}</button>
@@ -349,5 +416,12 @@
     display: flex;
     justify-content: flex-end;
     gap: 6px;
+  }
+
+  .notify-tip {
+    margin-top: 2px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--ws-muted, #64748b);
   }
 </style>

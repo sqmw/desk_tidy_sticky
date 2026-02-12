@@ -1,13 +1,19 @@
 /**
  * @param {{
- *   normalizePomodoroConfig: (input: unknown) => { focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number };
+ *   normalizePomodoroConfig: (input: unknown) => {
+ *     focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number;
+ *     miniBreakEveryMinutes: number; miniBreakDurationSeconds: number; longBreakEveryMinutes: number; longBreakDurationMinutes: number; breakNotifyBeforeSeconds: number;
+ *   };
  *   savePrefs: (updates: Record<string, any>) => Promise<void>;
  *   getFocusTasks: () => any[];
  *   setFocusTasks: (next: any[]) => void;
  *   setFocusStats: (next: Record<string, any>) => void;
  *   setFocusSelectedTaskId: (nextTaskId: string) => void;
  *   setFocusCommand: (next: { nonce: number; type: "select" | "start"; taskId: string }) => void;
- *   setPomodoroConfig: (next: { focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number }) => void;
+ *   setPomodoroConfig: (next: {
+ *     focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number;
+ *     miniBreakEveryMinutes: number; miniBreakDurationSeconds: number; longBreakEveryMinutes: number; longBreakDurationMinutes: number; breakNotifyBeforeSeconds: number;
+ *   }) => void;
  *   setMainTab: (tab: string) => Promise<void>;
  *   focusTabKey: string;
  *   timeToMinutes: (timeText: string) => number;
@@ -16,7 +22,10 @@
  */
 export function createWorkspaceFocusActions(deps) {
   /**
-   * @param {{focusMinutes:number;shortBreakMinutes:number;longBreakMinutes:number;longBreakEvery:number}} next
+   * @param {{
+   * focusMinutes:number;shortBreakMinutes:number;longBreakMinutes:number;longBreakEvery:number;
+   * miniBreakEveryMinutes:number;miniBreakDurationSeconds:number;longBreakEveryMinutes:number;longBreakDurationMinutes:number;breakNotifyBeforeSeconds:number;
+   * }} next
    */
   async function changePomodoroConfig(next) {
     const safe = deps.normalizePomodoroConfig(next);
@@ -26,6 +35,11 @@ export function createWorkspaceFocusActions(deps) {
       pomodoroShortBreakMinutes: safe.shortBreakMinutes,
       pomodoroLongBreakMinutes: safe.longBreakMinutes,
       pomodoroLongBreakEvery: safe.longBreakEvery,
+      pomodoroMiniBreakEveryMinutes: safe.miniBreakEveryMinutes,
+      pomodoroMiniBreakDurationSeconds: safe.miniBreakDurationSeconds,
+      pomodoroLongBreakEveryMinutes: safe.longBreakEveryMinutes,
+      pomodoroLongBreakDurationMinutes: safe.longBreakDurationMinutes,
+      pomodoroBreakNotifyBeforeSeconds: safe.breakNotifyBeforeSeconds,
     });
   }
 

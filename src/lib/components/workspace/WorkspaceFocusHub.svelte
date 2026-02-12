@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from "svelte";
   import {
     RECURRENCE,
     clampInt,
@@ -17,11 +18,14 @@
   import WorkspaceFocusPlanner from "$lib/components/workspace/focus/WorkspaceFocusPlanner.svelte";
   import WorkspaceFocusStats from "$lib/components/workspace/focus/WorkspaceFocusStats.svelte";
   import {
+    BREAK_KIND_LONG,
+    BREAK_KIND_MINI,
     applyFocusCompleted,
     buildFocusTaskFromDraft,
     buildTimerTaskOptions,
     buildTodaySummary,
     FOCUS_WEEKDAYS,
+    getBreakPlanSec,
     getPhaseDurationSec,
     getSafeConfig,
     nextPhaseState,
@@ -32,6 +36,7 @@
     removeTaskFromState,
     toggleTaskDoneInStats,
   } from "$lib/workspace/focus/focus-runtime.js";
+  import { formatSecondsBrief, sendDesktopNotification } from "$lib/workspace/focus/focus-break-notify.js";
 
   let {
     strings,
@@ -44,6 +49,11 @@
       shortBreakMinutes: 5,
       longBreakMinutes: 15,
       longBreakEvery: 4,
+      miniBreakEveryMinutes: 10,
+      miniBreakDurationSeconds: 20,
+      longBreakEveryMinutes: 30,
+      longBreakDurationMinutes: 5,
+      breakNotifyBeforeSeconds: 10,
     },
     onTasksChange = () => {},
     onStatsChange = () => {},
@@ -72,8 +82,22 @@
   let draftShortBreakMinutes = $state(5);
   let draftLongBreakMinutes = $state(15);
   let draftLongBreakEvery = $state(4);
+  let draftMiniBreakEveryMinutes = $state(10);
+  let draftMiniBreakDurationSeconds = $state(20);
+  let draftLongBreakEveryMinutes = $state(30);
+  let draftLongBreakDurationMinutes = $state(5);
+  let draftBreakNotifyBeforeSeconds = $state(10);
+  let focusSinceBreakSec = $state(0);
+  let nextMiniBreakAtSec = $state(10 * 60);
+  let nextLongBreakAtSec = $state(30 * 60);
+  let nextMiniWarnAtSec = $state(10 * 60 - 10);
+  let nextLongWarnAtSec = $state(30 * 60 - 10);
+  let lastBreakReminderAtSec = $state(-1);
+  let notifyEnabled = $state(false);
+  let notifyChecked = $state(false);
 
   const safeConfig = $derived(getSafeConfig(pomodoroConfig, clampInt));
+  const breakPlanSec = $derived(getBreakPlanSec(safeConfig));
   const todayKey = $derived(getDateKey());
   const weekKeys = $derived(getRecentDateKeys());
   const todayTasks = $derived(getTodayTasks(tasks));
@@ -101,6 +125,8 @@
     selectedTask ? Number(selectedTask.targetPomodoros || 1) : 0,
   );
   const todayTaskDistribution = $derived(todaySummary.taskDistribution);
+  const nextMiniBreakCountdown = $derived(Math.max(0, nextMiniBreakAtSec - focusSinceBreakSec));
+  const nextLongBreakCountdown = $derived(Math.max(0, nextLongBreakAtSec - focusSinceBreakSec));
 
   /** @param {number} sec */
   function formatTimer(sec) {
@@ -139,6 +165,14 @@
     phase = next.phase;
     completedFocusCount = next.completedFocusCount;
     remainingSec = getPhaseDurationSec(phase, safeConfig);
+    if (next.phase !== PHASE_FOCUS) {
+      focusSinceBreakSec = 0;
+      lastBreakReminderAtSec = -1;
+      nextMiniBreakAtSec = breakPlanSec.miniEverySec;
+      nextLongBreakAtSec = breakPlanSec.longEverySec;
+      nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
+      nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
+    }
   }
 
   function toggleRunning() {
@@ -233,6 +267,36 @@
       shortBreakMinutes: clampInt(draftShortBreakMinutes, safeConfig.shortBreakMinutes, 1, 30),
       longBreakMinutes: clampInt(draftLongBreakMinutes, safeConfig.longBreakMinutes, 5, 60),
       longBreakEvery: clampInt(draftLongBreakEvery, safeConfig.longBreakEvery, 2, 8),
+      miniBreakEveryMinutes: clampInt(
+        draftMiniBreakEveryMinutes,
+        safeConfig.miniBreakEveryMinutes,
+        5,
+        60,
+      ),
+      miniBreakDurationSeconds: clampInt(
+        draftMiniBreakDurationSeconds,
+        safeConfig.miniBreakDurationSeconds,
+        10,
+        300,
+      ),
+      longBreakEveryMinutes: clampInt(
+        draftLongBreakEveryMinutes,
+        safeConfig.longBreakEveryMinutes,
+        15,
+        180,
+      ),
+      longBreakDurationMinutes: clampInt(
+        draftLongBreakDurationMinutes,
+        safeConfig.longBreakDurationMinutes,
+        1,
+        30,
+      ),
+      breakNotifyBeforeSeconds: clampInt(
+        draftBreakNotifyBeforeSeconds,
+        safeConfig.breakNotifyBeforeSeconds,
+        0,
+        120,
+      ),
     };
     Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
       console.error("save pomodoro config", e),
@@ -248,7 +312,34 @@
     draftShortBreakMinutes = safeConfig.shortBreakMinutes;
     draftLongBreakMinutes = safeConfig.longBreakMinutes;
     draftLongBreakEvery = safeConfig.longBreakEvery;
+    draftMiniBreakEveryMinutes = safeConfig.miniBreakEveryMinutes;
+    draftMiniBreakDurationSeconds = safeConfig.miniBreakDurationSeconds;
+    draftLongBreakEveryMinutes = safeConfig.longBreakEveryMinutes;
+    draftLongBreakDurationMinutes = safeConfig.longBreakDurationMinutes;
+    draftBreakNotifyBeforeSeconds = safeConfig.breakNotifyBeforeSeconds;
     showConfig = true;
+  }
+
+  /**
+   * @param {"warn" | "start"} stage
+   * @param {"mini" | "long"} kind
+   */
+  async function notifyBreak(stage, kind) {
+    if (!notifyEnabled) return;
+    const isMini = kind === BREAK_KIND_MINI;
+    const title = stage === "warn"
+      ? (isMini
+          ? (strings.pomodoroMiniBreakSoon || "Mini break soon")
+          : (strings.pomodoroLongBreakSoon || "Long break soon"))
+      : (isMini
+          ? (strings.pomodoroMiniBreakNow || "Take a mini break")
+          : (strings.pomodoroLongBreakNow || "Take a long break"));
+    const body = stage === "warn"
+      ? `${strings.pomodoroBreakIn || "Break in"} ${formatSecondsBrief(breakPlanSec.notifyBeforeSec)}`
+      : `${strings.pomodoroBreakDuration || "Duration"} ${
+          isMini ? formatSecondsBrief(breakPlanSec.miniDurationSec) : `${safeConfig.longBreakDurationMinutes}m`
+        }`;
+    await sendDesktopNotification(title, body);
   }
 
   function onFocusCompleted() {
@@ -301,6 +392,37 @@
   });
 
   $effect(() => {
+    const miniEvery = breakPlanSec.miniEverySec;
+    const longEvery = breakPlanSec.longEverySec;
+    if (focusSinceBreakSec >= nextMiniBreakAtSec) {
+      nextMiniBreakAtSec = focusSinceBreakSec + miniEvery;
+    } else if (nextMiniBreakAtSec <= 0 || nextMiniBreakAtSec > focusSinceBreakSec + miniEvery * 2) {
+      nextMiniBreakAtSec = focusSinceBreakSec + miniEvery;
+    }
+    if (focusSinceBreakSec >= nextLongBreakAtSec) {
+      nextLongBreakAtSec = focusSinceBreakSec + longEvery;
+    } else if (nextLongBreakAtSec <= 0 || nextLongBreakAtSec > focusSinceBreakSec + longEvery * 2) {
+      nextLongBreakAtSec = focusSinceBreakSec + longEvery;
+    }
+    nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
+    nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
+  });
+
+  onMount(async () => {
+    try {
+      if (typeof window === "undefined" || typeof Notification === "undefined") return;
+      notifyChecked = true;
+      notifyEnabled = Notification.permission === "granted";
+      if (Notification.permission === "default") {
+        const result = await Notification.requestPermission();
+        notifyEnabled = result === "granted";
+      }
+    } catch (error) {
+      console.error("focus notification bootstrap", error);
+    }
+  });
+
+  $effect(() => {
     if (!running) return;
     const id = setInterval(() => {
       if (!running) return;
@@ -313,6 +435,40 @@
         return;
       }
       remainingSec -= 1;
+      if (phase !== PHASE_FOCUS) return;
+      focusSinceBreakSec += 1;
+      if (
+        breakPlanSec.notifyBeforeSec > 0 &&
+        focusSinceBreakSec >= nextLongWarnAtSec &&
+        focusSinceBreakSec < nextLongBreakAtSec &&
+        lastBreakReminderAtSec !== nextLongWarnAtSec
+      ) {
+        lastBreakReminderAtSec = nextLongWarnAtSec;
+        notifyBreak("warn", BREAK_KIND_LONG);
+      } else if (
+        breakPlanSec.notifyBeforeSec > 0 &&
+        focusSinceBreakSec >= nextMiniWarnAtSec &&
+        focusSinceBreakSec < nextMiniBreakAtSec &&
+        lastBreakReminderAtSec !== nextMiniWarnAtSec
+      ) {
+        lastBreakReminderAtSec = nextMiniWarnAtSec;
+        notifyBreak("warn", BREAK_KIND_MINI);
+      }
+      if (focusSinceBreakSec >= nextLongBreakAtSec) {
+        if (lastBreakReminderAtSec !== nextLongBreakAtSec) {
+          lastBreakReminderAtSec = nextLongBreakAtSec;
+          notifyBreak("start", BREAK_KIND_LONG);
+        }
+        nextLongBreakAtSec += breakPlanSec.longEverySec;
+        nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
+      } else if (focusSinceBreakSec >= nextMiniBreakAtSec) {
+        if (lastBreakReminderAtSec !== nextMiniBreakAtSec) {
+          lastBreakReminderAtSec = nextMiniBreakAtSec;
+          notifyBreak("start", BREAK_KIND_MINI);
+        }
+        nextMiniBreakAtSec += breakPlanSec.miniEverySec;
+        nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
+      }
     }, 1000);
     return () => clearInterval(id);
   });
@@ -338,10 +494,20 @@
         taskOptions={timerTaskOptions}
         selectedTaskDonePomodoros={selectedTaskDonePomodoros}
         selectedTaskTargetPomodoros={selectedTaskTargetPomodoros}
+        nextMiniBreakText={formatSecondsBrief(nextMiniBreakCountdown)}
+        nextLongBreakText={formatSecondsBrief(nextLongBreakCountdown)}
+        breakNotifyBeforeSeconds={safeConfig.breakNotifyBeforeSeconds}
+        notifyEnabled={notifyEnabled}
+        notifyChecked={notifyChecked}
         bind:draftFocusMinutes
         bind:draftShortBreakMinutes
         bind:draftLongBreakMinutes
         bind:draftLongBreakEvery
+        bind:draftMiniBreakEveryMinutes
+        bind:draftMiniBreakDurationSeconds
+        bind:draftLongBreakEveryMinutes
+        bind:draftLongBreakDurationMinutes
+        bind:draftBreakNotifyBeforeSeconds
         onApplyFocusPreset={applyFocusPreset}
         onSelectTask={selectTask}
         onToggleRunning={toggleRunning}

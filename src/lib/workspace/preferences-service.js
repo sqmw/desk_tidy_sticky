@@ -18,6 +18,11 @@ const DEFAULT_POMODORO = {
   shortBreakMinutes: 5,
   longBreakMinutes: 15,
   longBreakEvery: 4,
+  miniBreakEveryMinutes: 10,
+  miniBreakDurationSeconds: 20,
+  longBreakEveryMinutes: 30,
+  longBreakDurationMinutes: 5,
+  breakNotifyBeforeSeconds: 10,
 };
 
 /** @param {unknown} theme */
@@ -67,6 +72,36 @@ export function normalizePomodoroConfig(input) {
     shortBreakMinutes: clamp(raw.shortBreakMinutes, DEFAULT_POMODORO.shortBreakMinutes, 1, 30),
     longBreakMinutes: clamp(raw.longBreakMinutes, DEFAULT_POMODORO.longBreakMinutes, 5, 60),
     longBreakEvery: clamp(raw.longBreakEvery, DEFAULT_POMODORO.longBreakEvery, 2, 8),
+    miniBreakEveryMinutes: clamp(
+      raw.miniBreakEveryMinutes,
+      DEFAULT_POMODORO.miniBreakEveryMinutes,
+      5,
+      60,
+    ),
+    miniBreakDurationSeconds: clamp(
+      raw.miniBreakDurationSeconds,
+      DEFAULT_POMODORO.miniBreakDurationSeconds,
+      10,
+      300,
+    ),
+    longBreakEveryMinutes: clamp(
+      raw.longBreakEveryMinutes,
+      DEFAULT_POMODORO.longBreakEveryMinutes,
+      15,
+      180,
+    ),
+    longBreakDurationMinutes: clamp(
+      raw.longBreakDurationMinutes,
+      DEFAULT_POMODORO.longBreakDurationMinutes,
+      1,
+      30,
+    ),
+    breakNotifyBeforeSeconds: clamp(
+      raw.breakNotifyBeforeSeconds,
+      DEFAULT_POMODORO.breakNotifyBeforeSeconds,
+      0,
+      120,
+    ),
   };
 }
 
@@ -80,6 +115,11 @@ export async function loadWorkspacePreferences(invoke) {
     shortBreakMinutes: prefs.pomodoroShortBreakMinutes,
     longBreakMinutes: prefs.pomodoroLongBreakMinutes,
     longBreakEvery: prefs.pomodoroLongBreakEvery,
+    miniBreakEveryMinutes: prefs.pomodoroMiniBreakEveryMinutes,
+    miniBreakDurationSeconds: prefs.pomodoroMiniBreakDurationSeconds,
+    longBreakEveryMinutes: prefs.pomodoroLongBreakEveryMinutes,
+    longBreakDurationMinutes: prefs.pomodoroLongBreakDurationMinutes,
+    breakNotifyBeforeSeconds: prefs.pomodoroBreakNotifyBeforeSeconds,
   });
   /** @type {any[]} */
   let focusTasks = [];

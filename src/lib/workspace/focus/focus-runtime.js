@@ -4,6 +4,8 @@ export const PHASE_FOCUS = "focus";
 export const PHASE_SHORT_BREAK = "shortBreak";
 export const PHASE_LONG_BREAK = "longBreak";
 export const FOCUS_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
+export const BREAK_KIND_MINI = "mini";
+export const BREAK_KIND_LONG = "long";
 
 /**
  * @param {unknown} config
@@ -16,6 +18,30 @@ export function getSafeConfig(config, clamp) {
     shortBreakMinutes: clamp(raw.shortBreakMinutes, 5, 1, 30),
     longBreakMinutes: clamp(raw.longBreakMinutes, 15, 5, 60),
     longBreakEvery: clamp(raw.longBreakEvery, 4, 2, 8),
+    miniBreakEveryMinutes: clamp(raw.miniBreakEveryMinutes, 10, 5, 60),
+    miniBreakDurationSeconds: clamp(raw.miniBreakDurationSeconds, 20, 10, 300),
+    longBreakEveryMinutes: clamp(raw.longBreakEveryMinutes, 30, 15, 180),
+    longBreakDurationMinutes: clamp(raw.longBreakDurationMinutes, 5, 1, 30),
+    breakNotifyBeforeSeconds: clamp(raw.breakNotifyBeforeSeconds, 10, 0, 120),
+  };
+}
+
+/**
+ * @param {{
+ * miniBreakEveryMinutes:number;
+ * miniBreakDurationSeconds:number;
+ * longBreakEveryMinutes:number;
+ * longBreakDurationMinutes:number;
+ * breakNotifyBeforeSeconds:number;
+ * }} config
+ */
+export function getBreakPlanSec(config) {
+  return {
+    miniEverySec: Math.max(60, Number(config.miniBreakEveryMinutes || 10) * 60),
+    miniDurationSec: Math.max(10, Number(config.miniBreakDurationSeconds || 20)),
+    longEverySec: Math.max(300, Number(config.longBreakEveryMinutes || 30) * 60),
+    longDurationSec: Math.max(60, Number(config.longBreakDurationMinutes || 5) * 60),
+    notifyBeforeSec: Math.max(0, Number(config.breakNotifyBeforeSeconds || 10)),
   };
 }
 
