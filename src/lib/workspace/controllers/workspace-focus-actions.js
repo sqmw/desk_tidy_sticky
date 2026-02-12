@@ -3,6 +3,7 @@
  *   normalizePomodoroConfig: (input: unknown) => {
  *     focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number;
  *     miniBreakEveryMinutes: number; miniBreakDurationSeconds: number; longBreakEveryMinutes: number; longBreakDurationMinutes: number; breakNotifyBeforeSeconds: number;
+ *     miniBreakPostponeMinutes: number; longBreakPostponeMinutes: number; breakPostponeLimit: number; breakStrictMode: boolean;
  *   };
  *   savePrefs: (updates: Record<string, any>) => Promise<void>;
  *   getFocusTasks: () => any[];
@@ -13,6 +14,7 @@
  *   setPomodoroConfig: (next: {
  *     focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number;
  *     miniBreakEveryMinutes: number; miniBreakDurationSeconds: number; longBreakEveryMinutes: number; longBreakDurationMinutes: number; breakNotifyBeforeSeconds: number;
+ *     miniBreakPostponeMinutes: number; longBreakPostponeMinutes: number; breakPostponeLimit: number; breakStrictMode: boolean;
  *   }) => void;
  *   setMainTab: (tab: string) => Promise<void>;
  *   focusTabKey: string;
@@ -25,6 +27,7 @@ export function createWorkspaceFocusActions(deps) {
    * @param {{
    * focusMinutes:number;shortBreakMinutes:number;longBreakMinutes:number;longBreakEvery:number;
    * miniBreakEveryMinutes:number;miniBreakDurationSeconds:number;longBreakEveryMinutes:number;longBreakDurationMinutes:number;breakNotifyBeforeSeconds:number;
+   * miniBreakPostponeMinutes:number;longBreakPostponeMinutes:number;breakPostponeLimit:number;breakStrictMode:boolean;
    * }} next
    */
   async function changePomodoroConfig(next) {
@@ -40,6 +43,10 @@ export function createWorkspaceFocusActions(deps) {
       pomodoroLongBreakEveryMinutes: safe.longBreakEveryMinutes,
       pomodoroLongBreakDurationMinutes: safe.longBreakDurationMinutes,
       pomodoroBreakNotifyBeforeSeconds: safe.breakNotifyBeforeSeconds,
+      pomodoroMiniBreakPostponeMinutes: safe.miniBreakPostponeMinutes,
+      pomodoroLongBreakPostponeMinutes: safe.longBreakPostponeMinutes,
+      pomodoroBreakPostponeLimit: safe.breakPostponeLimit,
+      pomodoroBreakStrictMode: safe.breakStrictMode,
     });
   }
 

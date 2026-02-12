@@ -87,6 +87,10 @@
   let draftLongBreakEveryMinutes = $state(30);
   let draftLongBreakDurationMinutes = $state(5);
   let draftBreakNotifyBeforeSeconds = $state(10);
+  let draftMiniBreakPostponeMinutes = $state(5);
+  let draftLongBreakPostponeMinutes = $state(10);
+  let draftBreakPostponeLimit = $state(3);
+  let draftBreakStrictMode = $state(false);
   let focusSinceBreakSec = $state(0);
   let nextMiniBreakAtSec = $state(10 * 60);
   let nextLongBreakAtSec = $state(30 * 60);
@@ -95,6 +99,8 @@
   let lastBreakReminderAtSec = $state(-1);
   let notifyEnabled = $state(false);
   let notifyChecked = $state(false);
+  /** @type {{ kind: "mini" | "long"; dueAt: number; postponeUsed: number } | null} */
+  let breakPrompt = $state(null);
 
   const safeConfig = $derived(getSafeConfig(pomodoroConfig, clampInt));
   const breakPlanSec = $derived(getBreakPlanSec(safeConfig));
@@ -173,6 +179,75 @@
       nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
       nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
     }
+  }
+
+  /** @param {"mini" | "long"} kind */
+  function openBreakPrompt(kind) {
+    if (breakPrompt && breakPrompt.kind === kind) return;
+    const dueAt = kind === BREAK_KIND_LONG ? nextLongBreakAtSec : nextMiniBreakAtSec;
+    breakPrompt = { kind, dueAt, postponeUsed: 0 };
+    running = false;
+  }
+
+  /** @param {"mini" | "long"} kind */
+  function applyBreakNow(kind) {
+    breakPrompt = null;
+    focusSinceBreakSec = 0;
+    lastBreakReminderAtSec = -1;
+    if (kind === BREAK_KIND_LONG) {
+      phase = PHASE_LONG_BREAK;
+      remainingSec = breakPlanSec.longDurationSec;
+      nextLongBreakAtSec = breakPlanSec.longEverySec;
+      nextMiniBreakAtSec = breakPlanSec.miniEverySec;
+    } else {
+      phase = PHASE_SHORT_BREAK;
+      remainingSec = breakPlanSec.miniDurationSec;
+      nextMiniBreakAtSec = breakPlanSec.miniEverySec;
+    }
+    nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
+    nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
+    hasStarted = true;
+    running = true;
+  }
+
+  function postponeBreak() {
+    if (!breakPrompt) return;
+    if (safeConfig.breakStrictMode) return;
+    if (breakPrompt.postponeUsed >= safeConfig.breakPostponeLimit) return;
+    const deltaSec =
+      breakPrompt.kind === BREAK_KIND_LONG
+        ? safeConfig.longBreakPostponeMinutes * 60
+        : safeConfig.miniBreakPostponeMinutes * 60;
+    if (breakPrompt.kind === BREAK_KIND_LONG) {
+      nextLongBreakAtSec += deltaSec;
+      nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
+    } else {
+      nextMiniBreakAtSec += deltaSec;
+      nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
+    }
+    breakPrompt = {
+      ...breakPrompt,
+      dueAt: breakPrompt.dueAt + deltaSec,
+      postponeUsed: breakPrompt.postponeUsed + 1,
+    };
+    if (breakPrompt.postponeUsed >= safeConfig.breakPostponeLimit) {
+      breakPrompt = null;
+    }
+    running = true;
+  }
+
+  function skipBreak() {
+    if (!breakPrompt) return;
+    if (safeConfig.breakStrictMode) return;
+    if (breakPrompt.kind === BREAK_KIND_LONG) {
+      nextLongBreakAtSec = focusSinceBreakSec + breakPlanSec.longEverySec;
+      nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
+    } else {
+      nextMiniBreakAtSec = focusSinceBreakSec + breakPlanSec.miniEverySec;
+      nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
+    }
+    breakPrompt = null;
+    running = true;
   }
 
   function toggleRunning() {
@@ -297,6 +372,25 @@
         0,
         120,
       ),
+      miniBreakPostponeMinutes: clampInt(
+        draftMiniBreakPostponeMinutes,
+        safeConfig.miniBreakPostponeMinutes,
+        1,
+        30,
+      ),
+      longBreakPostponeMinutes: clampInt(
+        draftLongBreakPostponeMinutes,
+        safeConfig.longBreakPostponeMinutes,
+        1,
+        60,
+      ),
+      breakPostponeLimit: clampInt(
+        draftBreakPostponeLimit,
+        safeConfig.breakPostponeLimit,
+        0,
+        10,
+      ),
+      breakStrictMode: draftBreakStrictMode,
     };
     Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
       console.error("save pomodoro config", e),
@@ -317,6 +411,10 @@
     draftLongBreakEveryMinutes = safeConfig.longBreakEveryMinutes;
     draftLongBreakDurationMinutes = safeConfig.longBreakDurationMinutes;
     draftBreakNotifyBeforeSeconds = safeConfig.breakNotifyBeforeSeconds;
+    draftMiniBreakPostponeMinutes = safeConfig.miniBreakPostponeMinutes;
+    draftLongBreakPostponeMinutes = safeConfig.longBreakPostponeMinutes;
+    draftBreakPostponeLimit = safeConfig.breakPostponeLimit;
+    draftBreakStrictMode = safeConfig.breakStrictMode;
     showConfig = true;
   }
 
@@ -459,15 +557,13 @@
           lastBreakReminderAtSec = nextLongBreakAtSec;
           notifyBreak("start", BREAK_KIND_LONG);
         }
-        nextLongBreakAtSec += breakPlanSec.longEverySec;
-        nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
+        openBreakPrompt(BREAK_KIND_LONG);
       } else if (focusSinceBreakSec >= nextMiniBreakAtSec) {
         if (lastBreakReminderAtSec !== nextMiniBreakAtSec) {
           lastBreakReminderAtSec = nextMiniBreakAtSec;
           notifyBreak("start", BREAK_KIND_MINI);
         }
-        nextMiniBreakAtSec += breakPlanSec.miniEverySec;
-        nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
+        openBreakPrompt(BREAK_KIND_MINI);
       }
     }, 1000);
     return () => clearInterval(id);
@@ -508,6 +604,10 @@
         bind:draftLongBreakEveryMinutes
         bind:draftLongBreakDurationMinutes
         bind:draftBreakNotifyBeforeSeconds
+        bind:draftMiniBreakPostponeMinutes
+        bind:draftLongBreakPostponeMinutes
+        bind:draftBreakPostponeLimit
+        bind:draftBreakStrictMode
         onApplyFocusPreset={applyFocusPreset}
         onSelectTask={selectTask}
         onToggleRunning={toggleRunning}
@@ -547,6 +647,39 @@
       />
     </div>
   </div>
+
+  {#if breakPrompt}
+    {@const currentBreak = breakPrompt}
+    <section class="break-prompt-card" data-no-drag="true">
+      <div class="break-prompt-head">
+        <strong>
+          {currentBreak.kind === "long"
+            ? (strings.pomodoroLongBreakNow || "Take a long break")
+            : (strings.pomodoroMiniBreakNow || "Take a mini break")}
+        </strong>
+        <span class="break-prompt-sub">
+          {strings.workspaceMultiScreenHint || "This prompt follows current workspace window (multi-screen friendly)."}
+        </span>
+      </div>
+      <div class="break-prompt-actions">
+        <button type="button" class="btn primary" onclick={() => applyBreakNow(currentBreak.kind)}>
+          {strings.pomodoroStart || "Start"}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          disabled={safeConfig.breakStrictMode || currentBreak.postponeUsed >= safeConfig.breakPostponeLimit}
+          onclick={postponeBreak}
+        >
+          {strings.workspaceDeadlineActionSnooze15 || "Postpone"}
+          ({currentBreak.postponeUsed}/{safeConfig.breakPostponeLimit})
+        </button>
+        <button type="button" class="btn" disabled={safeConfig.breakStrictMode} onclick={skipBreak}>
+          {strings.pomodoroSkip || "Skip"}
+        </button>
+      </div>
+    </section>
+  {/if}
 
   <section class="stats-shell">
     <button type="button" class="stats-toggle" onclick={() => (showStats = !showStats)}>
@@ -633,6 +766,37 @@
     border-radius: 14px;
     background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 92%, transparent);
     padding: 8px;
+  }
+
+  .break-prompt-card {
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 45%, var(--ws-border, #dbe5f2));
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.82)) 94%, transparent);
+    padding: 10px 12px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .break-prompt-head {
+    display: grid;
+    gap: 4px;
+  }
+
+  .break-prompt-head strong {
+    color: var(--ws-text-strong, #0f172a);
+    font-size: 14px;
+  }
+
+  .break-prompt-sub {
+    color: var(--ws-muted, #64748b);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .break-prompt-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .stats-toggle {

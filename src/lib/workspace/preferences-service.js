@@ -23,6 +23,10 @@ const DEFAULT_POMODORO = {
   longBreakEveryMinutes: 30,
   longBreakDurationMinutes: 5,
   breakNotifyBeforeSeconds: 10,
+  miniBreakPostponeMinutes: 5,
+  longBreakPostponeMinutes: 10,
+  breakPostponeLimit: 3,
+  breakStrictMode: false,
 };
 
 /** @param {unknown} theme */
@@ -102,6 +106,20 @@ export function normalizePomodoroConfig(input) {
       0,
       120,
     ),
+    miniBreakPostponeMinutes: clamp(
+      raw.miniBreakPostponeMinutes,
+      DEFAULT_POMODORO.miniBreakPostponeMinutes,
+      1,
+      30,
+    ),
+    longBreakPostponeMinutes: clamp(
+      raw.longBreakPostponeMinutes,
+      DEFAULT_POMODORO.longBreakPostponeMinutes,
+      1,
+      60,
+    ),
+    breakPostponeLimit: clamp(raw.breakPostponeLimit, DEFAULT_POMODORO.breakPostponeLimit, 0, 10),
+    breakStrictMode: raw.breakStrictMode === true,
   };
 }
 
@@ -120,6 +138,10 @@ export async function loadWorkspacePreferences(invoke) {
     longBreakEveryMinutes: prefs.pomodoroLongBreakEveryMinutes,
     longBreakDurationMinutes: prefs.pomodoroLongBreakDurationMinutes,
     breakNotifyBeforeSeconds: prefs.pomodoroBreakNotifyBeforeSeconds,
+    miniBreakPostponeMinutes: prefs.pomodoroMiniBreakPostponeMinutes,
+    longBreakPostponeMinutes: prefs.pomodoroLongBreakPostponeMinutes,
+    breakPostponeLimit: prefs.pomodoroBreakPostponeLimit,
+    breakStrictMode: prefs.pomodoroBreakStrictMode,
   });
   /** @type {any[]} */
   let focusTasks = [];

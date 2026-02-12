@@ -30,6 +30,10 @@
     draftLongBreakEveryMinutes = $bindable(30),
     draftLongBreakDurationMinutes = $bindable(5),
     draftBreakNotifyBeforeSeconds = $bindable(10),
+    draftMiniBreakPostponeMinutes = $bindable(5),
+    draftLongBreakPostponeMinutes = $bindable(10),
+    draftBreakPostponeLimit = $bindable(3),
+    draftBreakStrictMode = $bindable(false),
     onApplyFocusPreset = () => {},
     onSelectTask = () => {},
     onToggleRunning = () => {},
@@ -188,6 +192,37 @@
           max={120}
           title={strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}
         />
+      </label>
+      <label>
+        <span>{strings.pomodoroMiniBreakPostponeMinutes || "Mini postpone (min)"}</span>
+        <TargetPomodoroInput
+          bind:value={draftMiniBreakPostponeMinutes}
+          min={1}
+          max={30}
+          title={strings.pomodoroMiniBreakPostponeMinutes || "Mini postpone (min)"}
+        />
+      </label>
+      <label>
+        <span>{strings.pomodoroLongBreakPostponeMinutes || "Long postpone (min)"}</span>
+        <TargetPomodoroInput
+          bind:value={draftLongBreakPostponeMinutes}
+          min={1}
+          max={60}
+          title={strings.pomodoroLongBreakPostponeMinutes || "Long postpone (min)"}
+        />
+      </label>
+      <label>
+        <span>{strings.pomodoroBreakPostponeLimit || "Postpone limit"}</span>
+        <TargetPomodoroInput
+          bind:value={draftBreakPostponeLimit}
+          min={0}
+          max={10}
+          title={strings.pomodoroBreakPostponeLimit || "Postpone limit"}
+        />
+      </label>
+      <label class="strict-mode-row">
+        <span>{strings.pomodoroBreakStrictMode || "Strict mode"}</span>
+        <input type="checkbox" bind:checked={draftBreakStrictMode} />
       </label>
       <div class="notify-tip">
         {strings.pomodoroBreakNotifyHint || "Desktop notification permission is required for break reminders."}
@@ -410,6 +445,17 @@
     align-items: center;
     font-size: 11px;
     color: var(--ws-text, #334155);
+  }
+
+  .strict-mode-row {
+    grid-template-columns: 1fr auto !important;
+  }
+
+  .strict-mode-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--ws-accent, #1d4ed8);
+    cursor: pointer;
   }
 
   .timer-settings-actions {
