@@ -22,6 +22,9 @@
     initialViewMode = "last",
     noteViewCounts = {},
     collapsed = false,
+    compact = false,
+    viewSectionMaxHeight = 240,
+    deadlineSectionMaxHeight = 320,
     onDragStart,
     onSetMainTab,
     onSetViewMode,
@@ -49,6 +52,10 @@
   const secondaryViewModes = $derived(
     viewModes.filter((/** @type {string} */ mode) => SECONDARY_VIEW_MODES.includes(mode)),
   );
+  let noteFiltersCollapsed = $state(false);
+  let deadlinesCollapsed = $state(false);
+  let settingsCollapsed = $state(false);
+
   function interactionLabel() {
     return interactionDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn;
   }
@@ -73,10 +80,15 @@
     if (!Number.isFinite(value)) return 0;
     return Math.max(0, Math.trunc(value));
   }
+
+  /** @param {boolean} value */
+  function sectionToggleIcon(value) {
+    return value ? "▸" : "▾";
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<aside class="sidebar" class:collapsed>
+<aside class="sidebar" class:collapsed class:compact>
   <div class="brand" data-drag-handle="workspace" onpointerdown={onDragStart}>
     <span class="brand-pill">{strings.workspaceBrandTag}</span>
     <h1>{collapsed ? "WS" : strings.workspaceTitle}</h1>
@@ -85,198 +97,242 @@
     {/if}
   </div>
 
-  <div class="sidebar-block">
-    <div class="block-title">{collapsed ? "•" : strings.workspaceModules}</div>
-    <div class="main-tabs">
-      {#each mainTabs as tab (tab.key)}
-        <button
-          type="button"
-          class="main-tab-btn"
-          class:active={mainTab === tab.key}
-          onclick={() => onSetMainTab(tab.key)}
-          title={tab.label}
-        >
-          {collapsed ? tab.label.slice(0, 1) : tab.label}
-        </button>
-      {/each}
+  <div class="sidebar-body">
+    <div class="sidebar-block">
+      <div class="block-title">{collapsed ? "•" : strings.workspaceModules}</div>
+      <div class="main-tabs">
+        {#each mainTabs as tab (tab.key)}
+          <button
+            type="button"
+            class="main-tab-btn"
+            class:active={mainTab === tab.key}
+            onclick={() => onSetMainTab(tab.key)}
+            title={tab.label}
+          >
+            {collapsed ? tab.label.slice(0, 1) : tab.label}
+          </button>
+        {/each}
+      </div>
     </div>
-  </div>
 
-  {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
-    <div class="sidebar-block note-filters-block">
-      <div class="block-title">{collapsed ? "•" : strings.workspaceNoteFilters}</div>
-      <div class="view-sections">
-        <div class="view-list">
-          {#each primaryViewModes as mode}
-            <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
-              {#if collapsed}
-                <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
-              {:else}
-                <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
-                <span class="view-count">{viewCount(mode)}</span>
-              {/if}
-            </button>
-          {/each}
-        </div>
-        <div class="view-separator"></div>
-        <div class="view-list view-list-secondary">
-          {#each secondaryViewModes as mode}
-            <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
-              {#if collapsed}
-                <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
-              {:else}
-                <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
-                <span class="view-count">{viewCount(mode)}</span>
-              {/if}
-            </button>
-          {/each}
-        </div>
-        {#if !collapsed}
-          <div class="view-separator"></div>
-          <div class="initial-view">
-            <label class="initial-view-label" for="workspace-initial-view">{strings.workspaceInitialView}</label>
-            <select
-              id="workspace-initial-view"
-              class="initial-view-select"
-              value={initialViewMode}
-              onchange={(e) => onSetInitialViewMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+    {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
+      <div class="sidebar-block note-filters-block" style={`--section-max-height:${viewSectionMaxHeight}px;`}>
+        <div class="sidebar-block-head">
+          <div class="block-title">{collapsed ? "•" : strings.workspaceNoteFilters}</div>
+          {#if compact && !collapsed}
+            <button
+              type="button"
+              class="section-toggle"
+              onclick={() => (noteFiltersCollapsed = !noteFiltersCollapsed)}
+              aria-label={strings.workspaceNoteFilters}
             >
-              {#each WORKSPACE_INITIAL_VIEW_MODES as mode (mode)}
-                <option value={mode}>{getWorkspaceInitialViewModeLabel(strings, mode)}</option>
-              {/each}
-            </select>
-          </div>
-          <div class="sort-control">
-            <label class="initial-view-label" for="workspace-sort-mode">{strings.sortMode}</label>
-            <select
-              id="workspace-sort-mode"
-              class="initial-view-select"
-              value={sortMode}
-              onchange={(e) => onSetSortMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-            >
-              {#each sortModes as mode (mode)}
-                <option value={mode}>
-                  {mode === "newest" ? strings.sortByNewest : mode === "oldest" ? strings.sortByOldest : strings.sortByCustom}
-                </option>
-              {/each}
-            </select>
-          </div>
-          <div class="view-separator"></div>
-          <div class="tag-filter">
-            <div class="initial-view-label">{strings.workspaceTagsFilter}</div>
-            {#if noteTags.length === 0}
-              <div class="tag-empty">{strings.workspaceTagsEmpty}</div>
-            {:else}
-              <div class="tag-list">
-                <button
-                  type="button"
-                  class="tag-filter-btn"
-                  class:active={selectedTag === ""}
-                  onclick={() => onSetSelectedTag("")}
-                >
-                  <span>{strings.workspaceTagsAll}</span>
-                  <span class="view-count">{taggedNoteCount}</span>
+              {sectionToggleIcon(noteFiltersCollapsed)}
+            </button>
+          {/if}
+        </div>
+        {#if !compact || !noteFiltersCollapsed || collapsed}
+          <div class="view-sections">
+            <div class="view-list">
+              {#each primaryViewModes as mode}
+                <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
+                  {#if collapsed}
+                    <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
+                  {:else}
+                    <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
+                    <span class="view-count">{viewCount(mode)}</span>
+                  {/if}
                 </button>
-                {#each noteTags as item (item.tag)}
-                  <button
-                    type="button"
-                    class="tag-filter-btn"
-                    class:active={selectedTag === item.tag}
-                    onclick={() => onSetSelectedTag(item.tag)}
-                    title={`#${item.tag}`}
-                  >
-                    <span class="tag-name">#{item.tag}</span>
-                    <span class="view-count">{item.count}</span>
-                  </button>
-                {/each}
+              {/each}
+            </div>
+            <div class="view-separator"></div>
+            <div class="view-list view-list-secondary">
+              {#each secondaryViewModes as mode}
+                <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
+                  {#if collapsed}
+                    <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
+                  {:else}
+                    <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
+                    <span class="view-count">{viewCount(mode)}</span>
+                  {/if}
+                </button>
+              {/each}
+            </div>
+            {#if !collapsed}
+              <div class="view-separator"></div>
+              <div class="initial-view">
+                <label class="initial-view-label" for="workspace-initial-view">{strings.workspaceInitialView}</label>
+                <select
+                  id="workspace-initial-view"
+                  class="initial-view-select"
+                  value={initialViewMode}
+                  onchange={(e) => onSetInitialViewMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+                >
+                  {#each WORKSPACE_INITIAL_VIEW_MODES as mode (mode)}
+                    <option value={mode}>{getWorkspaceInitialViewModeLabel(strings, mode)}</option>
+                  {/each}
+                </select>
+              </div>
+              <div class="sort-control">
+                <label class="initial-view-label" for="workspace-sort-mode">{strings.sortMode}</label>
+                <select
+                  id="workspace-sort-mode"
+                  class="initial-view-select"
+                  value={sortMode}
+                  onchange={(e) => onSetSortMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+                >
+                  {#each sortModes as mode (mode)}
+                    <option value={mode}>
+                      {mode === "newest" ? strings.sortByNewest : mode === "oldest" ? strings.sortByOldest : strings.sortByCustom}
+                    </option>
+                  {/each}
+                </select>
+              </div>
+              <div class="view-separator"></div>
+              <div class="tag-filter">
+                <div class="initial-view-label">{strings.workspaceTagsFilter}</div>
+                {#if noteTags.length === 0}
+                  <div class="tag-empty">{strings.workspaceTagsEmpty}</div>
+                {:else}
+                  <div class="tag-list">
+                    <button
+                      type="button"
+                      class="tag-filter-btn"
+                      class:active={selectedTag === ""}
+                      onclick={() => onSetSelectedTag("")}
+                    >
+                      <span>{strings.workspaceTagsAll}</span>
+                      <span class="view-count">{taggedNoteCount}</span>
+                    </button>
+                    {#each noteTags as item (item.tag)}
+                      <button
+                        type="button"
+                        class="tag-filter-btn"
+                        class:active={selectedTag === item.tag}
+                        onclick={() => onSetSelectedTag(item.tag)}
+                        title={`#${item.tag}`}
+                      >
+                        <span class="tag-name">#{item.tag}</span>
+                        <span class="view-count">{item.count}</span>
+                      </button>
+                    {/each}
+                  </div>
+                {/if}
               </div>
             {/if}
           </div>
         {/if}
       </div>
-    </div>
-  {:else}
-    <div class="sidebar-block deadline-block">
-      <div class="block-title">{collapsed ? "•" : strings.workspaceDeadlineTitle}</div>
-      {#if collapsed}
-        <div class="deadline-count">{focusDeadlines.length}</div>
-      {:else if focusDeadlines.length === 0}
-        <div class="deadline-empty">{strings.workspaceDeadlineEmpty}</div>
-      {:else}
-        <div class="deadline-list">
-          {#each focusDeadlines as item (item.id)}
-            <div
-              role="button"
-              tabindex="0"
-              class="deadline-item"
-              class:overdue={item.isOverdue}
-              onclick={() => onDeadlineAction(item.id)}
-              onkeydown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onDeadlineAction(item.id);
-                }
-              }}
+    {:else}
+      <div class="sidebar-block deadline-block" style={`--section-max-height:${deadlineSectionMaxHeight}px;`}>
+        <div class="sidebar-block-head">
+          <div class="block-title">{collapsed ? "•" : strings.workspaceDeadlineTitle}</div>
+          {#if compact && !collapsed}
+            <button
+              type="button"
+              class="section-toggle"
+              onclick={() => (deadlinesCollapsed = !deadlinesCollapsed)}
+              aria-label={strings.workspaceDeadlineTitle}
             >
-              <div class="deadline-head">
-                <div class="deadline-title">{item.title}</div>
-                <span class="deadline-state" class:overdue={item.isOverdue}>
-                  {#if item.isOverdue}
-                    <span class="deadline-alert-dot" aria-hidden="true"></span>
-                  {/if}
-                  {deadlineStateLabel(item)}
-                </span>
-              </div>
-              <div class="deadline-meta">
-                <span>{item.startTime} - {item.endTime}</span>
-                <span>{deadlineLabel(item)}</span>
-              </div>
-              <div class="deadline-progress-row">
-                <span>🍅 {item.donePomodoros}/{item.targetPomodoros}</span>
-                <span>{Math.min(100, Math.round((item.donePomodoros / Math.max(1, item.targetPomodoros)) * 100))}%</span>
-              </div>
-              <div class="deadline-progress">
-                <span style={`width:${Math.min(100, Math.round((item.donePomodoros / Math.max(1, item.targetPomodoros)) * 100))}%`}></span>
-              </div>
-              <div class="deadline-actions">
-                <button type="button" class="deadline-action-btn" onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "select"); }}>
-                  {strings.workspaceDeadlineActionView || strings.details}
-                </button>
-                <button
-                  type="button"
-                  class="deadline-action-btn primary"
-                  onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "start"); }}
-                >
-                  {strings.workspaceDeadlineActionStart || strings.pomodoroStart || strings.pomodoroResume}
-                </button>
-                <button
-                  type="button"
-                  class="deadline-action-btn"
-                  onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "snooze15"); }}
-                >
-                  {strings.workspaceDeadlineActionSnooze15 || "+15m"}
-                </button>
-                <button
-                  type="button"
-                  class="deadline-action-btn"
-                  onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "snooze30"); }}
-                >
-                  {strings.workspaceDeadlineActionSnooze30 || "+30m"}
-                </button>
-              </div>
-            </div>
-          {/each}
+              {sectionToggleIcon(deadlinesCollapsed)}
+            </button>
+          {/if}
         </div>
-      {/if}
-    </div>
-  {/if}
+        {#if !compact || !deadlinesCollapsed || collapsed}
+          {#if collapsed}
+            <div class="deadline-count">{focusDeadlines.length}</div>
+          {:else if focusDeadlines.length === 0}
+            <div class="deadline-empty">{strings.workspaceDeadlineEmpty}</div>
+          {:else}
+            <div class="deadline-list">
+              {#each focusDeadlines as item (item.id)}
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="deadline-item"
+                  class:overdue={item.isOverdue}
+                  onclick={() => onDeadlineAction(item.id)}
+                  onkeydown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onDeadlineAction(item.id);
+                    }
+                  }}
+                >
+                  <div class="deadline-head">
+                    <div class="deadline-title">{item.title}</div>
+                    <span class="deadline-state" class:overdue={item.isOverdue}>
+                      {#if item.isOverdue}
+                        <span class="deadline-alert-dot" aria-hidden="true"></span>
+                      {/if}
+                      {deadlineStateLabel(item)}
+                    </span>
+                  </div>
+                  <div class="deadline-meta">
+                    <span>{item.startTime} - {item.endTime}</span>
+                    <span>{deadlineLabel(item)}</span>
+                  </div>
+                  <div class="deadline-progress-row">
+                    <span>🍅 {item.donePomodoros}/{item.targetPomodoros}</span>
+                    <span>{Math.min(100, Math.round((item.donePomodoros / Math.max(1, item.targetPomodoros)) * 100))}%</span>
+                  </div>
+                  <div class="deadline-progress">
+                    <span style={`width:${Math.min(100, Math.round((item.donePomodoros / Math.max(1, item.targetPomodoros)) * 100))}%`}></span>
+                  </div>
+                  <div class="deadline-actions">
+                    <button type="button" class="deadline-action-btn" onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "select"); }}>
+                      {strings.workspaceDeadlineActionView || strings.details}
+                    </button>
+                    <button
+                      type="button"
+                      class="deadline-action-btn primary"
+                      onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "start"); }}
+                    >
+                      {strings.workspaceDeadlineActionStart || strings.pomodoroStart || strings.pomodoroResume}
+                    </button>
+                    <button
+                      type="button"
+                      class="deadline-action-btn"
+                      onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "snooze15"); }}
+                    >
+                      {strings.workspaceDeadlineActionSnooze15 || "+15m"}
+                    </button>
+                    <button
+                      type="button"
+                      class="deadline-action-btn"
+                      onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "snooze30"); }}
+                    >
+                      {strings.workspaceDeadlineActionSnooze30 || "+30m"}
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        {/if}
+      </div>
+    {/if}
+  </div>
 
   <div class="sidebar-actions">
-    <div class="block-title">{collapsed ? "•" : strings.settings}</div>
-    <button type="button" class="ghost-btn" onclick={onToggleStickiesVisibility}>
-      {collapsed ? "贴" : stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
-    </button>
-    <button type="button" class="ghost-btn" onclick={onToggleInteraction}>{collapsed ? "交" : interactionLabel()}</button>
+    <div class="sidebar-block-head">
+      <div class="block-title">{collapsed ? "•" : strings.settings}</div>
+      {#if compact && !collapsed}
+        <button
+          type="button"
+          class="section-toggle"
+          onclick={() => (settingsCollapsed = !settingsCollapsed)}
+          aria-label={strings.settings}
+        >
+          {sectionToggleIcon(settingsCollapsed)}
+        </button>
+      {/if}
+    </div>
+    {#if !compact || !settingsCollapsed || collapsed}
+      <button type="button" class="ghost-btn" onclick={onToggleStickiesVisibility}>
+        {collapsed ? "贴" : stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
+      </button>
+      <button type="button" class="ghost-btn" onclick={onToggleInteraction}>{collapsed ? "交" : interactionLabel()}</button>
+    {/if}
   </div>
 </aside>
 
@@ -293,8 +349,7 @@
     color: var(--ws-text, #111827);
     cursor: default;
     min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
     scrollbar-width: thin;
     scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
       var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
@@ -323,6 +378,38 @@
   .sidebar.collapsed {
     padding: 14px 8px;
     gap: 10px;
+  }
+
+  .sidebar.compact {
+    gap: 10px;
+    padding: 12px 10px;
+  }
+
+  .sidebar-body {
+    min-height: 0;
+    flex: 1;
+    display: grid;
+    gap: 10px;
+    overflow: auto;
+    padding-right: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
+      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+  }
+
+  .sidebar-body::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .sidebar-body::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 76%, transparent);
+    border-radius: 999px;
+  }
+
+  .sidebar-body::-webkit-scrollbar-thumb {
+    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
+    border-radius: 999px;
   }
 
   .brand-pill {
@@ -378,6 +465,26 @@
     padding: 8px 6px;
   }
 
+  .sidebar-block-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .section-toggle {
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    border-radius: 8px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0;
+    background: var(--ws-btn-bg, #fbfdff);
+    color: var(--ws-muted, #64748b);
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
   .block-title {
     font-size: 11px;
     font-weight: 700;
@@ -406,7 +513,10 @@
 
   .note-filters-block .view-sections {
     min-height: 0;
-    overflow: visible;
+    max-height: var(--section-max-height, 240px);
+    overflow: auto;
+    padding-right: 2px;
+    scrollbar-width: thin;
   }
 
   .view-separator {
@@ -635,15 +745,15 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
   }
 
   .deadline-list {
     display: grid;
     gap: 6px;
     min-height: 0;
-    max-height: none;
-    flex: 1 1 auto;
+    max-height: var(--section-max-height, 320px);
+    flex: 0 0 auto;
     overflow: auto;
     padding-right: 4px;
     scrollbar-gutter: stable;
@@ -827,11 +937,12 @@
   }
 
   .sidebar-actions {
-    margin-top: auto;
+    margin-top: 0;
     display: grid;
     gap: 6px;
     border-top: 1px dashed var(--ws-border-soft, #d8e2ef);
     padding-top: 12px;
+    flex: 0 0 auto;
   }
 
   .ghost-btn {
@@ -857,10 +968,58 @@
     background: var(--ws-btn-hover, #f4f8ff);
   }
 
+  .sidebar.compact .brand h1 {
+    font-size: 24px;
+  }
+
+  .sidebar.compact .brand p {
+    font-size: 11px;
+    margin-top: 5px;
+  }
+
+  .sidebar.compact .block-title {
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+
+  .sidebar.compact .main-tab-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .sidebar.compact .view-btn {
+    padding: 8px 10px;
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .sidebar.compact .initial-view-select {
+    min-height: 30px;
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  .sidebar.compact .deadline-item {
+    padding: 7px;
+  }
+
+  .sidebar.compact .deadline-actions {
+    gap: 5px;
+  }
+
+  .sidebar.compact .deadline-action-btn {
+    min-height: 24px;
+    font-size: 10px;
+  }
+
   @media (max-width: 920px) {
     .sidebar {
       border-right: none;
       border-bottom: 1px solid #dce3ef;
+    }
+
+    .sidebar-body {
+      max-height: min(56vh, 360px);
     }
   }
 </style>

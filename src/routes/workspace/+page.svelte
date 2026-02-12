@@ -33,6 +33,7 @@
   import { tryStartWorkspaceWindowDrag } from "$lib/workspace/window-drag.js";
   import { runWorkspaceThemeTransition } from "$lib/workspace/theme-transition.js";
   import { createWorkspaceResizeController } from "$lib/workspace/resize-controller.js";
+  import { resolveSidebarLayout } from "$lib/workspace/sidebar/sidebar-layout.js";
   import { getFocusDeadlinesForToday } from "$lib/workspace/focus/focus-deadlines.js";
   import { minutesToTime, timeToMinutes } from "$lib/workspace/focus/focus-model.js";
   import {
@@ -93,6 +94,7 @@
   let focusStats = $state({});
   let focusSelectedTaskId = $state("");
   let focusCommand = $state({ nonce: 0, type: "select", taskId: "" });
+  let focusBreakSession = $state({ mode: "none", untilTs: 0 });
   let deadlineNowTick = $state(Date.now());
   let viewportWidth = $state(1360);
   let viewportHeight = $state(860);
@@ -137,6 +139,15 @@
     return 1;
   });
   const workspaceTextScale = $derived.by(() => Number(workspaceFontPresetScale.toFixed(3)));
+  const sidebarLayout = $derived.by(() =>
+    resolveSidebarLayout({
+      viewportWidth,
+      viewportHeight,
+      sidebarWidth,
+      uiScale: workspaceLayoutScale,
+    }),
+  );
+  const sidebarCompact = $derived(sidebarLayout.compact);
 
   const strings = $derived(getStrings(locale));
   const deadlineTasks = $derived.by(() => {
@@ -333,6 +344,7 @@
       themeTransitionShape = next.themeTransitionShape;
       focusTasks = next.focusTasks;
       focusStats = next.focusStats;
+      focusBreakSession = next.focusBreakSession;
       pomodoroConfig = next.pomodoroConfig;
     } catch (e) {
       console.error("loadPrefs(workspace)", e);
@@ -418,6 +430,9 @@
     setFocusStats: (next) => {
       focusStats = next;
     },
+    setFocusBreakSession: (next) => {
+      focusBreakSession = next;
+    },
     setFocusSelectedTaskId: (nextTaskId) => {
       focusSelectedTaskId = nextTaskId;
     },
@@ -437,6 +452,7 @@
     changePomodoroConfig,
     changeFocusTasks,
     changeFocusStats,
+    changeFocusBreakSession,
     changeFocusSelectedTask,
     handleDeadlineAction,
   } = focusActions;
@@ -711,6 +727,9 @@
     viewModes={WORKSPACE_NOTE_VIEW_MODES}
     {viewMode}
     collapsed={sidebarCollapsed}
+    compact={sidebarCompact}
+    viewSectionMaxHeight={sidebarLayout.viewSectionMaxHeight}
+    deadlineSectionMaxHeight={sidebarLayout.deadlineSectionMaxHeight}
     onDragStart={startWorkspaceDragPointer}
     onSetMainTab={setMainTab}
     onSetViewMode={setViewMode}
@@ -819,9 +838,11 @@
           stats={focusStats}
           selectedTaskId={focusSelectedTaskId}
           command={focusCommand}
+          breakSession={focusBreakSession}
           {pomodoroConfig}
           onTasksChange={changeFocusTasks}
           onStatsChange={changeFocusStats}
+          onBreakSessionChange={changeFocusBreakSession}
           onSelectedTaskIdChange={changeFocusSelectedTask}
           onPomodoroConfigChange={changePomodoroConfig}
         />

@@ -9,6 +9,7 @@
  *   getFocusTasks: () => any[];
  *   setFocusTasks: (next: any[]) => void;
  *   setFocusStats: (next: Record<string, any>) => void;
+ *   setFocusBreakSession: (next: { mode: string; untilTs: number }) => void;
  *   setFocusSelectedTaskId: (nextTaskId: string) => void;
  *   setFocusCommand: (next: { nonce: number; type: "select" | "start"; taskId: string }) => void;
  *   setPomodoroConfig: (next: {
@@ -64,6 +65,18 @@ export function createWorkspaceFocusActions(deps) {
     await deps.savePrefs({ focusStatsJson: JSON.stringify(safeStats) });
   }
 
+  /**
+   * @param {{ mode: string; untilTs: number }} next
+   */
+  async function changeFocusBreakSession(next) {
+    const safe = {
+      mode: String(next?.mode || "none"),
+      untilTs: Number.isFinite(Number(next?.untilTs)) ? Math.max(0, Math.round(Number(next.untilTs))) : 0,
+    };
+    deps.setFocusBreakSession(safe);
+    await deps.savePrefs({ focusBreakSessionJson: JSON.stringify(safe) });
+  }
+
   /** @param {string} nextTaskId */
   function changeFocusSelectedTask(nextTaskId) {
     deps.setFocusSelectedTaskId(String(nextTaskId || ""));
@@ -104,6 +117,7 @@ export function createWorkspaceFocusActions(deps) {
     changePomodoroConfig,
     changeFocusTasks,
     changeFocusStats,
+    changeFocusBreakSession,
     changeFocusSelectedTask,
     handleDeadlineAction,
   };

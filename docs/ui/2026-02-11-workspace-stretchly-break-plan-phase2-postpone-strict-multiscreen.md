@@ -41,6 +41,14 @@
 - `WorkspaceFocusHub.svelte`
   - 新增 break prompt 卡片和动作按钮。
 
+## UI 入口重构（2026-02-12 追加）
+- 为避免“计时卡动作 + 提示卡动作”双入口造成认知负担，休息策略入口已收敛为独立控制条：
+  - 新增 `WorkspaceBreakControlBar.svelte` 统一承载开始/延后/跳过；
+  - 计时卡主操作仅保留开始/暂停、重置、设置；
+  - `breakPrompt` 保留提醒语义，不再承担主操作入口。
+- 窄宽窗口下，侧栏同步改为“分区折叠 + 分区独立滚动”。
+- 详见：`docs/ui/2026-02-12-workspace-break-controls-sidebar-compact.md`
+
 ## 影响文件
 - `src/lib/workspace/focus/focus-runtime.js`
 - `src/lib/workspace/preferences-service.js`
@@ -54,3 +62,7 @@
 ## 验证
 - `npm run check` 通过
 - `cargo check` 通过
+
+## 后续（Phase 3 已落地）
+- 全局休息会话（30m/1h/2h/今天）与重启恢复已实现。
+- 详见：`docs/ui/2026-02-12-workspace-stretchly-phase3-global-break-session.md`

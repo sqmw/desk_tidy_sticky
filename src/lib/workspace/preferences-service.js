@@ -1,5 +1,6 @@
 import { getPreferences, updatePreferences } from "$lib/preferences/preferences-store.js";
 import { normalizeFocusStats, normalizeFocusTasks } from "$lib/workspace/focus/focus-model.js";
+import { normalizeBreakSession } from "$lib/workspace/focus/focus-break-session.js";
 import {
   normalizeWorkspaceInitialViewMode,
   normalizeWorkspaceMainTab,
@@ -147,6 +148,7 @@ export async function loadWorkspacePreferences(invoke) {
   let focusTasks = [];
   /** @type {Record<string, any>} */
   let focusStats = {};
+  let focusBreakSession = { mode: "none", untilTs: 0 };
   try {
     focusTasks = normalizeFocusTasks(JSON.parse(String(prefs.focusTasksJson || "[]")));
   } catch {
@@ -156,6 +158,11 @@ export async function loadWorkspacePreferences(invoke) {
     focusStats = normalizeFocusStats(JSON.parse(String(prefs.focusStatsJson || "{}")));
   } catch {
     focusStats = {};
+  }
+  try {
+    focusBreakSession = normalizeBreakSession(JSON.parse(String(prefs.focusBreakSessionJson || "{}")));
+  } catch {
+    focusBreakSession = { mode: "none", untilTs: 0 };
   }
   return {
     mainTab: normalizeWorkspaceMainTab(prefs.workspaceMainTab),
@@ -175,6 +182,7 @@ export async function loadWorkspacePreferences(invoke) {
     pomodoroConfig,
     focusTasks,
     focusStats,
+    focusBreakSession,
   };
 }
 

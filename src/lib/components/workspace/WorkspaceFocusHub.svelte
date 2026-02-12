@@ -15,8 +15,17 @@
     getWeekFocusAverageMinutes,
   } from "$lib/workspace/focus/focus-analytics.js";
   import WorkspaceFocusTimer from "$lib/components/workspace/focus/WorkspaceFocusTimer.svelte";
+  import WorkspaceBreakControlBar from "$lib/components/workspace/focus/WorkspaceBreakControlBar.svelte";
   import WorkspaceFocusPlanner from "$lib/components/workspace/focus/WorkspaceFocusPlanner.svelte";
   import WorkspaceFocusStats from "$lib/components/workspace/focus/WorkspaceFocusStats.svelte";
+  import {
+    BREAK_SESSION_NONE,
+    BREAK_SESSION_OPTIONS,
+    createBreakSession,
+    getBreakSessionRemainingText,
+    isBreakSessionActive,
+    normalizeBreakSession,
+  } from "$lib/workspace/focus/focus-break-session.js";
   import {
     BREAK_KIND_LONG,
     BREAK_KIND_MINI,
@@ -44,6 +53,7 @@
     stats = {},
     selectedTaskId: selectedTaskIdProp = "",
     command = { nonce: 0, type: "select", taskId: "" },
+    breakSession = { mode: BREAK_SESSION_NONE, untilTs: 0 },
     pomodoroConfig = {
       focusMinutes: 25,
       shortBreakMinutes: 5,
@@ -57,6 +67,7 @@
     },
     onTasksChange = () => {},
     onStatsChange = () => {},
+    onBreakSessionChange = () => {},
     onSelectedTaskIdChange = () => {},
     onPomodoroConfigChange = () => {},
   } = $props();
@@ -71,6 +82,7 @@
   let lastCommandNonce = $state(0);
   let showConfig = $state(false);
   let showStats = $state(false);
+  let nowTick = $state(Date.now());
 
   let draftTitle = $state("");
   let draftStartTime = $state("09:00");
@@ -101,6 +113,7 @@
   let notifyChecked = $state(false);
   /** @type {{ kind: "mini" | "long"; dueAt: number; postponeUsed: number } | null} */
   let breakPrompt = $state(null);
+  let localBreakSession = $state({ mode: BREAK_SESSION_NONE, untilTs: 0 });
 
   const safeConfig = $derived(getSafeConfig(pomodoroConfig, clampInt));
   const breakPlanSec = $derived(getBreakPlanSec(safeConfig));
@@ -133,6 +146,8 @@
   const todayTaskDistribution = $derived(todaySummary.taskDistribution);
   const nextMiniBreakCountdown = $derived(Math.max(0, nextMiniBreakAtSec - focusSinceBreakSec));
   const nextLongBreakCountdown = $derived(Math.max(0, nextLongBreakAtSec - focusSinceBreakSec));
+  const breakSessionActive = $derived(isBreakSessionActive(localBreakSession, nowTick));
+  const breakSessionRemainingText = $derived(getBreakSessionRemainingText(localBreakSession, nowTick));
 
   /** @param {number} sec */
   function formatTimer(sec) {
@@ -164,6 +179,26 @@
   /** @param {Record<string, any>} next */
   function emitStats(next) {
     Promise.resolve(onStatsChange(next)).catch((e) => console.error("emit focus stats", e));
+  }
+
+  /**
+   * @param {{ mode: string; untilTs: number }} next
+   */
+  function emitBreakSession(next) {
+    const safe = normalizeBreakSession(next);
+    localBreakSession = safe;
+    Promise.resolve(onBreakSessionChange(safe)).catch((e) =>
+      console.error("emit focus break session", e),
+    );
+  }
+
+  /** @param {string} mode */
+  function startBreakSession(mode) {
+    emitBreakSession(createBreakSession(mode, nowTick));
+  }
+
+  function clearBreakSession() {
+    emitBreakSession({ mode: BREAK_SESSION_NONE, untilTs: 0 });
   }
 
   function advancePhase() {
@@ -260,11 +295,6 @@
     running = false;
     hasStarted = false;
     remainingSec = getPhaseDurationSec(phase, safeConfig);
-  }
-
-  function skipPhase() {
-    running = false;
-    advancePhase();
   }
 
   /** @param {number} minutes */
@@ -458,6 +488,18 @@
   });
 
   $effect(() => {
+    const next = normalizeBreakSession(breakSession);
+    if (next.mode === localBreakSession.mode && next.untilTs === localBreakSession.untilTs) return;
+    localBreakSession = next;
+  });
+
+  $effect(() => {
+    if (!localBreakSession || localBreakSession.mode === BREAK_SESSION_NONE) return;
+    if (isBreakSessionActive(localBreakSession, nowTick)) return;
+    clearBreakSession();
+  });
+
+  $effect(() => {
     const nonce = Number(command?.nonce || 0);
     if (!nonce || nonce === lastCommandNonce) return;
     lastCommandNonce = nonce;
@@ -520,6 +562,13 @@
     }
   });
 
+  onMount(() => {
+    const clockId = setInterval(() => {
+      nowTick = Date.now();
+    }, 1000);
+    return () => clearInterval(clockId);
+  });
+
   $effect(() => {
     if (!running) return;
     const id = setInterval(() => {
@@ -535,6 +584,7 @@
       remainingSec -= 1;
       if (phase !== PHASE_FOCUS) return;
       focusSinceBreakSec += 1;
+      nowTick = Date.now();
       if (
         breakPlanSec.notifyBeforeSec > 0 &&
         focusSinceBreakSec >= nextLongWarnAtSec &&
@@ -551,6 +601,17 @@
       ) {
         lastBreakReminderAtSec = nextMiniWarnAtSec;
         notifyBreak("warn", BREAK_KIND_MINI);
+      }
+      if (isBreakSessionActive(localBreakSession, nowTick)) {
+        if (focusSinceBreakSec >= nextLongBreakAtSec) {
+          nextLongBreakAtSec = focusSinceBreakSec + breakPlanSec.longEverySec;
+          nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
+        }
+        if (focusSinceBreakSec >= nextMiniBreakAtSec) {
+          nextMiniBreakAtSec = focusSinceBreakSec + breakPlanSec.miniEverySec;
+          nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
+        }
+        return;
       }
       if (focusSinceBreakSec >= nextLongBreakAtSec) {
         if (lastBreakReminderAtSec !== nextLongBreakAtSec) {
@@ -590,11 +651,6 @@
         taskOptions={timerTaskOptions}
         selectedTaskDonePomodoros={selectedTaskDonePomodoros}
         selectedTaskTargetPomodoros={selectedTaskTargetPomodoros}
-        nextMiniBreakText={formatSecondsBrief(nextMiniBreakCountdown)}
-        nextLongBreakText={formatSecondsBrief(nextLongBreakCountdown)}
-        breakNotifyBeforeSeconds={safeConfig.breakNotifyBeforeSeconds}
-        notifyEnabled={notifyEnabled}
-        notifyChecked={notifyChecked}
         bind:draftFocusMinutes
         bind:draftShortBreakMinutes
         bind:draftLongBreakMinutes
@@ -612,10 +668,34 @@
         onSelectTask={selectTask}
         onToggleRunning={toggleRunning}
         onReset={resetCurrentPhase}
-        onSkip={skipPhase}
         onToggleSettings={() => (showConfig ? (showConfig = false) : openTimerSettings())}
         onSaveSettings={saveTimerConfig}
         onCancelSettings={() => (showConfig = false)}
+      />
+    </div>
+
+    <div class="focus-slot break-controls-slot">
+      <WorkspaceBreakControlBar
+        {strings}
+        {breakPrompt}
+        nextMiniBreakText={formatSecondsBrief(nextMiniBreakCountdown)}
+        nextLongBreakText={formatSecondsBrief(nextLongBreakCountdown)}
+        breakStrictMode={safeConfig.breakStrictMode}
+        breakPostponeLimit={safeConfig.breakPostponeLimit}
+        {notifyEnabled}
+        {notifyChecked}
+        breakSession={localBreakSession}
+        breakSessionRemainingText={breakSessionRemainingText}
+        breakSessionActive={breakSessionActive}
+        breakSessionModes={BREAK_SESSION_OPTIONS}
+        onStartSession={startBreakSession}
+        onClearSession={clearBreakSession}
+        onStartBreak={() => {
+          if (!breakPrompt) return;
+          applyBreakNow(breakPrompt.kind);
+        }}
+        onPostponeBreak={postponeBreak}
+        onSkipBreak={skipBreak}
       />
     </div>
 
@@ -661,23 +741,13 @@
           {strings.workspaceMultiScreenHint || "This prompt follows current workspace window (multi-screen friendly)."}
         </span>
       </div>
-      <div class="break-prompt-actions">
-        <button type="button" class="btn primary" onclick={() => applyBreakNow(currentBreak.kind)}>
-          {strings.pomodoroStart || "Start"}
-        </button>
-        <button
-          type="button"
-          class="btn"
-          disabled={safeConfig.breakStrictMode || currentBreak.postponeUsed >= safeConfig.breakPostponeLimit}
-          onclick={postponeBreak}
-        >
-          {strings.workspaceDeadlineActionSnooze15 || "Postpone"}
-          ({currentBreak.postponeUsed}/{safeConfig.breakPostponeLimit})
-        </button>
-        <button type="button" class="btn" disabled={safeConfig.breakStrictMode} onclick={skipBreak}>
-          {strings.pomodoroSkip || "Skip"}
-        </button>
-      </div>
+      <span class="break-prompt-sub">
+        {strings.pomodoroBreakActionHint || "Use break controls above to start, postpone or skip."}
+        {#if safeConfig.breakStrictMode}
+          · {strings.pomodoroBreakStrictMode || "Strict mode"}
+        {/if}
+        · ({currentBreak.postponeUsed}/{safeConfig.breakPostponeLimit})
+      </span>
     </section>
   {/if}
 
@@ -720,7 +790,9 @@
   .focus-main {
     display: grid;
     grid-template-columns: minmax(330px, 1fr) minmax(560px, 1.9fr);
-    grid-template-areas: "timer planner";
+    grid-template-areas:
+      "timer planner"
+      "break planner";
     gap: 8px;
     min-height: 0;
     align-items: start;
@@ -737,6 +809,10 @@
 
   .planner-slot {
     grid-area: planner;
+  }
+
+  .break-controls-slot {
+    grid-area: break;
   }
 
   .focus-hub :global(.timer-card),
@@ -793,12 +869,6 @@
     line-height: 1.4;
   }
 
-  .break-prompt-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
   .stats-toggle {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 10px;
@@ -850,6 +920,7 @@
       grid-template-columns: 1fr;
       grid-template-areas:
         "timer"
+        "break"
         "planner";
     }
 
@@ -863,6 +934,7 @@
       grid-template-columns: 1fr;
       grid-template-areas:
         "timer"
+        "break"
         "planner";
     }
   }

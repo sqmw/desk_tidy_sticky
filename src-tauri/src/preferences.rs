@@ -91,6 +91,8 @@ pub struct PanelPreferences {
     pub focus_tasks_json: String,
     #[serde(default = "default_focus_stats_json")]
     pub focus_stats_json: String,
+    #[serde(default = "default_focus_break_session_json")]
+    pub focus_break_session_json: String,
 }
 
 fn default_true() -> bool {
@@ -167,6 +169,9 @@ fn default_focus_tasks_json() -> String {
 }
 fn default_focus_stats_json() -> String {
     "{}".to_string()
+}
+fn default_focus_break_session_json() -> String {
+    "{\"mode\":\"none\",\"untilTs\":0}".to_string()
 }
 
 pub fn read_show_panel_on_startup() -> bool {

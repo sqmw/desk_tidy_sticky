@@ -10,11 +10,6 @@
     taskOptions = [],
     selectedTaskDonePomodoros = 0,
     selectedTaskTargetPomodoros = 0,
-    nextMiniBreakText = "",
-    nextLongBreakText = "",
-    breakNotifyBeforeSeconds = 10,
-    notifyEnabled = false,
-    notifyChecked = false,
     roundText = "",
     taskText = "",
     phaseProgress = 0,
@@ -38,7 +33,6 @@
     onSelectTask = () => {},
     onToggleRunning = () => {},
     onReset = () => {},
-    onSkip = () => {},
     onToggleSettings = () => {},
     onSaveSettings = () => {},
     onCancelSettings = () => {},
@@ -71,12 +65,6 @@
   <div class="timer-meta">
     <span>{strings.pomodoroRound}: {roundText}</span>
     <span>{strings.pomodoroTask}: {taskText}</span>
-    <span>{strings.pomodoroMiniBreakIn || "Mini break in"}: {nextMiniBreakText}</span>
-    <span>{strings.pomodoroLongBreakIn || "Long break in"}: {nextLongBreakText}</span>
-    <span>
-      {strings.pomodoroBreakNotifyStatus || "Notify"}:
-      {notifyChecked ? (notifyEnabled ? (strings.pomodoroBreakNotifyOn || "On") : (strings.pomodoroBreakNotifyOff || "Off")) : "..."}
-    </span>
   </div>
   {#if selectedTaskId}
     <div class="task-progress">
@@ -127,7 +115,6 @@
       {running ? strings.pomodoroPause : hasStarted ? strings.pomodoroResume : strings.pomodoroStart}
     </button>
     <button type="button" class="btn" onclick={() => onReset()}>{strings.pomodoroReset}</button>
-    <button type="button" class="btn" onclick={() => onSkip()}>{strings.pomodoroSkip}</button>
     <button type="button" class="btn" onclick={() => onToggleSettings()}>{strings.settings}</button>
   </div>
   {#if showConfig}
@@ -226,8 +213,8 @@
       </label>
       <div class="notify-tip">
         {strings.pomodoroBreakNotifyHint || "Desktop notification permission is required for break reminders."}
-        {#if breakNotifyBeforeSeconds > 0}
-          · {strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}: {breakNotifyBeforeSeconds}s
+        {#if draftBreakNotifyBeforeSeconds > 0}
+          · {strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}: {draftBreakNotifyBeforeSeconds}s
         {/if}
       </div>
       <div class="timer-settings-actions">
