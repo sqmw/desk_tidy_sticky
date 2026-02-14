@@ -1,4 +1,9 @@
 <script>
+  import {
+    BREAK_SESSION_SCOPE_GLOBAL,
+    BREAK_SESSION_SCOPE_TASK,
+  } from "$lib/workspace/focus/focus-break-session.js";
+
   let {
     strings,
     breakPrompt = null,
@@ -8,16 +13,19 @@
     notifyChecked = false,
     breakStrictMode = false,
     breakPostponeLimit = 0,
-    breakSession = { mode: "none", untilTs: 0 },
+    breakSession = { mode: "none", untilTs: 0, scope: BREAK_SESSION_SCOPE_GLOBAL, taskId: "", taskTitle: "" },
     breakSessionRemainingText = "",
     breakSessionActive = false,
     breakSessionModes = ["30m", "1h", "2h", "today"],
+    selectedTaskId = "",
+    selectedTaskTitle = "",
     onStartSession = () => {},
     onClearSession = () => {},
     onStartBreak = () => {},
     onPostponeBreak = () => {},
     onSkipBreak = () => {},
   } = $props();
+  let sessionScope = $state(BREAK_SESSION_SCOPE_GLOBAL);
 
   const isReady = $derived(Boolean(breakPrompt));
   const promptKindText = $derived(
@@ -40,6 +48,26 @@
       ? `${strings.pomodoroBreakSessionActive || "Session active"} · ${breakSessionRemainingText}`
       : (strings.pomodoroBreakSessionNone || "No active session"),
   );
+  const isTaskScope = $derived(sessionScope === BREAK_SESSION_SCOPE_TASK);
+  const sessionStartDisabled = $derived(isTaskScope && !selectedTaskId);
+  const selectedTaskText = $derived(selectedTaskTitle || strings.pomodoroNoTaskSelected || "Not selected");
+  const activeScopeText = $derived(
+    breakSession.scope === BREAK_SESSION_SCOPE_TASK
+      ? (strings.pomodoroBreakSessionScopeTask || "Task-bound")
+      : (strings.pomodoroBreakSessionScopeGlobal || "Independent"),
+  );
+  const activeBindingText = $derived(
+    breakSession.scope === BREAK_SESSION_SCOPE_TASK
+      ? `${strings.pomodoroTask || "Task"}: ${breakSession.taskTitle || breakSession.taskId || "-"}`
+      : (strings.pomodoroBreakSessionIndependentHint || "Run independently, no task binding"),
+  );
+
+  $effect(() => {
+    if (!breakSessionActive) return;
+    sessionScope = breakSession.scope === BREAK_SESSION_SCOPE_TASK
+      ? BREAK_SESSION_SCOPE_TASK
+      : BREAK_SESSION_SCOPE_GLOBAL;
+  });
 
   /**
    * @param {string} mode
@@ -64,14 +92,41 @@
     <span>{strings.pomodoroBreakNotifyStatus || "Notify"}: {notifyStatusText}</span>
   </div>
   <div class="session-row">
-    <span class="session-state">{sessionStateText}</span>
+    <div class="session-state-wrap">
+      <span class="session-state">{sessionStateText}</span>
+      {#if breakSessionActive}
+        <span class="session-scope">{activeScopeText} · {activeBindingText}</span>
+      {/if}
+    </div>
+    <div class="scope-row">
+      <button
+        type="button"
+        class="btn scope-btn"
+        class:active={sessionScope === BREAK_SESSION_SCOPE_GLOBAL}
+        onclick={() => (sessionScope = BREAK_SESSION_SCOPE_GLOBAL)}
+      >
+        {strings.pomodoroBreakSessionScopeGlobal || "Independent"}
+      </button>
+      <button
+        type="button"
+        class="btn scope-btn"
+        class:active={sessionScope === BREAK_SESSION_SCOPE_TASK}
+        onclick={() => (sessionScope = BREAK_SESSION_SCOPE_TASK)}
+      >
+        {strings.pomodoroBreakSessionScopeTask || "Bind task"}
+      </button>
+      {#if isTaskScope}
+        <span class="scope-task">{strings.pomodoroTask || "Task"}: {selectedTaskText}</span>
+      {/if}
+    </div>
     <div class="session-actions">
       {#each breakSessionModes as mode (mode)}
         <button
           type="button"
           class="btn session-btn"
           class:active={breakSession.mode === mode && breakSessionActive}
-          onclick={() => onStartSession(mode)}
+          disabled={sessionStartDisabled}
+          onclick={() => onStartSession(mode, { scope: sessionScope, taskId: selectedTaskId, taskTitle: selectedTaskTitle })}
         >
           {sessionLabel(mode)}
         </button>
@@ -80,6 +135,9 @@
         {strings.pomodoroBreakSessionClear || strings.cancel || "Clear"}
       </button>
     </div>
+    {#if sessionStartDisabled}
+      <span class="scope-hint">{strings.pomodoroBreakSessionBindTaskHint || "Select a task first to start task-bound session."}</span>
+    {/if}
   </div>
   <div class="break-actions">
     <button type="button" class="btn primary" disabled={!isReady} onclick={() => onStartBreak()}>
@@ -146,7 +204,43 @@
     gap: 6px;
   }
 
+  .session-state-wrap {
+    display: grid;
+    gap: 2px;
+  }
+
   .session-state {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
+  }
+
+  .session-scope {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
+  }
+
+  .scope-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .scope-btn {
+    min-height: 27px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 11px;
+  }
+
+  .scope-btn.active {
+    border-color: var(--ws-border-active, #2f4368);
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, var(--ws-btn-bg, #fff));
+    color: var(--ws-text-strong, #0f172a);
+    font-weight: 700;
+  }
+
+  .scope-task {
     font-size: 11px;
     color: var(--ws-muted, #64748b);
   }
@@ -155,6 +249,11 @@
     display: flex;
     gap: 6px;
     flex-wrap: wrap;
+  }
+
+  .scope-hint {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
   }
 
   .session-btn {

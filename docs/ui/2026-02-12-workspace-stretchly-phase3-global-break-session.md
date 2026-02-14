@@ -58,3 +58,9 @@
 - `npm run check` 通过（0 error / 0 warning）
 - `cargo check` 通过（仅历史 warning）
 
+## 后续演进：任务绑定与独立双模式
+- 2026-02-13 已在本方案基础上扩展为：
+  - `独立运行（global）`
+  - `绑定任务（task）`
+- 详见：
+  - `docs/ui/2026-02-13-workspace-break-session-task-binding-and-independent-mode.md`

@@ -19,12 +19,14 @@
   import WorkspaceFocusPlanner from "$lib/components/workspace/focus/WorkspaceFocusPlanner.svelte";
   import WorkspaceFocusStats from "$lib/components/workspace/focus/WorkspaceFocusStats.svelte";
   import {
+    BREAK_SESSION_SCOPE_GLOBAL,
     BREAK_SESSION_NONE,
     BREAK_SESSION_OPTIONS,
     createBreakSession,
     getBreakSessionRemainingText,
     isBreakSessionActive,
     normalizeBreakSession,
+    shouldSuppressBreakPromptBySession,
   } from "$lib/workspace/focus/focus-break-session.js";
   import {
     BREAK_KIND_LONG,
@@ -53,7 +55,13 @@
     stats = {},
     selectedTaskId: selectedTaskIdProp = "",
     command = { nonce: 0, type: "select", taskId: "" },
-    breakSession = { mode: BREAK_SESSION_NONE, untilTs: 0 },
+    breakSession = {
+      mode: BREAK_SESSION_NONE,
+      untilTs: 0,
+      scope: BREAK_SESSION_SCOPE_GLOBAL,
+      taskId: "",
+      taskTitle: "",
+    },
     pomodoroConfig = {
       focusMinutes: 25,
       shortBreakMinutes: 5,
@@ -81,6 +89,7 @@
   let lastSyncedSelectedTaskId = $state("");
   let lastCommandNonce = $state(0);
   let showConfig = $state(false);
+  let showBreakPanel = $state(false);
   let showStats = $state(false);
   let nowTick = $state(Date.now());
 
@@ -113,7 +122,13 @@
   let notifyChecked = $state(false);
   /** @type {{ kind: "mini" | "long"; dueAt: number; postponeUsed: number } | null} */
   let breakPrompt = $state(null);
-  let localBreakSession = $state({ mode: BREAK_SESSION_NONE, untilTs: 0 });
+  let localBreakSession = $state({
+    mode: BREAK_SESSION_NONE,
+    untilTs: 0,
+    scope: BREAK_SESSION_SCOPE_GLOBAL,
+    taskId: "",
+    taskTitle: "",
+  });
 
   const safeConfig = $derived(getSafeConfig(pomodoroConfig, clampInt));
   const breakPlanSec = $derived(getBreakPlanSec(safeConfig));
@@ -182,7 +197,7 @@
   }
 
   /**
-   * @param {{ mode: string; untilTs: number }} next
+   * @param {{ mode: string; untilTs: number; scope?: string; taskId?: string; taskTitle?: string }} next
    */
   function emitBreakSession(next) {
     const safe = normalizeBreakSession(next);
@@ -192,13 +207,22 @@
     );
   }
 
-  /** @param {string} mode */
-  function startBreakSession(mode) {
-    emitBreakSession(createBreakSession(mode, nowTick));
+  /**
+   * @param {string} mode
+   * @param {{ scope?: string; taskId?: string; taskTitle?: string }} [binding]
+   */
+  function startBreakSession(mode, binding = {}) {
+    emitBreakSession(createBreakSession(mode, nowTick, binding));
   }
 
   function clearBreakSession() {
-    emitBreakSession({ mode: BREAK_SESSION_NONE, untilTs: 0 });
+    emitBreakSession({
+      mode: BREAK_SESSION_NONE,
+      untilTs: 0,
+      scope: BREAK_SESSION_SCOPE_GLOBAL,
+      taskId: "",
+      taskTitle: "",
+    });
   }
 
   function advancePhase() {
@@ -489,7 +513,13 @@
 
   $effect(() => {
     const next = normalizeBreakSession(breakSession);
-    if (next.mode === localBreakSession.mode && next.untilTs === localBreakSession.untilTs) return;
+    if (
+      next.mode === localBreakSession.mode &&
+      next.untilTs === localBreakSession.untilTs &&
+      next.scope === localBreakSession.scope &&
+      next.taskId === localBreakSession.taskId &&
+      next.taskTitle === localBreakSession.taskTitle
+    ) return;
     localBreakSession = next;
   });
 
@@ -548,6 +578,11 @@
     nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
   });
 
+  $effect(() => {
+    if (!breakPrompt) return;
+    showBreakPanel = true;
+  });
+
   onMount(async () => {
     try {
       if (typeof window === "undefined" || typeof Notification === "undefined") return;
@@ -602,7 +637,7 @@
         lastBreakReminderAtSec = nextMiniWarnAtSec;
         notifyBreak("warn", BREAK_KIND_MINI);
       }
-      if (isBreakSessionActive(localBreakSession, nowTick)) {
+      if (shouldSuppressBreakPromptBySession(localBreakSession, selectedTaskId, nowTick)) {
         if (focusSinceBreakSec >= nextLongBreakAtSec) {
           nextLongBreakAtSec = focusSinceBreakSec + breakPlanSec.longEverySec;
           nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
@@ -646,6 +681,7 @@
         {running}
         {hasStarted}
         {showConfig}
+        {showBreakPanel}
         focusMinutes={safeConfig.focusMinutes}
         selectedTaskId={selectedTaskId}
         taskOptions={timerTaskOptions}
@@ -669,34 +705,38 @@
         onToggleRunning={toggleRunning}
         onReset={resetCurrentPhase}
         onToggleSettings={() => (showConfig ? (showConfig = false) : openTimerSettings())}
+        onToggleBreakPanel={() => (showBreakPanel = !showBreakPanel)}
         onSaveSettings={saveTimerConfig}
         onCancelSettings={() => (showConfig = false)}
       />
-    </div>
-
-    <div class="focus-slot break-controls-slot">
-      <WorkspaceBreakControlBar
-        {strings}
-        {breakPrompt}
-        nextMiniBreakText={formatSecondsBrief(nextMiniBreakCountdown)}
-        nextLongBreakText={formatSecondsBrief(nextLongBreakCountdown)}
-        breakStrictMode={safeConfig.breakStrictMode}
-        breakPostponeLimit={safeConfig.breakPostponeLimit}
-        {notifyEnabled}
-        {notifyChecked}
-        breakSession={localBreakSession}
-        breakSessionRemainingText={breakSessionRemainingText}
-        breakSessionActive={breakSessionActive}
-        breakSessionModes={BREAK_SESSION_OPTIONS}
-        onStartSession={startBreakSession}
-        onClearSession={clearBreakSession}
-        onStartBreak={() => {
-          if (!breakPrompt) return;
-          applyBreakNow(breakPrompt.kind);
-        }}
-        onPostponeBreak={postponeBreak}
-        onSkipBreak={skipBreak}
-      />
+      {#if showBreakPanel || breakPrompt}
+        <div class="timer-break-panel">
+          <WorkspaceBreakControlBar
+            {strings}
+            {breakPrompt}
+            nextMiniBreakText={formatSecondsBrief(nextMiniBreakCountdown)}
+            nextLongBreakText={formatSecondsBrief(nextLongBreakCountdown)}
+            breakStrictMode={safeConfig.breakStrictMode}
+            breakPostponeLimit={safeConfig.breakPostponeLimit}
+            {notifyEnabled}
+            {notifyChecked}
+            breakSession={localBreakSession}
+            breakSessionRemainingText={breakSessionRemainingText}
+            breakSessionActive={breakSessionActive}
+            breakSessionModes={BREAK_SESSION_OPTIONS}
+            selectedTaskId={selectedTaskId}
+            selectedTaskTitle={selectedTask?.title || ""}
+            onStartSession={startBreakSession}
+            onClearSession={clearBreakSession}
+            onStartBreak={() => {
+              if (!breakPrompt) return;
+              applyBreakNow(breakPrompt.kind);
+            }}
+            onPostponeBreak={postponeBreak}
+            onSkipBreak={skipBreak}
+          />
+        </div>
+      {/if}
     </div>
 
     <div class="focus-slot planner-slot">
@@ -789,10 +829,8 @@
 
   .focus-main {
     display: grid;
-    grid-template-columns: minmax(330px, 1fr) minmax(560px, 1.9fr);
-    grid-template-areas:
-      "timer planner"
-      "break planner";
+    grid-template-columns: minmax(360px, 1fr) minmax(560px, 1.9fr);
+    grid-template-areas: "timer planner";
     gap: 8px;
     min-height: 0;
     align-items: start;
@@ -811,8 +849,8 @@
     grid-area: planner;
   }
 
-  .break-controls-slot {
-    grid-area: break;
+  .timer-break-panel {
+    margin-top: 8px;
   }
 
   .focus-hub :global(.timer-card),
@@ -920,7 +958,6 @@
       grid-template-columns: 1fr;
       grid-template-areas:
         "timer"
-        "break"
         "planner";
     }
 
@@ -934,7 +971,6 @@
       grid-template-columns: 1fr;
       grid-template-areas:
         "timer"
-        "break"
         "planner";
     }
   }

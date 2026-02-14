@@ -94,7 +94,13 @@
   let focusStats = $state({});
   let focusSelectedTaskId = $state("");
   let focusCommand = $state({ nonce: 0, type: "select", taskId: "" });
-  let focusBreakSession = $state({ mode: "none", untilTs: 0 });
+  let focusBreakSession = $state({
+    mode: "none",
+    untilTs: 0,
+    scope: "global",
+    taskId: "",
+    taskTitle: "",
+  });
   let deadlineNowTick = $state(Date.now());
   let viewportWidth = $state(1360);
   let viewportHeight = $state(860);
@@ -431,7 +437,13 @@
       focusStats = next;
     },
     setFocusBreakSession: (next) => {
-      focusBreakSession = next;
+      focusBreakSession = {
+        mode: String(next?.mode || "none"),
+        untilTs: Number.isFinite(Number(next?.untilTs)) ? Math.max(0, Math.round(Number(next.untilTs))) : 0,
+        scope: String(next?.scope || "global"),
+        taskId: String(next?.taskId || ""),
+        taskTitle: String(next?.taskTitle || ""),
+      };
     },
     setFocusSelectedTaskId: (nextTaskId) => {
       focusSelectedTaskId = nextTaskId;

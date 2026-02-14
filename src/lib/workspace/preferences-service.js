@@ -148,7 +148,13 @@ export async function loadWorkspacePreferences(invoke) {
   let focusTasks = [];
   /** @type {Record<string, any>} */
   let focusStats = {};
-  let focusBreakSession = { mode: "none", untilTs: 0 };
+  let focusBreakSession = {
+    mode: "none",
+    untilTs: 0,
+    scope: "global",
+    taskId: "",
+    taskTitle: "",
+  };
   try {
     focusTasks = normalizeFocusTasks(JSON.parse(String(prefs.focusTasksJson || "[]")));
   } catch {
@@ -162,7 +168,13 @@ export async function loadWorkspacePreferences(invoke) {
   try {
     focusBreakSession = normalizeBreakSession(JSON.parse(String(prefs.focusBreakSessionJson || "{}")));
   } catch {
-    focusBreakSession = { mode: "none", untilTs: 0 };
+    focusBreakSession = {
+      mode: "none",
+      untilTs: 0,
+      scope: "global",
+      taskId: "",
+      taskTitle: "",
+    };
   }
   return {
     mainTab: normalizeWorkspaceMainTab(prefs.workspaceMainTab),

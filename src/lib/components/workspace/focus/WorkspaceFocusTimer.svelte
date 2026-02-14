@@ -34,6 +34,8 @@
     onToggleRunning = () => {},
     onReset = () => {},
     onToggleSettings = () => {},
+    showBreakPanel = false,
+    onToggleBreakPanel = () => {},
     onSaveSettings = () => {},
     onCancelSettings = () => {},
   } = $props();
@@ -50,6 +52,14 @@
   <div class="timer-hero">
     <div class="timer-head">
       <span class="badge">🍅 {strings.pomodoro}</span>
+      <button
+        type="button"
+        class="break-entry"
+        class:active={showBreakPanel}
+        onclick={() => onToggleBreakPanel()}
+      >
+        {strings.pomodoroBreakActionPanel || "Break"}
+      </button>
       {#if !isFocusPhase}
         <span class="phase">
           <span class="phase-icon">⏱</span>
@@ -262,6 +272,24 @@
     color: var(--ws-accent, #1d4ed8);
     background: var(--ws-badge-bg, #e8f0ff);
     border: 1px solid var(--ws-badge-border, #d7e5ff);
+  }
+
+  .break-entry {
+    border: 1px solid var(--ws-border-soft, #d6e0ee);
+    border-radius: 999px;
+    background: var(--ws-btn-bg, #fff);
+    color: var(--ws-text, #334155);
+    font-size: 11px;
+    font-weight: 700;
+    height: 24px;
+    padding: 0 9px;
+    cursor: pointer;
+  }
+
+  .break-entry.active {
+    border-color: var(--ws-border-active, #2f4368);
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, var(--ws-btn-bg, #fff));
+    color: var(--ws-text-strong, #0f172a);
   }
 
   .phase {
