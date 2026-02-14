@@ -11,18 +11,20 @@ export function resolveSidebarLayout(input) {
   const safeViewportHeight = Math.max(420, Number(input.viewportHeight || 0));
   const safeSidebarWidth = clamp(Number(input.sidebarWidth || 0), 86, 360);
   const safeUiScale = clamp(Number(input.uiScale || 1), 0.75, 1.5);
-  const effectiveSidebarWidth = safeSidebarWidth * safeUiScale;
+  const designWidth = safeViewportWidth / safeUiScale;
+  const designHeight = safeViewportHeight / safeUiScale;
+  const effectiveSidebarWidth = safeSidebarWidth;
   const compact =
-    safeViewportWidth <= 1380 ||
+    designWidth <= 1320 ||
     effectiveSidebarWidth <= 252 ||
-    safeViewportHeight <= 780;
+    designHeight <= 760;
 
   const viewSectionMaxHeight = compact
-    ? clamp(Math.round(safeViewportHeight * 0.19), 128, 220)
-    : clamp(Math.round(safeViewportHeight * 0.24), 170, 320);
+    ? clamp(Math.round(designHeight * 0.18), 124, 214)
+    : clamp(Math.round(designHeight * 0.22), 162, 308);
   const deadlineSectionMaxHeight = compact
-    ? clamp(Math.round(safeViewportHeight * 0.34), 170, 320)
-    : clamp(Math.round(safeViewportHeight * 0.42), 220, 420);
+    ? clamp(Math.round(designHeight * 0.32), 162, 306)
+    : clamp(Math.round(designHeight * 0.4), 214, 414);
 
   return {
     compact,

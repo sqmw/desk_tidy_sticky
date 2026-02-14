@@ -350,6 +350,7 @@
     cursor: default;
     min-height: 0;
     overflow: hidden;
+    container-type: inline-size;
     scrollbar-width: thin;
     scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
       var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
@@ -428,7 +429,7 @@
 
   .brand h1 {
     margin: 0;
-    font-size: 30px;
+    font-size: clamp(24px, 2.3vw, 34px);
     line-height: 1;
     font-weight: 800;
     letter-spacing: -0.03em;
@@ -681,7 +682,7 @@
     text-align: left;
     padding: 10px 12px;
     cursor: pointer;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     transition: all 0.16s ease;
     display: flex;
@@ -989,8 +990,45 @@
 
   .sidebar.compact .view-btn {
     padding: 8px 10px;
-    font-size: 13px;
+    font-size: 12px;
     gap: 8px;
+  }
+
+  @container (max-width: 230px) {
+    .sidebar {
+      padding: 10px 8px;
+      gap: 8px;
+    }
+
+    .brand p {
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    .sidebar-block {
+      padding: 8px;
+    }
+
+    .main-tab-btn,
+    .view-btn,
+    .ghost-btn {
+      font-size: 12px;
+      padding: 7px 9px;
+    }
+
+    .deadline-title {
+      font-size: 11px;
+    }
+
+    .deadline-meta,
+    .deadline-progress-row {
+      font-size: 10px;
+    }
+
+    .deadline-action-btn {
+      min-height: 24px;
+      font-size: 10px;
+    }
   }
 
   .sidebar.compact .initial-view-select {

@@ -34,6 +34,7 @@
   import { runWorkspaceThemeTransition } from "$lib/workspace/theme-transition.js";
   import { createWorkspaceResizeController } from "$lib/workspace/resize-controller.js";
   import { resolveSidebarLayout } from "$lib/workspace/sidebar/sidebar-layout.js";
+  import { resolveWorkspaceStageLayout } from "$lib/workspace/layout/workspace-stage-layout.js";
   import { getFocusDeadlinesForToday } from "$lib/workspace/focus/focus-deadlines.js";
   import { minutesToTime, timeToMinutes } from "$lib/workspace/focus/focus-model.js";
   import {
@@ -145,6 +146,14 @@
     return 1;
   });
   const workspaceTextScale = $derived.by(() => Number(workspaceFontPresetScale.toFixed(3)));
+  const stageLayout = $derived.by(() =>
+    resolveWorkspaceStageLayout({
+      viewportWidth,
+      viewportHeight,
+      uiScale: workspaceLayoutScale,
+      sidebarWidth,
+    }),
+  );
   const sidebarLayout = $derived.by(() =>
     resolveSidebarLayout({
       viewportWidth,
@@ -667,6 +676,7 @@
       inspectorWidth = next.width;
     },
     getSidebarWidth: () => sidebarWidth,
+    getSidebarMaxWidth: () => stageLayout.sidebarMaxWidth,
     setSidebarWidth: (nextWidth) => {
       sidebarWidth = nextWidth;
     },
@@ -688,6 +698,12 @@
       window.removeEventListener("resize", onWindowResize);
       cleanup?.();
     };
+  });
+
+  $effect(() => {
+    const next = stageLayout.recommendedSidebarWidth;
+    if (Math.abs(next - sidebarWidth) < 1) return;
+    sidebarWidth = next;
   });
 
   $effect(() => {
@@ -771,6 +787,7 @@
       theme={workspaceTheme}
       isMaximized={windowMaximized}
       {themeTransitionShape}
+      compact={stageLayout.windowBarCompact}
       onDragStart={startWorkspaceDragPointer}
       onBackToCompact={switchToCompact}
       onToggleMaximize={toggleWindowMaximize}
@@ -784,6 +801,7 @@
       <WorkspaceToolbar
         {strings}
         {viewMode}
+        compact={stageLayout.toolbarCompact}
         bind:newNoteText
         bind:newNotePriority
         bind:newNoteTags
@@ -846,6 +864,7 @@
       <section class="focus-pane">
         <WorkspaceFocusHub
           {strings}
+          compact={stageLayout.focusCompact}
           tasks={focusTasks}
           stats={focusStats}
           selectedTaskId={focusSelectedTaskId}

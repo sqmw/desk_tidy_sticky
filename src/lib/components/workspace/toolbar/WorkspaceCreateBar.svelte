@@ -5,6 +5,7 @@
   let {
     strings,
     viewMode = "active",
+    compact = false,
     newNoteText = $bindable(""),
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
     newNoteTags = $bindable(/** @type {string[]} */ ([])),
@@ -16,7 +17,7 @@
   const isQuadrantView = $derived(viewMode === "quadrant");
 </script>
 
-<div class="create-bar">
+<div class="create-bar" class:compact>
   <input
     type="text"
     class="add-input"
@@ -54,11 +55,20 @@
     align-items: center;
   }
 
+  .create-bar.compact {
+    align-items: stretch;
+    gap: 7px;
+  }
+
   .create-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
+  }
+
+  .create-bar.compact .create-actions {
+    margin-left: auto;
   }
 
   .add-input {
@@ -73,14 +83,29 @@
     min-width: 0;
   }
 
+  .create-bar.compact .add-input {
+    flex: 1 1 320px;
+    min-height: 38px;
+  }
+
   .create-bar :global(.tag-select) {
     flex: 0 0 118px;
     min-width: 108px;
   }
 
+  .create-bar.compact :global(.tag-select) {
+    flex-basis: 112px;
+    min-width: 104px;
+  }
+
   .create-bar :global(.tags-editor.compact) {
     flex: 1 1 240px;
     min-width: 170px;
+  }
+
+  .create-bar.compact :global(.tags-editor.compact) {
+    flex: 1 1 210px;
+    min-width: 150px;
   }
 
   .primary-btn {
@@ -95,6 +120,12 @@
     transition: transform 0.15s ease;
     min-width: 94px;
     white-space: nowrap;
+  }
+
+  .create-bar.compact .primary-btn,
+  .create-bar.compact .ghost-btn {
+    min-height: 36px;
+    padding: 8px 12px;
   }
 
   .primary-btn:hover {
@@ -128,6 +159,10 @@
     .create-bar :global(.tags-editor.compact) {
       flex-basis: 100%;
       min-width: 0;
+    }
+
+    .create-bar.compact .add-input {
+      flex-basis: 100%;
     }
 
     .create-actions {

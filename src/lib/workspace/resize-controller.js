@@ -7,6 +7,7 @@ import { calcInspectorLayout, calcSidebarWidth } from "$lib/workspace/layout-res
  *   getInspectorListCollapsed: () => boolean;
  *   setInspectorLayout: (next: { width: number; collapsed: boolean }) => void;
  *   getSidebarWidth: () => number;
+ *   getSidebarMaxWidth?: () => number;
  *   setSidebarWidth: (nextWidth: number) => void;
  * }} params
  */
@@ -30,7 +31,8 @@ export function createWorkspaceResizeController(params) {
 
   /** @param {number} clientX */
   function applySidebarResize(clientX) {
-    params.setSidebarWidth(calcSidebarWidth(clientX));
+    const max = Math.max(96, Math.round(Number(params.getSidebarMaxWidth?.() || 260)));
+    params.setSidebarWidth(calcSidebarWidth(clientX, { max }));
   }
 
   function endInspectorResize() {

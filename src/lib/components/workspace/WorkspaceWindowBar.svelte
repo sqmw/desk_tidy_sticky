@@ -4,6 +4,7 @@
     theme,
     isMaximized = false,
     themeTransitionShape = "circle",
+    compact = false,
     onDragStart,
     onBackToCompact,
     onToggleTheme,
@@ -46,7 +47,7 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<header class="window-bar">
+<header class="window-bar" class:compact>
   <div class="drag-area" data-drag-handle="workspace" onpointerdown={onDragStart}>
     <span class="dot"></span>
     <span class="title">{strings.workspaceTitle}</span>
@@ -80,9 +81,18 @@
     </div>
 
     <div class="action-cluster mode-cluster">
-      <button type="button" class="bar-btn back" onclick={onBackToCompact} onpointerdown={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        class="bar-btn back"
+        class:compact-only={compact}
+        onclick={onBackToCompact}
+        onpointerdown={(e) => e.stopPropagation()}
+        title={strings.switchToCompact}
+      >
         {@render iconBack()}
-        {strings.switchToCompact}
+        {#if !compact}
+          {strings.switchToCompact}
+        {/if}
       </button>
     </div>
 
@@ -200,6 +210,11 @@
     user-select: none;
   }
 
+  .window-bar.compact {
+    padding: 7px 8px;
+    gap: 6px;
+  }
+
   .drag-area {
     flex: 1;
     display: flex;
@@ -235,6 +250,10 @@
     min-width: 0;
   }
 
+  .window-bar.compact .window-actions {
+    gap: 6px;
+  }
+
   .action-cluster {
     display: inline-flex;
     align-items: center;
@@ -243,6 +262,11 @@
     border-radius: 12px;
     padding: 2px;
     background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.92)) 70%, transparent);
+  }
+
+  .window-bar.compact .action-cluster {
+    padding: 1px;
+    gap: 3px;
   }
 
   .mode-cluster {
@@ -268,6 +292,12 @@
       transform 0.16s ease;
   }
 
+  .window-bar.compact .bar-btn {
+    height: 34px;
+    font-size: 12px;
+    padding: 0 8px;
+  }
+
   .bar-btn:hover {
     border-color: var(--ws-border-hover, #c6d5e8);
     background: var(--ws-btn-hover, #f4f8ff);
@@ -283,12 +313,21 @@
     padding: 0;
   }
 
+  .window-bar.compact .bar-btn.icon-btn {
+    width: 34px;
+  }
+
   .bar-btn.back {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-weight: 600;
     white-space: nowrap;
+  }
+
+  .bar-btn.back.compact-only {
+    min-width: 34px;
+    padding: 0 8px;
   }
 
   .close-btn {
@@ -359,6 +398,20 @@
   }
 
   @media (max-width: 920px) {
+    .window-bar {
+      flex-wrap: wrap;
+      align-items: stretch;
+    }
+
+    .drag-area {
+      min-width: 140px;
+    }
+
+    .window-actions {
+      width: 100%;
+      justify-content: flex-end;
+    }
+
     .window-actions {
       gap: 6px;
     }

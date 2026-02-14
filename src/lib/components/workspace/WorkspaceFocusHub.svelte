@@ -51,6 +51,7 @@
 
   let {
     strings,
+    compact = false,
     tasks = [],
     stats = {},
     selectedTaskId: selectedTaskIdProp = "",
@@ -666,7 +667,7 @@
   });
 </script>
 
-<section class="focus-hub" data-no-drag="true">
+<section class="focus-hub" class:compact data-no-drag="true">
   <div class="focus-main">
     <div class="focus-slot timer-slot">
       <WorkspaceFocusTimer
@@ -834,6 +835,18 @@
     gap: 8px;
     min-height: 0;
     align-items: start;
+  }
+
+  .focus-hub.compact {
+    gap: 7px;
+  }
+
+  .focus-hub.compact .focus-main {
+    gap: 7px;
+  }
+
+  .focus-hub.compact .timer-break-panel {
+    margin-top: 7px;
   }
 
   .focus-slot {

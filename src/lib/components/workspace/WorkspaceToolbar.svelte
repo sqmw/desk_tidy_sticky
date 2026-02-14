@@ -5,6 +5,7 @@
   let {
     strings,
     viewMode = "active",
+    compact = false,
     newNoteText = $bindable(),
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
     newNoteTags = $bindable(/** @type {string[]} */ ([])),
@@ -15,10 +16,11 @@
   } = $props();
 </script>
 
-<div class="toolbar">
+<div class="toolbar" class:compact>
   <WorkspaceCreateBar
     {strings}
     {viewMode}
+    {compact}
     bind:newNoteText
     bind:newNotePriority
     bind:newNoteTags
@@ -26,7 +28,7 @@
     onSave={onSave}
     onCreateLongDoc={onCreateLongDoc}
   />
-  <WorkspaceQueryBar {strings} bind:searchQuery />
+  <WorkspaceQueryBar {strings} {compact} bind:searchQuery />
 </div>
 
 <style>
@@ -40,6 +42,12 @@
     background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.75)) 90%, transparent);
     backdrop-filter: blur(8px);
     align-items: stretch;
+  }
+
+  .toolbar.compact {
+    grid-template-columns: 1fr;
+    padding: 8px;
+    gap: 7px;
   }
 
   @media (max-width: 1700px) {
