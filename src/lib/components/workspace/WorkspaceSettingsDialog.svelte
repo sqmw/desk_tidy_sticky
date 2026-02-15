@@ -5,9 +5,11 @@
     locale = "en",
     zoomOption = "auto",
     fontSize = "medium",
+    sidebarLayoutMode = "auto",
     onChangeLanguage = () => {},
     onChangeZoomOption = () => {},
     onChangeFontSize = () => {},
+    onChangeSidebarLayoutMode = () => {},
   } = $props();
 </script>
 
@@ -60,6 +62,18 @@
             <option value="small">{strings.workspaceFontSizeSmall}</option>
             <option value="medium">{strings.workspaceFontSizeMedium}</option>
             <option value="large">{strings.workspaceFontSizeLarge}</option>
+          </select>
+        </label>
+
+        <label class="setting-row" for="workspace-setting-sidebar-layout">
+          <span>{strings.workspaceSidebarLayoutMode || "Sidebar layout"}</span>
+          <select
+            id="workspace-setting-sidebar-layout"
+            value={sidebarLayoutMode}
+            onchange={(e) => onChangeSidebarLayoutMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+          >
+            <option value="auto">{strings.workspaceSidebarLayoutAuto || "Auto priority"}</option>
+            <option value="manual">{strings.workspaceSidebarLayoutManual || "Manual fixed"}</option>
           </select>
         </label>
       </div>

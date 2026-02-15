@@ -53,6 +53,21 @@
   - `compact` 判定和分区高度计算更符合视觉实际。
   - 结果：高 DPI + 高缩放下，分区滚动与折叠行为更稳定。
 
+## 7) 导航区最小化策略（今日任务优先）
+- `src/lib/components/workspace/WorkspaceSidebar.svelte`
+  - `sidebar-body` 从 `grid` 改为 `flex-column`，避免首块（导航）在剩余空间下被强制拉伸。
+  - 常规分区改为 `flex: 0 0 auto`，仅“今日任务”分区保持 `flex: 1 1 auto`。
+  - 结果：导航区只占内容所需高度，剩余空间优先留给“今日任务”列表。
+
+## 8) 新增布局策略开关（Auto / Manual）
+- 新增设置项：`侧栏布局`
+  - `自动优先`：导航最小化，今日任务优先占用剩余空间。
+  - `手动固定`：关闭自动优先，所有分区按内容高度排布。
+- 持久化链路：
+  - Rust 偏好字段：`workspaceSidebarLayoutMode`
+  - 前端读取与规范化：`normalizeWorkspaceSidebarLayoutMode`
+  - 设置弹窗可切换并实时保存。
+
 ## 验证
 - `npm run check`：通过（0 errors / 0 warnings）
 - `cargo check`：通过（仅历史 warning）
@@ -68,4 +83,3 @@
 - `src/lib/components/workspace/toolbar/WorkspaceQueryBar.svelte`
 - `src/lib/components/workspace/WorkspaceSidebar.svelte`
 - `src/lib/components/workspace/WorkspaceFocusHub.svelte`
-
