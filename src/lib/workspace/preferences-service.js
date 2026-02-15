@@ -2,6 +2,10 @@ import { getPreferences, updatePreferences } from "$lib/preferences/preferences-
 import { normalizeFocusStats, normalizeFocusTasks } from "$lib/workspace/focus/focus-model.js";
 import { normalizeBreakSession } from "$lib/workspace/focus/focus-break-session.js";
 import {
+  DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO,
+  normalizeSidebarManualSplitRatio,
+} from "$lib/workspace/sidebar/manual-split-layout.js";
+import {
   normalizeWorkspaceInitialViewMode,
   normalizeWorkspaceMainTab,
   resolveWorkspaceStartupViewMode,
@@ -14,6 +18,8 @@ const DEFAULT_LOCALE = "en";
 const DEFAULT_WORKSPACE_ZOOM = 1;
 const DEFAULT_WORKSPACE_ZOOM_MODE = "manual";
 const DEFAULT_WORKSPACE_FONT_SIZE = "medium";
+const DEFAULT_WORKSPACE_SIDEBAR_LAYOUT_MODE = "auto";
+const DEFAULT_WORKSPACE_SIDEBAR_MANUAL_SPLIT_RATIO = DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO;
 const DEFAULT_POMODORO = {
   focusMinutes: 25,
   shortBreakMinutes: 5,
@@ -56,6 +62,16 @@ export function normalizeWorkspaceZoomMode(mode) {
 export function normalizeWorkspaceFontSize(size) {
   if (size === "small" || size === "large") return size;
   return DEFAULT_WORKSPACE_FONT_SIZE;
+}
+
+/** @param {unknown} mode */
+export function normalizeWorkspaceSidebarLayoutMode(mode) {
+  return mode === "manual" ? "manual" : DEFAULT_WORKSPACE_SIDEBAR_LAYOUT_MODE;
+}
+
+/** @param {unknown} ratio */
+export function normalizeWorkspaceSidebarManualSplitRatio(ratio) {
+  return normalizeSidebarManualSplitRatio(ratio);
 }
 
 /** @param {unknown} input */
@@ -189,6 +205,10 @@ export async function loadWorkspacePreferences(invoke) {
     workspaceZoom: normalizeWorkspaceZoom(prefs.workspaceZoom),
     workspaceZoomMode: normalizeWorkspaceZoomMode(prefs.workspaceZoomMode),
     workspaceFontSize: normalizeWorkspaceFontSize(prefs.workspaceFontSize),
+    workspaceSidebarLayoutMode: normalizeWorkspaceSidebarLayoutMode(prefs.workspaceSidebarLayoutMode),
+    workspaceSidebarManualSplitRatio: normalizeWorkspaceSidebarManualSplitRatio(
+      prefs.workspaceSidebarManualSplitRatio ?? DEFAULT_WORKSPACE_SIDEBAR_MANUAL_SPLIT_RATIO,
+    ),
     workspaceTheme: normalizeWorkspaceTheme(prefs.workspaceTheme),
     themeTransitionShape: normalizeWorkspaceThemeTransitionShape(prefs.workspaceThemeTransitionShape),
     pomodoroConfig,

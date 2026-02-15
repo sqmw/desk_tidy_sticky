@@ -25,6 +25,8 @@
     loadWorkspacePreferences,
     normalizePomodoroConfig,
     normalizeWorkspaceFontSize,
+    normalizeWorkspaceSidebarLayoutMode,
+    normalizeWorkspaceSidebarManualSplitRatio,
     normalizeWorkspaceZoom,
     normalizeWorkspaceZoomMode,
     normalizeWorkspaceThemeTransitionShape,
@@ -88,6 +90,8 @@
   let workspaceZoom = $state(1);
   let workspaceZoomMode = $state("manual");
   let workspaceFontSize = $state("medium");
+  let workspaceSidebarLayoutMode = $state("auto");
+  let workspaceSidebarManualSplitRatio = $state(0.42);
   let themeTransitionShape = $state("circle");
   /** @type {any[]} */
   let focusTasks = $state([]);
@@ -356,6 +360,8 @@
       workspaceZoom = next.workspaceZoom;
       workspaceZoomMode = next.workspaceZoomMode;
       workspaceFontSize = next.workspaceFontSize;
+      workspaceSidebarLayoutMode = next.workspaceSidebarLayoutMode;
+      workspaceSidebarManualSplitRatio = normalizeWorkspaceSidebarManualSplitRatio(next.workspaceSidebarManualSplitRatio);
       themeTransitionShape = next.themeTransitionShape;
       focusTasks = next.focusTasks;
       focusStats = next.focusStats;
@@ -601,6 +607,30 @@
     await savePrefs({ workspaceFontSize: safeSize });
   }
 
+  /** @param {string} mode */
+  async function setWorkspaceSidebarLayoutMode(mode) {
+    const safe = normalizeWorkspaceSidebarLayoutMode(mode);
+    workspaceSidebarLayoutMode = safe;
+    await savePrefs({ workspaceSidebarLayoutMode: safe });
+  }
+
+  /** @param {number} ratio */
+  function setWorkspaceSidebarManualSplitRatioLocal(ratio) {
+    workspaceSidebarManualSplitRatio = normalizeWorkspaceSidebarManualSplitRatio(ratio);
+  }
+
+  /** @param {number} ratio */
+  function handleSidebarManualSplitRatioInput(ratio) {
+    setWorkspaceSidebarManualSplitRatioLocal(ratio);
+  }
+
+  /** @param {number} ratio */
+  async function handleSidebarManualSplitRatioCommit(ratio) {
+    const safe = normalizeWorkspaceSidebarManualSplitRatio(ratio);
+    workspaceSidebarManualSplitRatio = safe;
+    await savePrefs({ workspaceSidebarManualSplitRatio: safe });
+  }
+
   function refreshViewportMetrics() {
     viewportWidth = Math.max(1, window.innerWidth || 1);
     viewportHeight = Math.max(1, window.innerHeight || 1);
@@ -756,8 +786,12 @@
     {viewMode}
     collapsed={sidebarCollapsed}
     compact={sidebarCompact}
+    sidebarLayoutMode={workspaceSidebarLayoutMode}
+    sidebarManualSplitRatio={workspaceSidebarManualSplitRatio}
     viewSectionMaxHeight={sidebarLayout.viewSectionMaxHeight}
     deadlineSectionMaxHeight={sidebarLayout.deadlineSectionMaxHeight}
+    onSidebarManualSplitRatioInput={handleSidebarManualSplitRatioInput}
+    onSidebarManualSplitRatioCommit={handleSidebarManualSplitRatioCommit}
     onDragStart={startWorkspaceDragPointer}
     onSetMainTab={setMainTab}
     onSetViewMode={setViewMode}
@@ -889,9 +923,11 @@
   {locale}
   zoomOption={workspaceZoomOption}
   fontSize={workspaceFontSize}
+  sidebarLayoutMode={workspaceSidebarLayoutMode}
   onChangeLanguage={setLanguage}
   onChangeZoomOption={setWorkspaceZoomOption}
   onChangeFontSize={setWorkspaceFontSize}
+  onChangeSidebarLayoutMode={setWorkspaceSidebarLayoutMode}
 />
 
 <svelte:window

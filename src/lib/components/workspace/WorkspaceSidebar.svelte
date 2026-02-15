@@ -11,6 +11,13 @@
     getWorkspaceMainTabDefs,
     getWorkspaceViewModeLabel,
   } from "$lib/workspace/workspace-tabs.js";
+  import {
+    calcSidebarManualSplitRatioFromPointer,
+    DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
+    DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO,
+    DEFAULT_SIDEBAR_MANUAL_SPLITTER_HEIGHT,
+    resolveSidebarManualSplitHeights,
+  } from "$lib/workspace/sidebar/manual-split-layout.js";
 
   let {
     strings,
@@ -23,8 +30,12 @@
     noteViewCounts = {},
     collapsed = false,
     compact = false,
+    sidebarLayoutMode = "auto",
+    sidebarManualSplitRatio = 0.42,
     viewSectionMaxHeight = 240,
     deadlineSectionMaxHeight = 320,
+    onSidebarManualSplitRatioInput = () => {},
+    onSidebarManualSplitRatioCommit = () => {},
     onDragStart,
     onSetMainTab,
     onSetViewMode,
@@ -55,10 +66,150 @@
   let noteFiltersCollapsed = $state(false);
   let deadlinesCollapsed = $state(false);
   let settingsCollapsed = $state(false);
+  let modulesBlockEl = $state(/** @type {HTMLDivElement | null} */ (null));
+  let modulesNaturalHeight = $state(0);
+  let sidebarBodyEl = $state(/** @type {HTMLDivElement | null} */ (null));
+  let sidebarBodyHeight = $state(0);
+  let manualResizePointerId = $state(-1);
+  let manualResizeDragging = $state(false);
+
+  const manualLayoutEnabled = $derived(sidebarLayoutMode === "manual" && !collapsed);
+  const manualResolvedRatio = $derived.by(() => {
+    const savedRatio = Number(sidebarManualSplitRatio || DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO);
+    const safeSavedRatio = Number.isFinite(savedRatio) ? savedRatio : DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO;
+    const isDefaultRatio = Math.abs(safeSavedRatio - DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO) <= 0.0005;
+    if (!manualLayoutEnabled || !isDefaultRatio) return safeSavedRatio;
+    const trackHeight = Math.max(0, sidebarBodyHeight - DEFAULT_SIDEBAR_MANUAL_SPLITTER_HEIGHT);
+    if (trackHeight <= 0) return safeSavedRatio;
+    const fallbackTop = DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT;
+    const contentTop = modulesNaturalHeight > 0 ? modulesNaturalHeight : fallbackTop;
+    const clampedTop = Math.max(
+      DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
+      Math.min(trackHeight - DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT, contentTop),
+    );
+    if (clampedTop <= 0) return safeSavedRatio;
+    return Number((clampedTop / trackHeight).toFixed(4));
+  });
+  const manualSplit = $derived.by(() =>
+    resolveSidebarManualSplitHeights({
+      bodyHeight: sidebarBodyHeight,
+      ratio: manualResolvedRatio,
+      splitterHeight: DEFAULT_SIDEBAR_MANUAL_SPLITTER_HEIGHT,
+      minSectionHeight: DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
+    }),
+  );
+  const manualTopBlockStyle = $derived.by(() =>
+    manualLayoutEnabled ? `--manual-block-height:${manualSplit.topHeight}px;` : "",
+  );
+  const manualBottomBlockHeight = $derived.by(() =>
+    manualLayoutEnabled ? manualSplit.bottomHeight : 0,
+  );
+  const manualSectionMaxHeight = $derived.by(() =>
+    manualLayoutEnabled ? Math.max(40, Math.round(manualBottomBlockHeight - 56)) : 0,
+  );
+  const noteFiltersBlockStyle = $derived.by(() =>
+    manualLayoutEnabled
+      ? `--section-max-height:${manualSectionMaxHeight}px;--manual-block-height:${manualBottomBlockHeight}px;`
+      : `--section-max-height:${viewSectionMaxHeight}px;`,
+  );
+  const deadlineBlockStyle = $derived.by(() =>
+    manualLayoutEnabled
+      ? `--section-max-height:${manualSectionMaxHeight}px;--manual-block-height:${manualBottomBlockHeight}px;`
+      : `--section-max-height:${deadlineSectionMaxHeight}px;`,
+  );
 
   function interactionLabel() {
     return interactionDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn;
   }
+
+  /** @param {PointerEvent} event */
+  function resolveManualRatioFromPointer(event) {
+    if (!sidebarBodyEl) return Number(sidebarManualSplitRatio || 0.42);
+    const rect = sidebarBodyEl.getBoundingClientRect();
+    return calcSidebarManualSplitRatioFromPointer({
+      clientY: event.clientY,
+      bodyTop: rect.top,
+      bodyHeight: rect.height,
+      splitterHeight: DEFAULT_SIDEBAR_MANUAL_SPLITTER_HEIGHT,
+      minSectionHeight: DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
+    });
+  }
+
+  function clearManualResizeState() {
+    manualResizeDragging = false;
+    manualResizePointerId = -1;
+  }
+
+  /** @param {PointerEvent} event */
+  function startManualSectionResize(event) {
+    if (!manualLayoutEnabled) return;
+    if (event.button !== 0) return;
+    manualResizeDragging = true;
+    manualResizePointerId = event.pointerId;
+    const handle = /** @type {HTMLElement | null} */ (event.currentTarget);
+    handle?.setPointerCapture?.(event.pointerId);
+    onSidebarManualSplitRatioInput(resolveManualRatioFromPointer(event));
+    event.preventDefault();
+  }
+
+  /** @param {PointerEvent} event */
+  function moveManualSectionResize(event) {
+    if (!manualResizeDragging) return;
+    if (manualResizePointerId !== -1 && event.pointerId !== manualResizePointerId) return;
+    onSidebarManualSplitRatioInput(resolveManualRatioFromPointer(event));
+  }
+
+  /** @param {PointerEvent} event */
+  function endManualSectionResize(event) {
+    if (!manualResizeDragging) return;
+    if (manualResizePointerId !== -1 && event.pointerId !== manualResizePointerId) return;
+    const next = resolveManualRatioFromPointer(event);
+    onSidebarManualSplitRatioInput(next);
+    onSidebarManualSplitRatioCommit(next);
+    clearManualResizeState();
+  }
+
+  /** @param {PointerEvent} event */
+  function cancelManualSectionResize(event) {
+    if (!manualResizeDragging) return;
+    if (manualResizePointerId !== -1 && event.pointerId !== manualResizePointerId) return;
+    clearManualResizeState();
+  }
+
+  $effect(() => {
+    if (!modulesBlockEl) {
+      modulesNaturalHeight = 0;
+      return;
+    }
+    const updateNaturalHeight = () => {
+      if (manualLayoutEnabled) return;
+      modulesNaturalHeight = Math.max(0, Math.round(modulesBlockEl?.clientHeight || 0));
+    };
+    updateNaturalHeight();
+    const observer = new ResizeObserver(updateNaturalHeight);
+    observer.observe(modulesBlockEl);
+    return () => observer.disconnect();
+  });
+
+  $effect(() => {
+    if (!sidebarBodyEl) {
+      sidebarBodyHeight = 0;
+      return;
+    }
+    const updateBodyHeight = () => {
+      sidebarBodyHeight = Math.max(0, Math.round(sidebarBodyEl?.clientHeight || 0));
+    };
+    updateBodyHeight();
+    const observer = new ResizeObserver(updateBodyHeight);
+    observer.observe(sidebarBodyEl);
+    return () => observer.disconnect();
+  });
+
+  $effect(() => {
+    if (manualLayoutEnabled) return;
+    if (!manualResizeDragging && manualResizePointerId === -1) return;
+    clearManualResizeState();
+  });
 
   /** @param {{ isOverdue: boolean; minutesLeft: number; started?: boolean; minutesUntilStart?: number }} item */
   function deadlineLabel(item) {
@@ -88,7 +239,14 @@
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<aside class="sidebar" class:collapsed class:compact>
+<aside
+  class="sidebar"
+  class:collapsed
+  class:compact
+  class:auto-priority={sidebarLayoutMode === "auto"}
+  class:manual-layout={manualLayoutEnabled}
+  class:manual-resizing={manualResizeDragging}
+>
   <div class="brand" data-drag-handle="workspace" onpointerdown={onDragStart}>
     <span class="brand-pill">{strings.workspaceBrandTag}</span>
     <h1>{collapsed ? "WS" : strings.workspaceTitle}</h1>
@@ -97,8 +255,8 @@
     {/if}
   </div>
 
-  <div class="sidebar-body">
-    <div class="sidebar-block">
+  <div class="sidebar-body" bind:this={sidebarBodyEl}>
+    <div class="sidebar-block modules-block" style={manualTopBlockStyle} bind:this={modulesBlockEl}>
       <div class="block-title">{collapsed ? "•" : strings.workspaceModules}</div>
       <div class="main-tabs">
         {#each mainTabs as tab (tab.key)}
@@ -114,9 +272,20 @@
         {/each}
       </div>
     </div>
+    {#if manualLayoutEnabled}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="section-height-splitter"
+        title={strings.workspaceSidebarManualResizeHint || "Drag to resize sidebar sections"}
+        onpointerdown={startManualSectionResize}
+        onpointermove={moveManualSectionResize}
+        onpointerup={endManualSectionResize}
+        onpointercancel={cancelManualSectionResize}
+      ></div>
+    {/if}
 
     {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
-      <div class="sidebar-block note-filters-block" style={`--section-max-height:${viewSectionMaxHeight}px;`}>
+      <div class="sidebar-block note-filters-block" style={noteFiltersBlockStyle}>
         <div class="sidebar-block-head">
           <div class="block-title">{collapsed ? "•" : strings.workspaceNoteFilters}</div>
           {#if compact && !collapsed}
@@ -223,7 +392,7 @@
         {/if}
       </div>
     {:else}
-      <div class="sidebar-block deadline-block" style={`--section-max-height:${deadlineSectionMaxHeight}px;`}>
+      <div class="sidebar-block deadline-block" style={deadlineBlockStyle}>
         <div class="sidebar-block-head">
           <div class="block-title">{collapsed ? "•" : strings.workspaceDeadlineTitle}</div>
           {#if compact && !collapsed}
@@ -389,13 +558,23 @@
   .sidebar-body {
     min-height: 0;
     flex: 1;
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 10px;
     overflow: auto;
     padding-right: 2px;
+    align-items: stretch;
     scrollbar-width: thin;
     scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
       var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+  }
+
+  .sidebar.manual-layout .sidebar-body {
+    overflow: hidden;
+  }
+
+  .sidebar.manual-resizing {
+    user-select: none;
   }
 
   .sidebar-body::-webkit-scrollbar {
@@ -460,6 +639,55 @@
     background: var(--ws-card-bg, #fdfefe);
     padding: 10px;
     min-height: 0;
+    flex: 0 0 auto;
+  }
+
+  .modules-block {
+    min-height: 0;
+  }
+
+  .section-height-splitter {
+    position: relative;
+    height: 8px;
+    border-radius: 999px;
+    cursor: row-resize;
+    flex: 0 0 auto;
+    touch-action: none;
+  }
+
+  .section-height-splitter::before {
+    content: "";
+    position: absolute;
+    left: 16%;
+    right: 16%;
+    top: 3px;
+    height: 2px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 88%, transparent);
+    transition: background 0.16s ease;
+  }
+
+  .section-height-splitter:hover::before,
+  .sidebar.manual-resizing .section-height-splitter::before {
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 48%, var(--ws-border-soft, #d9e2ef));
+  }
+
+  .sidebar.manual-layout .modules-block,
+  .sidebar.manual-layout .note-filters-block,
+  .sidebar.manual-layout .deadline-block {
+    min-height: 0;
+    height: var(--manual-block-height, auto);
+    max-height: var(--manual-block-height, none);
+    flex: 0 0 auto;
+  }
+
+  .sidebar.manual-layout .modules-block {
+    overflow: auto;
+  }
+
+  .sidebar.manual-layout .note-filters-block,
+  .sidebar.manual-layout .deadline-block {
+    overflow: hidden;
   }
 
   .sidebar.collapsed .sidebar-block {
@@ -518,6 +746,10 @@
     overflow: auto;
     padding-right: 2px;
     scrollbar-width: thin;
+  }
+
+  .sidebar.manual-layout .note-filters-block .view-sections {
+    height: var(--section-max-height, 240px);
   }
 
   .view-separator {
@@ -749,6 +981,17 @@
     flex: 0 0 auto;
   }
 
+  .sidebar.auto-priority .deadline-block {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .sidebar.manual-layout .deadline-block {
+    flex: 0 0 auto;
+  }
+
   .deadline-list {
     display: grid;
     gap: 6px;
@@ -761,6 +1004,10 @@
     scrollbar-width: thin;
     scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
       var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+  }
+
+  .sidebar.manual-layout .deadline-list {
+    height: var(--section-max-height, 320px);
   }
 
   .deadline-list::-webkit-scrollbar {

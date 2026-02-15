@@ -53,6 +53,10 @@ pub struct PanelPreferences {
     pub workspace_zoom_mode: String,
     #[serde(default = "default_workspace_font_size")]
     pub workspace_font_size: String,
+    #[serde(default = "default_workspace_sidebar_layout_mode")]
+    pub workspace_sidebar_layout_mode: String,
+    #[serde(default = "default_workspace_sidebar_manual_split_ratio")]
+    pub workspace_sidebar_manual_split_ratio: f64,
     #[serde(default = "default_workspace_main_tab")]
     pub workspace_main_tab: String,
     #[serde(default = "default_workspace_initial_view_mode")]
@@ -118,6 +122,12 @@ fn default_workspace_zoom_mode() -> String {
 }
 fn default_workspace_font_size() -> String {
     "medium".to_string()
+}
+fn default_workspace_sidebar_layout_mode() -> String {
+    "auto".to_string()
+}
+fn default_workspace_sidebar_manual_split_ratio() -> f64 {
+    0.42
 }
 fn default_workspace_main_tab() -> String {
     "notes".to_string()
