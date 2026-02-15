@@ -36,6 +36,7 @@
     onToggleSettings = () => {},
     showBreakPanel = false,
     onToggleBreakPanel = () => {},
+    breakPanel = undefined,
     onSaveSettings = () => {},
     onCancelSettings = () => {},
   } = $props();
@@ -51,15 +52,28 @@
 <div class="timer-card">
   <div class="timer-hero">
     <div class="timer-head">
-      <span class="badge">🍅 {strings.pomodoro}</span>
-      <button
-        type="button"
-        class="break-entry"
-        class:active={showBreakPanel}
-        onclick={() => onToggleBreakPanel()}
-      >
-        {strings.pomodoroBreakActionPanel || "Break"}
-      </button>
+      <div class="focus-tabs" role="tablist" aria-label={strings.pomodoro}>
+        <button
+          type="button"
+          role="tab"
+          class="focus-tab"
+          class:active={!showBreakPanel}
+          aria-selected={!showBreakPanel}
+          onclick={() => onToggleBreakPanel(false)}
+        >
+          🍅 {strings.pomodoro}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="focus-tab"
+          class:active={showBreakPanel}
+          aria-selected={showBreakPanel}
+          onclick={() => onToggleBreakPanel(true)}
+        >
+          {strings.pomodoroBreakActionPanel || "Break"}
+        </button>
+      </div>
       {#if !isFocusPhase}
         <span class="phase">
           <span class="phase-icon">⏱</span>
@@ -72,166 +86,176 @@
       <div class="phase-progress-fill" style={`width:${Math.max(0, Math.min(100, phaseProgress))}%`}></div>
     </div>
   </div>
-  <div class="timer-meta">
-    <span>{strings.pomodoroRound}: {roundText}</span>
-    <span>{strings.pomodoroTask}: {taskText}</span>
-  </div>
-  {#if selectedTaskId}
-    <div class="task-progress">
-      <div class="task-progress-head">
-        <span>{strings.pomodoroTask}</span>
-        <strong>🍅 {selectedTaskDonePomodoros}/{selectedTaskTargetPomodoros || 0}</strong>
-      </div>
-      <div class="task-progress-bar">
-        <div class="task-progress-fill" style={`width:${selectedTaskProgressRate}%`}></div>
-      </div>
-    </div>
-  {/if}
-  <div class="timer-row">
-    <div class="preset-group">
-      <button
-        type="button"
-        class="preset-chip"
-        class:active={focusMinutes === 25}
-        onclick={() => onApplyFocusPreset(25)}
-      >
-        25m
-      </button>
-      <button
-        type="button"
-        class="preset-chip"
-        class:active={focusMinutes === 40}
-        onclick={() => onApplyFocusPreset(40)}
-      >
-        40m
-      </button>
-    </div>
-    <select
-      class="task-select"
-      value={selectedTaskId}
-      onchange={(e) => onSelectTask(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-    >
-      {#if taskOptions.length === 0}
-        <option value="">{strings.pomodoroNoTasksToday}</option>
+  {#if showBreakPanel}
+    <div class="break-tab-panel">
+      {#if typeof breakPanel === "function"}
+        {@render breakPanel()}
       {:else}
-        {#each taskOptions as item (item.id)}
-          <option value={item.id}>{item.title} ({item.timeRange})</option>
-        {/each}
+        <div class="break-tab-empty">{strings.pomodoroBreakActionPanel || "Break controls"}</div>
       {/if}
-    </select>
-  </div>
-  <div class="timer-actions">
-    <button type="button" class="btn primary" onclick={() => onToggleRunning()}>
-      {running ? strings.pomodoroPause : hasStarted ? strings.pomodoroResume : strings.pomodoroStart}
-    </button>
-    <button type="button" class="btn" onclick={() => onReset()}>{strings.pomodoroReset}</button>
-    <button type="button" class="btn" onclick={() => onToggleSettings()}>{strings.settings}</button>
-  </div>
-  {#if showConfig}
-    <div class="timer-settings">
-      <label>
-        <span>{strings.pomodoroFocusMinutes}</span>
-        <TargetPomodoroInput bind:value={draftFocusMinutes} min={5} max={90} title={strings.pomodoroFocusMinutes} />
-      </label>
-      <label>
-        <span>{strings.pomodoroShortBreakMinutes}</span>
-        <TargetPomodoroInput bind:value={draftShortBreakMinutes} min={1} max={30} title={strings.pomodoroShortBreakMinutes} />
-      </label>
-      <label>
-        <span>{strings.pomodoroLongBreakMinutes}</span>
-        <TargetPomodoroInput bind:value={draftLongBreakMinutes} min={5} max={60} title={strings.pomodoroLongBreakMinutes} />
-      </label>
-      <label>
-        <span>{strings.pomodoroLongBreakEvery}</span>
-        <TargetPomodoroInput bind:value={draftLongBreakEvery} min={2} max={8} title={strings.pomodoroLongBreakEvery} />
-      </label>
-      <label>
-        <span>{strings.pomodoroMiniBreakEveryMinutes || "Mini break every (min)"}</span>
-        <TargetPomodoroInput
-          bind:value={draftMiniBreakEveryMinutes}
-          min={5}
-          max={60}
-          title={strings.pomodoroMiniBreakEveryMinutes || "Mini break every (min)"}
-        />
-      </label>
-      <label>
-        <span>{strings.pomodoroMiniBreakDurationSeconds || "Mini break duration (sec)"}</span>
-        <TargetPomodoroInput
-          bind:value={draftMiniBreakDurationSeconds}
-          min={10}
-          max={300}
-          title={strings.pomodoroMiniBreakDurationSeconds || "Mini break duration (sec)"}
-        />
-      </label>
-      <label>
-        <span>{strings.pomodoroLongBreakEveryMinutes || "Long break every (min)"}</span>
-        <TargetPomodoroInput
-          bind:value={draftLongBreakEveryMinutes}
-          min={15}
-          max={180}
-          title={strings.pomodoroLongBreakEveryMinutes || "Long break every (min)"}
-        />
-      </label>
-      <label>
-        <span>{strings.pomodoroLongBreakDurationMinutes || "Long break duration (min)"}</span>
-        <TargetPomodoroInput
-          bind:value={draftLongBreakDurationMinutes}
-          min={1}
-          max={30}
-          title={strings.pomodoroLongBreakDurationMinutes || "Long break duration (min)"}
-        />
-      </label>
-      <label>
-        <span>{strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}</span>
-        <TargetPomodoroInput
-          bind:value={draftBreakNotifyBeforeSeconds}
-          min={0}
-          max={120}
-          title={strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}
-        />
-      </label>
-      <label>
-        <span>{strings.pomodoroMiniBreakPostponeMinutes || "Mini postpone (min)"}</span>
-        <TargetPomodoroInput
-          bind:value={draftMiniBreakPostponeMinutes}
-          min={1}
-          max={30}
-          title={strings.pomodoroMiniBreakPostponeMinutes || "Mini postpone (min)"}
-        />
-      </label>
-      <label>
-        <span>{strings.pomodoroLongBreakPostponeMinutes || "Long postpone (min)"}</span>
-        <TargetPomodoroInput
-          bind:value={draftLongBreakPostponeMinutes}
-          min={1}
-          max={60}
-          title={strings.pomodoroLongBreakPostponeMinutes || "Long postpone (min)"}
-        />
-      </label>
-      <label>
-        <span>{strings.pomodoroBreakPostponeLimit || "Postpone limit"}</span>
-        <TargetPomodoroInput
-          bind:value={draftBreakPostponeLimit}
-          min={0}
-          max={10}
-          title={strings.pomodoroBreakPostponeLimit || "Postpone limit"}
-        />
-      </label>
-      <label class="strict-mode-row">
-        <span>{strings.pomodoroBreakStrictMode || "Strict mode"}</span>
-        <input type="checkbox" bind:checked={draftBreakStrictMode} />
-      </label>
-      <div class="notify-tip">
-        {strings.pomodoroBreakNotifyHint || "Desktop notification permission is required for break reminders."}
-        {#if draftBreakNotifyBeforeSeconds > 0}
-          · {strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}: {draftBreakNotifyBeforeSeconds}s
-        {/if}
-      </div>
-      <div class="timer-settings-actions">
-        <button type="button" class="btn primary" onclick={() => onSaveSettings()}>{strings.saveNote}</button>
-        <button type="button" class="btn" onclick={() => onCancelSettings()}>{strings.cancel}</button>
-      </div>
     </div>
+  {:else}
+    <div class="timer-meta">
+      <span>{strings.pomodoroRound}: {roundText}</span>
+      <span>{strings.pomodoroTask}: {taskText}</span>
+    </div>
+    {#if selectedTaskId}
+      <div class="task-progress">
+        <div class="task-progress-head">
+          <span>{strings.pomodoroTask}</span>
+          <strong>🍅 {selectedTaskDonePomodoros}/{selectedTaskTargetPomodoros || 0}</strong>
+        </div>
+        <div class="task-progress-bar">
+          <div class="task-progress-fill" style={`width:${selectedTaskProgressRate}%`}></div>
+        </div>
+      </div>
+    {/if}
+    <div class="timer-row">
+      <div class="preset-group">
+        <button
+          type="button"
+          class="preset-chip"
+          class:active={focusMinutes === 25}
+          onclick={() => onApplyFocusPreset(25)}
+        >
+          25m
+        </button>
+        <button
+          type="button"
+          class="preset-chip"
+          class:active={focusMinutes === 40}
+          onclick={() => onApplyFocusPreset(40)}
+        >
+          40m
+        </button>
+      </div>
+      <select
+        class="task-select"
+        value={selectedTaskId}
+        onchange={(e) => onSelectTask(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+      >
+        {#if taskOptions.length === 0}
+          <option value="">{strings.pomodoroNoTasksToday}</option>
+        {:else}
+          {#each taskOptions as item (item.id)}
+            <option value={item.id}>{item.title} ({item.timeRange})</option>
+          {/each}
+        {/if}
+      </select>
+    </div>
+    <div class="timer-actions">
+      <button type="button" class="btn primary" onclick={() => onToggleRunning()}>
+        {running ? strings.pomodoroPause : hasStarted ? strings.pomodoroResume : strings.pomodoroStart}
+      </button>
+      <button type="button" class="btn" onclick={() => onReset()}>{strings.pomodoroReset}</button>
+      <button type="button" class="btn" onclick={() => onToggleSettings()}>{strings.settings}</button>
+    </div>
+    {#if showConfig}
+      <div class="timer-settings">
+        <label>
+          <span>{strings.pomodoroFocusMinutes}</span>
+          <TargetPomodoroInput bind:value={draftFocusMinutes} min={5} max={90} title={strings.pomodoroFocusMinutes} />
+        </label>
+        <label>
+          <span>{strings.pomodoroShortBreakMinutes}</span>
+          <TargetPomodoroInput bind:value={draftShortBreakMinutes} min={1} max={30} title={strings.pomodoroShortBreakMinutes} />
+        </label>
+        <label>
+          <span>{strings.pomodoroLongBreakMinutes}</span>
+          <TargetPomodoroInput bind:value={draftLongBreakMinutes} min={5} max={60} title={strings.pomodoroLongBreakMinutes} />
+        </label>
+        <label>
+          <span>{strings.pomodoroLongBreakEvery}</span>
+          <TargetPomodoroInput bind:value={draftLongBreakEvery} min={2} max={8} title={strings.pomodoroLongBreakEvery} />
+        </label>
+        <label>
+          <span>{strings.pomodoroMiniBreakEveryMinutes || "Mini break every (min)"}</span>
+          <TargetPomodoroInput
+            bind:value={draftMiniBreakEveryMinutes}
+            min={5}
+            max={60}
+            title={strings.pomodoroMiniBreakEveryMinutes || "Mini break every (min)"}
+          />
+        </label>
+        <label>
+          <span>{strings.pomodoroMiniBreakDurationSeconds || "Mini break duration (sec)"}</span>
+          <TargetPomodoroInput
+            bind:value={draftMiniBreakDurationSeconds}
+            min={10}
+            max={300}
+            title={strings.pomodoroMiniBreakDurationSeconds || "Mini break duration (sec)"}
+          />
+        </label>
+        <label>
+          <span>{strings.pomodoroLongBreakEveryMinutes || "Long break every (min)"}</span>
+          <TargetPomodoroInput
+            bind:value={draftLongBreakEveryMinutes}
+            min={15}
+            max={180}
+            title={strings.pomodoroLongBreakEveryMinutes || "Long break every (min)"}
+          />
+        </label>
+        <label>
+          <span>{strings.pomodoroLongBreakDurationMinutes || "Long break duration (min)"}</span>
+          <TargetPomodoroInput
+            bind:value={draftLongBreakDurationMinutes}
+            min={1}
+            max={30}
+            title={strings.pomodoroLongBreakDurationMinutes || "Long break duration (min)"}
+          />
+        </label>
+        <label>
+          <span>{strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}</span>
+          <TargetPomodoroInput
+            bind:value={draftBreakNotifyBeforeSeconds}
+            min={0}
+            max={120}
+            title={strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}
+          />
+        </label>
+        <label>
+          <span>{strings.pomodoroMiniBreakPostponeMinutes || "Mini postpone (min)"}</span>
+          <TargetPomodoroInput
+            bind:value={draftMiniBreakPostponeMinutes}
+            min={1}
+            max={30}
+            title={strings.pomodoroMiniBreakPostponeMinutes || "Mini postpone (min)"}
+          />
+        </label>
+        <label>
+          <span>{strings.pomodoroLongBreakPostponeMinutes || "Long postpone (min)"}</span>
+          <TargetPomodoroInput
+            bind:value={draftLongBreakPostponeMinutes}
+            min={1}
+            max={60}
+            title={strings.pomodoroLongBreakPostponeMinutes || "Long postpone (min)"}
+          />
+        </label>
+        <label>
+          <span>{strings.pomodoroBreakPostponeLimit || "Postpone limit"}</span>
+          <TargetPomodoroInput
+            bind:value={draftBreakPostponeLimit}
+            min={0}
+            max={10}
+            title={strings.pomodoroBreakPostponeLimit || "Postpone limit"}
+          />
+        </label>
+        <label class="strict-mode-row">
+          <span>{strings.pomodoroBreakStrictMode || "Strict mode"}</span>
+          <input type="checkbox" bind:checked={draftBreakStrictMode} />
+        </label>
+        <div class="notify-tip">
+          {strings.pomodoroBreakNotifyHint || "Desktop notification permission is required for break reminders."}
+          {#if draftBreakNotifyBeforeSeconds > 0}
+            · {strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}: {draftBreakNotifyBeforeSeconds}s
+          {/if}
+        </div>
+        <div class="timer-settings-actions">
+          <button type="button" class="btn primary" onclick={() => onSaveSettings()}>{strings.saveNote}</button>
+          <button type="button" class="btn" onclick={() => onCancelSettings()}>{strings.cancel}</button>
+        </div>
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -263,21 +287,20 @@
     gap: 8px;
   }
 
-  .badge {
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    padding: 3px 7px;
-    border-radius: 999px;
-    color: var(--ws-accent, #1d4ed8);
-    background: var(--ws-badge-bg, #e8f0ff);
-    border: 1px solid var(--ws-badge-border, #d7e5ff);
-  }
-
-  .break-entry {
+  .focus-tabs {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 999px;
+    padding: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
     background: var(--ws-btn-bg, #fff);
+  }
+
+  .focus-tab {
+    border: none;
+    border-radius: 999px;
+    background: transparent;
     color: var(--ws-text, #334155);
     font-size: 11px;
     font-weight: 700;
@@ -286,10 +309,22 @@
     cursor: pointer;
   }
 
-  .break-entry.active {
-    border-color: var(--ws-border-active, #2f4368);
+  .focus-tab.active {
+    border: 1px solid var(--ws-border-active, #2f4368);
     background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, var(--ws-btn-bg, #fff));
     color: var(--ws-text-strong, #0f172a);
+  }
+
+  .break-tab-panel {
+    margin-top: 8px;
+  }
+
+  .break-tab-empty {
+    border: 1px dashed var(--ws-border-soft, #d6e0ee);
+    border-radius: 10px;
+    padding: 10px;
+    color: var(--ws-muted, #64748b);
+    font-size: 12px;
   }
 
   .phase {

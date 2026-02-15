@@ -9,9 +9,11 @@
     draftStartTime = $bindable("09:00"),
     draftEndTime = $bindable("10:00"),
     draftTargetPomodoros = $bindable(1),
-    draftRecurrence = $bindable("workday"),
+    draftRecurrence = $bindable("none"),
     draftWeekdays = $bindable([1, 2, 3, 4, 5]),
     tasks = [],
+    showingAllTasks = false,
+    todayTaskCount = 0,
     todayStats,
     onAddTask = () => {},
     onToggleWeekday = () => {},
@@ -25,7 +27,14 @@
 <div class="planner-card">
   <div class="planner-head">
     <h3>{strings.pomodoroTaskPlanner}</h3>
-    <span>{strings.todo}: {todayStats.completedCount}/{tasks.length} · 🍅 {todayStats.donePomodoros}/{todayStats.targetPomodoros}</span>
+    {#if showingAllTasks}
+      <span>
+        {strings.workspacePlannerShowingAllHint || "No tasks match today. Showing all tasks."}
+        · {strings.workspacePlannerTodayMatched || "Today matched"} {todayTaskCount}
+      </span>
+    {:else}
+      <span>{strings.todo}: {todayStats.completedCount}/{tasks.length} · 🍅 {todayStats.donePomodoros}/{todayStats.targetPomodoros}</span>
+    {/if}
   </div>
   <div class="planner-form">
     <input class="field-title" type="text" placeholder={strings.pomodoroTaskTitle} bind:value={draftTitle} />

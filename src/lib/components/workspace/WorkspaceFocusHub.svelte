@@ -98,7 +98,7 @@
   let draftStartTime = $state("09:00");
   let draftEndTime = $state("10:00");
   let draftTargetPomodoros = $state(1);
-  let draftRecurrence = $state(RECURRENCE.WORKDAY);
+  let draftRecurrence = $state(RECURRENCE.NONE);
   let draftWeekdays = $state([1, 2, 3, 4, 5]);
   let draftFocusMinutes = $state(25);
   let draftShortBreakMinutes = $state(5);
@@ -149,6 +149,17 @@
   const focusHeatmap = $derived(buildFocusHeatmap(stats));
   const selectedTask = $derived(todayTasks.find((task) => task.id === selectedTaskId) || null);
   const todaySummary = $derived(buildTodaySummary(todayTasks, todayStats));
+  const plannerTasks = $derived.by(() => (todayTasks.length > 0 ? todayTasks : tasks));
+  const plannerShowingAllTasks = $derived(todayTasks.length === 0 && tasks.length > 0);
+  const plannerCompletedCount = $derived.by(() =>
+    plannerTasks.filter((task) => todayStats.completedTaskIds.includes(task.id)).length,
+  );
+  const plannerTargetPomodoros = $derived.by(() =>
+    plannerTasks.reduce((sum, task) => sum + Number(task.targetPomodoros || 1), 0),
+  );
+  const plannerDonePomodoros = $derived.by(() =>
+    plannerTasks.reduce((sum, task) => sum + Number(todayStats.taskPomodoros?.[task.id] || 0), 0),
+  );
   const todayCompletedCount = $derived(todaySummary.completedCount);
   const todayTargetPomodoros = $derived(todaySummary.targetPomodoros);
   const todayDonePomodoros = $derived(todaySummary.donePomodoros);
@@ -706,12 +717,14 @@
         onToggleRunning={toggleRunning}
         onReset={resetCurrentPhase}
         onToggleSettings={() => (showConfig ? (showConfig = false) : openTimerSettings())}
-        onToggleBreakPanel={() => (showBreakPanel = !showBreakPanel)}
+        onToggleBreakPanel={(next = !showBreakPanel) => {
+          showBreakPanel = !!next;
+          if (showBreakPanel && showConfig) showConfig = false;
+        }}
         onSaveSettings={saveTimerConfig}
         onCancelSettings={() => (showConfig = false)}
-      />
-      {#if showBreakPanel || breakPrompt}
-        <div class="timer-break-panel">
+      >
+        {#snippet breakPanel()}
           <WorkspaceBreakControlBar
             {strings}
             {breakPrompt}
@@ -736,8 +749,8 @@
             onPostponeBreak={postponeBreak}
             onSkipBreak={skipBreak}
           />
-        </div>
-      {/if}
+        {/snippet}
+      </WorkspaceFocusTimer>
     </div>
 
     <div class="focus-slot planner-slot">
@@ -751,12 +764,14 @@
         bind:draftTargetPomodoros
         bind:draftRecurrence
         bind:draftWeekdays
-        tasks={todayTasks}
+        tasks={plannerTasks}
+        showingAllTasks={plannerShowingAllTasks}
+        todayTaskCount={todayTasks.length}
         todayStats={{
           completedTaskIds: todayStats.completedTaskIds,
-          completedCount: todayCompletedCount,
-          donePomodoros: todayDonePomodoros,
-          targetPomodoros: todayTargetPomodoros,
+          completedCount: plannerCompletedCount,
+          donePomodoros: plannerDonePomodoros,
+          targetPomodoros: plannerTargetPomodoros,
           taskPomodoros: todayStats.taskPomodoros,
         }}
         onAddTask={addTask}
@@ -845,10 +860,6 @@
     gap: 7px;
   }
 
-  .focus-hub.compact .timer-break-panel {
-    margin-top: 7px;
-  }
-
   .focus-slot {
     min-width: 0;
     min-height: 0;
@@ -860,10 +871,6 @@
 
   .planner-slot {
     grid-area: planner;
-  }
-
-  .timer-break-panel {
-    margin-top: 8px;
   }
 
   .focus-hub :global(.timer-card),
