@@ -11,8 +11,9 @@
     themeCustomCss = "",
     onChangeLanguage = () => {},
     onChangeThemePreset = () => {},
-    onExportTheme = () => {},
-    onImportTheme = async () => ({ ok: false }),
+    onExportThemeCss = () => {},
+    onImportThemeCss = async () => ({ ok: false }),
+    onCopyDefaultThemeTemplate = async () => ({ ok: false }),
     onChangeThemeCustomCss = () => {},
     onResetThemeCustomCss = () => {},
     onChangeZoomOption = () => {},
@@ -38,6 +39,25 @@
     themeImportInputEl?.click();
   }
 
+  async function handleCopyDefaultThemeTemplate() {
+    try {
+      const result = await onCopyDefaultThemeTemplate();
+      if (result && typeof result === "object" && result.ok === false) {
+        themeImportFailed = true;
+        themeImportStatus =
+          result.message || strings.workspaceThemeCopyDefaultFailed || strings.workspaceThemeImportFailed || "Copy failed";
+        return;
+      }
+      themeImportFailed = false;
+      themeImportStatus = strings.workspaceThemeCopyDefaultSuccess || "Template copied";
+    } catch (error) {
+      console.error("copy default theme template failed", error);
+      themeImportFailed = true;
+      themeImportStatus =
+        strings.workspaceThemeCopyDefaultFailed || strings.workspaceThemeImportFailed || "Copy failed";
+    }
+  }
+
   /** @param {Event} event */
   async function handleThemeImportChange(event) {
     const input = /** @type {HTMLInputElement} */ (event.currentTarget);
@@ -45,7 +65,7 @@
     if (!file) return;
     try {
       const text = await file.text();
-      const result = await onImportTheme(text);
+      const result = await onImportThemeCss(text);
       if (result && typeof result === "object" && result.ok === false) {
         themeImportFailed = true;
         themeImportStatus = result.message || strings.workspaceThemeImportFailed || "Import failed";
@@ -110,6 +130,41 @@
               </button>
             {/each}
           </div>
+          <div class="theme-custom-head">
+            <span>{strings.workspaceThemeCustomCss || "Custom theme"}</span>
+            <div class="theme-actions">
+              <button type="button" class="clear-btn" onclick={() => onExportThemeCss()}>
+                {strings.workspaceThemeExport || "Export theme"}
+              </button>
+            <button type="button" class="clear-btn" onclick={openThemeImportPicker}>
+              {strings.workspaceThemeImport || "Import theme"}
+            </button>
+            <button type="button" class="clear-btn" onclick={handleCopyDefaultThemeTemplate}>
+              {strings.workspaceThemeCopyDefault || "Copy default template"}
+            </button>
+            <button type="button" class="clear-btn" onclick={() => onResetThemeCustomCss()}>
+              {strings.clear}
+            </button>
+              <input
+                bind:this={themeImportInputEl}
+                class="theme-import-input"
+                type="file"
+                accept=".css,text/css,text/plain"
+                onchange={handleThemeImportChange}
+              />
+            </div>
+          </div>
+          <textarea
+            class="css-editor"
+            rows="6"
+            value={themeCustomCss}
+            oninput={(e) => onChangeThemeCustomCss(/** @type {HTMLTextAreaElement} */ (e.currentTarget).value)}
+            placeholder={strings.workspaceThemeCustomCssPlaceholder || ".workspace { --ws-accent: #4f46e5; }"}
+          ></textarea>
+          {#if themeImportStatus}
+            <small class:status-error={themeImportFailed}>{themeImportStatus}</small>
+          {/if}
+          <small>{strings.workspaceThemeCustomCssHint || "Applied immediately and saved automatically."}</small>
         </div>
 
         <label class="setting-row" for="workspace-setting-zoom">
@@ -153,40 +208,6 @@
           </select>
         </label>
 
-        <div class="setting-stack">
-          <div class="setting-stack-head">
-            <span>{strings.workspaceThemeCustomCss || "Custom CSS"}</span>
-          </div>
-          <div class="theme-actions">
-            <button type="button" class="clear-btn" onclick={() => onExportTheme()}>
-              {strings.workspaceThemeExport || "Export JSON"}
-            </button>
-            <button type="button" class="clear-btn" onclick={openThemeImportPicker}>
-              {strings.workspaceThemeImport || "Import JSON"}
-            </button>
-            <button type="button" class="clear-btn" onclick={() => onResetThemeCustomCss()}>
-              {strings.clear}
-            </button>
-            <input
-              bind:this={themeImportInputEl}
-              class="theme-import-input"
-              type="file"
-              accept="application/json,.json"
-              onchange={handleThemeImportChange}
-            />
-          </div>
-          <textarea
-            class="css-editor"
-            rows="6"
-            value={themeCustomCss}
-            oninput={(e) => onChangeThemeCustomCss(/** @type {HTMLTextAreaElement} */ (e.currentTarget).value)}
-            placeholder={strings.workspaceThemeCustomCssPlaceholder || ".workspace { --ws-accent: #4f46e5; }"}
-          ></textarea>
-          {#if themeImportStatus}
-            <small class:status-error={themeImportFailed}>{themeImportStatus}</small>
-          {/if}
-          <small>{strings.workspaceThemeCustomCssHint || "Applied immediately and saved automatically."}</small>
-        </div>
       </div>
     </div>
   </div>
@@ -292,6 +313,20 @@
 
   .theme-preset-stack {
     gap: 10px;
+  }
+
+  .theme-custom-head {
+    margin-top: 2px;
+    padding-top: 8px;
+    border-top: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 68%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--ws-text, #334155);
+    font-size: 13px;
+    font-weight: 700;
+    flex-wrap: wrap;
   }
 
   .theme-preset-grid {

@@ -1,59 +1,45 @@
-# Workspace 主题二期：预览卡片 + JSON 导入导出
+# Workspace 主题二期：预览卡片 + CSS 导入导出
 
-## 本次目标
-- 在已有“内置主题 + 自定义 CSS”基础上，补齐主题可迁移能力和可视化选择体验。
-- 具体交付：
-  - 主题预设从下拉改为预览卡片选择。
-  - 支持导出主题 JSON。
-  - 支持导入主题 JSON 并立即生效。
+## 收敛结论
+- 自定义主题区域的核心对象是 `CSS`，不是 JSON 主题包。
+- 当前 UI 已调整为：
+  - `导出主题`：仅导出 `workspaceCustomCss`（CSS 文本）。
+  - `导入主题`：仅导入并应用 `workspaceCustomCss`（CSS 文本）。
+  - `复制完整模板`：复制全量变量 + 模块默认样式 + 组件选择器索引。
 
-## 改动点
+## 本次调整范围
+- `src/lib/components/workspace/WorkspaceSettingsDialog.svelte`
+  - 文案与按钮改为 CSS 语义。
+  - 文件选择器限制为 `.css`（兼容 text/plain）。
+- `src/routes/workspace/+page.svelte`
+  - 移除页面中的 JSON 主题包导入导出流程。
+  - 新增/替换为 `exportWorkspaceThemeCss`、`importWorkspaceThemeCss`。
+  - 导出文件名：`desk-tidy-workspace-theme-<preset>-<timestamp>.css`。
+- `src/lib/strings.js`
+  - 中英文文案改为 `Import theme / Export theme`、`导入主题 / 导出主题`。
 
-### 1) 新增主题 IO 模块（避免页面内堆逻辑）
-- 文件：`src/lib/workspace/theme/theme-bundle.js`
-- 职责：
-  - `createWorkspaceThemeBundle`：生成标准化导出对象。
-  - `parseWorkspaceThemeBundle`：解析导入 JSON，归一化 `themePreset` 与 `customCss`。
+## 交互定义
+### 导出主题（CSS）
+- 导出当前自定义主题文本。
+- 若当前为空，导出一个注释模板，提示先复制完整模板再编辑。
 
-### 2) 自定义 CSS 归一化独立模块
-- 文件：`src/lib/workspace/theme/theme-custom-css.js`
-- 职责：
-  - 统一 `customCss` 长度限制和归一化策略。
-  - 被偏好服务与主题导入共同复用，避免双处实现漂移。
+### 导入主题（CSS）
+- 读取 CSS 文件内容后做归一化处理。
+- 空内容判定为无效并给出错误提示。
+- 成功后实时生效并持久化到 `workspaceCustomCss`。
 
-### 3) 预设卡片化 UI
-- 文件：`src/lib/components/workspace/WorkspaceSettingsDialog.svelte`
-- 变化：
-  - 移除主题下拉式选择，改为缩略预览卡片。
-  - 卡片包含名称、基础配色预览、激活态边框。
-  - 小屏下自动单列展示。
+### 复制完整模板
+- 用于“从 0 到 1”搭建自定义主题。
+- 模板内容：
+  - 主题变量（`--ws-*`）完整清单。
+  - 工作台主要模块默认样式。
+  - 工作台组件类名选择器索引。
 
-### 4) 导入导出交互
-- 文件：`src/lib/components/workspace/WorkspaceSettingsDialog.svelte`
-- 文件：`src/routes/workspace/+page.svelte`
-- 交互：
-  - 导出：一键下载 `desk-tidy-workspace-theme-*.json`。
-  - 导入：选择 `.json` 文件后校验并应用。
-  - 应用成功/失败都给出即时状态提示。
-
-## 数据格式（导出 JSON）
-```json
-{
-  "type": "desk-tidy-workspace-theme",
-  "version": 1,
-  "exportedAt": "2026-02-16T12:34:56.000Z",
-  "themePreset": "forest",
-  "customCss": ".workspace { --ws-accent: #22c55e; }"
-}
-```
-
-## 兼容策略
-- 导入解析支持历史字段名兜底：
-  - `themePreset` / `workspaceTheme` / `preset`
-  - `customCss` / `workspaceCustomCss`
-- 无效 JSON 或结构异常时，拒绝导入并显示错误提示，不污染当前主题状态。
+## 为什么不在这里放 JSON
+- 从用户心智看，“自定义主题”就是编辑 CSS。
+- JSON 更像“主题包交换格式”，放在这个入口会造成概念混淆。
+- 若后续要做主题市场/云同步，可在独立“主题管理”入口提供 JSON 包导入导出，不与 CSS 编辑混排。
 
 ## 验证
 - `npm run check`：通过（0 error / 0 warning）
 - `cargo check`：通过（仅历史 warning）
-

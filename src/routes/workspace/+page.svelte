@@ -40,10 +40,7 @@
     normalizeWorkspaceThemePreset,
     resolveWorkspaceThemeToggleTarget,
   } from "$lib/workspace/theme/theme-presets.js";
-  import {
-    createWorkspaceThemeBundle,
-    parseWorkspaceThemeBundle,
-  } from "$lib/workspace/theme/theme-bundle.js";
+  import { buildWorkspaceDefaultThemeTemplate } from "$lib/workspace/theme/theme-default-template.js";
   import { tryStartWorkspaceWindowDrag } from "$lib/workspace/window-drag.js";
   import { runWorkspaceThemeTransition } from "$lib/workspace/theme-transition.js";
   import { createWorkspaceResizeController } from "$lib/workspace/resize-controller.js";
@@ -649,13 +646,12 @@
     await setWorkspaceThemePreset(preset, { persist: true, animate: true });
   }
 
-  async function exportWorkspaceThemeJson() {
-    const payload = createWorkspaceThemeBundle({
-      workspaceTheme,
-      workspaceCustomCss,
-    });
-    const text = `${JSON.stringify(payload, null, 2)}\n`;
-    const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+  async function exportWorkspaceThemeCss() {
+    const css = normalizeWorkspaceCustomCss(workspaceCustomCss);
+    const text = css.trim()
+      ? `${css.trim()}\n`
+      : "/* Empty custom theme. Paste the full template and edit by module. */\n";
+    const blob = new Blob([text], { type: "text/css;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const now = new Date();
     const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(
@@ -663,7 +659,7 @@
     ).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
     const link = document.createElement("a");
     link.href = url;
-    link.download = `desk-tidy-workspace-theme-${payload.themePreset}-${stamp}.json`;
+    link.download = `desk-tidy-workspace-theme-${workspaceTheme}-${stamp}.css`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -671,23 +667,49 @@
   }
 
   /**
+   * @param {string} text
+   */
+  async function copyTextToClipboard(text) {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const temp = document.createElement("textarea");
+    temp.value = text;
+    temp.setAttribute("readonly", "true");
+    temp.style.position = "fixed";
+    temp.style.left = "-9999px";
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand("copy");
+    temp.remove();
+  }
+
+  async function copyWorkspaceDefaultThemeTemplate() {
+    try {
+      const template = buildWorkspaceDefaultThemeTemplate();
+      await copyTextToClipboard(template);
+      return { ok: true };
+    } catch (error) {
+      console.error("copyWorkspaceDefaultThemeTemplate", error);
+      return { ok: false, message: strings.workspaceThemeCopyDefaultFailed || "Copy failed" };
+    }
+  }
+
+  /**
    * @param {string} rawText
    */
-  async function importWorkspaceThemeJson(rawText) {
-    const parsed = parseWorkspaceThemeBundle(rawText);
-    if (!parsed.ok) {
+  async function importWorkspaceThemeCss(rawText) {
+    const importedCustomCss = normalizeWorkspaceCustomCss(rawText);
+    if (!importedCustomCss.trim()) {
       return {
         ok: false,
-        message: strings.workspaceThemeImportInvalid || strings.workspaceThemeImportFailed || "Invalid JSON",
+        message: strings.workspaceThemeImportInvalid || strings.workspaceThemeImportFailed || "Invalid theme content",
       };
     }
-    const importedTheme = normalizeWorkspaceThemePreset(parsed.workspaceTheme);
-    const importedCustomCss = normalizeWorkspaceCustomCss(parsed.workspaceCustomCss);
     clearWorkspaceCustomCssPersistTimer();
     workspaceCustomCss = importedCustomCss;
-    await setWorkspaceThemePreset(importedTheme, { persist: false, animate: true });
     await savePrefs({
-      workspaceTheme: importedTheme,
       workspaceCustomCss: importedCustomCss,
     });
     return { ok: true };
@@ -1054,8 +1076,9 @@
   sidebarLayoutMode={workspaceSidebarLayoutMode}
   onChangeLanguage={setLanguage}
   onChangeThemePreset={handleWorkspaceThemePresetChange}
-  onExportTheme={exportWorkspaceThemeJson}
-  onImportTheme={importWorkspaceThemeJson}
+  onExportThemeCss={exportWorkspaceThemeCss}
+  onImportThemeCss={importWorkspaceThemeCss}
+  onCopyDefaultThemeTemplate={copyWorkspaceDefaultThemeTemplate}
   onChangeThemeCustomCss={setWorkspaceCustomCss}
   onResetThemeCustomCss={resetWorkspaceCustomCss}
   onChangeZoomOption={setWorkspaceZoomOption}
