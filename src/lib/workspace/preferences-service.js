@@ -1,6 +1,8 @@
 import { getPreferences, updatePreferences } from "$lib/preferences/preferences-store.js";
 import { normalizeFocusStats, normalizeFocusTasks } from "$lib/workspace/focus/focus-model.js";
 import { normalizeBreakSession } from "$lib/workspace/focus/focus-break-session.js";
+import { normalizeWorkspaceThemePreset } from "$lib/workspace/theme/theme-presets.js";
+import { normalizeWorkspaceCustomCss } from "$lib/workspace/theme/theme-custom-css.js";
 import {
   BREAK_REMINDER_MODE_PANEL,
   normalizeBreakReminderMode,
@@ -15,6 +17,8 @@ import {
   resolveWorkspaceStartupViewMode,
   normalizeWorkspaceViewMode,
 } from "$lib/workspace/workspace-tabs.js";
+
+export { normalizeWorkspaceCustomCss };
 
 const DEFAULT_VIEW_MODE = "active";
 const DEFAULT_SORT_MODE = "custom";
@@ -45,7 +49,7 @@ const DEFAULT_POMODORO = {
 
 /** @param {unknown} theme */
 export function normalizeWorkspaceTheme(theme) {
-  return theme === "dark" ? "dark" : "light";
+  return normalizeWorkspaceThemePreset(theme);
 }
 
 /** @param {unknown} shape */
@@ -233,6 +237,7 @@ export async function loadWorkspacePreferences(invoke) {
       prefs.workspaceSidebarManualSplitRatio ?? DEFAULT_WORKSPACE_SIDEBAR_MANUAL_SPLIT_RATIO,
     ),
     workspaceTheme: normalizeWorkspaceTheme(prefs.workspaceTheme),
+    workspaceCustomCss: normalizeWorkspaceCustomCss(prefs.workspaceCustomCss),
     themeTransitionShape: normalizeWorkspaceThemeTransitionShape(prefs.workspaceThemeTransitionShape),
     pomodoroConfig,
     focusTasks,

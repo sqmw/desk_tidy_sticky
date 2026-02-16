@@ -24,6 +24,7 @@
   import {
     loadWorkspacePreferences,
     normalizePomodoroConfig,
+    normalizeWorkspaceCustomCss,
     normalizeWorkspaceFontSize,
     normalizeWorkspaceSidebarLayoutMode,
     normalizeWorkspaceSidebarManualSplitRatio,
@@ -32,6 +33,17 @@
     normalizeWorkspaceThemeTransitionShape,
     saveWorkspacePreferences,
   } from "$lib/workspace/preferences-service.js";
+  import {
+    buildWorkspaceThemeVarStyle,
+    getWorkspaceThemePresetOptions,
+    isWorkspaceThemeDark,
+    normalizeWorkspaceThemePreset,
+    resolveWorkspaceThemeToggleTarget,
+  } from "$lib/workspace/theme/theme-presets.js";
+  import {
+    createWorkspaceThemeBundle,
+    parseWorkspaceThemeBundle,
+  } from "$lib/workspace/theme/theme-bundle.js";
   import { tryStartWorkspaceWindowDrag } from "$lib/workspace/window-drag.js";
   import { runWorkspaceThemeTransition } from "$lib/workspace/theme-transition.js";
   import { createWorkspaceResizeController } from "$lib/workspace/resize-controller.js";
@@ -87,6 +99,7 @@
   let interactionDisabled = $state(false);
   let showWorkspaceSettings = $state(false);
   let workspaceTheme = $state("light");
+  let workspaceCustomCss = $state("");
   let workspaceZoom = $state(1);
   let workspaceZoomMode = $state("manual");
   let workspaceFontSize = $state("medium");
@@ -129,6 +142,8 @@
     independentLongBreakEveryMinutes: 30,
   });
   let sidebarCollapsed = $derived(sidebarWidth <= 104);
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let workspaceCustomCssSaveTimer = null;
   const workspaceZoomOption = $derived(workspaceZoomMode === "auto" ? "auto" : String(workspaceZoom));
   const workspaceAdaptiveScale = $derived.by(() => {
     const safeWidth = Math.max(320, viewportWidth);
@@ -170,8 +185,12 @@
     }),
   );
   const sidebarCompact = $derived(sidebarLayout.compact);
+  const workspaceThemeDark = $derived.by(() => isWorkspaceThemeDark(workspaceTheme));
+  const workspaceThemeVarStyle = $derived.by(() => buildWorkspaceThemeVarStyle(workspaceTheme));
+  const workspaceCustomCssStyle = $derived.by(() => String(workspaceCustomCss || ""));
 
   const strings = $derived(getStrings(locale));
+  const workspaceThemePresetOptions = $derived.by(() => getWorkspaceThemePresetOptions(strings));
   const deadlineTasks = $derived.by(() => {
     const now = new Date(deadlineNowTick);
     return getFocusDeadlinesForToday(focusTasks, focusStats, now);
@@ -359,7 +378,8 @@
       locale = next.locale;
       mainTab = next.mainTab;
       stickiesVisible = next.overlayEnabled;
-      workspaceTheme = next.workspaceTheme;
+      workspaceTheme = normalizeWorkspaceThemePreset(next.workspaceTheme);
+      workspaceCustomCss = normalizeWorkspaceCustomCss(next.workspaceCustomCss);
       workspaceZoom = next.workspaceZoom;
       workspaceZoomMode = next.workspaceZoomMode;
       workspaceFontSize = next.workspaceFontSize;
@@ -565,17 +585,112 @@
     }
   }
 
+  /**
+   * @param {string} preset
+   * @param {{ persist?: boolean; animate?: boolean }} [options]
+   */
+  async function setWorkspaceThemePreset(preset, options = {}) {
+    const persist = options.persist ?? true;
+    const animate = options.animate ?? true;
+    const safePreset = normalizeWorkspaceThemePreset(preset);
+    if (safePreset === workspaceTheme) {
+      if (persist) {
+        await savePrefs({ workspaceTheme: safePreset });
+      }
+      return;
+    }
+    if (animate) {
+      await runWorkspaceThemeTransition({
+        doc: document,
+        shape: themeTransitionShape,
+        onApplyTheme: () => {
+          workspaceTheme = safePreset;
+        },
+      });
+    } else {
+      workspaceTheme = safePreset;
+    }
+    workspaceTheme = safePreset;
+    if (persist) {
+      await savePrefs({ workspaceTheme: safePreset });
+    }
+  }
+
   async function toggleTheme() {
-    const nextTheme = workspaceTheme === "dark" ? "light" : "dark";
-    await runWorkspaceThemeTransition({
-      doc: document,
-      shape: themeTransitionShape,
-      onApplyTheme: () => {
-        workspaceTheme = nextTheme;
-      },
+    const nextTheme = resolveWorkspaceThemeToggleTarget(workspaceTheme);
+    await setWorkspaceThemePreset(nextTheme, { persist: true, animate: true });
+  }
+
+  function clearWorkspaceCustomCssPersistTimer() {
+    if (workspaceCustomCssSaveTimer == null) return;
+    clearTimeout(workspaceCustomCssSaveTimer);
+    workspaceCustomCssSaveTimer = null;
+  }
+
+  /** @param {string} css */
+  function setWorkspaceCustomCss(css) {
+    const safeCss = normalizeWorkspaceCustomCss(css);
+    workspaceCustomCss = safeCss;
+    clearWorkspaceCustomCssPersistTimer();
+    workspaceCustomCssSaveTimer = setTimeout(() => {
+      savePrefs({ workspaceCustomCss: safeCss });
+      workspaceCustomCssSaveTimer = null;
+    }, 320);
+  }
+
+  async function resetWorkspaceCustomCss() {
+    clearWorkspaceCustomCssPersistTimer();
+    workspaceCustomCss = "";
+    await savePrefs({ workspaceCustomCss: "" });
+  }
+
+  /** @param {string} preset */
+  async function handleWorkspaceThemePresetChange(preset) {
+    await setWorkspaceThemePreset(preset, { persist: true, animate: true });
+  }
+
+  async function exportWorkspaceThemeJson() {
+    const payload = createWorkspaceThemeBundle({
+      workspaceTheme,
+      workspaceCustomCss,
     });
-    workspaceTheme = nextTheme;
-    await savePrefs({ workspaceTheme: nextTheme });
+    const text = `${JSON.stringify(payload, null, 2)}\n`;
+    const blob = new Blob([text], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const now = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(
+      now.getDate(),
+    ).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `desk-tidy-workspace-theme-${payload.themePreset}-${stamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * @param {string} rawText
+   */
+  async function importWorkspaceThemeJson(rawText) {
+    const parsed = parseWorkspaceThemeBundle(rawText);
+    if (!parsed.ok) {
+      return {
+        ok: false,
+        message: strings.workspaceThemeImportInvalid || strings.workspaceThemeImportFailed || "Invalid JSON",
+      };
+    }
+    const importedTheme = normalizeWorkspaceThemePreset(parsed.workspaceTheme);
+    const importedCustomCss = normalizeWorkspaceCustomCss(parsed.workspaceCustomCss);
+    clearWorkspaceCustomCssPersistTimer();
+    workspaceCustomCss = importedCustomCss;
+    await setWorkspaceThemePreset(importedTheme, { persist: false, animate: true });
+    await savePrefs({
+      workspaceTheme: importedTheme,
+      workspaceCustomCss: importedCustomCss,
+    });
+    return { ok: true };
   }
 
   /**
@@ -729,6 +844,7 @@
     window.addEventListener("resize", onWindowResize);
     return () => {
       window.removeEventListener("resize", onWindowResize);
+      clearWorkspaceCustomCssPersistTimer();
       cleanup?.();
     };
   });
@@ -775,12 +891,18 @@
   });
 </script>
 
+<svelte:head>
+  {#if workspaceCustomCssStyle}
+    <style id="workspace-custom-theme-style">{workspaceCustomCssStyle}</style>
+  {/if}
+</svelte:head>
+
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="workspace-viewport">
   <div
     class="workspace"
-    class:theme-dark={workspaceTheme === "dark"}
-    style={`--sidebar-width: ${sidebarWidth}px; --ws-ui-scale: ${workspaceLayoutScale}; --ws-layout-scale: 1; --ws-text-scale: ${workspaceTextScale};`}
+    class:theme-dark={workspaceThemeDark}
+    style={`--sidebar-width: ${sidebarWidth}px; --ws-ui-scale: ${workspaceLayoutScale}; --ws-layout-scale: 1; --ws-text-scale: ${workspaceTextScale}; ${workspaceThemeVarStyle}`}
   >
   <WorkspaceSidebar
     {strings}
@@ -821,7 +943,7 @@
   <main class="main">
     <WorkspaceWindowBar
       {strings}
-      theme={workspaceTheme}
+      theme={workspaceThemeDark ? "dark" : "light"}
       isMaximized={windowMaximized}
       {themeTransitionShape}
       compact={stageLayout.windowBarCompact}
@@ -924,10 +1046,18 @@
   {strings}
   bind:show={showWorkspaceSettings}
   {locale}
+  themePreset={workspaceTheme}
+  themePresetOptions={workspaceThemePresetOptions}
+  themeCustomCss={workspaceCustomCss}
   zoomOption={workspaceZoomOption}
   fontSize={workspaceFontSize}
   sidebarLayoutMode={workspaceSidebarLayoutMode}
   onChangeLanguage={setLanguage}
+  onChangeThemePreset={handleWorkspaceThemePresetChange}
+  onExportTheme={exportWorkspaceThemeJson}
+  onImportTheme={importWorkspaceThemeJson}
+  onChangeThemeCustomCss={setWorkspaceCustomCss}
+  onResetThemeCustomCss={resetWorkspaceCustomCss}
   onChangeZoomOption={setWorkspaceZoomOption}
   onChangeFontSize={setWorkspaceFontSize}
   onChangeSidebarLayoutMode={setWorkspaceSidebarLayoutMode}
@@ -979,15 +1109,19 @@
     --ws-scrollbar-track: rgba(148, 163, 184, 0.14);
     --ws-scrollbar-thumb: rgba(71, 85, 105, 0.45);
     --ws-scrollbar-thumb-hover: rgba(51, 65, 85, 0.62);
+    --ws-input-bg: #fbfdff;
+    --ws-input-border: #d9e2ef;
+    --ws-input-text: #0f172a;
+    --ws-workspace-bg:
+      radial-gradient(circle at 8% 6%, rgba(56, 189, 248, 0.09), transparent 35%),
+      radial-gradient(circle at 92% 90%, rgba(251, 146, 60, 0.08), transparent 32%),
+      linear-gradient(165deg, #edf3ff 0%, #f7faff 46%, #fff8f1 100%);
     width: calc(100% / var(--ws-ui-scale, 1));
     height: calc(100% / var(--ws-ui-scale, 1));
     display: grid;
     grid-template-columns: var(--sidebar-width, 260px) 8px 1fr;
-    background:
-      radial-gradient(circle at 8% 6%, rgba(56, 189, 248, 0.09), transparent 35%),
-      radial-gradient(circle at 92% 90%, rgba(251, 146, 60, 0.08), transparent 32%),
-      linear-gradient(165deg, #edf3ff 0%, #f7faff 46%, #fff8f1 100%);
-    color: #111827;
+    background: var(--ws-workspace-bg);
+    color: var(--ws-text-strong, #111827);
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
     font-size: 14px;
     transform: scale(var(--ws-ui-scale, 1));
@@ -1015,19 +1149,21 @@
     --ws-scrollbar-track: rgba(148, 163, 184, 0.14);
     --ws-scrollbar-thumb: rgba(148, 163, 184, 0.42);
     --ws-scrollbar-thumb-hover: rgba(186, 201, 224, 0.58);
-    background:
+    --ws-input-bg: #12233a;
+    --ws-input-border: #324561;
+    --ws-input-text: #dbe7f7;
+    --ws-workspace-bg:
       radial-gradient(circle at 8% 6%, rgba(56, 189, 248, 0.12), transparent 35%),
       radial-gradient(circle at 92% 90%, rgba(251, 146, 60, 0.12), transparent 32%),
       linear-gradient(165deg, #0d1728 0%, #0f1d31 46%, #122034 100%);
-    color: #dbe7f7;
   }
 
-  .workspace.theme-dark :global(input),
-  .workspace.theme-dark :global(select),
-  .workspace.theme-dark :global(textarea) {
-    color: #dbe7f7;
-    background: #12233a;
-    border-color: #324561;
+  .workspace :global(input),
+  .workspace :global(select),
+  .workspace :global(textarea) {
+    color: var(--ws-input-text, var(--ws-text-strong, #0f172a));
+    background: var(--ws-input-bg, var(--ws-btn-bg, #fbfdff));
+    border-color: var(--ws-input-border, var(--ws-border-soft, #d9e2ef));
   }
 
   .main {

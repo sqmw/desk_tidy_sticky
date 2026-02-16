@@ -45,6 +45,8 @@ pub struct PanelPreferences {
     pub show_panel_on_startup: bool,
     #[serde(default = "default_workspace_theme")]
     pub workspace_theme: String,
+    #[serde(default = "default_workspace_custom_css")]
+    pub workspace_custom_css: String,
     #[serde(default = "default_workspace_theme_transition_shape")]
     pub workspace_theme_transition_shape: String,
     #[serde(default = "default_workspace_zoom")]
@@ -118,6 +120,9 @@ fn default_glass() -> f64 {
 }
 fn default_workspace_theme() -> String {
     "light".to_string()
+}
+fn default_workspace_custom_css() -> String {
+    "".to_string()
 }
 fn default_workspace_theme_transition_shape() -> String {
     "circle".to_string()
