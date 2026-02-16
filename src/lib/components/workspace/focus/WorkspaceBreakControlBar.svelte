@@ -1,5 +1,10 @@
 <script>
   import { BREAK_SESSION_SCOPE_GLOBAL } from "$lib/workspace/focus/focus-break-session.js";
+  import {
+    BREAK_REMINDER_MODE_FULLSCREEN,
+    BREAK_REMINDER_MODE_OPTIONS,
+    BREAK_REMINDER_MODE_PANEL,
+  } from "$lib/workspace/focus/focus-break-reminder-mode.js";
 
   let {
     strings,
@@ -19,9 +24,12 @@
     defaultLongBreakEveryMinutes = 30,
     independentMiniBreakEveryMinutes = 10,
     independentLongBreakEveryMinutes = 30,
+    breakReminderMode = /** @type {string} */ (BREAK_REMINDER_MODE_PANEL),
+    breakReminderModes = /** @type {string[]} */ (BREAK_REMINDER_MODE_OPTIONS),
     onStartSession = () => {},
     onClearSession = () => {},
     onChangeIndependentBreakEveryMinutes = () => {},
+    onChangeBreakReminderMode = () => {},
     onStartBreak = () => {},
     onPostponeBreak = () => {},
     onSkipBreak = () => {},
@@ -46,8 +54,8 @@
   );
   const sessionStateText = $derived(
     breakSessionActive
-      ? `${strings.pomodoroBreakSessionActive || "Session active"} · ${breakSessionRemainingText}`
-      : (strings.pomodoroBreakSessionNone || "No active session"),
+      ? `${strings.pomodoroBreakReminderDisabled || "Break reminders disabled"} · ${breakSessionRemainingText}`
+      : (strings.pomodoroBreakReminderEnabled || "Break reminders enabled"),
   );
   const taskBreakMiniEveryMinutes = $derived(
     Number(taskBreakProfile?.miniBreakEveryMinutes || defaultMiniBreakEveryMinutes || 10),
@@ -61,6 +69,7 @@
   const independentBreakLongEveryMinutes = $derived(
     Math.max(15, Math.min(360, Math.round(Number(independentLongBreakEveryMinutes || 30)))),
   );
+  const reminderModeHintText = $derived(reminderModeHint(breakReminderMode));
 
   $effect(() => {
     if (!breakSessionModes.includes(selectedPauseMode)) {
@@ -92,6 +101,28 @@
   }
 
   /**
+   * @param {string} mode
+   */
+  function reminderModeLabel(mode) {
+    if (mode === BREAK_REMINDER_MODE_FULLSCREEN) {
+      return strings.pomodoroBreakReminderModeFullscreen || "Full-screen";
+    }
+    return strings.pomodoroBreakReminderModePanel || "Light card";
+  }
+
+  /**
+   * @param {string} mode
+   */
+  function reminderModeHint(mode) {
+    if (mode === BREAK_REMINDER_MODE_FULLSCREEN) {
+      return strings.pomodoroBreakReminderModeFullscreenHint
+        || "Stretchly-style full-screen reminder in current workspace window.";
+    }
+    return strings.pomodoroBreakReminderModePanelHint
+      || "Light reminder card, no full-screen takeover.";
+  }
+
+  /**
    * @param {"mini" | "long"} kind
    * @param {Event} event
    */
@@ -118,7 +149,23 @@
     <span>{strings.pomodoroBreakNotifyStatus || "Notify"}: {notifyStatusText}</span>
   </div>
   <div class="schedule-row">
-    <span class="schedule-title">{strings.pomodoroBreakScheduleSourceIndependent || "Independent interval"}</span>
+    <span class="schedule-title">{strings.pomodoroBreakPausePreset || "Pause preset"}</span>
+    <div class="reminder-mode-row">
+      <span>{strings.pomodoroBreakReminderMode || "Reminder style"}</span>
+      <div class="session-selectors">
+        {#each breakReminderModes as mode (mode)}
+          <button
+            type="button"
+            class="btn session-btn"
+            class:active={breakReminderMode === mode}
+            onclick={() => onChangeBreakReminderMode(mode)}
+          >
+            {reminderModeLabel(mode)}
+          </button>
+        {/each}
+      </div>
+      <span class="schedule-hint">{reminderModeHintText}</span>
+    </div>
     <div class="schedule-independent-editor">
       <label>
         <span>{strings.pomodoroBreakScheduleIndependentMini || "Independent mini every (min)"}</span>
@@ -166,10 +213,10 @@
     </div>
     <div class="session-actions">
       <button type="button" class="btn session-btn close" onclick={() => startPauseSession()}>
-        {strings.pomodoroBreakControlDisable || strings.close || "Disable"}
+        {strings.pomodoroBreakControlDisable || "Disable by preset"}
       </button>
       <button type="button" class="btn session-btn clear" disabled={!breakSessionActive} onclick={() => onClearSession()}>
-        {strings.pomodoroBreakControlEnable || strings.pomodoroStart || "Enable"}
+        {strings.pomodoroBreakControlEnable || "Enable now"}
       </button>
     </div>
   </div>
@@ -236,6 +283,16 @@
   .schedule-row {
     display: grid;
     gap: 6px;
+  }
+
+  .reminder-mode-row {
+    display: grid;
+    gap: 4px;
+  }
+
+  .reminder-mode-row span {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
   }
 
   .schedule-title {

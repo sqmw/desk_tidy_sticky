@@ -91,6 +91,8 @@ pub struct PanelPreferences {
     pub pomodoro_break_postpone_limit: i32,
     #[serde(default = "default_false")]
     pub pomodoro_break_strict_mode: bool,
+    #[serde(default = "default_pomodoro_break_reminder_mode")]
+    pub pomodoro_break_reminder_mode: String,
     #[serde(default = "default_pomodoro_break_schedule_mode")]
     pub pomodoro_break_schedule_mode: String,
     #[serde(default = "default_pomodoro_independent_mini_break_every_minutes")]
@@ -179,6 +181,9 @@ fn default_pomodoro_long_break_postpone_minutes() -> i32 {
 }
 fn default_pomodoro_break_postpone_limit() -> i32 {
     3
+}
+fn default_pomodoro_break_reminder_mode() -> String {
+    "panel".to_string()
 }
 fn default_pomodoro_break_schedule_mode() -> String {
     "task".to_string()

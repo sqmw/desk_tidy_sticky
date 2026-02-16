@@ -1,4 +1,5 @@
 import { ensureDayStats, normalizeFocusTask } from "$lib/workspace/focus/focus-model.js";
+import { normalizeBreakReminderMode } from "$lib/workspace/focus/focus-break-reminder-mode.js";
 
 export const PHASE_FOCUS = "focus";
 export const PHASE_SHORT_BREAK = "shortBreak";
@@ -27,6 +28,7 @@ export function getSafeConfig(config, clamp) {
     longBreakPostponeMinutes: clamp(raw.longBreakPostponeMinutes, 10, 1, 60),
     breakPostponeLimit: clamp(raw.breakPostponeLimit, 3, 0, 10),
     breakStrictMode: raw.breakStrictMode === true,
+    breakReminderMode: normalizeBreakReminderMode(raw.breakReminderMode),
     independentMiniBreakEveryMinutes: clamp(
       raw.independentMiniBreakEveryMinutes,
       clamp(raw.miniBreakEveryMinutes, 10, 5, 180),

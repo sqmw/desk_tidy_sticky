@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { listen } from "@tauri-apps/api/event";
   import {
     RECURRENCE,
     clampInt,
@@ -19,6 +20,12 @@
   import WorkspaceFocusPlanner from "$lib/components/workspace/focus/WorkspaceFocusPlanner.svelte";
   import WorkspaceFocusStats from "$lib/components/workspace/focus/WorkspaceFocusStats.svelte";
   import { resolveBreakTimingConfig } from "$lib/workspace/focus/focus-break-profile.js";
+  import {
+    BREAK_REMINDER_MODE_FULLSCREEN,
+    BREAK_REMINDER_MODE_OPTIONS,
+    BREAK_REMINDER_MODE_PANEL,
+    normalizeBreakReminderMode,
+  } from "$lib/workspace/focus/focus-break-reminder-mode.js";
   import {
     BREAK_SESSION_SCOPE_GLOBAL,
     BREAK_SESSION_NONE,
@@ -50,6 +57,13 @@
     updateTaskInState,
   } from "$lib/workspace/focus/focus-runtime.js";
   import { formatSecondsBrief, sendDesktopNotification } from "$lib/workspace/focus/focus-break-notify.js";
+  import {
+    BREAK_OVERLAY_EVENT_ACTION,
+    BREAK_OVERLAY_EVENT_READY,
+    closeBreakOverlayWindows,
+    emitBreakOverlayState,
+    ensureBreakOverlayWindows,
+  } from "$lib/workspace/focus/focus-break-overlay-windows.js";
 
   let {
     strings,
@@ -75,6 +89,7 @@
       longBreakEveryMinutes: 30,
       longBreakDurationMinutes: 5,
       breakNotifyBeforeSeconds: 10,
+      breakReminderMode: BREAK_REMINDER_MODE_PANEL,
       independentMiniBreakEveryMinutes: 10,
       independentLongBreakEveryMinutes: 30,
     },
@@ -130,6 +145,9 @@
   let notifyChecked = $state(false);
   /** @type {{ kind: "mini" | "long"; dueAt: number; postponeUsed: number } | null} */
   let breakPrompt = $state(null);
+  /** @type {string[]} */
+  let breakOverlayLabels = $state([]);
+  let breakOverlaySyncNonce = 0;
   let localBreakSession = $state({
     mode: BREAK_SESSION_NONE,
     untilTs: 0,
@@ -357,6 +375,17 @@
     );
   }
 
+  /** @param {string} mode */
+  function changeBreakReminderMode(mode) {
+    const next = {
+      ...safeConfig,
+      breakReminderMode: normalizeBreakReminderMode(mode),
+    };
+    Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
+      console.error("change break reminder mode", e),
+    );
+  }
+
   function toggleRunning() {
     if (remainingSec <= 0) remainingSec = getPhaseDurationSec(phase, safeConfig);
     running = !running;
@@ -528,6 +557,7 @@
         10,
       ),
       breakStrictMode: draftBreakStrictMode,
+      breakReminderMode: safeConfig.breakReminderMode,
       independentMiniBreakEveryMinutes: safeConfig.independentMiniBreakEveryMinutes,
       independentLongBreakEveryMinutes: safeConfig.independentLongBreakEveryMinutes,
     };
@@ -823,9 +853,12 @@
             defaultLongBreakEveryMinutes={safeConfig.longBreakEveryMinutes}
             independentMiniBreakEveryMinutes={safeConfig.independentMiniBreakEveryMinutes}
             independentLongBreakEveryMinutes={safeConfig.independentLongBreakEveryMinutes}
+            breakReminderMode={safeConfig.breakReminderMode}
+            breakReminderModes={BREAK_REMINDER_MODE_OPTIONS}
             onStartSession={startBreakSession}
             onClearSession={clearBreakSession}
             onChangeIndependentBreakEveryMinutes={changeIndependentBreakEveryMinutes}
+            onChangeBreakReminderMode={changeBreakReminderMode}
             onStartBreak={() => {
               if (!breakPrompt) return;
               applyBreakNow(breakPrompt.kind);
@@ -876,25 +909,61 @@
 
   {#if breakPrompt}
     {@const currentBreak = breakPrompt}
-    <section class="break-prompt-card" data-no-drag="true">
-      <div class="break-prompt-head">
-        <strong>
-          {currentBreak.kind === "long"
-            ? (strings.pomodoroLongBreakNow || "Take a long break")
-            : (strings.pomodoroMiniBreakNow || "Take a mini break")}
-        </strong>
+    {@const postponeDisabled = safeConfig.breakStrictMode || currentBreak.postponeUsed >= safeConfig.breakPostponeLimit}
+    {@const skipDisabled = safeConfig.breakStrictMode}
+    {#if safeConfig.breakReminderMode === BREAK_REMINDER_MODE_FULLSCREEN}
+      <section class="break-fullscreen" data-no-drag="true">
+        <div class="break-fullscreen-card">
+          <strong class="break-fullscreen-title">
+            {currentBreak.kind === "long"
+              ? (strings.pomodoroLongBreakNow || "Take a long break")
+              : (strings.pomodoroMiniBreakNow || "Take a mini break")}
+          </strong>
+          <span class="break-fullscreen-sub">
+            {strings.pomodoroBreakReminderModeFullscreenHint
+              || "Stretchly-style full-screen reminder in current workspace window."}
+          </span>
+          <span class="break-fullscreen-sub">
+            {strings.pomodoroBreakActionHint || "Use break controls above to start, postpone or skip."}
+            {#if safeConfig.breakStrictMode}
+              · {strings.pomodoroBreakStrictMode || "Strict mode"}
+            {/if}
+          </span>
+          <div class="break-fullscreen-actions">
+            <button type="button" class="btn primary" onclick={() => applyBreakNow(currentBreak.kind)}>
+              {strings.pomodoroBreakStartNow || strings.pomodoroStart || "Start break"}
+            </button>
+            <button type="button" class="btn" disabled={postponeDisabled} onclick={() => postponeBreak()}>
+              {strings.workspaceDeadlineActionSnooze15 || "Postpone"} ({currentBreak.postponeUsed}/{safeConfig.breakPostponeLimit})
+            </button>
+            <button type="button" class="btn" disabled={skipDisabled} onclick={() => skipBreak()}>
+              {strings.pomodoroSkip || "Skip"}
+            </button>
+          </div>
+        </div>
+      </section>
+    {:else}
+      <section class="break-prompt-card" data-no-drag="true">
+        <div class="break-prompt-head">
+          <strong>
+            {currentBreak.kind === "long"
+              ? (strings.pomodoroLongBreakNow || "Take a long break")
+              : (strings.pomodoroMiniBreakNow || "Take a mini break")}
+          </strong>
+          <span class="break-prompt-sub">
+            {strings.pomodoroBreakReminderModePanelHint
+              || "Light reminder card, no full-screen takeover."}
+          </span>
+        </div>
         <span class="break-prompt-sub">
-          {strings.workspaceMultiScreenHint || "This prompt follows current workspace window (multi-screen friendly)."}
+          {strings.pomodoroBreakActionHint || "Use break controls above to start, postpone or skip."}
+          {#if safeConfig.breakStrictMode}
+            · {strings.pomodoroBreakStrictMode || "Strict mode"}
+          {/if}
+          · ({currentBreak.postponeUsed}/{safeConfig.breakPostponeLimit})
         </span>
-      </div>
-      <span class="break-prompt-sub">
-        {strings.pomodoroBreakActionHint || "Use break controls above to start, postpone or skip."}
-        {#if safeConfig.breakStrictMode}
-          · {strings.pomodoroBreakStrictMode || "Strict mode"}
-        {/if}
-        · ({currentBreak.postponeUsed}/{safeConfig.breakPostponeLimit})
-      </span>
-    </section>
+      </section>
+    {/if}
   {/if}
 
   <section class="stats-shell">
@@ -992,6 +1061,52 @@
     padding: 8px;
   }
 
+  .break-fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background:
+      radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--ws-accent, #1d4ed8) 22%, transparent), transparent 48%),
+      color-mix(in srgb, #0b1220 56%, transparent);
+    backdrop-filter: blur(8px);
+  }
+
+  .break-fullscreen-card {
+    width: min(680px, calc(100vw - 32px));
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 48%, var(--ws-border, #dbe5f2));
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.86)) 96%, transparent);
+    box-shadow: 0 24px 64px color-mix(in srgb, #0b1220 42%, transparent);
+    display: grid;
+    gap: 12px;
+    padding: 18px 20px;
+  }
+
+  .break-fullscreen-title {
+    color: var(--ws-text-strong, #0f172a);
+    font-size: clamp(26px, 2.6vw, 40px);
+    line-height: 1.16;
+    text-align: center;
+  }
+
+  .break-fullscreen-sub {
+    color: var(--ws-muted, #64748b);
+    font-size: 13px;
+    line-height: 1.45;
+    text-align: center;
+  }
+
+  .break-fullscreen-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
   .break-prompt-card {
     border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 45%, var(--ws-border, #dbe5f2));
     border-radius: 14px;
@@ -1082,6 +1197,15 @@
       grid-template-areas:
         "timer"
         "planner";
+    }
+
+    .break-fullscreen {
+      padding: 16px;
+    }
+
+    .break-fullscreen-card {
+      width: min(540px, calc(100vw - 20px));
+      padding: 14px 14px 16px;
     }
   }
 </style>

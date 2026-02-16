@@ -124,6 +124,7 @@
     longBreakPostponeMinutes: 10,
     breakPostponeLimit: 3,
     breakStrictMode: false,
+    breakReminderMode: "panel",
     independentMiniBreakEveryMinutes: 10,
     independentLongBreakEveryMinutes: 30,
   });
