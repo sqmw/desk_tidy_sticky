@@ -1,6 +1,3 @@
-export const BREAK_SCHEDULE_MODE_TASK = "task";
-export const BREAK_SCHEDULE_MODE_INDEPENDENT = "independent";
-
 /**
  * @param {unknown} value
  * @param {number} fallback
@@ -11,13 +8,6 @@ function clampInt(value, fallback, min, max) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(min, Math.min(max, Math.round(n)));
-}
-
-/** @param {unknown} mode */
-export function normalizeBreakScheduleMode(mode) {
-  return mode === BREAK_SCHEDULE_MODE_INDEPENDENT
-    ? BREAK_SCHEDULE_MODE_INDEPENDENT
-    : BREAK_SCHEDULE_MODE_TASK;
 }
 
 /**
@@ -37,35 +27,44 @@ export function normalizeTaskBreakProfile(raw) {
 }
 
 /**
+ * Resolve active break cadence.
+ * - Has selected task: use task profile, otherwise task-default cadence.
+ * - No selected task: use independent cadence (for standalone usage such as reading).
+ *
  * @param {unknown} baseConfig
  * @param {unknown} task
- * @param {unknown} mode
  */
-export function resolveBreakTimingConfig(baseConfig, task, mode) {
+export function resolveBreakTimingConfig(baseConfig, task) {
   const base = /** @type {any} */ (baseConfig || {});
-  const safeMode = normalizeBreakScheduleMode(mode);
-  if (safeMode === BREAK_SCHEDULE_MODE_INDEPENDENT) {
+  const selectedTask = task && typeof task === "object" ? /** @type {any} */ (task) : null;
+  if (selectedTask) {
+    const profile = normalizeTaskBreakProfile(selectedTask.breakProfile);
+    if (profile) {
+      return {
+        ...base,
+        miniBreakEveryMinutes: profile.miniBreakEveryMinutes,
+        longBreakEveryMinutes: profile.longBreakEveryMinutes,
+      };
+    }
     return {
       ...base,
-      miniBreakEveryMinutes: clampInt(
-        base.independentMiniBreakEveryMinutes,
-        clampInt(base.miniBreakEveryMinutes, 10, 5, 180),
-        5,
-        180,
-      ),
-      longBreakEveryMinutes: clampInt(
-        base.independentLongBreakEveryMinutes,
-        clampInt(base.longBreakEveryMinutes, 30, 15, 360),
-        15,
-        360,
-      ),
+      miniBreakEveryMinutes: clampInt(base.miniBreakEveryMinutes, 10, 5, 180),
+      longBreakEveryMinutes: clampInt(base.longBreakEveryMinutes, 30, 15, 360),
     };
   }
-  const profile = normalizeTaskBreakProfile((/** @type {any} */ (task || {})).breakProfile);
-  if (!profile) return base;
   return {
     ...base,
-    miniBreakEveryMinutes: profile.miniBreakEveryMinutes,
-    longBreakEveryMinutes: profile.longBreakEveryMinutes,
+    miniBreakEveryMinutes: clampInt(
+      base.independentMiniBreakEveryMinutes,
+      clampInt(base.miniBreakEveryMinutes, 10, 5, 180),
+      5,
+      180,
+    ),
+    longBreakEveryMinutes: clampInt(
+      base.independentLongBreakEveryMinutes,
+      clampInt(base.longBreakEveryMinutes, 30, 15, 360),
+      15,
+      360,
+    ),
   };
 }

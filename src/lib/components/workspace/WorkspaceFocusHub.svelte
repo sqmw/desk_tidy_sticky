@@ -18,11 +18,7 @@
   import WorkspaceBreakControlBar from "$lib/components/workspace/focus/WorkspaceBreakControlBar.svelte";
   import WorkspaceFocusPlanner from "$lib/components/workspace/focus/WorkspaceFocusPlanner.svelte";
   import WorkspaceFocusStats from "$lib/components/workspace/focus/WorkspaceFocusStats.svelte";
-  import {
-    BREAK_SCHEDULE_MODE_TASK,
-    normalizeBreakScheduleMode,
-    resolveBreakTimingConfig,
-  } from "$lib/workspace/focus/focus-break-profile.js";
+  import { resolveBreakTimingConfig } from "$lib/workspace/focus/focus-break-profile.js";
   import {
     BREAK_SESSION_SCOPE_GLOBAL,
     BREAK_SESSION_NONE,
@@ -79,7 +75,6 @@
       longBreakEveryMinutes: 30,
       longBreakDurationMinutes: 5,
       breakNotifyBeforeSeconds: 10,
-      breakScheduleMode: BREAK_SCHEDULE_MODE_TASK,
       independentMiniBreakEveryMinutes: 10,
       independentLongBreakEveryMinutes: 30,
     },
@@ -167,7 +162,7 @@
       : null,
   );
   const activeBreakTimingConfig = $derived(
-    resolveBreakTimingConfig(safeConfig, selectedTask, safeConfig.breakScheduleMode),
+    resolveBreakTimingConfig(safeConfig, selectedTask),
   );
   const breakPlanSec = $derived(getBreakPlanSec(activeBreakTimingConfig));
   const todaySummary = $derived(buildTodaySummary(todayTasks, todayStats));
@@ -341,17 +336,6 @@
     }
     breakPrompt = null;
     running = true;
-  }
-
-  /** @param {string} mode */
-  function changeBreakScheduleMode(mode) {
-    const next = {
-      ...safeConfig,
-      breakScheduleMode: normalizeBreakScheduleMode(mode),
-    };
-    Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
-      console.error("change break schedule mode", e),
-    );
   }
 
   /**
@@ -544,7 +528,6 @@
         10,
       ),
       breakStrictMode: draftBreakStrictMode,
-      breakScheduleMode: safeConfig.breakScheduleMode,
       independentMiniBreakEveryMinutes: safeConfig.independentMiniBreakEveryMinutes,
       independentLongBreakEveryMinutes: safeConfig.independentLongBreakEveryMinutes,
     };
@@ -835,17 +818,13 @@
             breakSessionRemainingText={breakSessionRemainingText}
             breakSessionActive={breakSessionActive}
             breakSessionModes={BREAK_SESSION_OPTIONS}
-            breakScheduleMode={safeConfig.breakScheduleMode}
             taskBreakProfile={selectedTaskBreakProfile}
             defaultMiniBreakEveryMinutes={safeConfig.miniBreakEveryMinutes}
             defaultLongBreakEveryMinutes={safeConfig.longBreakEveryMinutes}
             independentMiniBreakEveryMinutes={safeConfig.independentMiniBreakEveryMinutes}
             independentLongBreakEveryMinutes={safeConfig.independentLongBreakEveryMinutes}
-            selectedTaskId={selectedTaskId}
-            selectedTaskTitle={selectedTask?.title || ""}
             onStartSession={startBreakSession}
             onClearSession={clearBreakSession}
-            onChangeBreakScheduleMode={changeBreakScheduleMode}
             onChangeIndependentBreakEveryMinutes={changeIndependentBreakEveryMinutes}
             onStartBreak={() => {
               if (!breakPrompt) return;

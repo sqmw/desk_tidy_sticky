@@ -124,7 +124,6 @@
     longBreakPostponeMinutes: 10,
     breakPostponeLimit: 3,
     breakStrictMode: false,
-    breakScheduleMode: "task",
     independentMiniBreakEveryMinutes: 10,
     independentLongBreakEveryMinutes: 30,
   });
