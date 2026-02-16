@@ -91,6 +91,12 @@ pub struct PanelPreferences {
     pub pomodoro_break_postpone_limit: i32,
     #[serde(default = "default_false")]
     pub pomodoro_break_strict_mode: bool,
+    #[serde(default = "default_pomodoro_break_schedule_mode")]
+    pub pomodoro_break_schedule_mode: String,
+    #[serde(default = "default_pomodoro_independent_mini_break_every_minutes")]
+    pub pomodoro_independent_mini_break_every_minutes: i32,
+    #[serde(default = "default_pomodoro_independent_long_break_every_minutes")]
+    pub pomodoro_independent_long_break_every_minutes: i32,
     #[serde(default = "default_focus_tasks_json")]
     pub focus_tasks_json: String,
     #[serde(default = "default_focus_stats_json")]
@@ -173,6 +179,15 @@ fn default_pomodoro_long_break_postpone_minutes() -> i32 {
 }
 fn default_pomodoro_break_postpone_limit() -> i32 {
     3
+}
+fn default_pomodoro_break_schedule_mode() -> String {
+    "task".to_string()
+}
+fn default_pomodoro_independent_mini_break_every_minutes() -> i32 {
+    10
+}
+fn default_pomodoro_independent_long_break_every_minutes() -> i32 {
+    30
 }
 fn default_focus_tasks_json() -> String {
     "[]".to_string()

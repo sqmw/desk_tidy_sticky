@@ -1,5 +1,6 @@
 <script>
   import TargetPomodoroInput from "$lib/components/workspace/focus/TargetPomodoroInput.svelte";
+  import WorkspaceFocusPlannerTaskItem from "$lib/components/workspace/focus/WorkspaceFocusPlannerTaskItem.svelte";
 
   let {
     strings,
@@ -11,6 +12,11 @@
     draftTargetPomodoros = $bindable(1),
     draftRecurrence = $bindable("none"),
     draftWeekdays = $bindable([1, 2, 3, 4, 5]),
+    draftUseDefaultBreakProfile = $bindable(true),
+    draftTaskMiniBreakEveryMinutes = $bindable(10),
+    draftTaskLongBreakEveryMinutes = $bindable(30),
+    defaultMiniBreakEveryMinutes = 10,
+    defaultLongBreakEveryMinutes = 30,
     tasks = [],
     showingAllTasks = false,
     todayTaskCount = 0,
@@ -20,6 +26,7 @@
     onToggleTaskDone = () => {},
     onStartTask = () => {},
     onRemoveTask = () => {},
+    onUpdateTask = () => {},
     weekdayLabel = /** @type {(day: number) => string} */ ((day) => String(day)),
   } = $props();
 </script>
@@ -65,29 +72,72 @@
       {/each}
     </div>
   {/if}
+  <div class="draft-break-row">
+    <span class="draft-break-label">{strings.pomodoroTaskBreakProfile || "Task break profile"}</span>
+    <div class="draft-break-toggle">
+      <button
+        type="button"
+        class="btn tiny chip-btn"
+        class:active={draftUseDefaultBreakProfile}
+        onclick={() => (draftUseDefaultBreakProfile = true)}
+      >
+        {strings.pomodoroTaskBreakDefault || "Default"}
+      </button>
+      <button
+        type="button"
+        class="btn tiny chip-btn"
+        class:active={!draftUseDefaultBreakProfile}
+        onclick={() => (draftUseDefaultBreakProfile = false)}
+      >
+        {strings.pomodoroTaskBreakCustom || "Custom"}
+      </button>
+      {#if draftUseDefaultBreakProfile}
+        <span class="draft-break-hint">{defaultMiniBreakEveryMinutes}/{defaultLongBreakEveryMinutes}m</span>
+      {/if}
+    </div>
+    {#if !draftUseDefaultBreakProfile}
+      <div class="draft-break-inputs">
+        <label>
+          <span>{strings.pomodoroTaskBreakMiniEveryMinutes || "Task mini every (min)"}</span>
+          <TargetPomodoroInput
+            bind:value={draftTaskMiniBreakEveryMinutes}
+            min={5}
+            max={180}
+            title={strings.pomodoroTaskBreakMiniEveryMinutes || "Task mini every (min)"}
+          />
+        </label>
+        <label>
+          <span>{strings.pomodoroTaskBreakLongEveryMinutes || "Task long every (min)"}</span>
+          <TargetPomodoroInput
+            bind:value={draftTaskLongBreakEveryMinutes}
+            min={15}
+            max={360}
+            title={strings.pomodoroTaskBreakLongEveryMinutes || "Task long every (min)"}
+          />
+        </label>
+      </div>
+    {/if}
+  </div>
   <div class="task-list">
     {#if tasks.length === 0}
       <div class="empty">{strings.pomodoroNoTasksToday}</div>
     {:else}
       {#each tasks as task (task.id)}
-        <div class="task-item">
-          <label class="task-main">
-            <input
-              type="checkbox"
-              checked={todayStats.completedTaskIds.includes(task.id)}
-              onchange={() => onToggleTaskDone(task.id)}
-            />
-            <span class="task-title">{task.title}</span>
-            <span class="task-time">{task.startTime} - {task.endTime}</span>
-            <span class="task-progress">
-              🍅 {(todayStats.taskPomodoros?.[task.id] || 0)}/{task.targetPomodoros || 1}
-            </span>
-          </label>
-          <div class="task-actions">
-            <button type="button" class="btn tiny" onclick={() => onStartTask(task.id)}>{strings.pomodoroStart}</button>
-            <button type="button" class="btn tiny" onclick={() => onRemoveTask(task.id)}>{strings.delete}</button>
-          </div>
-        </div>
+        <WorkspaceFocusPlannerTaskItem
+          {strings}
+          {recurrence}
+          {weekdays}
+          {task}
+          completed={todayStats.completedTaskIds.includes(task.id)}
+          donePomodoros={todayStats.taskPomodoros?.[task.id] || 0}
+          onToggleTaskDone={onToggleTaskDone}
+          onStartTask={onStartTask}
+          onRemoveTask={onRemoveTask}
+          onUpdateTask={onUpdateTask}
+          {defaultMiniBreakEveryMinutes}
+          {defaultLongBreakEveryMinutes}
+          {weekdayLabel}
+        />
       {/each}
     {/if}
   </div>
@@ -184,17 +234,61 @@
     font-weight: 700;
   }
 
-  .btn.tiny {
-    height: 26px;
-    font-size: 11px;
-    padding: 0 8px;
-  }
-
   .weekday-picker {
     margin-top: 6px;
     display: flex;
     gap: 4px;
     flex-wrap: wrap;
+  }
+
+  .draft-break-row {
+    margin-top: 6px;
+    display: grid;
+    gap: 6px;
+  }
+
+  .draft-break-label {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
+  }
+
+  .draft-break-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .chip-btn {
+    border-radius: 999px;
+  }
+
+  .chip-btn.active {
+    border-color: var(--ws-border-active, #2f4368);
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, var(--ws-btn-bg, #fff));
+    color: var(--ws-text-strong, #0f172a);
+    font-weight: 700;
+  }
+
+  .draft-break-hint {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
+  }
+
+  .draft-break-inputs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .draft-break-inputs label {
+    display: grid;
+    gap: 4px;
+  }
+
+  .draft-break-inputs span {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
   }
 
   .day-chip {
@@ -221,52 +315,6 @@
     overflow: auto;
     display: grid;
     gap: 6px;
-  }
-
-  .task-item {
-    border: 1px solid var(--ws-border-soft, #dbe4ef);
-    border-radius: 10px;
-    padding: 7px 8px;
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    align-items: center;
-    background: var(--ws-card-bg, #fff);
-  }
-
-  .task-main {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-width: 0;
-  }
-
-  .task-title {
-    font-size: clamp(12px, 0.72vw, 14px);
-    color: var(--ws-text, #334155);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 360px;
-  }
-
-  .task-time {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-  }
-
-  .task-progress {
-    font-size: 11px;
-    color: var(--ws-accent, #1d4ed8);
-    border: 1px solid var(--ws-badge-border, #d7e5ff);
-    border-radius: 999px;
-    padding: 2px 6px;
-    background: var(--ws-badge-bg, #e8f0ff);
-  }
-
-  .task-actions {
-    display: flex;
-    gap: 5px;
   }
 
   .empty {
@@ -327,6 +375,10 @@
 
     .field-add {
       grid-column: 1 / -1;
+    }
+
+    .draft-break-inputs {
+      grid-template-columns: 1fr;
     }
   }
 </style>

@@ -19,6 +19,11 @@
   import WorkspaceFocusPlanner from "$lib/components/workspace/focus/WorkspaceFocusPlanner.svelte";
   import WorkspaceFocusStats from "$lib/components/workspace/focus/WorkspaceFocusStats.svelte";
   import {
+    BREAK_SCHEDULE_MODE_TASK,
+    normalizeBreakScheduleMode,
+    resolveBreakTimingConfig,
+  } from "$lib/workspace/focus/focus-break-profile.js";
+  import {
     BREAK_SESSION_SCOPE_GLOBAL,
     BREAK_SESSION_NONE,
     BREAK_SESSION_OPTIONS,
@@ -46,6 +51,7 @@
     PHASE_SHORT_BREAK,
     removeTaskFromState,
     toggleTaskDoneInStats,
+    updateTaskInState,
   } from "$lib/workspace/focus/focus-runtime.js";
   import { formatSecondsBrief, sendDesktopNotification } from "$lib/workspace/focus/focus-break-notify.js";
 
@@ -73,6 +79,9 @@
       longBreakEveryMinutes: 30,
       longBreakDurationMinutes: 5,
       breakNotifyBeforeSeconds: 10,
+      breakScheduleMode: BREAK_SCHEDULE_MODE_TASK,
+      independentMiniBreakEveryMinutes: 10,
+      independentLongBreakEveryMinutes: 30,
     },
     onTasksChange = () => {},
     onStatsChange = () => {},
@@ -100,6 +109,9 @@
   let draftTargetPomodoros = $state(1);
   let draftRecurrence = $state(RECURRENCE.NONE);
   let draftWeekdays = $state([1, 2, 3, 4, 5]);
+  let draftUseDefaultBreakProfile = $state(true);
+  let draftTaskMiniBreakEveryMinutes = $state(10);
+  let draftTaskLongBreakEveryMinutes = $state(30);
   let draftFocusMinutes = $state(25);
   let draftShortBreakMinutes = $state(5);
   let draftLongBreakMinutes = $state(15);
@@ -132,7 +144,6 @@
   });
 
   const safeConfig = $derived(getSafeConfig(pomodoroConfig, clampInt));
-  const breakPlanSec = $derived(getBreakPlanSec(safeConfig));
   const todayKey = $derived(getDateKey());
   const weekKeys = $derived(getRecentDateKeys());
   const todayTasks = $derived(getTodayTasks(tasks));
@@ -147,10 +158,21 @@
   const streakDays = $derived(getFocusStreakDays(stats));
   const bestFocusDay = $derived(getBestFocusDay(stats));
   const focusHeatmap = $derived(buildFocusHeatmap(stats));
-  const selectedTask = $derived(todayTasks.find((task) => task.id === selectedTaskId) || null);
+  const fallbackToAllTasks = $derived(todayTasks.length === 0 && tasks.length > 0);
+  const focusSelectableTasks = $derived.by(() => (fallbackToAllTasks ? tasks : todayTasks));
+  const selectedTask = $derived(focusSelectableTasks.find((task) => task.id === selectedTaskId) || null);
+  const selectedTaskBreakProfile = $derived(
+    selectedTask?.breakProfile && typeof selectedTask.breakProfile === "object"
+      ? selectedTask.breakProfile
+      : null,
+  );
+  const activeBreakTimingConfig = $derived(
+    resolveBreakTimingConfig(safeConfig, selectedTask, safeConfig.breakScheduleMode),
+  );
+  const breakPlanSec = $derived(getBreakPlanSec(activeBreakTimingConfig));
   const todaySummary = $derived(buildTodaySummary(todayTasks, todayStats));
-  const plannerTasks = $derived.by(() => (todayTasks.length > 0 ? todayTasks : tasks));
-  const plannerShowingAllTasks = $derived(todayTasks.length === 0 && tasks.length > 0);
+  const plannerTasks = $derived(focusSelectableTasks);
+  const plannerShowingAllTasks = $derived(fallbackToAllTasks);
   const plannerCompletedCount = $derived.by(() =>
     plannerTasks.filter((task) => todayStats.completedTaskIds.includes(task.id)).length,
   );
@@ -163,7 +185,7 @@
   const todayCompletedCount = $derived(todaySummary.completedCount);
   const todayTargetPomodoros = $derived(todaySummary.targetPomodoros);
   const todayDonePomodoros = $derived(todaySummary.donePomodoros);
-  const timerTaskOptions = $derived(buildTimerTaskOptions(todayTasks));
+  const timerTaskOptions = $derived(buildTimerTaskOptions(focusSelectableTasks));
   const selectedTaskDonePomodoros = $derived(
     selectedTaskId ? Number(todayStats.taskPomodoros?.[selectedTaskId] || 0) : 0,
   );
@@ -321,6 +343,36 @@
     running = true;
   }
 
+  /** @param {string} mode */
+  function changeBreakScheduleMode(mode) {
+    const next = {
+      ...safeConfig,
+      breakScheduleMode: normalizeBreakScheduleMode(mode),
+    };
+    Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
+      console.error("change break schedule mode", e),
+    );
+  }
+
+  /**
+   * @param {"mini" | "long"} kind
+   * @param {number} minutes
+   */
+  function changeIndependentBreakEveryMinutes(kind, minutes) {
+    const next = {
+      ...safeConfig,
+      independentMiniBreakEveryMinutes: kind === "mini"
+        ? clampInt(minutes, safeConfig.independentMiniBreakEveryMinutes, 5, 180)
+        : safeConfig.independentMiniBreakEveryMinutes,
+      independentLongBreakEveryMinutes: kind === "long"
+        ? clampInt(minutes, safeConfig.independentLongBreakEveryMinutes, 15, 360)
+        : safeConfig.independentLongBreakEveryMinutes,
+    };
+    Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
+      console.error("change independent break intervals", e),
+    );
+  }
+
   function toggleRunning() {
     if (remainingSec <= 0) remainingSec = getPhaseDurationSec(phase, safeConfig);
     running = !running;
@@ -375,6 +427,22 @@
     emitStats(nextStats);
   }
 
+  /**
+   * @param {string} taskId
+   * @param {{
+   * title?: string;
+   * startTime?: string;
+   * endTime?: string;
+   * targetPomodoros?: number;
+   * recurrence?: string;
+   * weekdays?: number[];
+   * breakProfile?: { miniBreakEveryMinutes: number; longBreakEveryMinutes: number } | null;
+   * }} patch
+   */
+  function updateTask(taskId, patch) {
+    emitTasks(updateTaskInState(tasks, taskId, patch));
+  }
+
   function addTask() {
     const title = draftTitle.trim();
     if (!title) return;
@@ -385,10 +453,29 @@
       targetPomodoros: draftTargetPomodoros,
       recurrence: draftRecurrence,
       weekdays: draftRecurrence === RECURRENCE.CUSTOM ? draftWeekdays : [],
+      breakProfile: draftUseDefaultBreakProfile
+        ? null
+        : {
+            miniBreakEveryMinutes: clampInt(
+              draftTaskMiniBreakEveryMinutes,
+              safeConfig.miniBreakEveryMinutes,
+              5,
+              180,
+            ),
+            longBreakEveryMinutes: clampInt(
+              draftTaskLongBreakEveryMinutes,
+              safeConfig.longBreakEveryMinutes,
+              15,
+              360,
+            ),
+          },
     });
     emitTasks([...tasks, next]);
     draftTitle = "";
     draftTargetPomodoros = 1;
+    draftUseDefaultBreakProfile = true;
+    draftTaskMiniBreakEveryMinutes = safeConfig.miniBreakEveryMinutes;
+    draftTaskLongBreakEveryMinutes = safeConfig.longBreakEveryMinutes;
     if (!selectedTaskId) selectedTaskId = next.id;
   }
 
@@ -457,6 +544,9 @@
         10,
       ),
       breakStrictMode: draftBreakStrictMode,
+      breakScheduleMode: safeConfig.breakScheduleMode,
+      independentMiniBreakEveryMinutes: safeConfig.independentMiniBreakEveryMinutes,
+      independentLongBreakEveryMinutes: safeConfig.independentLongBreakEveryMinutes,
     };
     Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
       console.error("save pomodoro config", e),
@@ -518,9 +608,10 @@
 
   $effect(() => {
     const next = String(selectedTaskIdProp || "");
-    if (next && next !== selectedTaskId) {
-      selectedTaskId = next;
-    }
+    if (!next || next === selectedTaskId) return;
+    // Skip stale parent echo to avoid overriding a newer local selection.
+    if (next === lastSyncedSelectedTaskId) return;
+    selectedTaskId = next;
   });
 
   $effect(() => {
@@ -547,7 +638,7 @@
     lastCommandNonce = nonce;
     const taskId = String(command?.taskId || "");
     if (!taskId) return;
-    if (!todayTasks.some((task) => task.id === taskId)) return;
+    if (!focusSelectableTasks.some((task) => task.id === taskId)) return;
     if (command?.type === "start") {
       startTaskFocus(taskId);
       return;
@@ -564,12 +655,18 @@
   });
 
   $effect(() => {
-    if (todayTasks.length === 0) {
+    if (!draftUseDefaultBreakProfile) return;
+    draftTaskMiniBreakEveryMinutes = safeConfig.miniBreakEveryMinutes;
+    draftTaskLongBreakEveryMinutes = safeConfig.longBreakEveryMinutes;
+  });
+
+  $effect(() => {
+    if (focusSelectableTasks.length === 0) {
       if (selectedTaskId) selectedTaskId = "";
       return;
     }
-    if (!todayTasks.some((task) => task.id === selectedTaskId)) {
-      selectedTaskId = todayTasks[0].id;
+    if (!focusSelectableTasks.some((task) => task.id === selectedTaskId)) {
+      selectedTaskId = focusSelectableTasks[0].id;
     }
   });
 
@@ -738,10 +835,18 @@
             breakSessionRemainingText={breakSessionRemainingText}
             breakSessionActive={breakSessionActive}
             breakSessionModes={BREAK_SESSION_OPTIONS}
+            breakScheduleMode={safeConfig.breakScheduleMode}
+            taskBreakProfile={selectedTaskBreakProfile}
+            defaultMiniBreakEveryMinutes={safeConfig.miniBreakEveryMinutes}
+            defaultLongBreakEveryMinutes={safeConfig.longBreakEveryMinutes}
+            independentMiniBreakEveryMinutes={safeConfig.independentMiniBreakEveryMinutes}
+            independentLongBreakEveryMinutes={safeConfig.independentLongBreakEveryMinutes}
             selectedTaskId={selectedTaskId}
             selectedTaskTitle={selectedTask?.title || ""}
             onStartSession={startBreakSession}
             onClearSession={clearBreakSession}
+            onChangeBreakScheduleMode={changeBreakScheduleMode}
+            onChangeIndependentBreakEveryMinutes={changeIndependentBreakEveryMinutes}
             onStartBreak={() => {
               if (!breakPrompt) return;
               applyBreakNow(breakPrompt.kind);
@@ -764,6 +869,11 @@
         bind:draftTargetPomodoros
         bind:draftRecurrence
         bind:draftWeekdays
+        bind:draftUseDefaultBreakProfile
+        bind:draftTaskMiniBreakEveryMinutes
+        bind:draftTaskLongBreakEveryMinutes
+        defaultMiniBreakEveryMinutes={safeConfig.miniBreakEveryMinutes}
+        defaultLongBreakEveryMinutes={safeConfig.longBreakEveryMinutes}
         tasks={plannerTasks}
         showingAllTasks={plannerShowingAllTasks}
         todayTaskCount={todayTasks.length}
@@ -779,6 +889,7 @@
         onToggleTaskDone={toggleTaskDone}
         onStartTask={startTaskFocus}
         onRemoveTask={removeTask}
+        onUpdateTask={updateTask}
         {weekdayLabel}
       />
     </div>

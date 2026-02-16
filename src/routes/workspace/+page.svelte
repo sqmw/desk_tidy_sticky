@@ -124,6 +124,9 @@
     longBreakPostponeMinutes: 10,
     breakPostponeLimit: 3,
     breakStrictMode: false,
+    breakScheduleMode: "task",
+    independentMiniBreakEveryMinutes: 10,
+    independentLongBreakEveryMinutes: 30,
   });
   let sidebarCollapsed = $derived(sidebarWidth <= 104);
   const workspaceZoomOption = $derived(workspaceZoomMode === "auto" ? "auto" : String(workspaceZoom));

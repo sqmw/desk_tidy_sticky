@@ -3,7 +3,8 @@
  *   normalizePomodoroConfig: (input: unknown) => {
  *     focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number;
  *     miniBreakEveryMinutes: number; miniBreakDurationSeconds: number; longBreakEveryMinutes: number; longBreakDurationMinutes: number; breakNotifyBeforeSeconds: number;
- *     miniBreakPostponeMinutes: number; longBreakPostponeMinutes: number; breakPostponeLimit: number; breakStrictMode: boolean;
+ *     miniBreakPostponeMinutes: number; longBreakPostponeMinutes: number; breakPostponeLimit: number; breakStrictMode: boolean; breakScheduleMode: string;
+ *     independentMiniBreakEveryMinutes: number; independentLongBreakEveryMinutes: number;
  *   };
  *   savePrefs: (updates: Record<string, any>) => Promise<void>;
  *   getFocusTasks: () => any[];
@@ -15,7 +16,8 @@
  *   setPomodoroConfig: (next: {
  *     focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number;
  *     miniBreakEveryMinutes: number; miniBreakDurationSeconds: number; longBreakEveryMinutes: number; longBreakDurationMinutes: number; breakNotifyBeforeSeconds: number;
- *     miniBreakPostponeMinutes: number; longBreakPostponeMinutes: number; breakPostponeLimit: number; breakStrictMode: boolean;
+ *     miniBreakPostponeMinutes: number; longBreakPostponeMinutes: number; breakPostponeLimit: number; breakStrictMode: boolean; breakScheduleMode: string;
+ *     independentMiniBreakEveryMinutes: number; independentLongBreakEveryMinutes: number;
  *   }) => void;
  *   setMainTab: (tab: string) => Promise<void>;
  *   focusTabKey: string;
@@ -28,7 +30,8 @@ export function createWorkspaceFocusActions(deps) {
    * @param {{
    * focusMinutes:number;shortBreakMinutes:number;longBreakMinutes:number;longBreakEvery:number;
    * miniBreakEveryMinutes:number;miniBreakDurationSeconds:number;longBreakEveryMinutes:number;longBreakDurationMinutes:number;breakNotifyBeforeSeconds:number;
-   * miniBreakPostponeMinutes:number;longBreakPostponeMinutes:number;breakPostponeLimit:number;breakStrictMode:boolean;
+   * miniBreakPostponeMinutes:number;longBreakPostponeMinutes:number;breakPostponeLimit:number;breakStrictMode:boolean;breakScheduleMode:string;
+   * independentMiniBreakEveryMinutes:number;independentLongBreakEveryMinutes:number;
    * }} next
    */
   async function changePomodoroConfig(next) {
@@ -48,6 +51,9 @@ export function createWorkspaceFocusActions(deps) {
       pomodoroLongBreakPostponeMinutes: safe.longBreakPostponeMinutes,
       pomodoroBreakPostponeLimit: safe.breakPostponeLimit,
       pomodoroBreakStrictMode: safe.breakStrictMode,
+      pomodoroBreakScheduleMode: safe.breakScheduleMode,
+      pomodoroIndependentMiniBreakEveryMinutes: safe.independentMiniBreakEveryMinutes,
+      pomodoroIndependentLongBreakEveryMinutes: safe.independentLongBreakEveryMinutes,
     });
   }
 

@@ -1,4 +1,5 @@
 import { ensureDayStats, normalizeFocusTask } from "$lib/workspace/focus/focus-model.js";
+import { normalizeBreakScheduleMode } from "$lib/workspace/focus/focus-break-profile.js";
 
 export const PHASE_FOCUS = "focus";
 export const PHASE_SHORT_BREAK = "shortBreak";
@@ -27,6 +28,19 @@ export function getSafeConfig(config, clamp) {
     longBreakPostponeMinutes: clamp(raw.longBreakPostponeMinutes, 10, 1, 60),
     breakPostponeLimit: clamp(raw.breakPostponeLimit, 3, 0, 10),
     breakStrictMode: raw.breakStrictMode === true,
+    breakScheduleMode: normalizeBreakScheduleMode(raw.breakScheduleMode),
+    independentMiniBreakEveryMinutes: clamp(
+      raw.independentMiniBreakEveryMinutes,
+      clamp(raw.miniBreakEveryMinutes, 10, 5, 180),
+      5,
+      180,
+    ),
+    independentLongBreakEveryMinutes: clamp(
+      raw.independentLongBreakEveryMinutes,
+      clamp(raw.longBreakEveryMinutes, 30, 15, 360),
+      15,
+      360,
+    ),
   };
 }
 
@@ -132,6 +146,37 @@ export function removeTaskFromState(tasks, stats, taskId) {
 }
 
 /**
+ * @param {any[]} tasks
+ * @param {string} taskId
+ * @param {{
+ * title?: string;
+ * startTime?: string;
+ * endTime?: string;
+ * targetPomodoros?: number;
+ * recurrence?: string;
+ * weekdays?: number[];
+ * breakProfile?: { miniBreakEveryMinutes: number; longBreakEveryMinutes: number } | null;
+ * }} patch
+ */
+export function updateTaskInState(tasks, taskId, patch) {
+  const safeTaskId = String(taskId || "");
+  if (!safeTaskId) return tasks;
+  return tasks.map((task) => {
+    if (String(task.id || "") !== safeTaskId) return task;
+    const nextRecurrence = patch?.recurrence ?? task.recurrence;
+    const nextWeekdays = nextRecurrence === "custom"
+      ? (patch?.weekdays ?? task.weekdays)
+      : [];
+    return normalizeFocusTask({
+      ...task,
+      ...patch,
+      recurrence: nextRecurrence,
+      weekdays: nextWeekdays,
+    });
+  });
+}
+
+/**
  * @param {Record<string, any>} stats
  * @param {string} todayKey
  * @param {string} selectedTaskId
@@ -163,6 +208,7 @@ export function applyFocusCompleted(stats, todayKey, selectedTaskId, focusMinute
  * targetPomodoros: number;
  * recurrence: string;
  * weekdays: number[];
+ * breakProfile?: { miniBreakEveryMinutes: number; longBreakEveryMinutes: number } | null;
  * }} draft
  */
 export function buildFocusTaskFromDraft(draft) {
@@ -174,6 +220,7 @@ export function buildFocusTaskFromDraft(draft) {
     targetPomodoros: draft.targetPomodoros,
     recurrence: draft.recurrence,
     weekdays: draft.weekdays,
+    breakProfile: draft.breakProfile ?? null,
     enabled: true,
     createdAt: new Date().toISOString(),
   });

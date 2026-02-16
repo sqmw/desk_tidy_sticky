@@ -1,3 +1,5 @@
+import { normalizeTaskBreakProfile } from "$lib/workspace/focus/focus-break-profile.js";
+
 /**
  * @typedef {"none" | "daily" | "workday" | "custom"} FocusRecurrence
  */
@@ -11,6 +13,7 @@
  * @property {FocusRecurrence} recurrence
  * @property {number[]} weekdays
  * @property {number} targetPomodoros
+ * @property {{ miniBreakEveryMinutes: number; longBreakEveryMinutes: number } | null} breakProfile
  * @property {boolean} enabled
  * @property {string} createdAt
  */
@@ -133,6 +136,7 @@ export function normalizeFocusTask(raw) {
     recurrence: normalizeRecurrence(raw?.recurrence),
     weekdays: normalizeWeekdays(raw?.weekdays),
     targetPomodoros: clampInt(raw?.targetPomodoros, 1, 1, 24),
+    breakProfile: normalizeTaskBreakProfile(raw?.breakProfile),
     enabled: raw?.enabled !== false,
     createdAt: String(raw?.createdAt || new Date().toISOString()),
   };

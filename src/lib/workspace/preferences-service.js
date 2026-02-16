@@ -1,6 +1,7 @@
 import { getPreferences, updatePreferences } from "$lib/preferences/preferences-store.js";
 import { normalizeFocusStats, normalizeFocusTasks } from "$lib/workspace/focus/focus-model.js";
 import { normalizeBreakSession } from "$lib/workspace/focus/focus-break-session.js";
+import { normalizeBreakScheduleMode } from "$lib/workspace/focus/focus-break-profile.js";
 import {
   DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO,
   normalizeSidebarManualSplitRatio,
@@ -34,6 +35,9 @@ const DEFAULT_POMODORO = {
   longBreakPostponeMinutes: 10,
   breakPostponeLimit: 3,
   breakStrictMode: false,
+  breakScheduleMode: "task",
+  independentMiniBreakEveryMinutes: 10,
+  independentLongBreakEveryMinutes: 30,
 };
 
 /** @param {unknown} theme */
@@ -137,6 +141,19 @@ export function normalizePomodoroConfig(input) {
     ),
     breakPostponeLimit: clamp(raw.breakPostponeLimit, DEFAULT_POMODORO.breakPostponeLimit, 0, 10),
     breakStrictMode: raw.breakStrictMode === true,
+    breakScheduleMode: normalizeBreakScheduleMode(raw.breakScheduleMode),
+    independentMiniBreakEveryMinutes: clamp(
+      raw.independentMiniBreakEveryMinutes,
+      DEFAULT_POMODORO.independentMiniBreakEveryMinutes,
+      5,
+      180,
+    ),
+    independentLongBreakEveryMinutes: clamp(
+      raw.independentLongBreakEveryMinutes,
+      DEFAULT_POMODORO.independentLongBreakEveryMinutes,
+      15,
+      360,
+    ),
   };
 }
 
@@ -159,6 +176,9 @@ export async function loadWorkspacePreferences(invoke) {
     longBreakPostponeMinutes: prefs.pomodoroLongBreakPostponeMinutes,
     breakPostponeLimit: prefs.pomodoroBreakPostponeLimit,
     breakStrictMode: prefs.pomodoroBreakStrictMode,
+    breakScheduleMode: prefs.pomodoroBreakScheduleMode,
+    independentMiniBreakEveryMinutes: prefs.pomodoroIndependentMiniBreakEveryMinutes,
+    independentLongBreakEveryMinutes: prefs.pomodoroIndependentLongBreakEveryMinutes,
   });
   /** @type {any[]} */
   let focusTasks = [];
