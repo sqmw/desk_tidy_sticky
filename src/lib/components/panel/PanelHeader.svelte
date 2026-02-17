@@ -1,5 +1,5 @@
 <script>
-  import CreateTagSelect from "$lib/components/note/CreateTagSelect.svelte";
+  import NoteTagsEditor from "$lib/components/note/NoteTagsEditor.svelte";
   import HeaderActions from "$lib/components/panel/HeaderActions.svelte";
   import SortModeMenu from "$lib/components/panel/SortModeMenu.svelte";
   import SearchBar from "$lib/components/panel/SearchBar.svelte";
@@ -12,6 +12,8 @@
     glassOpacity,
     newNoteText = $bindable(),
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
+    newNoteTags = $bindable(/** @type {string[]} */ ([])),
+    noteTagOptions = /** @type {string[]} */ ([]),
     noteInputEl = $bindable(),
     viewMode,
     sortMode,
@@ -65,7 +67,14 @@
       bind:this={noteInputEl}
       onkeydown={(e) => e.key === "Enter" && saveNote(false)}
     />
-    <CreateTagSelect {strings} label={strings.quadrantTag || strings.priority} bind:value={newNotePriority} compact={true} />
+    <NoteTagsEditor
+      {strings}
+      compact={true}
+      bind:tags={newNoteTags}
+      bind:priority={newNotePriority}
+      showPriority={true}
+      suggestions={noteTagOptions}
+    />
     <button type="button" class="send-btn" onclick={() => saveNote(false)} title={strings.saveNote}>
       ➤
     </button>
@@ -223,8 +232,9 @@
     min-width: 0;
   }
 
-  .input-row :global(.tag-select.compact) {
-    flex-shrink: 0;
+  .input-row :global(.tags-editor.compact) {
+    flex: 0 1 188px;
+    min-width: 132px;
   }
 
   .tabs-main {

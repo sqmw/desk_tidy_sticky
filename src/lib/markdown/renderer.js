@@ -352,7 +352,7 @@ export function renderNoteMarkdown(input) {
       continue;
     }
 
-    const heading = /^(#{1,3})\s+(.*)$/.exec(line);
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
     if (heading) {
       const level = heading[1].length;
       chunks.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
@@ -416,7 +416,7 @@ export function renderNoteMarkdown(input) {
     while (
       i < lines.length &&
       lines[i].trim() &&
-      !/^(#{1,3}\s+|>\s+|[-*]\s+|\d+\.\s+|```|!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)|(-{3,}|\*{3,}|_{3,})\s*$)/.test(
+      !/^(#{1,6}\s+|>\s+|[-*]\s+|\d+\.\s+|```|!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)|(-{3,}|\*{3,}|_{3,})\s*$)/.test(
         lines[i],
       )
     ) {

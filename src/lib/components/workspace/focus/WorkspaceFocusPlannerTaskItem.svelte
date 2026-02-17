@@ -8,9 +8,7 @@
     task,
     defaultMiniBreakEveryMinutes = 10,
     defaultLongBreakEveryMinutes = 30,
-    completed = false,
     donePomodoros = 0,
-    onToggleTaskDone = () => {},
     onStartTask = () => {},
     onRemoveTask = () => {},
     onUpdateTask = () => {},
@@ -169,12 +167,7 @@
       <button type="button" class="btn tiny" onclick={() => onRemoveTask(task.id)}>{strings.delete}</button>
     </div>
   {:else}
-    <label class="task-main">
-      <input
-        type="checkbox"
-        checked={completed}
-        onchange={() => onToggleTaskDone(task.id)}
-      />
+    <div class="task-main">
       <span class="task-title">{task.title}</span>
       <span class="task-time">{task.startTime} - {task.endTime}</span>
       <span class="task-progress">
@@ -183,7 +176,7 @@
       <span class="task-break-profile">
         ⏸ {taskBreakMiniEveryMinutes}/{taskBreakLongEveryMinutes}m
       </span>
-    </label>
+    </div>
     <div class="task-actions">
       <button type="button" class="btn tiny" onclick={() => onStartTask(task.id)}>{strings.pomodoroStart}</button>
       <button type="button" class="btn tiny" onclick={() => beginEdit()}>{strings.edit}</button>

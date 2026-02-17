@@ -1031,6 +1031,7 @@
             note={inspectorNote}
             mode={inspectorMode}
             bind:draftText={inspectorDraftText}
+            tagSuggestions={noteTagOptions}
             {formatDate}
             onClose={handleInspectorClose}
             onStartEdit={startInspectorEdit}

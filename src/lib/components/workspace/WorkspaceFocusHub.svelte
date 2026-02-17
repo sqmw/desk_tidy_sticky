@@ -47,13 +47,13 @@
     getBreakPlanSec,
     getPhaseDurationSec,
     getSafeConfig,
+    isFocusTaskCompleted,
     nextPhaseState,
     phaseLabel,
     PHASE_FOCUS,
     PHASE_LONG_BREAK,
     PHASE_SHORT_BREAK,
     removeTaskFromState,
-    toggleTaskDoneInStats,
     updateTaskInState,
   } from "$lib/workspace/focus/focus-runtime.js";
   import { formatSecondsBrief, sendDesktopNotification } from "$lib/workspace/focus/focus-break-notify.js";
@@ -187,7 +187,7 @@
   const plannerTasks = $derived(focusSelectableTasks);
   const plannerShowingAllTasks = $derived(fallbackToAllTasks);
   const plannerCompletedCount = $derived.by(() =>
-    plannerTasks.filter((task) => todayStats.completedTaskIds.includes(task.id)).length,
+    plannerTasks.filter((task) => isFocusTaskCompleted(task, todayStats)).length,
   );
   const plannerTargetPomodoros = $derived.by(() =>
     plannerTasks.reduce((sum, task) => sum + Number(task.targetPomodoros || 1), 0),
@@ -425,11 +425,6 @@
   /** @param {string} taskId */
   function selectTask(taskId) {
     selectedTaskId = taskId || "";
-  }
-
-  /** @param {string} taskId */
-  function toggleTaskDone(taskId) {
-    emitStats(toggleTaskDoneInStats(stats, todayKey, taskId));
   }
 
   /** @param {string} taskId */
@@ -890,7 +885,6 @@
         showingAllTasks={plannerShowingAllTasks}
         todayTaskCount={todayTasks.length}
         todayStats={{
-          completedTaskIds: todayStats.completedTaskIds,
           completedCount: plannerCompletedCount,
           donePomodoros: plannerDonePomodoros,
           targetPomodoros: plannerTargetPomodoros,
@@ -898,7 +892,6 @@
         }}
         onAddTask={addTask}
         onToggleWeekday={toggleDraftWeekday}
-        onToggleTaskDone={toggleTaskDone}
         onStartTask={startTaskFocus}
         onRemoveTask={removeTask}
         onUpdateTask={updateTask}

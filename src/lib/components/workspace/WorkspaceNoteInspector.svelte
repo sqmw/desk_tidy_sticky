@@ -1,4 +1,5 @@
 <script>
+  import BlockEditor from "$lib/components/note/BlockEditor.svelte";
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
 
   let {
@@ -6,6 +7,7 @@
     note = null,
     mode = "view",
     draftText = $bindable(""),
+    tagSuggestions = /** @type {string[]} */ ([]),
     formatDate,
     onClose = () => {},
     onStartEdit = () => {},
@@ -14,11 +16,10 @@
     onChangePriority = () => {},
     onChangeTags = () => {},
   } = $props();
-  /** @type {HTMLTextAreaElement | null} */
-  let editorEl = $state(null);
 
   /** @param {KeyboardEvent} e */
-  function onEditKeydown(e) {
+  function onInspectorKeydown(e) {
+    if (mode !== "edit") return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "enter") {
       e.preventDefault();
       onSave();
@@ -30,18 +31,15 @@
     }
   }
 
-  $effect(() => {
-    if (mode !== "edit") return;
-    setTimeout(() => {
-      editorEl?.focus();
-      const end = editorEl?.value.length ?? 0;
-      editorEl?.setSelectionRange(end, end);
-    }, 0);
-  });
+  /** @param {string} nextText */
+  function onBlockTextChange(nextText) {
+    draftText = nextText;
+  }
 </script>
 
 {#if note}
-  <aside class="inspector" data-no-drag="true">
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <aside class="inspector" data-no-drag="true" onkeydown={onInspectorKeydown}>
     <header class="inspector-header">
       <div class="header-left">
         <div class="title">{strings.details}</div>
@@ -61,6 +59,7 @@
       {strings}
       priority={note.priority ?? null}
       tags={Array.isArray(note.tags) ? note.tags : []}
+      {tagSuggestions}
       onChangePriority={onChangePriority}
       onChangeTags={onChangeTags}
     />
@@ -68,15 +67,9 @@
     {#if mode === "view"}
       <div class="content markdown">{@html note.renderedHtml}</div>
     {:else}
-      <div class="content">
-        <textarea
-          bind:this={editorEl}
-          class="editor"
-          bind:value={draftText}
-          onkeydown={onEditKeydown}
-          placeholder={strings.inputHint}
-        ></textarea>
-        <div class="hint">Ctrl/Cmd + Enter</div>
+      <div class="content editor-content">
+        <BlockEditor bind:text={draftText} noteId={String(note.id)} onTextChange={onBlockTextChange} />
+        <div class="hint">Ctrl/Cmd + Enter · Esc</div>
       </div>
     {/if}
   </aside>
@@ -190,6 +183,40 @@
     max-width: 100%;
   }
 
+  .markdown :global(h1),
+  .markdown :global(h2),
+  .markdown :global(h3),
+  .markdown :global(h4),
+  .markdown :global(h5),
+  .markdown :global(h6) {
+    margin: 0 0 8px;
+    line-height: 1.28;
+  }
+
+  .markdown :global(h1) {
+    font-size: 1.6rem;
+  }
+
+  .markdown :global(h2) {
+    font-size: 1.35rem;
+  }
+
+  .markdown :global(h3) {
+    font-size: 1.18rem;
+  }
+
+  .markdown :global(h4) {
+    font-size: 1.06rem;
+  }
+
+  .markdown :global(h5) {
+    font-size: 0.96rem;
+  }
+
+  .markdown :global(h6) {
+    font-size: 0.9rem;
+  }
+
   .markdown :global(pre) {
     overflow: auto;
     border-radius: 8px;
@@ -203,28 +230,19 @@
     border: 1px solid var(--ws-border-soft, #e5eaf2);
   }
 
-  .editor {
-    width: 100%;
-    min-height: 100%;
-    resize: none;
-    border: 1px solid var(--ws-border-soft, #dbe4ef);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text-strong, #1f2937);
-    font-size: 14px;
-    line-height: 1.5;
-    padding: 10px;
-    outline: none;
-  }
-
-  .editor:focus {
-    border-color: var(--ws-border-active, #94a3b8);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ws-accent, #1d4ed8) 16%, transparent);
+  .editor-content {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
   }
 
   .hint {
     font-size: 11px;
     color: var(--ws-muted, #64748b);
-    margin-top: 6px;
+    margin: 0;
+    padding: 6px 12px 8px;
+    border-top: 1px solid var(--ws-border-soft, #dbe4ef);
   }
 </style>

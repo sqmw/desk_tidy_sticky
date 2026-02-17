@@ -48,6 +48,7 @@
   let commandQuery = $state("");
   let commandActiveIndex = $state(0);
   let editorDisplayMode = $state(EDITOR_DISPLAY_MODE.BLOCKS);
+  let tagSuggestions = $state(/** @type {string[]} */ ([]));
   let opacityDraft = $state(DEFAULT_NOTE_OPACITY);
   let frostDraft = $state(DEFAULT_NOTE_FROST);
   /** @type {any} */
@@ -87,6 +88,16 @@
   async function loadNote() {
     try {
       const allNotes = await invoke("load_notes", { sortMode: "custom" });
+      const bucket = new Set();
+      for (const item of allNotes || []) {
+        const rawTags = Array.isArray(item?.tags) ? item.tags : [];
+        for (const rawTag of rawTags) {
+          const text = String(rawTag || "").trim().replace(/^#+/, "").trim();
+          if (!text) continue;
+          bucket.add(text);
+        }
+      }
+      tagSuggestions = [...bucket].slice(0, 60);
       // @ts-ignore
       const n = allNotes.find((item) => item.id === noteId);
       if (n) {
@@ -856,6 +867,7 @@
       {strings}
       priority={note.priority ?? null}
       tags={Array.isArray(note.tags) ? note.tags : []}
+      {tagSuggestions}
       onChangePriority={setNotePriority}
       onChangeTags={setNoteTags}
     />

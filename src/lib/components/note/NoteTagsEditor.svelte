@@ -2,9 +2,12 @@
   let {
     strings,
     tags = $bindable(/** @type {string[]} */ ([])),
+    priority = $bindable(/** @type {number | null} */ (null)),
+    showPriority = false,
     suggestions = /** @type {string[]} */ ([]),
     compact = false,
     onChange = () => {},
+    onPriorityChange = () => {},
   } = $props();
 
   let inputValue = $state("");
@@ -20,6 +23,30 @@
   /** @param {string} raw */
   function normalizedKey(raw) {
     return normalizeTag(raw).toLocaleLowerCase();
+  }
+
+  /** @param {string} raw */
+  function parsePriority(raw) {
+    const match = /^q([1-4])$/i.exec(String(raw || "").trim());
+    if (!match) return null;
+    return Number(match[1]);
+  }
+
+  /** @param {number | null} next */
+  function setPriority(next) {
+    priority = next;
+    onPriorityChange(next);
+  }
+
+  /** @param {string} raw */
+  function applyInputToken(raw) {
+    const nextPriority = showPriority ? parsePriority(raw) : null;
+    if (nextPriority != null) {
+      setPriority(nextPriority);
+      return true;
+    }
+    pushTag(raw);
+    return false;
   }
 
   /** @param {string} raw */
@@ -42,7 +69,7 @@
   function onInputKeydown(e) {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
-      pushTag(inputValue);
+      applyInputToken(inputValue);
       inputValue = "";
       return;
     }
@@ -58,7 +85,7 @@
   function onInputBlur() {
     focused = false;
     if (!inputValue.trim()) return;
-    pushTag(inputValue);
+    applyInputToken(inputValue);
     inputValue = "";
   }
 
@@ -68,6 +95,15 @@
     const unique = new Set();
     /** @type {string[]} */
     const items = [];
+    if (showPriority) {
+      for (const p of ["Q1", "Q2", "Q3", "Q4"]) {
+        const key = normalizedKey(p);
+        if (unique.has(key)) continue;
+        if (query && !key.includes(query)) continue;
+        unique.add(key);
+        items.push(p);
+      }
+    }
     for (const raw of suggestions) {
       const text = normalizeTag(raw);
       const key = text.toLocaleLowerCase();
@@ -81,13 +117,20 @@
 
   /** @param {string} tag */
   function pickSuggestion(tag) {
-    pushTag(tag);
+    applyInputToken(tag);
     inputValue = "";
     focused = true;
   }
 </script>
 
 <div class="tags-editor" class:compact>
+  {#if showPriority && priority != null}
+    <span class="tag-chip priority-chip" title={`Q${priority}`}>
+      <span class="tag-text">Q{priority}</span>
+      <button type="button" class="tag-remove" aria-label="clear priority" onclick={() => setPriority(null)}>×</button>
+    </span>
+  {/if}
+
   {#each tags as tag (tag)}
     <span class="tag-chip" title={tag}>
       <span class="tag-text">{tag}</span>

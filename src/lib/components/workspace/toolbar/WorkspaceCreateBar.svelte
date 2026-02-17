@@ -1,5 +1,4 @@
 <script>
-  import CreateTagSelect from "$lib/components/note/CreateTagSelect.svelte";
   import NoteTagsEditor from "$lib/components/note/NoteTagsEditor.svelte";
 
   let {
@@ -14,7 +13,6 @@
     onCreateLongDoc = () => {},
   } = $props();
 
-  const isQuadrantView = $derived(viewMode === "quadrant");
 </script>
 
 <div class="create-bar" class:compact>
@@ -26,15 +24,14 @@
     onkeydown={(e) => e.key === "Enter" && onSave()}
   />
 
-  {#if isQuadrantView}
-    <CreateTagSelect
-      {strings}
-      label={strings.quadrantTag || strings.priority}
-      allowUnassigned={false}
-      bind:value={newNotePriority}
-    />
-  {/if}
-  <NoteTagsEditor {strings} compact={true} bind:tags={newNoteTags} suggestions={noteTagOptions} />
+  <NoteTagsEditor
+    {strings}
+    compact={true}
+    bind:tags={newNoteTags}
+    bind:priority={newNotePriority}
+    showPriority={true}
+    suggestions={noteTagOptions}
+  />
 
   <div class="create-actions">
     <button type="button" class="primary-btn" onclick={() => onSave()}>
@@ -86,16 +83,6 @@
   .create-bar.compact .add-input {
     flex: 1 1 320px;
     min-height: 38px;
-  }
-
-  .create-bar :global(.tag-select) {
-    flex: 0 0 118px;
-    min-width: 108px;
-  }
-
-  .create-bar.compact :global(.tag-select) {
-    flex-basis: 112px;
-    min-width: 104px;
   }
 
   .create-bar :global(.tags-editor.compact) {

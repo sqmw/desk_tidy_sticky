@@ -23,7 +23,6 @@
     todayStats,
     onAddTask = () => {},
     onToggleWeekday = () => {},
-    onToggleTaskDone = () => {},
     onStartTask = () => {},
     onRemoveTask = () => {},
     onUpdateTask = () => {},
@@ -128,9 +127,7 @@
           {recurrence}
           {weekdays}
           {task}
-          completed={todayStats.completedTaskIds.includes(task.id)}
           donePomodoros={todayStats.taskPomodoros?.[task.id] || 0}
-          onToggleTaskDone={onToggleTaskDone}
           onStartTask={onStartTask}
           onRemoveTask={onRemoveTask}
           onUpdateTask={onUpdateTask}

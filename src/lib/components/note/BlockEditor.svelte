@@ -8,6 +8,7 @@
     parseMarkdownToBlocks,
     shortTypeLabel,
   } from "$lib/note/block-model.js";
+  import { renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
   import {
     applyBlockCommandAt,
     applyShortcutAt,
@@ -44,6 +45,7 @@
   let blocks = $state(parseMarkdownToBlocks(text));
   let lastSerializedText = text;
   let activeIndex = $state(0);
+  let editingBlockId = $state("");
   let slashVisible = $state(false);
   let slashIndex = $state(-1);
   let slashQuery = $state("");
@@ -52,12 +54,53 @@
   let dropIndex = $state(-1);
 
   const slashCommands = $derived(filterBlockCommands(slashQuery));
+  const blockPreviewHtml = $derived.by(() => {
+    /** @type {Map<string, string>} */
+    const previews = new Map();
+    for (const block of blocks) {
+      previews.set(block.id, renderNoteMarkdown(blocksToMarkdown([block])));
+    }
+    return previews;
+  });
 
   $effect(() => {
     if (text === lastSerializedText) return;
     blocks = parseMarkdownToBlocks(text);
     lastSerializedText = text;
   });
+
+  $effect(() => {
+    if (!Array.isArray(blocks) || blocks.length === 0) {
+      editingBlockId = "";
+      activeIndex = 0;
+      return;
+    }
+    if (blocks.some((block) => block.id === editingBlockId)) return;
+    const nextIndex = Math.max(0, Math.min(activeIndex, blocks.length - 1));
+    activeIndex = nextIndex;
+    editingBlockId = blocks[nextIndex]?.id ?? blocks[0].id;
+  });
+
+  /**
+   * @param {string} blockId
+   */
+  function blockIndexById(blockId) {
+    return blocks.findIndex((block) => block.id === blockId);
+  }
+
+  /**
+   * @param {{ id: string }} block
+   */
+  function isEditingBlock(block) {
+    return block.id === editingBlockId;
+  }
+
+  /**
+   * @param {{ id: string }} block
+   */
+  function getBlockPreview(block) {
+    return blockPreviewHtml.get(block.id) ?? "";
+  }
 
   function hideSlash() {
     slashVisible = false;
@@ -82,6 +125,11 @@
    * @param {number} pos
    */
   async function focusBlock(blockId, pos = 0) {
+    const index = blockIndexById(blockId);
+    if (index >= 0) {
+      activeIndex = index;
+      editingBlockId = blockId;
+    }
     await tick();
     const selector = `.block-input[data-block-id="${blockId}"]`;
     const input = /** @type {HTMLElement | null} */ (rootEl?.querySelector(selector));
@@ -161,10 +209,34 @@
    * @param {number} idx
    */
   function openTypeMenu(idx) {
+    const current = blocks[idx];
+    if (current) {
+      editingBlockId = current.id;
+    }
+    activeIndex = idx;
     slashVisible = true;
     slashIndex = idx;
     slashQuery = "";
     slashActive = 0;
+  }
+
+  /**
+   * @param {number} idx
+   */
+  async function activateBlockEditing(idx) {
+    const block = blocks[idx];
+    if (!block) return;
+    await focusBlock(block.id, block.text.length);
+  }
+
+  /**
+   * @param {number} idx
+   * @param {KeyboardEvent} event
+   */
+  function onBlockViewKeydown(idx, event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    activateBlockEditing(idx);
   }
 
   /**
@@ -372,6 +444,7 @@
       class="block-row"
       role="listitem"
       class:active={idx === activeIndex}
+      class:editing={isEditingBlock(block)}
       class:dragging={idx === dragFromIndex}
       class:drop-target={idx === dropIndex && dragFromIndex >= 0 && idx !== dragFromIndex}
       ondragover={(event) => onDragOver(idx, event)}
@@ -409,25 +482,42 @@
           aria-label="todo checked"
         />
       {/if}
-      <div
-        data-block-id={block.id}
-        contenteditable="true"
-        tabindex="0"
-        role="textbox"
-        aria-multiline={block.type === BLOCK_TYPE.CODE ? "true" : "false"}
-        class="block-input"
-        class:code={block.type === BLOCK_TYPE.CODE}
-        class:heading1={block.type === BLOCK_TYPE.HEADING1}
-        class:heading2={block.type === BLOCK_TYPE.HEADING2}
-        class:heading3={block.type === BLOCK_TYPE.HEADING3}
-        class:quote={block.type === BLOCK_TYPE.QUOTE}
-        data-placeholder={idx === 0 ? "Type '/' for blocks..." : ""}
-        onfocus={() => (activeIndex = idx)}
-        oninput={(event) => onBlockInput(idx, event)}
-        onkeydown={(event) => onBlockKeydown(idx, event)}
-        onpaste={(event) => onBlockPaste(idx, event)}
-      >{block.text}</div>
-      {#if slashVisible && slashIndex === idx && slashCommands.length > 0}
+      {#if isEditingBlock(block)}
+        <div
+          data-block-id={block.id}
+          contenteditable="true"
+          tabindex="0"
+          role="textbox"
+          aria-multiline={block.type === BLOCK_TYPE.CODE ? "true" : "false"}
+          class="block-input"
+          class:code={block.type === BLOCK_TYPE.CODE}
+          class:heading1={block.type === BLOCK_TYPE.HEADING1}
+          class:heading2={block.type === BLOCK_TYPE.HEADING2}
+          class:heading3={block.type === BLOCK_TYPE.HEADING3}
+          class:quote={block.type === BLOCK_TYPE.QUOTE}
+          data-placeholder={idx === 0 ? "Type '/' for blocks..." : ""}
+          onfocus={() => (activeIndex = idx)}
+          oninput={(event) => onBlockInput(idx, event)}
+          onkeydown={(event) => onBlockKeydown(idx, event)}
+          onpaste={(event) => onBlockPaste(idx, event)}
+        >{block.text}</div>
+      {:else}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="block-view"
+          class:code={block.type === BLOCK_TYPE.CODE}
+          class:heading1={block.type === BLOCK_TYPE.HEADING1}
+          class:heading2={block.type === BLOCK_TYPE.HEADING2}
+          class:heading3={block.type === BLOCK_TYPE.HEADING3}
+          class:quote={block.type === BLOCK_TYPE.QUOTE}
+          role="button"
+          tabindex="0"
+          onclick={() => activateBlockEditing(idx)}
+          onkeydown={(event) => onBlockViewKeydown(idx, event)}
+          data-placeholder={idx === 0 ? "Type '/' for blocks..." : ""}
+        >{@html getBlockPreview(block)}</div>
+      {/if}
+      {#if slashVisible && slashIndex === idx && isEditingBlock(block) && slashCommands.length > 0}
         <div class="slash-menu">
           {#each slashCommands as cmd, cmdIdx (cmd.key)}
             <button
@@ -479,7 +569,11 @@
 
   .block-row:hover,
   .block-row.active {
-    background: rgba(255, 255, 255, 0.46);
+    background: rgba(255, 255, 255, 0.32);
+  }
+
+  .block-row.editing {
+    background: rgba(255, 255, 255, 0.52);
   }
 
   .block-row.dragging {
@@ -500,6 +594,16 @@
     cursor: grab;
     margin-top: 2px;
     padding: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  .block-row:hover .drag-chip,
+  .block-row.active .drag-chip,
+  .block-row.editing .drag-chip {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .drag-chip:hover {
@@ -529,6 +633,16 @@
     color: #475569;
     cursor: pointer;
     margin-top: 2px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  .block-row:hover .type-chip,
+  .block-row.active .type-chip,
+  .block-row.editing .type-chip {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .type-chip:hover {
@@ -549,6 +663,16 @@
     line-height: 1;
     font-weight: 700;
     padding: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  .block-row:hover .add-chip,
+  .block-row.active .add-chip,
+  .block-row.editing .add-chip {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .add-chip:hover {
@@ -562,6 +686,92 @@
     width: 14px;
     height: 14px;
     accent-color: #0f4c81;
+    opacity: 0.45;
+    transition: opacity 0.15s ease;
+  }
+
+  .block-row:hover .todo-check,
+  .block-row.active .todo-check,
+  .block-row.editing .todo-check {
+    opacity: 1;
+  }
+
+  .block-view {
+    width: 100%;
+    min-height: 24px;
+    border-radius: 8px;
+    padding: 6px 8px;
+    color: var(--note-text-color, #1f2937);
+    font-family: "Segoe UI", sans-serif;
+    line-height: 1.45;
+    font-size: 15px;
+    cursor: text;
+    outline: none;
+    white-space: normal;
+    word-break: break-word;
+    transition: background 0.12s ease;
+  }
+
+  .block-view:hover {
+    background: rgba(255, 255, 255, 0.42);
+  }
+
+  .block-view:focus-visible {
+    background: rgba(255, 255, 255, 0.62);
+    box-shadow: 0 0 0 2px rgba(15, 76, 129, 0.2);
+  }
+
+  .block-view :global(*) {
+    margin: 0;
+    line-height: 1.45;
+  }
+
+  .block-view :global(p + p),
+  .block-view :global(li + li) {
+    margin-top: 4px;
+  }
+
+  .block-view :global(ul),
+  .block-view :global(ol) {
+    margin-left: 18px;
+    padding-left: 0;
+  }
+
+  .block-view :global(h1) {
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+
+  .block-view :global(h2) {
+    font-size: 1.08rem;
+    font-weight: 700;
+  }
+
+  .block-view :global(h3) {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .block-view :global(pre) {
+    margin: 0;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.08);
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .block-view :global(blockquote) {
+    margin: 0;
+    border-left: 3px solid rgba(15, 76, 129, 0.38);
+    padding-left: 8px;
+    background: rgba(255, 255, 255, 0.24);
+    border-radius: 4px;
+  }
+
+  .block-view:empty::before {
+    content: attr(data-placeholder);
+    color: rgba(100, 116, 139, 0.85);
+    pointer-events: none;
   }
 
   .block-input {
@@ -575,7 +785,10 @@
     word-break: break-word;
     line-height: 1.45;
     font-size: 15px;
-    padding: 4px 0;
+    padding: 6px 8px;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.45);
+    background: rgba(255, 255, 255, 0.62);
     font-family: "Segoe UI", sans-serif;
   }
 
@@ -602,7 +815,7 @@
 
   .block-input.quote {
     border-left: 3px solid rgba(15, 76, 129, 0.38);
-    padding-left: 8px;
+    padding-left: 12px;
     background: rgba(255, 255, 255, 0.22);
     border-radius: 4px;
   }

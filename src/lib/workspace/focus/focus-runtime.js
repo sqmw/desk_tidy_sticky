@@ -104,26 +104,6 @@ export function phaseLabel(phase, strings) {
 }
 
 /**
- * @param {Record<string, any>} stats
- * @param {string} todayKey
- * @param {string} taskId
- */
-export function toggleTaskDoneInStats(stats, todayKey, taskId) {
-  const day = ensureDayStats(stats, todayKey);
-  const has = day.completedTaskIds.includes(taskId);
-  const completedTaskIds = has
-    ? day.completedTaskIds.filter((/** @type {string} */ id) => id !== taskId)
-    : [...day.completedTaskIds, taskId];
-  return {
-    ...stats,
-    [todayKey]: {
-      ...day,
-      completedTaskIds,
-    },
-  };
-}
-
-/**
  * @param {any[]} tasks
  * @param {Record<string, any>} stats
  * @param {string} taskId
@@ -200,6 +180,16 @@ export function applyFocusCompleted(stats, todayKey, selectedTaskId, focusMinute
 }
 
 /**
+ * @param {any} task
+ * @param {any} todayStats
+ */
+export function isFocusTaskCompleted(task, todayStats) {
+  const safeTarget = Math.max(1, Number(task?.targetPomodoros || 1));
+  const donePomodoros = Number(todayStats?.taskPomodoros?.[task?.id] || 0);
+  return donePomodoros >= safeTarget;
+}
+
+/**
  * @param {{
  * id?: string;
  * title: string;
@@ -231,7 +221,7 @@ export function buildFocusTaskFromDraft(draft) {
  * @param {any} todayStats
  */
 export function buildTodaySummary(todayTasks, todayStats) {
-  const completedCount = todayTasks.filter((task) => todayStats.completedTaskIds.includes(task.id)).length;
+  const completedCount = todayTasks.filter((task) => isFocusTaskCompleted(task, todayStats)).length;
   const targetPomodoros = todayTasks.reduce((sum, task) => sum + Number(task.targetPomodoros || 1), 0);
   const donePomodoros = todayTasks.reduce(
     (sum, task) => sum + Number(todayStats.taskPomodoros?.[task.id] || 0),

@@ -36,6 +36,7 @@
   let locale = $state("en");
   let newNoteText = $state("");
   let newNotePriority = $state(/** @type {number | null} */ (null));
+  let newNoteTags = $state(/** @type {string[]} */ ([]));
   let showEditDialog = $state(false);
   /** @type {any} */
   let editingNote = $state(null);
@@ -120,6 +121,23 @@
     return renderedNotes.find((n) => n.id === drag.draggedNoteId) ?? null;
   });
 
+  const noteTagOptions = $derived.by(() => {
+    /** @type {Map<string, string>} */
+    const bucket = new Map();
+    for (const note of notes) {
+      if (!Array.isArray(note?.tags)) continue;
+      for (const rawTag of note.tags) {
+        const text = String(rawTag || "").trim().replace(/^#+/, "").trim();
+        if (!text) continue;
+        const key = text.toLocaleLowerCase();
+        if (!bucket.has(key)) {
+          bucket.set(key, text);
+        }
+      }
+    }
+    return [...bucket.values()].sort((a, b) => a.localeCompare(b)).slice(0, 80);
+  });
+
   const windowSync = createWindowSync({
     getNotes: () => notes,
     getStickiesVisible: () => stickiesVisible,
@@ -150,6 +168,10 @@
     getNewNotePriority: () => newNotePriority,
     setNewNotePriority: (v) => {
       newNotePriority = v;
+    },
+    getNewNoteTags: () => newNoteTags,
+    setNewNoteTags: (v) => {
+      newNoteTags = v;
     },
     getNotes: () => notes,
     setNotes: (v) => {
@@ -440,6 +462,8 @@
       {glassOpacity}
       bind:newNoteText
       bind:newNotePriority
+      bind:newNoteTags
+      {noteTagOptions}
       bind:noteInputEl
       {viewMode}
       {sortMode}

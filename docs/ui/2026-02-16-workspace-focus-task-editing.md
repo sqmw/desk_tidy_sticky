@@ -39,3 +39,6 @@
 
 ## 风险
 - 本次未增加“时间区间合法性校验（开始 >= 结束）”的强约束，仍沿用现有输入容错策略。
+
+## 相关文档
+- `docs/ui/2026-02-16-workspace-focus-recurring-auto-complete.md`

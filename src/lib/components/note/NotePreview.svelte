@@ -29,7 +29,10 @@
 
   .preview-markdown :global(h1),
   .preview-markdown :global(h2),
-  .preview-markdown :global(h3) {
+  .preview-markdown :global(h3),
+  .preview-markdown :global(h4),
+  .preview-markdown :global(h5),
+  .preview-markdown :global(h6) {
     margin: 0 0 8px;
     line-height: 1.3;
   }
@@ -44,6 +47,18 @@
 
   .preview-markdown :global(h3) {
     font-size: 0.98rem;
+  }
+
+  .preview-markdown :global(h4) {
+    font-size: 0.92rem;
+  }
+
+  .preview-markdown :global(h5) {
+    font-size: 0.88rem;
+  }
+
+  .preview-markdown :global(h6) {
+    font-size: 0.84rem;
   }
 
   .preview-markdown :global(p) {
