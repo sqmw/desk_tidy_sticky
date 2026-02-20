@@ -7,50 +7,135 @@
     BREAK_OVERLAY_EVENT_READY,
     BREAK_OVERLAY_EVENT_UPDATE,
   } from "$lib/workspace/focus/focus-break-overlay-windows.js";
+  const currentWindow = getCurrentWindow();
 
   let title = $state("Take a break");
-  let hint = $state("Break reminder");
-  let actionHint = $state("Use the buttons below to continue.");
-  let startText = $state("Start break");
-  let postponeText = $state("Postpone");
+  let taskText = $state("");
+  let remainingText = $state("Remaining 00:00");
+  let remainingPrefix = $state("Remaining");
+  let remainingSeconds = $state(0);
+  let totalSeconds = $state(1);
+  let endAtTs = $state(0);
+  let progress = $state(0);
+  let postponeText = $state("Postpone 2m");
   let skipText = $state("Skip");
+  let showSkip = $state(false);
   let strictMode = $state(false);
   let strictModeText = $state("Strict mode");
-  let postponeUsed = $state(0);
-  let postponeLimit = $state(0);
-  let postponeDisabled = $state(true);
+  let postponeDisabled = $state(false);
   let skipDisabled = $state(true);
+  let hasReceivedPayload = $state(false);
+  let selfClosing = false;
+
+  /**
+   * @param {string} [label]
+   */
+  async function requestOverlayState(label = "") {
+    await emit(BREAK_OVERLAY_EVENT_READY, { label: String(label || "") });
+  }
+
+  /**
+   * @param {number} sec
+   */
+  function formatMmSs(sec) {
+    const safe = Math.max(0, Math.floor(sec));
+    const mm = String(Math.floor(safe / 60)).padStart(2, "0");
+    const ss = String(safe % 60).padStart(2, "0");
+    return `${mm}:${ss}`;
+  }
+
+  async function closeSelf() {
+    if (selfClosing) return;
+    selfClosing = true;
+    try {
+      await currentWindow.destroy();
+      return;
+    } catch (destroyError) {
+      console.error("break overlay destroy self, fallback close", destroyError);
+    }
+    try {
+      try {
+        await currentWindow.hide();
+      } catch (_) {
+        // noop
+      }
+      await currentWindow.close();
+    } catch (closeError) {
+      console.error("break overlay close self", closeError);
+    }
+  }
 
   /**
    * @param {any} payload
    */
   function applyOverlayState(payload) {
     const safe = payload && typeof payload === "object" ? payload : {};
+    hasReceivedPayload = true;
+    if (safe.close === true) {
+      closeSelf();
+      return;
+    }
     title = String(safe.title || "Take a break");
-    hint = String(safe.hint || "Break reminder");
-    actionHint = String(safe.actionHint || "Use the buttons below to continue.");
-    startText = String(safe.startText || "Start break");
-    postponeText = String(safe.postponeText || "Postpone");
+    taskText = String(safe.taskText || "");
+    remainingPrefix = String(safe.remainingPrefix || remainingPrefix || "Remaining");
+    remainingText = String(safe.remainingText || `${remainingPrefix} 00:00`);
+    progress = Math.max(0, Math.min(100, Number(safe.progress || 0)));
+    totalSeconds = Math.max(1, Math.floor(Number(safe.totalSeconds || totalSeconds || 1)));
+    const incomingRemaining = Math.max(0, Math.floor(Number(safe.remainingSeconds || 0)));
+    remainingSeconds = incomingRemaining;
+    const incomingEndTs = Number(safe.endAtTs || 0);
+    endAtTs = Number.isFinite(incomingEndTs) && incomingEndTs > 0
+      ? incomingEndTs
+      : (Date.now() + incomingRemaining * 1000);
+    if (Number(safe.remainingSeconds) <= 0) {
+      closeSelf();
+      return;
+    }
+    postponeText = String(safe.postponeText || "Postpone 2m");
     skipText = String(safe.skipText || "Skip");
+    showSkip = safe.showSkip === true;
     strictMode = safe.strictMode === true;
     strictModeText = String(safe.strictModeText || "Strict mode");
-    postponeUsed = Math.max(0, Number(safe.postponeUsed || 0));
-    postponeLimit = Math.max(0, Number(safe.postponeLimit || 0));
-    postponeDisabled = safe.postponeDisabled !== false;
+    postponeDisabled = safe.postponeDisabled === true;
     skipDisabled = safe.skipDisabled !== false;
   }
 
   /**
-   * @param {"start" | "postpone" | "skip"} action
+   * @param {"postpone" | "skip"} action
    */
   async function emitOverlayAction(action) {
-    await emit(BREAK_OVERLAY_EVENT_ACTION, { action });
+    try {
+      await emit(BREAK_OVERLAY_EVENT_ACTION, { action });
+    } finally {
+      // Close locally to avoid stuck full-screen when host event path is delayed.
+      closeSelf();
+    }
   }
 
   onMount(() => {
     let stopped = false;
     /** @type {null | (() => void)} */
     let unlistenUpdate = null;
+    /** @type {null | number} */
+    let handshakeTimer = null;
+    const bootTs = Date.now();
+    const localTick = setInterval(() => {
+      if (stopped) return;
+      if (!hasReceivedPayload) {
+        if (Date.now() - bootTs > 12000) {
+          closeSelf();
+        }
+        return;
+      }
+      if (!Number.isFinite(endAtTs) || endAtTs <= 0) return;
+      const rest = Math.max(0, Math.ceil((endAtTs - Date.now()) / 1000));
+      remainingSeconds = rest;
+      remainingText = `${remainingPrefix} ${formatMmSs(rest)}`;
+      progress = Math.max(0, Math.min(100, Math.round(((totalSeconds - rest) / Math.max(1, totalSeconds)) * 100)));
+      if (rest <= 0) {
+        closeSelf();
+      }
+    }, 200);
 
     const boot = async () => {
       const appWindow = getCurrentWindow();
@@ -63,16 +148,28 @@
       }
 
       try {
-        await emit(BREAK_OVERLAY_EVENT_READY, { label: appWindow.label });
+        await requestOverlayState(appWindow.label);
       } catch (error) {
         console.error("break overlay ready emit", error);
       }
+
+      // Retry handshake to avoid race between overlay boot and host listener registration.
+      handshakeTimer = window.setInterval(() => {
+        if (stopped || hasReceivedPayload) return;
+        requestOverlayState(appWindow.label).catch((error) =>
+          console.error("break overlay ready retry emit", error),
+        );
+      }, 500);
     };
 
     boot();
 
     return () => {
       stopped = true;
+      clearInterval(localTick);
+      if (handshakeTimer !== null) {
+        clearInterval(handshakeTimer);
+      }
       if (!stopped || !unlistenUpdate) return;
       try {
         unlistenUpdate();
@@ -84,31 +181,34 @@
 </script>
 
 <main class="overlay-shell">
-  <section class="overlay-card" data-no-drag="true">
+  <section class="overlay-center" data-no-drag="true">
     <h1>{title}</h1>
-    <p class="hint">{hint}</p>
-    <p class="action-hint">
-      {actionHint}
-      {#if strictMode}
-        · {strictModeText}
-      {/if}
-    </p>
-    <div class="action-row">
-      <button type="button" class="btn primary" onclick={() => emitOverlayAction("start")}>
-        {startText}
-      </button>
-      <button
-        type="button"
-        class="btn"
-        disabled={postponeDisabled}
-        onclick={() => emitOverlayAction("postpone")}
-      >
-        {postponeText} ({postponeUsed}/{postponeLimit})
-      </button>
-      <button type="button" class="btn" disabled={skipDisabled} onclick={() => emitOverlayAction("skip")}>
+    {#if taskText}
+      <p class="task">{taskText}</p>
+    {/if}
+    <div class="progress-track" aria-hidden="true">
+      <span class="progress-fill" style={`width:${progress}%`}></span>
+    </div>
+    <p class="remaining">{remainingText}</p>
+  </section>
+
+  <section class="overlay-bottom" data-no-drag="true">
+    <button
+      type="button"
+      class="action-link"
+      disabled={postponeDisabled}
+      onclick={() => emitOverlayAction("postpone")}
+    >
+      {postponeText}
+    </button>
+    {#if showSkip}
+      <button type="button" class="action-link" disabled={skipDisabled} onclick={() => emitOverlayAction("skip")}>
         {skipText}
       </button>
-    </div>
+    {/if}
+    {#if strictMode}
+      <span class="strict">{strictModeText}</span>
+    {/if}
   </section>
 </main>
 
@@ -131,88 +231,102 @@
     width: 100vw;
     height: 100vh;
     display: grid;
-    place-items: center;
-    padding: 20px;
-    background:
-      radial-gradient(circle at 20% 16%, rgba(125, 211, 252, 0.18), transparent 42%),
-      radial-gradient(circle at 80% 84%, rgba(34, 197, 94, 0.15), transparent 46%),
-      linear-gradient(155deg, #081426 0%, #0d1d33 46%, #0a1729 100%);
-    color: #e7f0ff;
+    grid-template-rows: 1fr auto;
+    justify-items: center;
+    align-items: center;
+    padding: 36px 20px 26px;
+    background: #4f989b;
+    color: #f8fbff;
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
   }
 
-  .overlay-card {
-    width: min(720px, calc(100vw - 24px));
-    border: 1px solid rgba(147, 197, 253, 0.42);
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgba(15, 34, 58, 0.92) 0%, rgba(10, 24, 42, 0.9) 100%);
-    box-shadow: 0 28px 64px rgba(2, 6, 23, 0.58);
-    padding: 22px 20px 20px;
+  .overlay-center {
+    width: min(980px, calc(100vw - 40px));
     display: grid;
-    gap: 12px;
+    gap: 18px;
     text-align: center;
+    align-content: center;
   }
 
-  .overlay-card h1 {
+  .overlay-center h1 {
     margin: 0;
-    font-size: clamp(30px, 4.6vw, 52px);
+    font-size: clamp(34px, 4vw, 56px);
+    font-weight: 500;
     line-height: 1.16;
-    color: #f8fbff;
+    color: rgba(255, 255, 255, 0.96);
   }
 
-  .hint {
+  .task {
     margin: 0;
-    font-size: clamp(15px, 1.6vw, 20px);
-    color: #d4e4ff;
+    font-size: clamp(16px, 1.8vw, 22px);
+    color: rgba(240, 249, 255, 0.9);
   }
 
-  .action-hint {
+  .progress-track {
+    width: min(680px, calc(100vw - 90px));
+    height: 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.24);
+    overflow: hidden;
+    margin: 0 auto;
+  }
+
+  .progress-fill {
+    display: block;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.88);
+    transition: width 160ms linear;
+  }
+
+  .remaining {
     margin: 0;
-    font-size: 13px;
-    color: #9fb3d2;
+    font-size: clamp(22px, 2.2vw, 34px);
+    color: rgba(255, 255, 255, 0.95);
   }
 
-  .action-row {
-    margin-top: 4px;
+  .overlay-bottom {
     display: flex;
-    justify-content: center;
     align-items: center;
-    gap: 8px;
+    justify-content: center;
+    gap: 18px;
+    min-height: 54px;
     flex-wrap: wrap;
   }
 
-  .btn {
-    border: 1px solid rgba(148, 163, 184, 0.44);
-    border-radius: 10px;
-    background: rgba(15, 23, 42, 0.5);
-    color: #dbeafe;
-    min-height: 38px;
-    padding: 0 14px;
-    font-size: 13px;
+  .action-link {
+    border: 0;
+    background: transparent;
+    color: rgba(250, 254, 255, 0.95);
+    font-size: 34px;
+    font-weight: 300;
     cursor: pointer;
+    padding: 0;
+    min-height: 44px;
+    line-height: 1;
   }
 
-  .btn.primary {
-    border-color: rgba(96, 165, 250, 0.58);
-    background: linear-gradient(180deg, #2563eb 0%, #1e40af 100%);
-    color: #f8fbff;
-    font-weight: 700;
-  }
-
-  .btn:disabled {
+  .action-link:disabled {
     opacity: 0.45;
     cursor: not-allowed;
   }
 
+  .strict {
+    font-size: 16px;
+    color: rgba(241, 245, 249, 0.85);
+  }
+
   @media (max-width: 780px) {
     .overlay-shell {
-      padding: 12px;
+      padding: 20px 12px 16px;
     }
 
-    .overlay-card {
-      width: min(560px, calc(100vw - 14px));
-      padding: 16px 14px 14px;
-      gap: 10px;
+    .overlay-center {
+      gap: 14px;
+    }
+
+    .action-link {
+      font-size: 26px;
     }
   }
 </style>

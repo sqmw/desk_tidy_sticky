@@ -121,6 +121,7 @@
   let viewportHeight = $state(860);
   let viewportDpr = $state(1);
   let pomodoroConfig = $state({
+    breakReminderEnabled: true,
     focusMinutes: 25,
     shortBreakMinutes: 5,
     longBreakMinutes: 15,

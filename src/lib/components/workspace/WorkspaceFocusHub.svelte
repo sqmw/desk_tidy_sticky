@@ -34,7 +34,6 @@
     getBreakSessionRemainingText,
     isBreakSessionActive,
     normalizeBreakSession,
-    shouldSuppressBreakPromptBySession,
   } from "$lib/workspace/focus/focus-break-session.js";
   import {
     BREAK_KIND_LONG,
@@ -61,6 +60,7 @@
     BREAK_OVERLAY_EVENT_ACTION,
     BREAK_OVERLAY_EVENT_READY,
     closeBreakOverlayWindows,
+    closeBreakOverlayWindowsByLabels,
     emitBreakOverlayState,
     ensureBreakOverlayWindows,
   } from "$lib/workspace/focus/focus-break-overlay-windows.js";
@@ -80,6 +80,7 @@
       taskTitle: "",
     },
     pomodoroConfig = {
+      breakReminderEnabled: true,
       focusMinutes: 25,
       shortBreakMinutes: 5,
       longBreakMinutes: 15,
@@ -143,11 +144,17 @@
   let lastBreakReminderAtSec = $state(-1);
   let notifyEnabled = $state(false);
   let notifyChecked = $state(false);
-  /** @type {{ kind: "mini" | "long"; dueAt: number; postponeUsed: number } | null} */
-  let breakPrompt = $state(null);
   /** @type {string[]} */
   let breakOverlayLabels = $state([]);
   let breakOverlaySyncNonce = 0;
+  let overlayLifecycleActive = false;
+  let overlayClosing = false;
+  let overlaySyncInFlight = false;
+  let overlaySyncQueued = false;
+  let lastOverlayPayloadKey = "";
+  /** @type {"mini" | "long" | ""} */
+  let activeBreakKind = $state("");
+  let skipUnlockedAfterPostpone = $state(false);
   let localBreakSession = $state({
     mode: BREAK_SESSION_NONE,
     untilTs: 0,
@@ -210,6 +217,9 @@
   const nextLongBreakCountdown = $derived(Math.max(0, nextLongBreakAtSec - focusSinceBreakSec));
   const breakSessionActive = $derived(isBreakSessionActive(localBreakSession, nowTick));
   const breakSessionRemainingText = $derived(getBreakSessionRemainingText(localBreakSession, nowTick));
+  const breakTimerActive = $derived(
+    Boolean(activeBreakKind) && (phase === PHASE_SHORT_BREAK || phase === PHASE_LONG_BREAK),
+  );
 
   /** @param {number} sec */
   function formatTimer(sec) {
@@ -288,19 +298,11 @@
   }
 
   /** @param {"mini" | "long"} kind */
-  function openBreakPrompt(kind) {
-    if (breakPrompt && breakPrompt.kind === kind) return;
-    const dueAt = kind === BREAK_KIND_LONG ? nextLongBreakAtSec : nextMiniBreakAtSec;
-    breakPrompt = { kind, dueAt, postponeUsed: 0 };
-    running = false;
-  }
-
-  /** @param {"mini" | "long"} kind */
   function applyBreakNow(kind) {
-    breakPrompt = null;
-    focusSinceBreakSec = 0;
+    activeBreakKind = kind;
     lastBreakReminderAtSec = -1;
     if (kind === BREAK_KIND_LONG) {
+      focusSinceBreakSec = 0;
       phase = PHASE_LONG_BREAK;
       remainingSec = breakPlanSec.longDurationSec;
       nextLongBreakAtSec = breakPlanSec.longEverySec;
@@ -308,7 +310,8 @@
     } else {
       phase = PHASE_SHORT_BREAK;
       remainingSec = breakPlanSec.miniDurationSec;
-      nextMiniBreakAtSec = breakPlanSec.miniEverySec;
+      // Mini break should not reset the long-break countdown.
+      nextMiniBreakAtSec = focusSinceBreakSec + breakPlanSec.miniEverySec;
     }
     nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
     nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
@@ -317,43 +320,74 @@
   }
 
   function postponeBreak() {
-    if (!breakPrompt) return;
+    if (!activeBreakKind) return;
     if (safeConfig.breakStrictMode) return;
-    if (breakPrompt.postponeUsed >= safeConfig.breakPostponeLimit) return;
-    const deltaSec =
-      breakPrompt.kind === BREAK_KIND_LONG
-        ? safeConfig.longBreakPostponeMinutes * 60
-        : safeConfig.miniBreakPostponeMinutes * 60;
-    if (breakPrompt.kind === BREAK_KIND_LONG) {
-      nextLongBreakAtSec += deltaSec;
+    const deltaSec = 2 * 60;
+    if (activeBreakKind === BREAK_KIND_LONG) {
+      nextLongBreakAtSec = focusSinceBreakSec + deltaSec;
       nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
     } else {
-      nextMiniBreakAtSec += deltaSec;
+      nextMiniBreakAtSec = focusSinceBreakSec + deltaSec;
       nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
     }
-    breakPrompt = {
-      ...breakPrompt,
-      dueAt: breakPrompt.dueAt + deltaSec,
-      postponeUsed: breakPrompt.postponeUsed + 1,
-    };
-    if (breakPrompt.postponeUsed >= safeConfig.breakPostponeLimit) {
-      breakPrompt = null;
-    }
+    activeBreakKind = "";
+    skipUnlockedAfterPostpone = true;
+    phase = PHASE_FOCUS;
+    remainingSec = getPhaseDurationSec(PHASE_FOCUS, safeConfig);
+    hasStarted = true;
     running = true;
   }
 
   function skipBreak() {
-    if (!breakPrompt) return;
+    if (!activeBreakKind) return;
     if (safeConfig.breakStrictMode) return;
-    if (breakPrompt.kind === BREAK_KIND_LONG) {
+    if (!skipUnlockedAfterPostpone) return;
+    if (activeBreakKind === BREAK_KIND_LONG) {
       nextLongBreakAtSec = focusSinceBreakSec + breakPlanSec.longEverySec;
       nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
     } else {
       nextMiniBreakAtSec = focusSinceBreakSec + breakPlanSec.miniEverySec;
       nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
     }
-    breakPrompt = null;
+    activeBreakKind = "";
+    skipUnlockedAfterPostpone = false;
+    phase = PHASE_FOCUS;
+    remainingSec = getPhaseDurationSec(PHASE_FOCUS, safeConfig);
+    hasStarted = true;
     running = true;
+  }
+
+  function tickBreakReminderClock() {
+    nowTick = Date.now();
+    if (!safeConfig.breakReminderEnabled) return;
+    focusSinceBreakSec += 1;
+    if (
+      breakPlanSec.notifyBeforeSec > 0 &&
+      focusSinceBreakSec >= nextLongWarnAtSec &&
+      focusSinceBreakSec < nextLongBreakAtSec &&
+      lastBreakReminderAtSec !== nextLongWarnAtSec
+    ) {
+      lastBreakReminderAtSec = nextLongWarnAtSec;
+      notifyBreak("warn", BREAK_KIND_LONG);
+    } else if (
+      breakPlanSec.notifyBeforeSec > 0 &&
+      focusSinceBreakSec >= nextMiniWarnAtSec &&
+      focusSinceBreakSec < nextMiniBreakAtSec &&
+      lastBreakReminderAtSec !== nextMiniWarnAtSec
+    ) {
+      lastBreakReminderAtSec = nextMiniWarnAtSec;
+      notifyBreak("warn", BREAK_KIND_MINI);
+    }
+    const dueKind = focusSinceBreakSec >= nextLongBreakAtSec
+      ? BREAK_KIND_LONG
+      : (focusSinceBreakSec >= nextMiniBreakAtSec ? BREAK_KIND_MINI : "");
+    if (!dueKind) return;
+    const dueAt = dueKind === BREAK_KIND_LONG ? nextLongBreakAtSec : nextMiniBreakAtSec;
+    if (lastBreakReminderAtSec !== dueAt) {
+      lastBreakReminderAtSec = dueAt;
+      notifyBreak("start", dueKind);
+    }
+    applyBreakNow(dueKind);
   }
 
   /**
@@ -361,17 +395,93 @@
    * @param {number} minutes
    */
   function changeIndependentBreakEveryMinutes(kind, minutes) {
+    const safeMinutes = kind === "mini"
+      ? clampInt(minutes, safeConfig.independentMiniBreakEveryMinutes, 1, 180)
+      : clampInt(minutes, safeConfig.independentLongBreakEveryMinutes, 1, 360);
     const next = {
       ...safeConfig,
       independentMiniBreakEveryMinutes: kind === "mini"
-        ? clampInt(minutes, safeConfig.independentMiniBreakEveryMinutes, 5, 180)
+        ? safeMinutes
         : safeConfig.independentMiniBreakEveryMinutes,
       independentLongBreakEveryMinutes: kind === "long"
-        ? clampInt(minutes, safeConfig.independentLongBreakEveryMinutes, 15, 360)
+        ? safeMinutes
         : safeConfig.independentLongBreakEveryMinutes,
+      // Keep default cadence in sync so selected-task mode also reflects the change.
+      miniBreakEveryMinutes: kind === "mini" ? safeMinutes : safeConfig.miniBreakEveryMinutes,
+      longBreakEveryMinutes: kind === "long" ? safeMinutes : safeConfig.longBreakEveryMinutes,
     };
     Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
       console.error("change independent break intervals", e),
+    );
+    if (selectedTask?.id && selectedTaskBreakProfile) {
+      const nextProfile = {
+        miniBreakEveryMinutes: kind === "mini"
+          ? safeMinutes
+          : Number(selectedTaskBreakProfile.miniBreakEveryMinutes || safeConfig.miniBreakEveryMinutes),
+        longBreakEveryMinutes: kind === "long"
+          ? safeMinutes
+          : Number(selectedTaskBreakProfile.longBreakEveryMinutes || safeConfig.longBreakEveryMinutes),
+      };
+      updateTask(selectedTask.id, { breakProfile: nextProfile });
+    }
+  }
+
+  /**
+   * @param {"mini" | "long"} kind
+   * @param {number} value
+   */
+  function changeBreakDuration(kind, value) {
+    const next = {
+      ...safeConfig,
+      miniBreakDurationSeconds: kind === "mini"
+        ? clampInt(value, safeConfig.miniBreakDurationSeconds, 10, 300)
+        : safeConfig.miniBreakDurationSeconds,
+      longBreakDurationMinutes: kind === "long"
+        ? clampInt(value, safeConfig.longBreakDurationMinutes, 1, 30)
+        : safeConfig.longBreakDurationMinutes,
+    };
+    Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
+      console.error("change break duration", e),
+    );
+  }
+
+  /**
+   * @param {"mini" | "long"} kind
+   * @param {number} seconds
+   */
+  function scheduleBreakSoon(kind, seconds = 10) {
+    const safeSec = clampInt(seconds, 10, 10, 600);
+    if (kind === "long") {
+      nextLongBreakAtSec = focusSinceBreakSec + safeSec;
+      nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
+      return;
+    }
+    nextMiniBreakAtSec = focusSinceBreakSec + safeSec;
+    nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
+  }
+
+  /**
+   * @param {boolean} enabled
+   */
+  function setBreakReminderEnabled(enabled) {
+    const nextEnabled = enabled === true;
+    if (nextEnabled === safeConfig.breakReminderEnabled) return;
+    if (!nextEnabled) {
+      activeBreakKind = "";
+    } else {
+      focusSinceBreakSec = 0;
+      lastBreakReminderAtSec = -1;
+      nextMiniBreakAtSec = breakPlanSec.miniEverySec;
+      nextLongBreakAtSec = breakPlanSec.longEverySec;
+      nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
+      nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
+    }
+    const next = {
+      ...safeConfig,
+      breakReminderEnabled: nextEnabled,
+    };
+    Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
+      console.error("toggle break reminder", e),
     );
   }
 
@@ -467,13 +577,13 @@
             miniBreakEveryMinutes: clampInt(
               draftTaskMiniBreakEveryMinutes,
               safeConfig.miniBreakEveryMinutes,
-              5,
+              1,
               180,
             ),
             longBreakEveryMinutes: clampInt(
               draftTaskLongBreakEveryMinutes,
               safeConfig.longBreakEveryMinutes,
-              15,
+              1,
               360,
             ),
           },
@@ -506,7 +616,7 @@
       miniBreakEveryMinutes: clampInt(
         draftMiniBreakEveryMinutes,
         safeConfig.miniBreakEveryMinutes,
-        5,
+        1,
         60,
       ),
       miniBreakDurationSeconds: clampInt(
@@ -518,7 +628,7 @@
       longBreakEveryMinutes: clampInt(
         draftLongBreakEveryMinutes,
         safeConfig.longBreakEveryMinutes,
-        15,
+        1,
         180,
       ),
       longBreakDurationMinutes: clampInt(
@@ -602,6 +712,100 @@
           isMini ? formatSecondsBrief(breakPlanSec.miniDurationSec) : `${safeConfig.longBreakDurationMinutes}m`
         }`;
     await sendDesktopNotification(title, body);
+  }
+
+  /**
+   * @returns {Record<string, any>}
+   */
+  function buildBreakOverlayPayload() {
+    const isLong = phase === PHASE_LONG_BREAK || activeBreakKind === BREAK_KIND_LONG;
+    const totalSec = isLong ? breakPlanSec.longDurationSec : breakPlanSec.miniDurationSec;
+    const safeTotal = Math.max(1, Math.floor(totalSec));
+    const safeRemaining = Math.max(0, Math.floor(remainingSec));
+    const progress = Math.max(0, Math.min(100, Math.round(((safeTotal - safeRemaining) / safeTotal) * 100)));
+    return {
+      title: isLong
+        ? (strings.pomodoroLongBreakNow || "Take a long break")
+        : (strings.pomodoroMiniBreakNow || "Take a mini break"),
+      taskText: selectedTask ? selectedTask.title : (strings.pomodoroNoTaskSelected || "Not selected"),
+      remainingPrefix: strings.pomodoroBreakRemaining || "Remaining",
+      remainingText: `${strings.pomodoroBreakRemaining || "Remaining"} ${formatTimer(safeRemaining)}`,
+      remainingSeconds: safeRemaining,
+      totalSeconds: safeTotal,
+      endAtTs: Date.now() + safeRemaining * 1000,
+      progress,
+      postponeText: strings.pomodoroBreakPostponeTwoMinutes || "Postpone 2m",
+      skipText: strings.pomodoroSkip || "Skip",
+      showSkip: skipUnlockedAfterPostpone === true,
+      postponeDisabled: safeConfig.breakStrictMode === true,
+      skipDisabled: safeConfig.breakStrictMode === true || !skipUnlockedAfterPostpone,
+      strictMode: safeConfig.breakStrictMode === true,
+      strictModeText: strings.pomodoroBreakStrictMode || "Strict mode",
+    };
+  }
+
+  async function syncBreakOverlay() {
+    if (!breakTimerActive) return;
+    if (overlayClosing) return;
+    if (overlaySyncInFlight) {
+      overlaySyncQueued = true;
+      return;
+    }
+    overlaySyncInFlight = true;
+    try {
+      let labels = breakOverlayLabels;
+      if (!Array.isArray(labels) || labels.length === 0) {
+        labels = await ensureBreakOverlayWindows();
+        breakOverlayLabels = labels;
+      }
+      if (!Array.isArray(labels) || labels.length === 0) return;
+      const payload = buildBreakOverlayPayload();
+      const payloadKey = [
+        payload.title,
+        payload.taskText,
+        payload.remainingSeconds,
+        payload.progress,
+        payload.showSkip ? 1 : 0,
+        payload.postponeDisabled ? 1 : 0,
+        payload.skipDisabled ? 1 : 0,
+        payload.strictMode ? 1 : 0,
+      ].join("|");
+      if (payloadKey === lastOverlayPayloadKey) return;
+      lastOverlayPayloadKey = payloadKey;
+      await emitBreakOverlayState(labels, payload);
+    } finally {
+      overlaySyncInFlight = false;
+      if (overlaySyncQueued) {
+        overlaySyncQueued = false;
+        syncBreakOverlay().catch((error) => console.error("focus queued sync break overlay", error));
+      }
+    }
+  }
+
+  /**
+   * @param {boolean} [force]
+   */
+  async function closeBreakOverlayEverywhere(force = false) {
+    if (overlayClosing) return;
+    const labels = Array.isArray(breakOverlayLabels) ? [...breakOverlayLabels] : [];
+    if (!force && labels.length === 0) return;
+    overlayClosing = true;
+    if (labels.length > 0) {
+      try {
+        await emitBreakOverlayState(labels, { close: true });
+      } catch (error) {
+        console.error("focus emit break overlay close", error);
+      }
+      await closeBreakOverlayWindowsByLabels(labels);
+    }
+    try {
+      await closeBreakOverlayWindows();
+    } finally {
+      if (breakOverlayLabels.length > 0) breakOverlayLabels = [];
+      breakOverlaySyncNonce += 1;
+      lastOverlayPayloadKey = "";
+      overlayClosing = false;
+    }
   }
 
   function onFocusCompleted() {
@@ -696,8 +900,72 @@
   });
 
   $effect(() => {
-    if (!breakPrompt) return;
+    if (!activeBreakKind) return;
     showBreakPanel = true;
+  });
+
+  $effect(() => {
+    if (safeConfig.breakReminderEnabled) return;
+    if (activeBreakKind) {
+      activeBreakKind = "";
+      phase = PHASE_FOCUS;
+      remainingSec = getPhaseDurationSec(PHASE_FOCUS, safeConfig);
+      running = true;
+    }
+  });
+
+  $effect(() => {
+    const active = breakTimerActive;
+    if (active === overlayLifecycleActive) return;
+    overlayLifecycleActive = active;
+    if (!active) {
+      closeBreakOverlayEverywhere(true).catch((error) =>
+        console.error("focus close break overlay windows", error),
+      );
+      return;
+    }
+    const nonce = ++breakOverlaySyncNonce;
+    (async () => {
+      try {
+        const labels = await ensureBreakOverlayWindows();
+        if (nonce !== breakOverlaySyncNonce) return;
+        breakOverlayLabels = labels;
+        await syncBreakOverlay();
+      } catch (error) {
+        console.error("focus ensure break overlay windows", error);
+      }
+    })();
+  });
+
+  $effect(() => {
+    if (!breakTimerActive) return;
+    if (remainingSec > 0) return;
+    activeBreakKind = "";
+    skipUnlockedAfterPostpone = false;
+    phase = PHASE_FOCUS;
+    remainingSec = getPhaseDurationSec(PHASE_FOCUS, safeConfig);
+    closeBreakOverlayEverywhere(true).catch((error) =>
+      console.error("focus force close overlay at zero", error),
+    );
+  });
+
+  $effect(() => {
+    if (!breakTimerActive) return;
+    const _tick = remainingSec;
+    const _phase = phase;
+    const _skipReady = skipUnlockedAfterPostpone;
+    const _strict = safeConfig.breakStrictMode;
+    const _taskTitle = selectedTask?.title || "";
+    const _labelsCount = breakOverlayLabels.length;
+    void _tick;
+    void _phase;
+    void _skipReady;
+    void _strict;
+    void _taskTitle;
+    void _labelsCount;
+    syncBreakOverlay().catch((error) => {
+      console.error("focus sync break overlay", error);
+    });
   });
 
   onMount(async () => {
@@ -716,9 +984,80 @@
 
   onMount(() => {
     const clockId = setInterval(() => {
+      if (phase === PHASE_FOCUS) {
+        tickBreakReminderClock();
+        return;
+      }
       nowTick = Date.now();
     }, 1000);
     return () => clearInterval(clockId);
+  });
+
+  onMount(() => {
+    /** @type {null | (() => void)} */
+    let unlistenAction = null;
+    /** @type {null | (() => void)} */
+    let unlistenReady = null;
+    let disposed = false;
+
+    const bootstrap = async () => {
+      try {
+        unlistenAction = await listen(BREAK_OVERLAY_EVENT_ACTION, (event) => {
+          const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+          const action = String(payload?.action || "");
+          if (!breakTimerActive) return;
+          if (action === "postpone") {
+            if (safeConfig.breakStrictMode) return;
+            postponeBreak();
+            return;
+          }
+          if (action === "skip") {
+            if (safeConfig.breakStrictMode) return;
+            skipBreak();
+          }
+        });
+      } catch (error) {
+        console.error("focus listen break overlay action", error);
+      }
+
+      try {
+        unlistenReady = await listen(BREAK_OVERLAY_EVENT_READY, (event) => {
+          const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+          const label = String(payload?.label || "");
+          if (!label) return;
+          if (!breakTimerActive) return;
+          if (!breakOverlayLabels.includes(label)) {
+            breakOverlayLabels = [...breakOverlayLabels, label];
+          }
+          emitBreakOverlayState([label], buildBreakOverlayPayload()).catch((error) =>
+            console.error("focus emit break overlay ready sync", error),
+          );
+        });
+      } catch (error) {
+        console.error("focus listen break overlay ready", error);
+      }
+    };
+
+    bootstrap();
+
+    return () => {
+      disposed = true;
+      try {
+        unlistenAction?.();
+      } catch (error) {
+        console.error("focus unlisten break overlay action", error);
+      }
+      try {
+        unlistenReady?.();
+      } catch (error) {
+        console.error("focus unlisten break overlay ready", error);
+      }
+      if (disposed) {
+        closeBreakOverlayEverywhere(true).catch((error) =>
+          console.error("focus close break overlay windows on destroy", error),
+        );
+      }
+    };
   });
 
   $effect(() => {
@@ -729,55 +1068,17 @@
         running = false;
         if (phase === PHASE_FOCUS) {
           onFocusCompleted();
+        } else {
+          activeBreakKind = "";
+          skipUnlockedAfterPostpone = false;
+          closeBreakOverlayEverywhere(true).catch((error) =>
+            console.error("focus close break overlay windows on break complete", error),
+          );
         }
         advancePhase();
         return;
       }
       remainingSec -= 1;
-      if (phase !== PHASE_FOCUS) return;
-      focusSinceBreakSec += 1;
-      nowTick = Date.now();
-      if (
-        breakPlanSec.notifyBeforeSec > 0 &&
-        focusSinceBreakSec >= nextLongWarnAtSec &&
-        focusSinceBreakSec < nextLongBreakAtSec &&
-        lastBreakReminderAtSec !== nextLongWarnAtSec
-      ) {
-        lastBreakReminderAtSec = nextLongWarnAtSec;
-        notifyBreak("warn", BREAK_KIND_LONG);
-      } else if (
-        breakPlanSec.notifyBeforeSec > 0 &&
-        focusSinceBreakSec >= nextMiniWarnAtSec &&
-        focusSinceBreakSec < nextMiniBreakAtSec &&
-        lastBreakReminderAtSec !== nextMiniWarnAtSec
-      ) {
-        lastBreakReminderAtSec = nextMiniWarnAtSec;
-        notifyBreak("warn", BREAK_KIND_MINI);
-      }
-      if (shouldSuppressBreakPromptBySession(localBreakSession, selectedTaskId, nowTick)) {
-        if (focusSinceBreakSec >= nextLongBreakAtSec) {
-          nextLongBreakAtSec = focusSinceBreakSec + breakPlanSec.longEverySec;
-          nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
-        }
-        if (focusSinceBreakSec >= nextMiniBreakAtSec) {
-          nextMiniBreakAtSec = focusSinceBreakSec + breakPlanSec.miniEverySec;
-          nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
-        }
-        return;
-      }
-      if (focusSinceBreakSec >= nextLongBreakAtSec) {
-        if (lastBreakReminderAtSec !== nextLongBreakAtSec) {
-          lastBreakReminderAtSec = nextLongBreakAtSec;
-          notifyBreak("start", BREAK_KIND_LONG);
-        }
-        openBreakPrompt(BREAK_KIND_LONG);
-      } else if (focusSinceBreakSec >= nextMiniBreakAtSec) {
-        if (lastBreakReminderAtSec !== nextMiniBreakAtSec) {
-          lastBreakReminderAtSec = nextMiniBreakAtSec;
-          notifyBreak("start", BREAK_KIND_MINI);
-        }
-        openBreakPrompt(BREAK_KIND_MINI);
-      }
     }, 1000);
     return () => clearInterval(id);
   });
@@ -790,6 +1091,8 @@
         {strings}
         phaseLabelText={phaseLabel(phase, strings)}
         timerText={formatTimer(remainingSec)}
+        breakMiniCountdownText={formatTimer(nextMiniBreakCountdown)}
+        breakLongCountdownText={formatTimer(nextLongBreakCountdown)}
         roundText={`${completedFocusCount % safeConfig.longBreakEvery}/${safeConfig.longBreakEvery}`}
         taskText={selectedTask ? selectedTask.title : strings.pomodoroNoTaskSelected}
         phaseProgress={Math.round(
@@ -832,32 +1135,19 @@
         {#snippet breakPanel()}
           <WorkspaceBreakControlBar
             {strings}
-            {breakPrompt}
-            nextMiniBreakText={formatSecondsBrief(nextMiniBreakCountdown)}
-            nextLongBreakText={formatSecondsBrief(nextLongBreakCountdown)}
-            breakStrictMode={safeConfig.breakStrictMode}
-            breakPostponeLimit={safeConfig.breakPostponeLimit}
-            {notifyEnabled}
-            {notifyChecked}
-            breakSession={localBreakSession}
-            breakSessionRemainingText={breakSessionRemainingText}
-            breakSessionActive={breakSessionActive}
-            breakSessionModes={BREAK_SESSION_OPTIONS}
-            taskBreakProfile={selectedTaskBreakProfile}
-            defaultMiniBreakEveryMinutes={safeConfig.miniBreakEveryMinutes}
-            defaultLongBreakEveryMinutes={safeConfig.longBreakEveryMinutes}
+            breakActive={Boolean(activeBreakKind)}
+            canSkip={skipUnlockedAfterPostpone}
+            nextMiniBreakText={formatTimer(nextMiniBreakCountdown)}
+            nextLongBreakText={formatTimer(nextLongBreakCountdown)}
+            breakReminderEnabled={safeConfig.breakReminderEnabled}
             independentMiniBreakEveryMinutes={safeConfig.independentMiniBreakEveryMinutes}
             independentLongBreakEveryMinutes={safeConfig.independentLongBreakEveryMinutes}
-            breakReminderMode={safeConfig.breakReminderMode}
-            breakReminderModes={BREAK_REMINDER_MODE_OPTIONS}
-            onStartSession={startBreakSession}
-            onClearSession={clearBreakSession}
+            miniBreakDurationSeconds={safeConfig.miniBreakDurationSeconds}
+            longBreakDurationMinutes={safeConfig.longBreakDurationMinutes}
+            onSetBreakReminderEnabled={setBreakReminderEnabled}
             onChangeIndependentBreakEveryMinutes={changeIndependentBreakEveryMinutes}
-            onChangeBreakReminderMode={changeBreakReminderMode}
-            onStartBreak={() => {
-              if (!breakPrompt) return;
-              applyBreakNow(breakPrompt.kind);
-            }}
+            onChangeBreakDuration={changeBreakDuration}
+            onTriggerBreakSoon={scheduleBreakSoon}
             onPostponeBreak={postponeBreak}
             onSkipBreak={skipBreak}
           />
@@ -899,65 +1189,6 @@
       />
     </div>
   </div>
-
-  {#if breakPrompt}
-    {@const currentBreak = breakPrompt}
-    {@const postponeDisabled = safeConfig.breakStrictMode || currentBreak.postponeUsed >= safeConfig.breakPostponeLimit}
-    {@const skipDisabled = safeConfig.breakStrictMode}
-    {#if safeConfig.breakReminderMode === BREAK_REMINDER_MODE_FULLSCREEN}
-      <section class="break-fullscreen" data-no-drag="true">
-        <div class="break-fullscreen-card">
-          <strong class="break-fullscreen-title">
-            {currentBreak.kind === "long"
-              ? (strings.pomodoroLongBreakNow || "Take a long break")
-              : (strings.pomodoroMiniBreakNow || "Take a mini break")}
-          </strong>
-          <span class="break-fullscreen-sub">
-            {strings.pomodoroBreakReminderModeFullscreenHint
-              || "Stretchly-style full-screen reminder in current workspace window."}
-          </span>
-          <span class="break-fullscreen-sub">
-            {strings.pomodoroBreakActionHint || "Use break controls above to start, postpone or skip."}
-            {#if safeConfig.breakStrictMode}
-              · {strings.pomodoroBreakStrictMode || "Strict mode"}
-            {/if}
-          </span>
-          <div class="break-fullscreen-actions">
-            <button type="button" class="btn primary" onclick={() => applyBreakNow(currentBreak.kind)}>
-              {strings.pomodoroBreakStartNow || strings.pomodoroStart || "Start break"}
-            </button>
-            <button type="button" class="btn" disabled={postponeDisabled} onclick={() => postponeBreak()}>
-              {strings.workspaceDeadlineActionSnooze15 || "Postpone"} ({currentBreak.postponeUsed}/{safeConfig.breakPostponeLimit})
-            </button>
-            <button type="button" class="btn" disabled={skipDisabled} onclick={() => skipBreak()}>
-              {strings.pomodoroSkip || "Skip"}
-            </button>
-          </div>
-        </div>
-      </section>
-    {:else}
-      <section class="break-prompt-card" data-no-drag="true">
-        <div class="break-prompt-head">
-          <strong>
-            {currentBreak.kind === "long"
-              ? (strings.pomodoroLongBreakNow || "Take a long break")
-              : (strings.pomodoroMiniBreakNow || "Take a mini break")}
-          </strong>
-          <span class="break-prompt-sub">
-            {strings.pomodoroBreakReminderModePanelHint
-              || "Light reminder card, no full-screen takeover."}
-          </span>
-        </div>
-        <span class="break-prompt-sub">
-          {strings.pomodoroBreakActionHint || "Use break controls above to start, postpone or skip."}
-          {#if safeConfig.breakStrictMode}
-            · {strings.pomodoroBreakStrictMode || "Strict mode"}
-          {/if}
-          · ({currentBreak.postponeUsed}/{safeConfig.breakPostponeLimit})
-        </span>
-      </section>
-    {/if}
-  {/if}
 
   <section class="stats-shell">
     <button type="button" class="stats-toggle" onclick={() => (showStats = !showStats)}>
@@ -1054,77 +1285,6 @@
     padding: 8px;
   }
 
-  .break-fullscreen {
-    position: fixed;
-    inset: 0;
-    z-index: 1200;
-    display: grid;
-    place-items: center;
-    padding: 24px;
-    background:
-      radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--ws-accent, #1d4ed8) 22%, transparent), transparent 48%),
-      color-mix(in srgb, #0b1220 56%, transparent);
-    backdrop-filter: blur(8px);
-  }
-
-  .break-fullscreen-card {
-    width: min(680px, calc(100vw - 32px));
-    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 48%, var(--ws-border, #dbe5f2));
-    border-radius: 16px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.86)) 96%, transparent);
-    box-shadow: 0 24px 64px color-mix(in srgb, #0b1220 42%, transparent);
-    display: grid;
-    gap: 12px;
-    padding: 18px 20px;
-  }
-
-  .break-fullscreen-title {
-    color: var(--ws-text-strong, #0f172a);
-    font-size: clamp(26px, 2.6vw, 40px);
-    line-height: 1.16;
-    text-align: center;
-  }
-
-  .break-fullscreen-sub {
-    color: var(--ws-muted, #64748b);
-    font-size: 13px;
-    line-height: 1.45;
-    text-align: center;
-  }
-
-  .break-fullscreen-actions {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .break-prompt-card {
-    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 45%, var(--ws-border, #dbe5f2));
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.82)) 94%, transparent);
-    padding: 10px 12px;
-    display: grid;
-    gap: 8px;
-  }
-
-  .break-prompt-head {
-    display: grid;
-    gap: 4px;
-  }
-
-  .break-prompt-head strong {
-    color: var(--ws-text-strong, #0f172a);
-    font-size: 14px;
-  }
-
-  .break-prompt-sub {
-    color: var(--ws-muted, #64748b);
-    font-size: 12px;
-    line-height: 1.4;
-  }
-
   .stats-toggle {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 10px;
@@ -1192,13 +1352,5 @@
         "planner";
     }
 
-    .break-fullscreen {
-      padding: 16px;
-    }
-
-    .break-fullscreen-card {
-      width: min(540px, calc(100vw - 20px));
-      padding: 14px 14px 16px;
-    }
   }
 </style>

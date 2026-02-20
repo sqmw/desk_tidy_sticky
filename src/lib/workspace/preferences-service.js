@@ -29,6 +29,7 @@ const DEFAULT_WORKSPACE_FONT_SIZE = "medium";
 const DEFAULT_WORKSPACE_SIDEBAR_LAYOUT_MODE = "auto";
 const DEFAULT_WORKSPACE_SIDEBAR_MANUAL_SPLIT_RATIO = DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO;
 const DEFAULT_POMODORO = {
+  breakReminderEnabled: true,
   focusMinutes: 25,
   shortBreakMinutes: 5,
   longBreakMinutes: 15,
@@ -100,6 +101,7 @@ export function normalizePomodoroConfig(input) {
     return Math.max(min, Math.min(max, Math.round(n)));
   };
   return {
+    breakReminderEnabled: raw.breakReminderEnabled !== false,
     focusMinutes: clamp(raw.focusMinutes, DEFAULT_POMODORO.focusMinutes, 5, 90),
     shortBreakMinutes: clamp(raw.shortBreakMinutes, DEFAULT_POMODORO.shortBreakMinutes, 1, 30),
     longBreakMinutes: clamp(raw.longBreakMinutes, DEFAULT_POMODORO.longBreakMinutes, 5, 60),
@@ -107,7 +109,7 @@ export function normalizePomodoroConfig(input) {
     miniBreakEveryMinutes: clamp(
       raw.miniBreakEveryMinutes,
       DEFAULT_POMODORO.miniBreakEveryMinutes,
-      5,
+      1,
       60,
     ),
     miniBreakDurationSeconds: clamp(
@@ -119,7 +121,7 @@ export function normalizePomodoroConfig(input) {
     longBreakEveryMinutes: clamp(
       raw.longBreakEveryMinutes,
       DEFAULT_POMODORO.longBreakEveryMinutes,
-      15,
+      1,
       180,
     ),
     longBreakDurationMinutes: clamp(
@@ -152,13 +154,13 @@ export function normalizePomodoroConfig(input) {
     independentMiniBreakEveryMinutes: clamp(
       raw.independentMiniBreakEveryMinutes,
       DEFAULT_POMODORO.independentMiniBreakEveryMinutes,
-      5,
+      1,
       180,
     ),
     independentLongBreakEveryMinutes: clamp(
       raw.independentLongBreakEveryMinutes,
       DEFAULT_POMODORO.independentLongBreakEveryMinutes,
-      15,
+      1,
       360,
     ),
   };
@@ -170,6 +172,7 @@ export function normalizePomodoroConfig(input) {
 export async function loadWorkspacePreferences(invoke) {
   const prefs = await getPreferences(invoke);
   const pomodoroConfig = normalizePomodoroConfig({
+    breakReminderEnabled: prefs.pomodoroBreakReminderEnabled,
     focusMinutes: prefs.pomodoroFocusMinutes,
     shortBreakMinutes: prefs.pomodoroShortBreakMinutes,
     longBreakMinutes: prefs.pomodoroLongBreakMinutes,

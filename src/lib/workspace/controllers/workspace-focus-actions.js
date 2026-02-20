@@ -1,6 +1,7 @@
 /**
  * @param {{
  *   normalizePomodoroConfig: (input: unknown) => {
+ *     breakReminderEnabled: boolean;
  *     focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number;
  *     miniBreakEveryMinutes: number; miniBreakDurationSeconds: number; longBreakEveryMinutes: number; longBreakDurationMinutes: number; breakNotifyBeforeSeconds: number;
  *     miniBreakPostponeMinutes: number; longBreakPostponeMinutes: number; breakPostponeLimit: number; breakStrictMode: boolean; breakReminderMode: string;
@@ -14,6 +15,7 @@
  *   setFocusSelectedTaskId: (nextTaskId: string) => void;
  *   setFocusCommand: (next: { nonce: number; type: "select" | "start"; taskId: string }) => void;
  *   setPomodoroConfig: (next: {
+ *     breakReminderEnabled: boolean;
  *     focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number;
  *     miniBreakEveryMinutes: number; miniBreakDurationSeconds: number; longBreakEveryMinutes: number; longBreakDurationMinutes: number; breakNotifyBeforeSeconds: number;
  *     miniBreakPostponeMinutes: number; longBreakPostponeMinutes: number; breakPostponeLimit: number; breakStrictMode: boolean; breakReminderMode: string;
@@ -28,6 +30,7 @@
 export function createWorkspaceFocusActions(deps) {
   /**
    * @param {{
+   * breakReminderEnabled:boolean;
    * focusMinutes:number;shortBreakMinutes:number;longBreakMinutes:number;longBreakEvery:number;
    * miniBreakEveryMinutes:number;miniBreakDurationSeconds:number;longBreakEveryMinutes:number;longBreakDurationMinutes:number;breakNotifyBeforeSeconds:number;
    * miniBreakPostponeMinutes:number;longBreakPostponeMinutes:number;breakPostponeLimit:number;breakStrictMode:boolean;breakReminderMode:string;
@@ -38,6 +41,7 @@ export function createWorkspaceFocusActions(deps) {
     const safe = deps.normalizePomodoroConfig(next);
     deps.setPomodoroConfig(safe);
     await deps.savePrefs({
+      pomodoroBreakReminderEnabled: safe.breakReminderEnabled,
       pomodoroFocusMinutes: safe.focusMinutes,
       pomodoroShortBreakMinutes: safe.shortBreakMinutes,
       pomodoroLongBreakMinutes: safe.longBreakMinutes,

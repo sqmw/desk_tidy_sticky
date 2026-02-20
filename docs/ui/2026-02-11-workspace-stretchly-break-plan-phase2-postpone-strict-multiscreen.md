@@ -66,3 +66,9 @@
 ## 后续（Phase 3 已落地）
 - 全局休息会话（30m/1h/2h/今天）与重启恢复已实现。
 - 详见：`docs/ui/2026-02-12-workspace-stretchly-phase3-global-break-session.md`
+
+## 2026-02-20 追加：全屏覆盖层倒计时（对齐 Stretchly）
+- 触发休息后不再弹“是否休息”，改为直接进入休息倒计时。
+- 覆盖层改为多屏全屏展示，底部动作固定为 `延后 2 分钟`，并在延后后才开放 `跳过`。
+- 详细实现与交互矩阵见：
+  - `docs/ui/2026-02-20-workspace-break-overlay-stretchly-fullscreen.md`

@@ -5,6 +5,8 @@
     strings,
     phaseLabelText = "",
     timerText = "00:00",
+    breakMiniCountdownText = "00:00",
+    breakLongCountdownText = "00:00",
     focusMinutes = 25,
     selectedTaskId = "",
     taskOptions = [],
@@ -80,7 +82,20 @@
           <span>{phaseLabelText}</span>
         </span>
       {/if}
-      <strong class="timer">{timerText}</strong>
+      {#if showBreakPanel}
+        <div class="break-countdowns">
+          <span class="break-countdown-item">
+            {strings.pomodoroMiniBreakIn || "Mini break in"}:
+            <strong>{breakMiniCountdownText}</strong>
+          </span>
+          <span class="break-countdown-item">
+            {strings.pomodoroLongBreakIn || "Long break in"}:
+            <strong>{breakLongCountdownText}</strong>
+          </span>
+        </div>
+      {:else}
+        <strong class="timer">{timerText}</strong>
+      {/if}
     </div>
     <div class="phase-progress">
       <div class="phase-progress-fill" style={`width:${Math.max(0, Math.min(100, phaseProgress))}%`}></div>
@@ -347,6 +362,28 @@
     color: var(--ws-text-strong, #0f172a);
   }
 
+  .break-countdowns {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .break-countdown-item {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
+    white-space: nowrap;
+  }
+
+  .break-countdown-item strong {
+    margin-left: 4px;
+    font-family: "Segoe UI", "Consolas", monospace;
+    font-size: 12px;
+    color: var(--ws-text-strong, #0f172a);
+  }
+
   .timer-meta {
     margin-top: 8px;
     display: grid;
@@ -519,5 +556,17 @@
     font-size: 11px;
     line-height: 1.4;
     color: var(--ws-muted, #64748b);
+  }
+
+  @media (max-width: 980px) {
+    .timer-head {
+      flex-wrap: wrap;
+    }
+
+    .break-countdowns {
+      width: 100%;
+      margin-left: 0;
+      justify-content: flex-start;
+    }
   }
 </style>

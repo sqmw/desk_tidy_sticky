@@ -21,8 +21,8 @@ export function normalizeTaskBreakProfile(raw) {
   const hasLong = Number.isFinite(Number(input.longBreakEveryMinutes));
   if (!hasMini && !hasLong) return null;
   return {
-    miniBreakEveryMinutes: clampInt(input.miniBreakEveryMinutes, 10, 5, 180),
-    longBreakEveryMinutes: clampInt(input.longBreakEveryMinutes, 30, 15, 360),
+    miniBreakEveryMinutes: clampInt(input.miniBreakEveryMinutes, 10, 1, 180),
+    longBreakEveryMinutes: clampInt(input.longBreakEveryMinutes, 30, 1, 360),
   };
 }
 
@@ -48,22 +48,22 @@ export function resolveBreakTimingConfig(baseConfig, task) {
     }
     return {
       ...base,
-      miniBreakEveryMinutes: clampInt(base.miniBreakEveryMinutes, 10, 5, 180),
-      longBreakEveryMinutes: clampInt(base.longBreakEveryMinutes, 30, 15, 360),
+      miniBreakEveryMinutes: clampInt(base.miniBreakEveryMinutes, 10, 1, 180),
+      longBreakEveryMinutes: clampInt(base.longBreakEveryMinutes, 30, 1, 360),
     };
   }
   return {
     ...base,
     miniBreakEveryMinutes: clampInt(
       base.independentMiniBreakEveryMinutes,
-      clampInt(base.miniBreakEveryMinutes, 10, 5, 180),
-      5,
+      clampInt(base.miniBreakEveryMinutes, 10, 1, 180),
+      1,
       180,
     ),
     longBreakEveryMinutes: clampInt(
       base.independentLongBreakEveryMinutes,
-      clampInt(base.longBreakEveryMinutes, 30, 15, 360),
-      15,
+      clampInt(base.longBreakEveryMinutes, 30, 1, 360),
+      1,
       360,
     ),
   };

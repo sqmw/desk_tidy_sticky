@@ -15,13 +15,14 @@ export const BREAK_KIND_LONG = "long";
 export function getSafeConfig(config, clamp) {
   const raw = /** @type {any} */ (config || {});
   return {
+    breakReminderEnabled: raw.breakReminderEnabled !== false,
     focusMinutes: clamp(raw.focusMinutes, 25, 5, 90),
     shortBreakMinutes: clamp(raw.shortBreakMinutes, 5, 1, 30),
     longBreakMinutes: clamp(raw.longBreakMinutes, 15, 5, 60),
     longBreakEvery: clamp(raw.longBreakEvery, 4, 2, 8),
-    miniBreakEveryMinutes: clamp(raw.miniBreakEveryMinutes, 10, 5, 60),
+    miniBreakEveryMinutes: clamp(raw.miniBreakEveryMinutes, 10, 1, 60),
     miniBreakDurationSeconds: clamp(raw.miniBreakDurationSeconds, 20, 10, 300),
-    longBreakEveryMinutes: clamp(raw.longBreakEveryMinutes, 30, 15, 180),
+    longBreakEveryMinutes: clamp(raw.longBreakEveryMinutes, 30, 1, 180),
     longBreakDurationMinutes: clamp(raw.longBreakDurationMinutes, 5, 1, 30),
     breakNotifyBeforeSeconds: clamp(raw.breakNotifyBeforeSeconds, 10, 0, 120),
     miniBreakPostponeMinutes: clamp(raw.miniBreakPostponeMinutes, 5, 1, 30),
@@ -31,14 +32,14 @@ export function getSafeConfig(config, clamp) {
     breakReminderMode: normalizeBreakReminderMode(raw.breakReminderMode),
     independentMiniBreakEveryMinutes: clamp(
       raw.independentMiniBreakEveryMinutes,
-      clamp(raw.miniBreakEveryMinutes, 10, 5, 180),
-      5,
+      clamp(raw.miniBreakEveryMinutes, 10, 1, 180),
+      1,
       180,
     ),
     independentLongBreakEveryMinutes: clamp(
       raw.independentLongBreakEveryMinutes,
-      clamp(raw.longBreakEveryMinutes, 30, 15, 360),
-      15,
+      clamp(raw.longBreakEveryMinutes, 30, 1, 360),
+      1,
       360,
     ),
   };
@@ -55,9 +56,9 @@ export function getSafeConfig(config, clamp) {
  */
 export function getBreakPlanSec(config) {
   return {
-    miniEverySec: Math.max(60, Number(config.miniBreakEveryMinutes || 10) * 60),
+    miniEverySec: Math.max(10, Number(config.miniBreakEveryMinutes || 10) * 60),
     miniDurationSec: Math.max(10, Number(config.miniBreakDurationSeconds || 20)),
-    longEverySec: Math.max(300, Number(config.longBreakEveryMinutes || 30) * 60),
+    longEverySec: Math.max(10, Number(config.longBreakEveryMinutes || 30) * 60),
     longDurationSec: Math.max(60, Number(config.longBreakDurationMinutes || 5) * 60),
     notifyBeforeSec: Math.max(0, Number(config.breakNotifyBeforeSeconds || 10)),
   };

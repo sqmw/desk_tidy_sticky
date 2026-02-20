@@ -85,6 +85,8 @@ pub struct PanelPreferences {
     pub pomodoro_long_break_duration_minutes: i32,
     #[serde(default = "default_pomodoro_break_notify_before_seconds")]
     pub pomodoro_break_notify_before_seconds: i32,
+    #[serde(default = "default_true")]
+    pub pomodoro_break_reminder_enabled: bool,
     #[serde(default = "default_pomodoro_mini_break_postpone_minutes")]
     pub pomodoro_mini_break_postpone_minutes: i32,
     #[serde(default = "default_pomodoro_long_break_postpone_minutes")]

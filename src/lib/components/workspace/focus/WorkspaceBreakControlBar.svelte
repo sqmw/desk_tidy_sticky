@@ -1,236 +1,208 @@
 <script>
-  import { BREAK_SESSION_SCOPE_GLOBAL } from "$lib/workspace/focus/focus-break-session.js";
-  import {
-    BREAK_REMINDER_MODE_FULLSCREEN,
-    BREAK_REMINDER_MODE_OPTIONS,
-    BREAK_REMINDER_MODE_PANEL,
-  } from "$lib/workspace/focus/focus-break-reminder-mode.js";
-
   let {
     strings,
-    breakPrompt = null,
+    breakActive = false,
+    canSkip = false,
+    breakReminderEnabled = true,
     nextMiniBreakText = "00:00",
     nextLongBreakText = "00:00",
-    notifyEnabled = false,
-    notifyChecked = false,
-    breakStrictMode = false,
-    breakPostponeLimit = 0,
-    breakSession = { mode: "none", untilTs: 0, scope: BREAK_SESSION_SCOPE_GLOBAL, taskId: "", taskTitle: "" },
-    breakSessionRemainingText = "",
-    breakSessionActive = false,
-    breakSessionModes = ["30m", "1h", "2h", "today"],
-    taskBreakProfile = null,
-    defaultMiniBreakEveryMinutes = 10,
-    defaultLongBreakEveryMinutes = 30,
     independentMiniBreakEveryMinutes = 10,
     independentLongBreakEveryMinutes = 30,
-    breakReminderMode = /** @type {string} */ (BREAK_REMINDER_MODE_PANEL),
-    breakReminderModes = /** @type {string[]} */ (BREAK_REMINDER_MODE_OPTIONS),
-    onStartSession = () => {},
-    onClearSession = () => {},
-    onChangeIndependentBreakEveryMinutes = () => {},
-    onChangeBreakReminderMode = () => {},
-    onStartBreak = () => {},
+    miniBreakDurationSeconds = 20,
+    longBreakDurationMinutes = 5,
     onPostponeBreak = () => {},
     onSkipBreak = () => {},
+    onSetBreakReminderEnabled = () => {},
+    onChangeIndependentBreakEveryMinutes = () => {},
+    onChangeBreakDuration = () => {},
+    onTriggerBreakSoon = () => {},
   } = $props();
-  let selectedPauseMode = $state("30m");
 
-  const isReady = $derived(Boolean(breakPrompt));
-  const promptKindText = $derived(
-    breakPrompt?.kind === "long"
-      ? (strings.pomodoroLongBreakNow || "Take a long break")
-      : (strings.pomodoroMiniBreakNow || "Take a mini break"),
-  );
-  const postponeUsed = $derived(Number(breakPrompt?.postponeUsed || 0));
-  const postponeDisabled = $derived(
-    !isReady || breakStrictMode || postponeUsed >= Math.max(0, Number(breakPostponeLimit || 0)),
-  );
-  const skipDisabled = $derived(!isReady || breakStrictMode);
-  const notifyStatusText = $derived(
-    notifyChecked
-      ? (notifyEnabled ? (strings.pomodoroBreakNotifyOn || "On") : (strings.pomodoroBreakNotifyOff || "Off"))
-      : "...",
-  );
-  const sessionStateText = $derived(
-    breakSessionActive
-      ? `${strings.pomodoroBreakReminderDisabled || "Break reminders disabled"} · ${breakSessionRemainingText}`
-      : (strings.pomodoroBreakReminderEnabled || "Break reminders enabled"),
-  );
-  const taskBreakMiniEveryMinutes = $derived(
-    Number(taskBreakProfile?.miniBreakEveryMinutes || defaultMiniBreakEveryMinutes || 10),
-  );
-  const taskBreakLongEveryMinutes = $derived(
-    Number(taskBreakProfile?.longBreakEveryMinutes || defaultLongBreakEveryMinutes || 30),
-  );
-  const independentBreakMiniEveryMinutes = $derived(
-    Math.max(5, Math.min(180, Math.round(Number(independentMiniBreakEveryMinutes || 10)))),
-  );
-  const independentBreakLongEveryMinutes = $derived(
-    Math.max(15, Math.min(360, Math.round(Number(independentLongBreakEveryMinutes || 30)))),
-  );
-  const reminderModeHintText = $derived(reminderModeHint(breakReminderMode));
-
-  $effect(() => {
-    if (!breakSessionModes.includes(selectedPauseMode)) {
-      selectedPauseMode = String(breakSessionModes[0] || "30m");
-    }
+  const reminderEnabled = $derived(breakReminderEnabled === true);
+  const stateText = $derived.by(() => {
+    if (breakActive) return strings.pomodoroBreakRunning || "Break countdown running";
+    return reminderEnabled
+      ? (strings.pomodoroBreakReminderEnabled || "Break reminders enabled")
+      : (strings.pomodoroBreakReminderDisabled || "Break reminders disabled");
   });
 
-  $effect(() => {
-    if (!breakSessionActive) return;
-    const mode = String(breakSession?.mode || "");
-    if (!breakSessionModes.includes(mode)) return;
-    if (selectedPauseMode === mode) return;
-    selectedPauseMode = mode;
-  });
+  const miniEveryMinutes = $derived(
+    Math.max(1, Math.min(180, Math.round(Number(independentMiniBreakEveryMinutes || 10)))),
+  );
+  const longEveryMinutes = $derived(
+    Math.max(1, Math.min(360, Math.round(Number(independentLongBreakEveryMinutes || 30)))),
+  );
+  const miniDurationSec = $derived(
+    Math.max(10, Math.min(300, Math.round(Number(miniBreakDurationSeconds || 20)))),
+  );
+  const longDurationMin = $derived(
+    Math.max(1, Math.min(30, Math.round(Number(longBreakDurationMinutes || 5)))),
+  );
 
   /**
-   * @param {string} mode
+   * @param {"mini" | "long"} kind
+   * @param {Event} event
    */
-  function sessionLabel(mode) {
-    if (mode === "30m") return strings.pomodoroBreakSession30m || "30m";
-    if (mode === "1h") return strings.pomodoroBreakSession1h || "1h";
-    if (mode === "2h") return strings.pomodoroBreakSession2h || "2h";
-    if (mode === "today") return strings.pomodoroBreakSessionToday || "Today";
-    return mode;
-  }
-
-  function startPauseSession() {
-    onStartSession(selectedPauseMode, { scope: BREAK_SESSION_SCOPE_GLOBAL });
-  }
-
-  /**
-   * @param {string} mode
-   */
-  function reminderModeLabel(mode) {
-    if (mode === BREAK_REMINDER_MODE_FULLSCREEN) {
-      return strings.pomodoroBreakReminderModeFullscreen || "Full-screen";
+  function onIntervalInput(kind, event) {
+    const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+    const raw = Number(target.value);
+    if (!Number.isFinite(raw)) {
+      target.value = String(kind === "mini" ? miniEveryMinutes : longEveryMinutes);
+      return;
     }
-    return strings.pomodoroBreakReminderModePanel || "Light card";
-  }
-
-  /**
-   * @param {string} mode
-   */
-  function reminderModeHint(mode) {
-    if (mode === BREAK_REMINDER_MODE_FULLSCREEN) {
-      return strings.pomodoroBreakReminderModeFullscreenHint
-        || "Stretchly-style full-screen reminder in current workspace window.";
-    }
-    return strings.pomodoroBreakReminderModePanelHint
-      || "Light reminder card, no full-screen takeover.";
+    const safe = kind === "mini"
+      ? Math.max(1, Math.min(180, Math.round(raw)))
+      : Math.max(1, Math.min(360, Math.round(raw)));
+    target.value = String(safe);
+    onChangeIndependentBreakEveryMinutes(kind, safe);
   }
 
   /**
    * @param {"mini" | "long"} kind
    * @param {Event} event
    */
-  function onIndependentEveryInput(kind, event) {
+  function onDurationInput(kind, event) {
     const target = /** @type {HTMLInputElement} */ (event.currentTarget);
     const raw = Number(target.value);
     if (!Number.isFinite(raw)) return;
     const safe = kind === "mini"
-      ? Math.max(5, Math.min(180, Math.round(raw)))
-      : Math.max(15, Math.min(360, Math.round(raw)));
+      ? Math.max(10, Math.min(300, Math.round(raw)))
+      : Math.max(1, Math.min(30, Math.round(raw)));
     target.value = String(safe);
-    onChangeIndependentBreakEveryMinutes(kind, safe);
+    onChangeBreakDuration(kind, safe);
+  }
+
+  /**
+   * @param {boolean} enabled
+   */
+  function setReminderEnabled(enabled) {
+    if (enabled === reminderEnabled) return;
+    onSetBreakReminderEnabled(enabled);
   }
 </script>
 
 <section class="break-controls" data-no-drag="true">
   <div class="break-head">
-    <strong>{strings.pomodoroBreakActionPanel || "Break controls"}</strong>
-    <span class="break-state">{isReady ? promptKindText : (strings.pomodoroBreakWaitState || "Waiting for break trigger")}</span>
-  </div>
-  <div class="break-meta">
-    <span>{strings.pomodoroMiniBreakIn || "Mini break in"}: {nextMiniBreakText}</span>
-    <span>{strings.pomodoroLongBreakIn || "Long break in"}: {nextLongBreakText}</span>
-    <span>{strings.pomodoroBreakNotifyStatus || "Notify"}: {notifyStatusText}</span>
-  </div>
-  <div class="schedule-row">
-    <span class="schedule-title">{strings.pomodoroBreakPausePreset || "Pause preset"}</span>
-    <div class="reminder-mode-row">
-      <span>{strings.pomodoroBreakReminderMode || "Reminder style"}</span>
-      <div class="session-selectors">
-        {#each breakReminderModes as mode (mode)}
-          <button
-            type="button"
-            class="btn session-btn"
-            class:active={breakReminderMode === mode}
-            onclick={() => onChangeBreakReminderMode(mode)}
-          >
-            {reminderModeLabel(mode)}
-          </button>
-        {/each}
-      </div>
-      <span class="schedule-hint">{reminderModeHintText}</span>
+    <div class="head-copy">
+      <strong>{strings.pomodoroBreakActionPanel || "Break controls"}</strong>
+      <span class="break-state">{stateText}</span>
     </div>
-    <div class="schedule-independent-editor">
-      <label>
-        <span>{strings.pomodoroBreakScheduleIndependentMini || "Independent mini every (min)"}</span>
-        <input
-          type="number"
-          min="5"
-          max="180"
-          value={String(independentBreakMiniEveryMinutes)}
-          onchange={(e) => onIndependentEveryInput("mini", e)}
-        />
-      </label>
-      <label>
-        <span>{strings.pomodoroBreakScheduleIndependentLong || "Independent long every (min)"}</span>
-        <input
-          type="number"
-          min="15"
-          max="360"
-          value={String(independentBreakLongEveryMinutes)}
-          onchange={(e) => onIndependentEveryInput("long", e)}
-        />
-      </label>
-    </div>
-    <span class="schedule-hint">
-      {strings.pomodoroBreakScheduleTaskResolved || "Current task cadence"}: {taskBreakMiniEveryMinutes}/{taskBreakLongEveryMinutes}m
-    </span>
-  </div>
-  <div class="session-row">
-    <div class="session-state-wrap">
-      <span class="session-state">{sessionStateText}</span>
-      {#if breakSessionActive}
-        <span class="session-scope">{strings.pomodoroBreakSessionIndependentHint || "Run independently, no task binding"}</span>
-      {/if}
-    </div>
-    <div class="session-selectors">
-      {#each breakSessionModes as mode (mode)}
-        <button
-          type="button"
-          class="btn session-btn"
-          class:active={selectedPauseMode === mode}
-          onclick={() => (selectedPauseMode = mode)}
-        >
-          {sessionLabel(mode)}
-        </button>
-      {/each}
-    </div>
-    <div class="session-actions">
-      <button type="button" class="btn session-btn close" onclick={() => startPauseSession()}>
-        {strings.pomodoroBreakControlDisable || "Disable by preset"}
+    <div
+      class="reminder-switch"
+      role="group"
+      aria-label={strings.pomodoroBreakToggleLabel || "Break reminder toggle"}
+    >
+      <button
+        type="button"
+        class="switch-option"
+        class:active={!reminderEnabled}
+        onclick={() => setReminderEnabled(false)}
+      >
+        {strings.pomodoroToggleOff || "Off"}
       </button>
-      <button type="button" class="btn session-btn clear" disabled={!breakSessionActive} onclick={() => onClearSession()}>
-        {strings.pomodoroBreakControlEnable || "Enable now"}
+      <button
+        type="button"
+        class="switch-option"
+        class:active={reminderEnabled}
+        onclick={() => setReminderEnabled(true)}
+      >
+        {strings.pomodoroToggleOn || "On"}
       </button>
     </div>
   </div>
-  <div class="break-actions">
-    <button type="button" class="btn primary" disabled={!isReady} onclick={() => onStartBreak()}>
-      {strings.pomodoroBreakStartNow || strings.pomodoroStart || "Start break"}
+
+  <div class="break-countdown-grid">
+    <div class="countdown-card">
+      <span class="countdown-label">{strings.pomodoroMiniBreakIn || "Mini break in"}</span>
+      <strong class="countdown-value">{nextMiniBreakText}</strong>
+    </div>
+    <div class="countdown-card">
+      <span class="countdown-label">{strings.pomodoroLongBreakIn || "Long break in"}</span>
+      <strong class="countdown-value">{nextLongBreakText}</strong>
+    </div>
+  </div>
+
+  <div class="schedule-grid">
+    <label>
+      <span>{strings.pomodoroBreakScheduleIndependentMini || "Mini break interval (min)"}</span>
+      <input
+        type="number"
+        min="1"
+        max="180"
+        value={String(miniEveryMinutes)}
+        oninput={(event) => onIntervalInput("mini", event)}
+        onchange={(event) => onIntervalInput("mini", event)}
+      />
+    </label>
+    <label>
+      <span>{strings.pomodoroBreakScheduleIndependentLong || "Long break interval (min)"}</span>
+      <input
+        type="number"
+        min="1"
+        max="360"
+        value={String(longEveryMinutes)}
+        oninput={(event) => onIntervalInput("long", event)}
+        onchange={(event) => onIntervalInput("long", event)}
+      />
+    </label>
+    <label>
+      <span>{strings.pomodoroMiniBreakDurationSeconds || "Mini break duration (sec)"}</span>
+      <input
+        type="number"
+        min="10"
+        max="300"
+        value={String(miniDurationSec)}
+        oninput={(event) => onDurationInput("mini", event)}
+        onchange={(event) => onDurationInput("mini", event)}
+      />
+    </label>
+    <label>
+      <span>{strings.pomodoroLongBreakDurationMinutes || "Long break duration (min)"}</span>
+      <input
+        type="number"
+        min="1"
+        max="30"
+        value={String(longDurationMin)}
+        oninput={(event) => onDurationInput("long", event)}
+        onchange={(event) => onDurationInput("long", event)}
+      />
+    </label>
+  </div>
+
+  <div class="quick-test-actions">
+    <span class="quick-test-label">{strings.pomodoroBreakQuickTest || "Quick test"}</span>
+    <button
+      type="button"
+      class="btn"
+      disabled={!reminderEnabled}
+      onclick={() => onTriggerBreakSoon("mini", 10)}
+    >
+      {strings.pomodoroBreakQuickMini10s || "Mini 10s"}
     </button>
-    <button type="button" class="btn" disabled={postponeDisabled} onclick={() => onPostponeBreak()}>
-      {strings.workspaceDeadlineActionSnooze15 || "Postpone"} ({postponeUsed}/{Math.max(0, Number(breakPostponeLimit || 0))})
-    </button>
-    <button type="button" class="btn" disabled={skipDisabled} onclick={() => onSkipBreak()}>
-      {strings.pomodoroSkip || "Skip"}
+    <button
+      type="button"
+      class="btn"
+      disabled={!reminderEnabled}
+      onclick={() => onTriggerBreakSoon("long", 10)}
+    >
+      {strings.pomodoroBreakQuickLong10s || "Long 10s"}
     </button>
   </div>
+
+  <p class="break-hint">
+    {strings.pomodoroBreakActionHint || "When reminders are enabled, the system prompts breaks after each interval."}
+  </p>
+
+  {#if breakActive}
+    <div class="trigger-actions">
+      <button type="button" class="btn primary" onclick={() => onPostponeBreak()}>
+        {strings.pomodoroBreakPostponeTwoMinutes || "Postpone 2m"}
+      </button>
+      <button type="button" class="btn" disabled={!canSkip} onclick={() => onSkipBreak()}>
+        {strings.pomodoroSkip || "Skip"}
+      </button>
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -243,7 +215,7 @@
       color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 92%, transparent);
     backdrop-filter: blur(8px);
     display: grid;
-    gap: 7px;
+    gap: 9px;
   }
 
   .break-head {
@@ -254,162 +226,133 @@
     flex-wrap: wrap;
   }
 
-  .break-head strong {
+  .head-copy {
+    display: grid;
+    gap: 3px;
+  }
+
+  .head-copy strong {
     font-size: 13px;
     color: var(--ws-text-strong, #0f172a);
   }
 
   .break-state {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--ws-muted, #64748b);
   }
 
-  .break-meta {
-    display: flex;
+  .reminder-switch {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
+    gap: 2px;
+    border: 1px solid var(--ws-border-soft, #d6e0ee);
+    border-radius: 999px;
+    padding: 2px;
+    background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent);
+  }
+
+  .switch-option {
+    min-height: 24px;
+    min-width: 48px;
+    border: 0;
+    border-radius: 999px;
+    padding: 0 10px;
     font-size: 11px;
+    font-weight: 600;
     color: var(--ws-muted, #64748b);
+    background: transparent;
+    cursor: pointer;
+    transition: background-color 0.16s ease, color 0.16s ease;
   }
 
-  .break-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+  .switch-option.active {
+    color: var(--ws-accent, #1d4ed8);
+    background: color-mix(in srgb, var(--ws-accent, #3b82f6) 16%, transparent);
   }
 
-  .schedule-row {
-    display: grid;
-    gap: 6px;
-  }
-
-  .reminder-mode-row {
-    display: grid;
-    gap: 4px;
-  }
-
-  .reminder-mode-row span {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-  }
-
-  .schedule-title {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-  }
-
-  .schedule-independent-editor {
+  .break-countdown-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    gap: 8px;
   }
 
-  .schedule-independent-editor label {
+  .countdown-card {
+    border: 1px solid var(--ws-border-soft, #d6e0ee);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ws-card-bg, #fff) 90%, transparent);
+    padding: 7px 9px;
     display: grid;
     gap: 4px;
+    min-height: 52px;
   }
 
-  .schedule-independent-editor span {
+  .countdown-label {
     font-size: 11px;
     color: var(--ws-muted, #64748b);
   }
 
-  .schedule-independent-editor input {
+  .countdown-value {
+    font-family: "Segoe UI", "Consolas", monospace;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--ws-text-strong, #0f172a);
+    letter-spacing: 0.3px;
+  }
+
+  .schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .schedule-grid label {
+    display: grid;
+    gap: 4px;
+  }
+
+  .schedule-grid span {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
+  }
+
+  .schedule-grid input {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 9px;
-    min-height: 30px;
+    min-height: 31px;
     padding: 0 8px;
     font-size: 12px;
     color: var(--ws-text, #334155);
     background: var(--ws-card-bg, #fff);
   }
 
-  .schedule-hint {
+  .break-hint {
+    margin: 0;
     font-size: 11px;
     color: var(--ws-muted, #64748b);
   }
 
-  .session-row {
-    display: grid;
-    gap: 6px;
-  }
-
-  .session-state-wrap {
-    display: grid;
-    gap: 2px;
-  }
-
-  .session-state {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-  }
-
-  .session-scope {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-  }
-
-  .session-actions {
+  .quick-test-actions {
     display: flex;
+    align-items: center;
     gap: 6px;
     flex-wrap: wrap;
   }
 
-  .session-selectors {
+  .quick-test-label {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
+  }
+
+  .trigger-actions {
     display: flex;
+    align-items: center;
     gap: 6px;
     flex-wrap: wrap;
   }
 
-  .session-btn {
-    min-height: 27px;
-    padding: 0 10px;
-    font-size: 11px;
-    border-radius: 999px;
-  }
-
-  .session-btn.active {
-    border-color: var(--ws-border-active, #2f4368);
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, var(--ws-btn-bg, #fff));
-    color: var(--ws-text-strong, #0f172a);
-    font-weight: 700;
-  }
-
-  .session-btn.clear {
-    border-style: dashed;
-  }
-
-  .session-btn.close {
-    border-style: solid;
-  }
-
-  .btn {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 9px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text, #334155);
-    min-height: 30px;
-    padding: 0 11px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-
-  .btn.primary {
-    border-color: var(--ws-border-active, #2f4368);
-    background: linear-gradient(180deg, color-mix(in srgb, var(--ws-accent, #1d4ed8) 26%, #334155) 0%, #273a57 100%);
-    color: #f8fbff;
-    font-weight: 700;
-  }
-
-  .btn:disabled {
-    opacity: 0.54;
-    cursor: not-allowed;
-  }
-
-  @media (max-width: 960px) {
-    .schedule-independent-editor {
+  @media (max-width: 900px) {
+    .break-countdown-grid,
+    .schedule-grid {
       grid-template-columns: 1fr;
     }
   }

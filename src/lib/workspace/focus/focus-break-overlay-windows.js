@@ -1,5 +1,6 @@
 import { availableMonitors } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 
 export const BREAK_OVERLAY_EVENT_UPDATE = "focus_break_overlay_update";
 export const BREAK_OVERLAY_EVENT_ACTION = "focus_break_overlay_action";
@@ -24,11 +25,26 @@ function monitorToLogicalBounds(monitor) {
   const pw = Number(monitor?.size?.width || 1920);
   const ph = Number(monitor?.size?.height || 1080);
   return {
-    x: Math.round(px / safeScale),
-    y: Math.round(py / safeScale),
-    width: Math.max(320, Math.round(pw / safeScale)),
-    height: Math.max(240, Math.round(ph / safeScale)),
+    // WebviewWindow constructor expects logical pixels.
+    // Use floor/ceil to avoid sub-pixel rounding gaps on mixed-DPI multi-monitor setups.
+    x: Math.floor(px / safeScale),
+    y: Math.floor(py / safeScale),
+    width: Math.max(320, Math.ceil(pw / safeScale)),
+    height: Math.max(240, Math.ceil(ph / safeScale)),
   };
+}
+
+/**
+ * @param {string} label
+ * @param {number} retry
+ */
+async function waitForWindowClosed(label, retry = 24) {
+  for (let index = 0; index < retry; index += 1) {
+    const win = await WebviewWindow.getByLabel(label);
+    if (!win) return true;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  return false;
 }
 
 /**
@@ -38,19 +54,29 @@ function monitorToLogicalBounds(monitor) {
 async function ensureOverlayWindow(label, monitor) {
   const existing = await WebviewWindow.getByLabel(label);
   if (existing) {
-    await existing.show();
-    await existing.setAlwaysOnTop(true);
-    return existing;
+    // Force recreate so monitor geometry stays correct when DPI / layout changes.
+    try {
+      await existing.close();
+    } catch (_) {
+      // noop
+    }
+    await waitForWindowClosed(label);
+    const leftover = await WebviewWindow.getByLabel(label);
+    if (leftover) {
+      await leftover.show();
+      await leftover.setAlwaysOnTop(true);
+      return leftover;
+    }
   }
 
-  const bounds = monitorToLogicalBounds(monitor);
+  const logical = monitorToLogicalBounds(monitor);
   const webview = new WebviewWindow(label, {
     url: "/break-overlay",
     title: "Break reminder",
-    x: bounds.x,
-    y: bounds.y,
-    width: bounds.width,
-    height: bounds.height,
+    x: logical.x,
+    y: logical.y,
+    width: logical.width,
+    height: logical.height,
     center: false,
     decorations: false,
     transparent: false,
@@ -59,7 +85,8 @@ async function ensureOverlayWindow(label, monitor) {
     resizable: false,
     maximizable: false,
     minimizable: false,
-    focus: false,
+    focus: true,
+    shadow: false,
   });
   await new Promise((resolve, reject) => {
     webview.once("tauri://created", () => resolve(true));
@@ -67,6 +94,27 @@ async function ensureOverlayWindow(label, monitor) {
       reject(new Error(String(event?.payload || "create break overlay window failed"))),
     );
   });
+  try {
+    await webview.setShadow(false);
+  } catch (_) {
+    // noop
+  }
+  try {
+    await webview.setIgnoreCursorEvents(false);
+  } catch (_) {
+    // noop
+  }
+  try {
+    await webview.setFocus();
+  } catch (_) {
+    // noop
+  }
+  try {
+    await webview.setPosition(new LogicalPosition(logical.x, logical.y));
+    await webview.setSize(new LogicalSize(logical.width, logical.height));
+  } catch (error) {
+    console.error("set break overlay logical geometry failed", label, error);
+  }
   return webview;
 }
 
@@ -79,7 +127,21 @@ async function closeStaleOverlayWindows(keepLabels) {
     const label = String(window.label || "");
     if (!label.startsWith(BREAK_OVERLAY_LABEL_PREFIX)) continue;
     if (keepLabels.has(label)) continue;
-    await window.close();
+    try {
+      await window.hide();
+    } catch (_) {
+      // noop
+    }
+    try {
+      await window.close();
+    } catch (error) {
+      console.error("close break overlay window failed, fallback destroy", label, error);
+      try {
+        await window.destroy();
+      } catch (destroyError) {
+        console.error("destroy break overlay window failed", label, destroyError);
+      }
+    }
   }
 }
 
@@ -101,6 +163,32 @@ export async function ensureBreakOverlayWindows() {
 
 export async function closeBreakOverlayWindows() {
   await closeStaleOverlayWindows(new Set());
+}
+
+/**
+ * @param {string[]} labels
+ */
+export async function closeBreakOverlayWindowsByLabels(labels) {
+  const uniqueLabels = Array.from(new Set((labels || []).map((label) => String(label || "")))).filter(Boolean);
+  for (const label of uniqueLabels) {
+    const window = await WebviewWindow.getByLabel(label);
+    if (!window) continue;
+    try {
+      await window.hide();
+    } catch (_) {
+      // noop
+    }
+    try {
+      await window.close();
+    } catch (error) {
+      console.error("close break overlay by label failed, fallback destroy", label, error);
+      try {
+        await window.destroy();
+      } catch (destroyError) {
+        console.error("destroy break overlay by label failed", label, destroyError);
+      }
+    }
+  }
 }
 
 /**
