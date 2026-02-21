@@ -152,6 +152,8 @@
   let overlaySyncInFlight = false;
   let overlaySyncQueued = false;
   let lastOverlayPayloadKey = "";
+  /** @type {null | Promise<string[]>} */
+  let overlayEnsurePromise = null;
   /** @type {"mini" | "long" | ""} */
   let activeBreakKind = $state("");
   let skipUnlockedAfterPostpone = $state(false);
@@ -744,6 +746,32 @@
     };
   }
 
+  async function ensureBreakOverlayLabels() {
+    if (Array.isArray(breakOverlayLabels) && breakOverlayLabels.length > 0) {
+      return breakOverlayLabels;
+    }
+    if (overlayEnsurePromise) {
+      return overlayEnsurePromise;
+    }
+    overlayEnsurePromise = ensureBreakOverlayWindows()
+      .then((labels) => {
+        const safeLabels = Array.isArray(labels)
+          ? Array.from(new Set(labels.map((label) => String(label || "")).filter(Boolean)))
+          : [];
+        breakOverlayLabels = safeLabels;
+        return safeLabels;
+      })
+      .catch((error) => {
+        console.error("focus ensure break overlay windows", error);
+        breakOverlayLabels = [];
+        return [];
+      })
+      .finally(() => {
+        overlayEnsurePromise = null;
+      });
+    return overlayEnsurePromise;
+  }
+
   async function syncBreakOverlay() {
     if (!breakTimerActive) return;
     if (overlayClosing) return;
@@ -753,14 +781,11 @@
     }
     overlaySyncInFlight = true;
     try {
-      let labels = breakOverlayLabels;
-      if (!Array.isArray(labels) || labels.length === 0) {
-        labels = await ensureBreakOverlayWindows();
-        breakOverlayLabels = labels;
-      }
+      const labels = await ensureBreakOverlayLabels();
       if (!Array.isArray(labels) || labels.length === 0) return;
       const payload = buildBreakOverlayPayload();
       const payloadKey = [
+        labels.join(","),
         payload.title,
         payload.taskText,
         payload.remainingSeconds,
@@ -772,7 +797,11 @@
       ].join("|");
       if (payloadKey === lastOverlayPayloadKey) return;
       lastOverlayPayloadKey = payloadKey;
-      await emitBreakOverlayState(labels, payload);
+      const healthyLabels = await emitBreakOverlayState(labels, payload);
+      if (healthyLabels.length !== labels.length) {
+        breakOverlayLabels = healthyLabels;
+        lastOverlayPayloadKey = "";
+      }
     } finally {
       overlaySyncInFlight = false;
       if (overlaySyncQueued) {
@@ -802,6 +831,7 @@
       await closeBreakOverlayWindows();
     } finally {
       if (breakOverlayLabels.length > 0) breakOverlayLabels = [];
+      overlayEnsurePromise = null;
       breakOverlaySyncNonce += 1;
       lastOverlayPayloadKey = "";
       overlayClosing = false;
@@ -926,14 +956,10 @@
     }
     const nonce = ++breakOverlaySyncNonce;
     (async () => {
-      try {
-        const labels = await ensureBreakOverlayWindows();
-        if (nonce !== breakOverlaySyncNonce) return;
-        breakOverlayLabels = labels;
-        await syncBreakOverlay();
-      } catch (error) {
-        console.error("focus ensure break overlay windows", error);
-      }
+      const labels = await ensureBreakOverlayLabels();
+      if (nonce !== breakOverlaySyncNonce) return;
+      if (!Array.isArray(labels) || labels.length === 0) return;
+      await syncBreakOverlay();
     })();
   });
 

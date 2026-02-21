@@ -9,23 +9,43 @@
   } from "$lib/workspace/focus/focus-break-overlay-windows.js";
   const currentWindow = getCurrentWindow();
 
-  let title = $state("Take a break");
+  const isZhLocale = typeof navigator !== "undefined" && String(navigator.language || "").toLowerCase().startsWith("zh");
+  const defaultCopy = isZhLocale
+    ? {
+        title: "休息一下",
+        remainingPrefix: "剩余",
+        postponeText: "延后 2 分钟",
+        skipText: "跳过",
+        strictModeText: "严格模式",
+      }
+    : {
+        title: "Take a break",
+        remainingPrefix: "Remaining",
+        postponeText: "Postpone 2m",
+        skipText: "Skip",
+        strictModeText: "Strict mode",
+      };
+
+  let title = $state(defaultCopy.title);
   let taskText = $state("");
-  let remainingText = $state("Remaining 00:00");
-  let remainingPrefix = $state("Remaining");
+  let remainingText = $state(`${defaultCopy.remainingPrefix} 00:00`);
+  let remainingPrefix = $state(defaultCopy.remainingPrefix);
   let remainingSeconds = $state(0);
   let totalSeconds = $state(1);
   let endAtTs = $state(0);
   let progress = $state(0);
-  let postponeText = $state("Postpone 2m");
-  let skipText = $state("Skip");
+  let postponeText = $state(defaultCopy.postponeText);
+  let skipText = $state(defaultCopy.skipText);
   let showSkip = $state(false);
   let strictMode = $state(false);
-  let strictModeText = $state("Strict mode");
+  let strictModeText = $state(defaultCopy.strictModeText);
   let postponeDisabled = $state(false);
   let skipDisabled = $state(true);
   let hasReceivedPayload = $state(false);
   let selfClosing = false;
+  let closeRetryCount = 0;
+  let lastPayloadAt = 0;
+  let lastReadyRetryAt = 0;
 
   /**
    * @param {string} [label]
@@ -44,24 +64,53 @@
     return `${mm}:${ss}`;
   }
 
+  /**
+   * @param {Promise<any>} task
+   * @param {number} ms
+   */
+  async function withTimeout(task, ms) {
+    let timer = null;
+    try {
+      await Promise.race([
+        task,
+        new Promise((_, reject) => {
+          timer = window.setTimeout(() => reject(new Error("timeout")), ms);
+        }),
+      ]);
+      return true;
+    } catch (_) {
+      return false;
+    } finally {
+      if (timer !== null) window.clearTimeout(timer);
+    }
+  }
+
   async function closeSelf() {
     if (selfClosing) return;
     selfClosing = true;
     try {
-      await currentWindow.destroy();
-      return;
-    } catch (destroyError) {
-      console.error("break overlay destroy self, fallback close", destroyError);
-    }
-    try {
+      const destroyed = await withTimeout(currentWindow.destroy(), 600);
+      if (destroyed) return;
       try {
         await currentWindow.hide();
       } catch (_) {
         // noop
       }
-      await currentWindow.close();
-    } catch (closeError) {
-      console.error("break overlay close self", closeError);
+      const closed = await withTimeout(currentWindow.close(), 600);
+      if (closed) return;
+      closeRetryCount += 1;
+      if (closeRetryCount <= 8) {
+        selfClosing = false;
+        window.setTimeout(() => {
+          closeSelf().catch((error) => console.error("break overlay close retry", error));
+        }, 260);
+      } else {
+        selfClosing = false;
+        closeRetryCount = 0;
+      }
+    } catch (error) {
+      console.error("break overlay close self", error);
+      selfClosing = false;
     }
   }
 
@@ -71,13 +120,14 @@
   function applyOverlayState(payload) {
     const safe = payload && typeof payload === "object" ? payload : {};
     hasReceivedPayload = true;
+    lastPayloadAt = Date.now();
     if (safe.close === true) {
       closeSelf();
       return;
     }
-    title = String(safe.title || "Take a break");
+    title = String(safe.title || defaultCopy.title);
     taskText = String(safe.taskText || "");
-    remainingPrefix = String(safe.remainingPrefix || remainingPrefix || "Remaining");
+    remainingPrefix = String(safe.remainingPrefix || remainingPrefix || defaultCopy.remainingPrefix);
     remainingText = String(safe.remainingText || `${remainingPrefix} 00:00`);
     progress = Math.max(0, Math.min(100, Number(safe.progress || 0)));
     totalSeconds = Math.max(1, Math.floor(Number(safe.totalSeconds || totalSeconds || 1)));
@@ -91,11 +141,13 @@
       closeSelf();
       return;
     }
-    postponeText = String(safe.postponeText || "Postpone 2m");
-    skipText = String(safe.skipText || "Skip");
+    selfClosing = false;
+    closeRetryCount = 0;
+    postponeText = String(safe.postponeText || defaultCopy.postponeText);
+    skipText = String(safe.skipText || defaultCopy.skipText);
     showSkip = safe.showSkip === true;
     strictMode = safe.strictMode === true;
-    strictModeText = String(safe.strictModeText || "Strict mode");
+    strictModeText = String(safe.strictModeText || defaultCopy.strictModeText);
     postponeDisabled = safe.postponeDisabled === true;
     skipDisabled = safe.skipDisabled !== false;
   }
@@ -126,6 +178,12 @@
           closeSelf();
         }
         return;
+      }
+      if (Date.now() - lastPayloadAt > 2400 && Date.now() - lastReadyRetryAt > 1000) {
+        lastReadyRetryAt = Date.now();
+        requestOverlayState(currentWindow.label).catch((error) =>
+          console.error("break overlay stale ready retry emit", error),
+        );
       }
       if (!Number.isFinite(endAtTs) || endAtTs <= 0) return;
       const rest = Math.max(0, Math.ceil((endAtTs - Date.now()) / 1000));

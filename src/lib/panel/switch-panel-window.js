@@ -1,6 +1,5 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { listen } from "@tauri-apps/api/event";
 import { applyNoSnapWhenReady } from "$lib/panel/window-effects.js";
 
 /**
@@ -48,43 +47,6 @@ async function ensureWorkspaceWindow(invoke) {
 }
 
 /**
- * @param {number} timeoutMs
- */
-async function waitWorkspaceReady(timeoutMs) {
-  return await new Promise((resolve) => {
-    let settled = false;
-    /** @type {null | (() => void)} */
-    let unlistenFn = null;
-
-    /** @param {boolean} ok */
-    const finish = (ok) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (unlistenFn) {
-        try {
-          unlistenFn();
-        } catch {}
-      }
-      resolve(ok);
-    };
-
-    const timer = setTimeout(() => finish(false), timeoutMs);
-    listen("workspace_ready", () => finish(true))
-      .then((unlisten) => {
-        if (settled) {
-          try {
-            unlisten();
-          } catch {}
-          return;
-        }
-        unlistenFn = unlisten;
-      })
-      .catch(() => {});
-  });
-}
-
-/**
  * @param {"compact" | "workspace"} target
  * @param {typeof import("@tauri-apps/api/core").invoke} invoke
  */
@@ -93,19 +55,17 @@ export async function switchPanelWindow(target, invoke) {
   const currentLabel = current.label;
 
   if (target === "workspace") {
-    const { window: ws, created } = await ensureWorkspaceWindow(invoke);
-    const readyWait = created ? waitWorkspaceReady(1500) : Promise.resolve(true);
+    const { window: ws } = await ensureWorkspaceWindow(invoke);
     await ws.show();
     await ws.setFocus();
     await saveLastPanelWindow(invoke, "workspace");
     await applyNoSnapWhenReady(invoke, "workspace");
-    const ready = await readyWait;
-    if (ready && currentLabel !== "workspace") {
+    if (currentLabel !== "workspace") {
       await current.hide();
-    } else if (!ready && currentLabel === "main") {
-      // Keep main window as fallback when workspace failed to report mounted state.
-      await current.show();
-      await current.setFocus();
+    }
+    const compact = await WebviewWindow.getByLabel("main");
+    if (compact && currentLabel !== "main") {
+      await compact.hide();
     }
     return;
   }
@@ -117,5 +77,9 @@ export async function switchPanelWindow(target, invoke) {
   await saveLastPanelWindow(invoke, "main");
   if (currentLabel !== "main") {
     await current.hide();
+  }
+  const workspace = await WebviewWindow.getByLabel("workspace");
+  if (workspace && currentLabel !== "workspace") {
+    await workspace.hide();
   }
 }

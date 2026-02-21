@@ -89,10 +89,36 @@ fn emit_notes_changed(app: &tauri::AppHandle) {
     let _ = app.emit("notes_changed", ());
 }
 
+fn ensure_workspace_panel_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
+    if let Some(existing) = app.get_webview_window("workspace") {
+        return Some(existing);
+    }
+    let builder = tauri::WebviewWindowBuilder::new(
+        app,
+        "workspace",
+        tauri::WebviewUrl::App("/workspace".into()),
+    )
+    .title("Desk Tidy Workspace")
+    .inner_size(1024.0, 720.0)
+    .center()
+    .decorations(false)
+    .transparent(false)
+    .skip_taskbar(true)
+    .resizable(true)
+    .maximizable(true);
+    match builder.build() {
+        Ok(window) => Some(window),
+        Err(err) => {
+            eprintln!("ensure_workspace_panel_window build failed: {}", err);
+            None
+        }
+    }
+}
+
 fn show_preferred_panel_window(app: &tauri::AppHandle) {
     let preferred = preferences::read_last_panel_window();
     if preferred == "workspace" {
-        if let Some(w) = app.get_webview_window("workspace") {
+        if let Some(w) = ensure_workspace_panel_window(app) {
             let _ = w.show();
             let _ = w.set_focus();
             if let Some(main) = app.get_webview_window("main") {
@@ -641,8 +667,13 @@ pub fn run() {
                 let app_handle = app.handle().clone();
                 std::thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_millis(100));
-                    if !preferences::read_show_panel_on_startup() {
+                    if preferences::read_show_panel_on_startup() {
+                        show_preferred_panel_window(&app_handle);
+                    } else {
                         if let Some(w) = app_handle.get_webview_window("main") {
+                            let _ = w.hide();
+                        }
+                        if let Some(w) = app_handle.get_webview_window("workspace") {
                             let _ = w.hide();
                         }
                     }

@@ -127,3 +127,14 @@
   3) 无 payload 超时关闭窗口（12s 兜底）；
   4) 点击 `延后/跳过` 后本地先关闭 overlay，再由宿主同步状态；
   5) overlay 创建时显式 `setIgnoreCursorEvents(false)` 与 `setFocus()`，避免输入状态异常导致点击无响应。
+
+## 2026-02-20 修复补充（十）：多屏失步（单屏英文回退）与关闭锁死
+- 现象：
+  1) 某一屏倒计时过程中突然回退到 `Take a break / Remaining 00:00`；
+  2) 该屏可能卡住不自动关闭。
+- 关键修复：
+  1) overlay 窗口管理改为“优先复用”，避免重复 `ensure` 时强制重建造成握手竞态；
+  2) overlay 状态广播改为“逐窗口容错”，单窗口 emit 失败不再影响其他窗口；
+  3) host 侧引入 overlay 初始化单飞，收敛并发 ensure；
+  4) overlay 页面增加关闭重试与静默重握手，避免单次 close 失败后永久卡死。
+- 详情文档：`docs/ui/2026-02-20-workspace-break-overlay-multiscreen-desync-hardening.md`

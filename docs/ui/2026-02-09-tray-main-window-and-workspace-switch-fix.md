@@ -68,3 +68,8 @@
 ## 验证
 1. `npm run check`：通过（0 errors / 0 warnings）
 2. `cargo check`：通过（仅既有 warning）
+
+## 后续演进（2026-02-20）
+- 由于后续发现“冷启动恢复 workspace 失败、切窗偶发共存”问题，已在 `2026-02-20-panel-window-startup-restore.md` 进行收敛修复：
+  - 切窗改为强互斥隐藏。
+  - 后端支持按需创建 `workspace` 窗口并按偏好恢复。

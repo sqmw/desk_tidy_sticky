@@ -36,15 +36,45 @@ function monitorToLogicalBounds(monitor) {
 
 /**
  * @param {string} label
- * @param {number} retry
+ * @param {{ position?: { x?: number; y?: number }; size?: { width?: number; height?: number }; scaleFactor?: number }} monitor
+ * @param {WebviewWindow} window
  */
-async function waitForWindowClosed(label, retry = 24) {
-  for (let index = 0; index < retry; index += 1) {
-    const win = await WebviewWindow.getByLabel(label);
-    if (!win) return true;
-    await new Promise((resolve) => setTimeout(resolve, 20));
+async function applyOverlayWindowGeometry(label, monitor, window) {
+  const logical = monitorToLogicalBounds(monitor);
+  try {
+    await window.setPosition(new LogicalPosition(logical.x, logical.y));
+    await window.setSize(new LogicalSize(logical.width, logical.height));
+  } catch (error) {
+    console.error("set break overlay logical geometry failed", label, error);
+    throw error;
   }
-  return false;
+}
+
+/**
+ * @param {WebviewWindow} window
+ */
+async function applyOverlayWindowRuntimeState(window) {
+  try {
+    await window.setAlwaysOnTop(true);
+  } catch (_) {
+    // noop
+  }
+  try {
+    await window.setShadow(false);
+  } catch (_) {
+    // noop
+  }
+  try {
+    await window.setIgnoreCursorEvents(false);
+  } catch (_) {
+    // noop
+  }
+  await window.show();
+  try {
+    await window.setFocus();
+  } catch (_) {
+    // noop
+  }
 }
 
 /**
@@ -54,18 +84,27 @@ async function waitForWindowClosed(label, retry = 24) {
 async function ensureOverlayWindow(label, monitor) {
   const existing = await WebviewWindow.getByLabel(label);
   if (existing) {
-    // Force recreate so monitor geometry stays correct when DPI / layout changes.
     try {
-      await existing.close();
-    } catch (_) {
-      // noop
-    }
-    await waitForWindowClosed(label);
-    const leftover = await WebviewWindow.getByLabel(label);
-    if (leftover) {
-      await leftover.show();
-      await leftover.setAlwaysOnTop(true);
-      return leftover;
+      await applyOverlayWindowGeometry(label, monitor, existing);
+      await applyOverlayWindowRuntimeState(existing);
+      return existing;
+    } catch (reuseError) {
+      console.error("reuse break overlay window failed, recreate", label, reuseError);
+      try {
+        await existing.hide();
+      } catch (_) {
+        // noop
+      }
+      try {
+        await existing.close();
+      } catch (_) {
+        // noop
+      }
+      try {
+        await existing.destroy();
+      } catch (_) {
+        // noop
+      }
     }
   }
 
@@ -94,27 +133,8 @@ async function ensureOverlayWindow(label, monitor) {
       reject(new Error(String(event?.payload || "create break overlay window failed"))),
     );
   });
-  try {
-    await webview.setShadow(false);
-  } catch (_) {
-    // noop
-  }
-  try {
-    await webview.setIgnoreCursorEvents(false);
-  } catch (_) {
-    // noop
-  }
-  try {
-    await webview.setFocus();
-  } catch (_) {
-    // noop
-  }
-  try {
-    await webview.setPosition(new LogicalPosition(logical.x, logical.y));
-    await webview.setSize(new LogicalSize(logical.width, logical.height));
-  } catch (error) {
-    console.error("set break overlay logical geometry failed", label, error);
-  }
+  await applyOverlayWindowGeometry(label, monitor, webview);
+  await applyOverlayWindowRuntimeState(webview);
   return webview;
 }
 
@@ -194,12 +214,36 @@ export async function closeBreakOverlayWindowsByLabels(labels) {
 /**
  * @param {string[]} labels
  * @param {Record<string, any>} payload
+ * @returns {Promise<string[]>}
  */
 export async function emitBreakOverlayState(labels, payload) {
   const uniqueLabels = Array.from(new Set((labels || []).map((label) => String(label || "")))).filter(Boolean);
+  /** @type {string[]} */
+  const healthyLabels = [];
   for (const label of uniqueLabels) {
     const window = await WebviewWindow.getByLabel(label);
     if (!window) continue;
-    await window.emit(BREAK_OVERLAY_EVENT_UPDATE, payload);
+    try {
+      await window.emit(BREAK_OVERLAY_EVENT_UPDATE, payload);
+      healthyLabels.push(label);
+    } catch (error) {
+      console.error("emit break overlay state failed", label, error);
+      try {
+        await window.hide();
+      } catch (_) {
+        // noop
+      }
+      try {
+        await window.close();
+      } catch (_) {
+        // noop
+      }
+      try {
+        await window.destroy();
+      } catch (_) {
+        // noop
+      }
+    }
   }
+  return healthyLabels;
 }
