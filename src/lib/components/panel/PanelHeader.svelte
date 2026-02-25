@@ -37,12 +37,38 @@
     toggleInteraction,
     onHideAfterSaveChange,
   } = $props();
+
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /mac/i.test(String(navigator.userAgent || navigator.platform || ""));
 </script>
 
 <header class="panel-header">
   <div class="header-row">
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="header-drag" onpointerdown={startWindowDragPointer}>
+      {#if isMac}
+        <div class="mac-traffic-controls" onpointerdown={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            class="mac-traffic-btn traffic-close"
+            title={strings.hideWindow}
+            onclick={hideWindow}
+            onpointerdown={(e) => e.stopPropagation()}
+          >
+            <span class="traffic-glyph">×</span>
+          </button>
+          <button
+            type="button"
+            class="mac-traffic-btn traffic-minimize"
+            title={strings.minimizeWindow}
+            onclick={minimizeWindow}
+            onpointerdown={(e) => e.stopPropagation()}
+          >
+            <span class="traffic-glyph">−</span>
+          </button>
+        </div>
+      {/if}
       <span class="app-title">{strings.appName.toUpperCase()}</span>
     </div>
 
@@ -50,6 +76,7 @@
       {strings}
       {windowPinned}
       {glassOpacity}
+      showWindowControls={!isMac}
       {toggleWindowPinned}
       {toggleLanguage}
       {adjustGlass}
@@ -191,8 +218,58 @@
 
   .header-drag {
     flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     min-width: 0;
     cursor: default;
+  }
+
+  .mac-traffic-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 2px;
+    flex-shrink: 0;
+  }
+
+  .mac-traffic-btn {
+    width: 12px;
+    height: 12px;
+    min-width: 12px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .traffic-close {
+    background: #ff5f57;
+    border-color: #de4941;
+    color: #7a0d08;
+  }
+
+  .traffic-minimize {
+    background: #ffbd2e;
+    border-color: #dfa123;
+    color: #7a4d00;
+  }
+
+  .traffic-glyph {
+    font-size: 9px;
+    line-height: 1;
+    font-weight: 700;
+    opacity: 0;
+    transition: opacity 0.14s ease;
+    transform: translateY(-0.25px);
+  }
+
+  .mac-traffic-controls:hover .traffic-glyph,
+  .mac-traffic-btn:focus-visible .traffic-glyph {
+    opacity: 0.72;
   }
 
   .app-title {

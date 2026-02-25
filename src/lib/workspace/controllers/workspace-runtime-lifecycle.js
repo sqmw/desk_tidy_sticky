@@ -20,10 +20,12 @@ export function createWorkspaceRuntimeLifecycle(deps) {
 
   /**
    * @param {(next: boolean) => void} setWindowMaximized
+   * @param {{ macFullscreen?: boolean }} [options]
    */
-  async function syncWindowMaximizedState(setWindowMaximized) {
+  async function syncWindowMaximizedState(setWindowMaximized, options = {}) {
     try {
-      const v = await deps.getCurrentWindow().isMaximized();
+      const win = deps.getCurrentWindow();
+      const v = options.macFullscreen ? await win.isFullscreen() : await win.isMaximized();
       setWindowMaximized(!!v);
     } catch {
       // ignore

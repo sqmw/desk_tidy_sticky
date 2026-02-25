@@ -45,7 +45,9 @@ export function createWindowSync(deps) {
     const existing = await WebviewWindow.getByLabel(label);
     if (existing) {
       await existing.show();
-      await existing.setFocus();
+      if (note?.isAlwaysOnTop) {
+        await existing.setFocus();
+      }
       return;
     }
     if (creatingLabels.has(label)) return;

@@ -16,6 +16,7 @@
 
   import WorkbenchSection from "$lib/components/panel/WorkbenchSection.svelte";
   import WorkspaceFocusHub from "$lib/components/workspace/WorkspaceFocusHub.svelte";
+  import WorkspaceMacTrafficLights from "$lib/components/workspace/WorkspaceMacTrafficLights.svelte";
   import WorkspaceWindowBar from "$lib/components/workspace/WorkspaceWindowBar.svelte";
   import WorkspaceSidebar from "$lib/components/workspace/WorkspaceSidebar.svelte";
   import WorkspaceToolbar from "$lib/components/workspace/WorkspaceToolbar.svelte";
@@ -142,6 +143,10 @@
     independentLongBreakEveryMinutes: 30,
   });
   let sidebarCollapsed = $derived(sidebarWidth <= 104);
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /mac/i.test(String(navigator.userAgent || navigator.platform || ""));
+  const showMacTrafficLights = $derived(isMac && !windowMaximized);
   /** @type {ReturnType<typeof setTimeout> | null} */
   let workspaceCustomCssSaveTimer = null;
   const workspaceZoomOption = $derived(workspaceZoomMode === "auto" ? "auto" : String(workspaceZoom));
@@ -782,6 +787,7 @@
 
   function onWindowResize() {
     refreshViewportMetrics();
+    syncWindowPresentationState();
   }
 
   /** @param {string} shape */
@@ -816,11 +822,26 @@
   async function toggleWindowMaximize() {
     try {
       const win = getCurrentWindow();
+      if (isMac) {
+        const current = await win.isFullscreen();
+        await win.setFullscreen(!current);
+        windowMaximized = !current;
+        return;
+      }
       await win.toggleMaximize();
       windowMaximized = await win.isMaximized();
     } catch (e) {
       console.error("toggleWindowMaximize(workspace)", e);
     }
+  }
+
+  async function syncWindowPresentationState() {
+    await runtimeLifecycle.syncWindowMaximizedState(
+      (next) => {
+        windowMaximized = next;
+      },
+      { macFullscreen: isMac },
+    );
   }
 
   async function minimizeWindow() {
@@ -897,9 +918,7 @@
   onMount(() => {
     refreshViewportMetrics();
     runtimeLifecycle.bootstrap();
-    runtimeLifecycle.syncWindowMaximizedState((next) => {
-      windowMaximized = next;
-    });
+    syncWindowPresentationState();
     runtimeLifecycle.syncOverlayInteractionState();
     let cleanup = /** @type {(() => void) | null} */ (null);
     runtimeLifecycle.mountRuntimeListeners().then((fn) => {
@@ -963,6 +982,15 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="workspace-viewport" bind:this={workspaceViewportEl}>
+  {#if showMacTrafficLights}
+    <WorkspaceMacTrafficLights
+      {strings}
+      isMaximized={windowMaximized}
+      onMinimize={minimizeWindow}
+      onToggleMaximize={toggleWindowMaximize}
+      onHide={hideWindow}
+    />
+  {/if}
   <div
     class="workspace"
     class:theme-dark={workspaceThemeDark}
@@ -970,6 +998,7 @@
   >
   <WorkspaceSidebar
     {strings}
+    {isMac}
     {mainTab}
     viewModes={WORKSPACE_NOTE_VIEW_MODES}
     {viewMode}
@@ -987,6 +1016,7 @@
     onSetSortMode={setSortMode}
     onSetSelectedTag={setSelectedTag}
     onSetInitialViewMode={setInitialViewMode}
+    {showMacTrafficLights}
     {sortMode}
     sortModes={SORT_MODES}
     {noteViewCounts}
@@ -1011,6 +1041,7 @@
       isMaximized={windowMaximized}
       {themeTransitionShape}
       compact={stageLayout.windowBarCompact}
+      showWindowControls={!isMac}
       onDragStart={startWorkspaceDragPointer}
       onBackToCompact={switchToCompact}
       onMinimize={minimizeWindow}
@@ -1152,6 +1183,7 @@
   }
 
   .workspace-viewport {
+    position: relative;
     width: 100vw;
     height: 100vh;
     overflow: hidden;

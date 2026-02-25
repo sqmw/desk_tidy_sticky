@@ -170,7 +170,9 @@
   }
 
   async function applyInteractionPolicy() {
-    const ignoreCursor = clickThrough;
+    // Keep bottom-pinned notes in strict wallpaper mode on macOS (desktop icons must stay above notes).
+    const forceWallpaperPassThrough = !!note && !note.isAlwaysOnTop;
+    const ignoreCursor = forceWallpaperPassThrough ? true : clickThrough;
     try {
       await getCurrentWindow().setIgnoreCursorEvents(ignoreCursor);
     } catch (e) {

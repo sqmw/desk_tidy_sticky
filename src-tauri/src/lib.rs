@@ -74,15 +74,23 @@ fn apply_overlay_input_state(app: &tauri::AppHandle, click_through: bool) {
     let notes = notes_service::load_notes(NoteSortMode::Custom).unwrap_or_default();
     for (label, w) in app.webview_windows() {
         if label.starts_with("note-") {
-            let _ = w.set_ignore_cursor_events(click_through);
             let note_id = label.trim_start_matches("note-");
             if let Some(n) = notes.iter().find(|x| x.id == note_id) {
+                // Wallpaper-mode notes must stay non-interactive to keep Finder desktop icons above.
+                let should_ignore_cursor_events = if n.is_always_on_top {
+                    click_through
+                } else {
+                    true
+                };
+                let _ = w.set_ignore_cursor_events(should_ignore_cursor_events);
                 let _ = apply_note_window_layer_with_interaction_by_label(
                     app,
                     &label,
                     n.is_always_on_top,
                     click_through,
                 );
+            } else {
+                let _ = w.set_ignore_cursor_events(click_through);
             }
         }
     }
@@ -282,7 +290,7 @@ fn apply_note_window_layer_with_interaction_by_label(
     app: &tauri::AppHandle,
     label: &str,
     is_always_on_top: bool,
-    click_through: bool,
+    _click_through: bool,
 ) -> Result<(), String> {
     let Some(w) = app.get_webview_window(label) else {
         return Ok(());
@@ -292,7 +300,7 @@ fn apply_note_window_layer_with_interaction_by_label(
         target_os = "windows",
         all(not(target_os = "windows"), not(target_os = "macos"))
     ))]
-    let should_be_top = !click_through || is_always_on_top;
+    let should_be_top = !_click_through || is_always_on_top;
 
     #[cfg(target_os = "windows")]
     {
@@ -314,9 +322,7 @@ fn apply_note_window_layer_with_interaction_by_label(
     #[cfg(target_os = "macos")]
     {
         let should_be_top = is_always_on_top;
-        let interactive_desktop = !click_through;
         if should_be_top {
-            let _ = w.set_always_on_top(true);
             run_macos_window_op(
                 &w,
                 "macos_detach_from_desktop",
@@ -326,13 +332,14 @@ fn apply_note_window_layer_with_interaction_by_label(
                 macos_windows::set_topmost_no_activate(ptr, true)
             })?;
         } else {
-            let _ = w.set_always_on_top(false);
             run_macos_window_op(&w, "macos_set_topmost_false", |ptr| {
                 macos_windows::set_topmost_no_activate(ptr, false)
             })?;
-            run_macos_window_op(&w, "macos_attach_to_desktop", move |ptr| {
-                macos_windows::attach_to_worker_w_with_mode(ptr, interactive_desktop)
-            })?;
+            run_macos_window_op(
+                &w,
+                "macos_attach_to_wallpaper_layer",
+                macos_windows::attach_to_wallpaper_layer,
+            )?;
         }
         return Ok(());
     }
@@ -614,7 +621,7 @@ fn set_preferences(prefs: PanelPreferences) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn pin_window_to_desktop(window: tauri::WebviewWindow) -> Result<(), String> {
+fn pin_window_to_desktop(_app: tauri::AppHandle, window: tauri::WebviewWindow) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let Some(hwnd_isize) = window_hwnd_isize(&window)? else {
@@ -626,11 +633,10 @@ fn pin_window_to_desktop(window: tauri::WebviewWindow) -> Result<(), String> {
 
     #[cfg(target_os = "macos")]
     {
-        let _ = window.set_always_on_top(false);
         run_macos_window_op(
             &window,
-            "macos_pin_attach_to_desktop",
-            macos_windows::attach_to_worker_w,
+            "macos_pin_attach_to_wallpaper_layer",
+            macos_windows::attach_to_wallpaper_layer,
         )?;
         Ok(())
     }
@@ -664,7 +670,6 @@ fn unpin_window_from_desktop(window: tauri::WebviewWindow) -> Result<(), String>
         run_macos_window_op(&window, "macos_unpin_set_topmost_true", |ptr| {
             macos_windows::set_topmost_no_activate(ptr, true)
         })?;
-        let _ = window.set_always_on_top(true);
         Ok(())
     }
 

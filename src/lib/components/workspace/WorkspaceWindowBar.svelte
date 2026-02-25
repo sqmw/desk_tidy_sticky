@@ -5,6 +5,7 @@
     isMaximized = false,
     themeTransitionShape = "circle",
     compact = false,
+    showWindowControls = true,
     onDragStart,
     onBackToCompact,
     onToggleTheme,
@@ -97,39 +98,41 @@
       </button>
     </div>
 
-    <div class="action-cluster window-cluster">
-      <button
-        type="button"
-        class="bar-btn icon-btn"
-        onclick={() => onMinimize()}
-        onpointerdown={(e) => e.stopPropagation()}
-        title={strings.minimizeWindow}
-      >
-        {@render iconMinimizeWindow()}
-      </button>
-      <button
-        type="button"
-        class="bar-btn icon-btn"
-        onclick={onToggleMaximize}
-        onpointerdown={(e) => e.stopPropagation()}
-        title={isMaximized ? strings.restoreWindow : strings.maximizeWindow}
-      >
-        {#if isMaximized}
-          {@render iconRestoreWindow()}
-        {:else}
-          {@render iconMaximizeWindow()}
-        {/if}
-      </button>
-      <button
-        type="button"
-        class="bar-btn icon-btn close-btn"
-        onclick={() => onHide()}
-        onpointerdown={(e) => e.stopPropagation()}
-        title={strings.hideWindow}
-      >
-        {@render iconCloseWindow()}
-      </button>
-    </div>
+    {#if showWindowControls}
+      <div class="action-cluster window-cluster">
+        <button
+          type="button"
+          class="bar-btn icon-btn window-minimize"
+          onclick={() => onMinimize()}
+          onpointerdown={(e) => e.stopPropagation()}
+          title={strings.minimizeWindow}
+        >
+          {@render iconMinimizeWindow()}
+        </button>
+        <button
+          type="button"
+          class="bar-btn icon-btn window-maximize"
+          onclick={onToggleMaximize}
+          onpointerdown={(e) => e.stopPropagation()}
+          title={isMaximized ? strings.restoreWindow : strings.maximizeWindow}
+        >
+          {#if isMaximized}
+            {@render iconRestoreWindow()}
+          {:else}
+            {@render iconMaximizeWindow()}
+          {/if}
+        </button>
+        <button
+          type="button"
+          class="bar-btn icon-btn close-btn"
+          onclick={() => onHide()}
+          onpointerdown={(e) => e.stopPropagation()}
+          title={strings.hideWindow}
+        >
+          {@render iconCloseWindow()}
+        </button>
+      </div>
+    {/if}
   </div>
 </header>
 
@@ -346,12 +349,12 @@
     padding: 0 8px;
   }
 
-  .close-btn {
+  .window-cluster:not(.mac-traffic) .close-btn {
     color: color-mix(in srgb, #d14343 72%, var(--ws-text, #334155));
     border-color: color-mix(in srgb, #ef9aa2 56%, var(--ws-border-soft, #d8e2ef));
   }
 
-  .close-btn:hover {
+  .window-cluster:not(.mac-traffic) .close-btn:hover {
     color: #b4232d;
     border-color: color-mix(in srgb, #ef4444 66%, var(--ws-border-hover, #c6d5e8));
     background: color-mix(in srgb, #ef4444 12%, var(--ws-btn-hover, #f4f8ff));

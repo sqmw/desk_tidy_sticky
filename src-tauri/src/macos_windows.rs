@@ -1,5 +1,7 @@
 use objc2::{AnyThread, MainThreadMarker};
-use objc2_app_kit::{NSApplication, NSImage, NSWindow};
+use objc2_app_kit::{
+    NSApplication, NSImage, NSWindow, NSWindowAnimationBehavior, NSWindowCollectionBehavior,
+};
 use objc2_core_graphics::{CGWindowLevelForKey, CGWindowLevelKey};
 use objc2_foundation::NSData;
 use std::ffi::c_void;
@@ -16,6 +18,15 @@ fn desktop_window_level() -> isize {
     CGWindowLevelForKey(CGWindowLevelKey::DesktopWindowLevelKey) as isize
 }
 
+fn desktop_icon_window_level() -> isize {
+    CGWindowLevelForKey(CGWindowLevelKey::DesktopIconWindowLevelKey) as isize
+}
+
+fn wallpaper_window_level() -> isize {
+    // Keep sticky windows below desktop icons (Finder items) while remaining in desktop band.
+    desktop_window_level().min(desktop_icon_window_level().saturating_sub(1))
+}
+
 fn normal_window_level() -> isize {
     CGWindowLevelForKey(CGWindowLevelKey::NormalWindowLevelKey) as isize
 }
@@ -24,38 +35,98 @@ fn floating_window_level() -> isize {
     CGWindowLevelForKey(CGWindowLevelKey::FloatingWindowLevelKey) as isize
 }
 
-fn desktop_icon_interactive_level() -> isize {
-    // Plash-style interaction level: just above desktop icons to keep desktop embedding semantics
-    // while still allowing direct interaction when click-through is disabled.
-    (CGWindowLevelForKey(CGWindowLevelKey::DesktopIconWindowLevelKey) + 1) as isize
+fn log_level(tag: &str, window: &NSWindow) {
+    eprintln!(
+        "[macos-layer] {tag} current={} desktop={} desktop_icon={} normal={} floating={} ignore_mouse={}",
+        window.level(),
+        desktop_window_level(),
+        desktop_icon_window_level(),
+        normal_window_level(),
+        floating_window_level(),
+        window.ignoresMouseEvents(),
+    );
 }
 
+fn desktop_sticky_collection_behavior() -> NSWindowCollectionBehavior {
+    NSWindowCollectionBehavior::Stationary
+        | NSWindowCollectionBehavior::IgnoresCycle
+        | NSWindowCollectionBehavior::FullScreenNone
+}
+
+fn apply_desktop_sticky_window_traits(window: &NSWindow) {
+    window.setCanHide(false);
+    window.setHidesOnDeactivate(false);
+    window.setCollectionBehavior(desktop_sticky_collection_behavior());
+    window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+}
+
+fn apply_wallpaper_window_traits(window: &NSWindow) {
+    window.setCanHide(false);
+    window.setHidesOnDeactivate(false);
+    window.setCollectionBehavior(desktop_sticky_collection_behavior());
+    window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+    // Align to Plash wallpaper mode: desktop layer is strictly non-interactive.
+    window.setIgnoresMouseEvents(true);
+}
+
+fn restore_standard_window_traits(window: &NSWindow) {
+    window.setCanHide(true);
+    window.setHidesOnDeactivate(false);
+    window.setCollectionBehavior(NSWindowCollectionBehavior::Default);
+    window.setAnimationBehavior(NSWindowAnimationBehavior::Default);
+    window.setIgnoresMouseEvents(false);
+}
+
+/// Legacy desktop-bottom strategy retained for fallback/experiments.
+/// This path keeps the previous behavior and is intentionally not removed.
+#[allow(dead_code)]
 pub fn attach_to_worker_w(ns_window_ptr: *mut c_void) -> Result<(), String> {
-    attach_to_worker_w_with_mode(ns_window_ptr, false)
+    let window = cast_ns_window_ptr(ns_window_ptr)?;
+    apply_desktop_sticky_window_traits(window);
+    window.setLevel(desktop_window_level());
+    // Plash-aligned desktop mode: keep sticky windows behind normal app windows
+    // and out of Expose-style cycle behaviors.
+    window.orderBack(None);
+    log_level("attach_to_worker_w(legacy)", window);
+    Ok(())
 }
 
-pub fn attach_to_worker_w_with_mode(
+pub fn attach_to_wallpaper_layer(
     ns_window_ptr: *mut c_void,
-    interactive: bool,
 ) -> Result<(), String> {
     let window = cast_ns_window_ptr(ns_window_ptr)?;
-    if interactive {
-        window.setLevel(desktop_icon_interactive_level());
-        window.setIgnoresMouseEvents(false);
-        window.makeKeyAndOrderFront(None);
-    } else {
-        window.setLevel(desktop_window_level());
-        // Keep desktop-level semantics and pass-through behavior to match desktop sticker mode.
-        window.setIgnoresMouseEvents(true);
-        window.orderFront(None);
-    }
+    apply_wallpaper_window_traits(window);
+    // Match Plash desktop wallpaper behavior: place on desktop level and keep the window at back.
+    window.setLevel(desktop_window_level());
+    window.orderBack(None);
+    log_level("attach_to_wallpaper_layer", window);
+    Ok(())
+}
+
+/// Legacy strategy retained for fallback/experiments.
+/// This variant keeps the previous desktop-icon-aware level and interactive toggle behavior.
+#[allow(dead_code)]
+pub fn attach_to_wallpaper_layer_legacy(
+    ns_window_ptr: *mut c_void,
+    click_through: bool,
+) -> Result<(), String> {
+    let window = cast_ns_window_ptr(ns_window_ptr)?;
+    window.setCanHide(false);
+    window.setHidesOnDeactivate(false);
+    window.setCollectionBehavior(desktop_sticky_collection_behavior());
+    window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+    window.setIgnoresMouseEvents(click_through);
+    window.setLevel(wallpaper_window_level());
+    window.orderBack(None);
+    log_level("attach_to_wallpaper_layer_legacy", window);
     Ok(())
 }
 
 pub fn detach_from_worker_w(ns_window_ptr: *mut c_void) -> Result<(), String> {
     let window = cast_ns_window_ptr(ns_window_ptr)?;
+    restore_standard_window_traits(window);
     window.setLevel(normal_window_level());
-    window.setIgnoresMouseEvents(false);
+    log_level("detach_from_worker_w", window);
     Ok(())
 }
 
@@ -64,8 +135,10 @@ pub fn set_topmost_no_activate(ns_window_ptr: *mut c_void, topmost: bool) -> Res
     if topmost {
         window.setLevel(floating_window_level());
         window.orderFrontRegardless();
+        log_level("set_topmost_no_activate(true)", window);
     } else {
         window.setLevel(normal_window_level());
+        log_level("set_topmost_no_activate(false)", window);
     }
     Ok(())
 }

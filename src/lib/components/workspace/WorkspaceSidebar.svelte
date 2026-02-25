@@ -22,6 +22,7 @@
 
   let {
     strings,
+    isMac = false,
     mainTab = /** @type {string} */ (WORKSPACE_MAIN_TAB_NOTES),
     viewModes,
     viewMode,
@@ -45,6 +46,7 @@
     onSetInitialViewMode = () => {},
     stickiesVisible,
     interactionDisabled = false,
+    showMacTrafficLights = false,
     focusDeadlines = [],
     noteTags = [],
     selectedTag = "",
@@ -252,7 +254,13 @@
   class:manual-resizing={manualResizeDragging}
 >
   <div class="brand" data-drag-handle="workspace" onpointerdown={onDragStart}>
-    <span class="brand-pill">{strings.workspaceBrandTag}</span>
+    <span
+      class="brand-pill"
+      class:traffic-reserved={showMacTrafficLights}
+      class:traffic-hidden={isMac && !showMacTrafficLights}
+    >
+      {strings.workspaceBrandTag}
+    </span>
     <h1>{collapsed ? "WS" : strings.workspaceTitle}</h1>
     {#if !collapsed}
       <p>{strings.workspaceHint}</p>
@@ -618,6 +626,15 @@
     padding: 4px 8px;
     border-radius: 999px;
     margin-bottom: 8px;
+  }
+
+  .brand-pill.traffic-reserved {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .brand-pill.traffic-hidden {
+    display: none;
   }
 
   .brand h1 {
