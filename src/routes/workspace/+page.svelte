@@ -91,6 +91,8 @@
   let windowMaximized = $state(false);
   /** @type {HTMLDivElement | null} */
   let workbenchShellEl = $state(null);
+  /** @type {HTMLDivElement | null} */
+  let workspaceViewportEl = $state(null);
   let suppressNotesReloadUntil = 0;
   let stickiesVisible = $state(true);
   let interactionDisabled = $state(false);
@@ -818,6 +820,14 @@
     }
   }
 
+  async function minimizeWindow() {
+    try {
+      await getCurrentWindow().minimize();
+    } catch (e) {
+      console.error("minimizeWindow(workspace)", e);
+    }
+  }
+
   async function hideWindow() {
     try {
       await getCurrentWindow().hide();
@@ -850,6 +860,13 @@
     getSidebarMaxWidth: () => stageLayout.sidebarMaxWidth,
     setSidebarWidth: (nextWidth) => {
       sidebarWidth = nextWidth;
+    },
+    mapSidebarPointerClientX: (clientX) => {
+      const viewportRect = workspaceViewportEl?.getBoundingClientRect();
+      const left = viewportRect?.left ?? 0;
+      const scale = Number(workspaceLayoutScale || 1);
+      const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+      return (clientX - left) / safeScale;
     },
   });
 
@@ -921,7 +938,7 @@
 </svelte:head>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="workspace-viewport">
+<div class="workspace-viewport" bind:this={workspaceViewportEl}>
   <div
     class="workspace"
     class:theme-dark={workspaceThemeDark}
@@ -972,6 +989,7 @@
       compact={stageLayout.windowBarCompact}
       onDragStart={startWorkspaceDragPointer}
       onBackToCompact={switchToCompact}
+      onMinimize={minimizeWindow}
       onToggleMaximize={toggleWindowMaximize}
       onToggleTheme={toggleTheme}
       onOpenSettings={() => (showWorkspaceSettings = true)}

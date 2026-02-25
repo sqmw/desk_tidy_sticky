@@ -9,13 +9,19 @@ import { calcInspectorLayout, calcSidebarWidth } from "$lib/workspace/layout-res
  *   getSidebarWidth: () => number;
  *   getSidebarMaxWidth?: () => number;
  *   setSidebarWidth: (nextWidth: number) => void;
+ *   mapSidebarPointerClientX?: (clientX: number) => number;
  * }} params
  */
 export function createWorkspaceResizeController(params) {
+  const SIDEBAR_DRAG_START_THRESHOLD = 8;
+
   let inspectorPointerId = -1;
   let sidebarPointerId = -1;
   let resizingInspector = false;
   let resizingSidebar = false;
+  let sidebarDragStartX = 0;
+  let sidebarDragStartWidth = 0;
+  let sidebarDraggingStarted = false;
 
   /** @param {number} clientX */
   function applyInspectorResize(clientX) {
@@ -31,8 +37,11 @@ export function createWorkspaceResizeController(params) {
 
   /** @param {number} clientX */
   function applySidebarResize(clientX) {
+    const mappedX = typeof params.mapSidebarPointerClientX === "function"
+      ? params.mapSidebarPointerClientX(clientX)
+      : clientX;
     const max = Math.max(96, Math.round(Number(params.getSidebarMaxWidth?.() || 260)));
-    params.setSidebarWidth(calcSidebarWidth(clientX, { max }));
+    params.setSidebarWidth(calcSidebarWidth(mappedX, { max }));
   }
 
   function endInspectorResize() {
@@ -43,6 +52,9 @@ export function createWorkspaceResizeController(params) {
   function endSidebarResize() {
     resizingSidebar = false;
     sidebarPointerId = -1;
+    sidebarDragStartX = 0;
+    sidebarDragStartWidth = 0;
+    sidebarDraggingStarted = false;
   }
 
   /** @param {PointerEvent} event */
@@ -61,6 +73,9 @@ export function createWorkspaceResizeController(params) {
     if (event.button !== 0) return;
     resizingSidebar = true;
     sidebarPointerId = event.pointerId;
+    sidebarDragStartX = event.clientX;
+    sidebarDragStartWidth = Number(params.getSidebarWidth() || 0);
+    sidebarDraggingStarted = false;
     const target = /** @type {HTMLElement | null} */ (event.currentTarget);
     target?.setPointerCapture?.(event.pointerId);
     event.preventDefault();
@@ -70,6 +85,12 @@ export function createWorkspaceResizeController(params) {
   function onWindowPointerMove(event) {
     if (resizingSidebar) {
       if (sidebarPointerId !== -1 && event.pointerId !== sidebarPointerId) return;
+      // Ignore synthetic move events after button release.
+      if ((event.buttons & 1) !== 1) return;
+      if (!sidebarDraggingStarted) {
+        if (Math.abs(event.clientX - sidebarDragStartX) < SIDEBAR_DRAG_START_THRESHOLD) return;
+        sidebarDraggingStarted = true;
+      }
       applySidebarResize(event.clientX);
       return;
     }
@@ -83,8 +104,12 @@ export function createWorkspaceResizeController(params) {
   function onWindowPointerUp(event) {
     if (resizingSidebar) {
       if (sidebarPointerId !== -1 && event.pointerId !== sidebarPointerId) return;
-      applySidebarResize(event.clientX);
-      if (params.getSidebarWidth() <= 120) params.setSidebarWidth(86);
+      if (sidebarDraggingStarted) {
+        applySidebarResize(event.clientX);
+        if (params.getSidebarWidth() <= 120) params.setSidebarWidth(86);
+      } else {
+        params.setSidebarWidth(sidebarDragStartWidth);
+      }
       endSidebarResize();
       return;
     }
