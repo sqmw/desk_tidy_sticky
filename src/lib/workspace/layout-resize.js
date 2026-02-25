@@ -11,7 +11,7 @@ export function calcSidebarWidth(clientX, opts = {}) {
 /**
  * @param {{
  *   clientX: number;
- *   rect: DOMRect;
+ *   rect: { left: number; right: number; width: number };
  *   isCollapsed: boolean;
  *   minInspectorWidth?: number;
  *   minListWidth?: number;

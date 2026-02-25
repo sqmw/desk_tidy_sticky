@@ -69,3 +69,38 @@
     - 使用 `::after` 渲染细视觉线，hover 时仅增强视觉反馈，不改变命中层。
 - 调整文件:
   - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/workspace/+page.svelte`
+
+## Follow-up: Inspector Splitter Hit Area Regression (2026-02-25)
+- 输入证据:
+  - 用户反馈笔记列表与详情面板之间的竖向分割条，命中与光标反馈不稳定，表现与此前侧栏分割条问题一致。
+- 判定:
+  - `Bug/回归`
+- 根因:
+  - 分割条可视宽度仅 `8px`，命中依赖窄区域，hover/拖拽触发不稳定。
+- 修复:
+  - 将 `inspector-splitter` 改为“宽命中区 + 细视觉线”：
+    - 命中宽度 `30px`，并 `justify-self: center` 保持视觉线位于原分割位。
+    - `::before` 作为透明命中层，稳定 hover 与拖动触发。
+    - `::after` 仅作为视觉线反馈，hover 时高亮，不参与命中。
+- 调整文件:
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/workspace/+page.svelte`
+
+## Follow-up: Inspector Click Shrinks Width by ~20px (2026-02-25)
+- 输入证据:
+  - 用户反馈详情分割条“点击即右侧宽度收缩约 20px”，与此前侧栏回归现象一致。
+- 判定:
+  - `Bug/回归`
+- 根因:
+  - `inspector` 路径仍是 `pointerup` 无条件执行 `applyInspectorResize`，单击也会被识别成一次有效缩放。
+  - `workspace` 使用 `transform: scale(...)`，`inspector` 旧路径未做坐标映射，导致宽度按缩放坐标写入，出现固定量级偏移（约 20px）。
+- 修复:
+  - 为 `inspector` 分割条补齐与侧栏一致的拖拽防抖机制：
+    - 新增拖拽启动阈值，单击不触发宽度变更；
+    - `pointermove` 增加左键状态守卫，忽略释放后的抖动事件。
+  - 为 `inspector` 补齐缩放坐标映射：
+    - `mapInspectorPointerClientX` 将 `clientX` 反算到未缩放坐标；
+    - `mapInspectorRect` 将 `workbenchShellRect` 同步映射到未缩放坐标；
+    - 使 `calcInspectorLayout` 的输入统一在同一坐标系中。
+- 调整文件:
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/workspace/resize-controller.js`
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/workspace/+page.svelte`

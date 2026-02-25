@@ -6,6 +6,9 @@ import { calcInspectorLayout, calcSidebarWidth } from "$lib/workspace/layout-res
  *   getInspectorOpen: () => boolean;
  *   getInspectorListCollapsed: () => boolean;
  *   setInspectorLayout: (next: { width: number; collapsed: boolean }) => void;
+ *   getInspectorWidth?: () => number;
+ *   mapInspectorPointerClientX?: (clientX: number) => number;
+ *   mapInspectorRect?: (rect: DOMRect) => { left: number; right: number; width: number };
  *   getSidebarWidth: () => number;
  *   getSidebarMaxWidth?: () => number;
  *   setSidebarWidth: (nextWidth: number) => void;
@@ -13,22 +16,33 @@ import { calcInspectorLayout, calcSidebarWidth } from "$lib/workspace/layout-res
  * }} params
  */
 export function createWorkspaceResizeController(params) {
+  const INSPECTOR_DRAG_START_THRESHOLD = 8;
   const SIDEBAR_DRAG_START_THRESHOLD = 8;
 
   let inspectorPointerId = -1;
   let sidebarPointerId = -1;
   let resizingInspector = false;
   let resizingSidebar = false;
+  let inspectorDragStartX = 0;
+  let inspectorDragStartWidth = 0;
+  let inspectorDragStartCollapsed = false;
+  let inspectorDraggingStarted = false;
   let sidebarDragStartX = 0;
   let sidebarDragStartWidth = 0;
   let sidebarDraggingStarted = false;
 
   /** @param {number} clientX */
   function applyInspectorResize(clientX) {
-    const rect = params.getWorkbenchShellRect();
-    if (!rect) return;
+    const rawRect = params.getWorkbenchShellRect();
+    if (!rawRect) return;
+    const rect = typeof params.mapInspectorRect === "function"
+      ? params.mapInspectorRect(rawRect)
+      : rawRect;
+    const mappedX = typeof params.mapInspectorPointerClientX === "function"
+      ? params.mapInspectorPointerClientX(clientX)
+      : clientX;
     const next = calcInspectorLayout({
-      clientX,
+      clientX: mappedX,
       rect,
       isCollapsed: params.getInspectorListCollapsed(),
     });
@@ -47,6 +61,10 @@ export function createWorkspaceResizeController(params) {
   function endInspectorResize() {
     resizingInspector = false;
     inspectorPointerId = -1;
+    inspectorDragStartX = 0;
+    inspectorDragStartWidth = 0;
+    inspectorDragStartCollapsed = false;
+    inspectorDraggingStarted = false;
   }
 
   function endSidebarResize() {
@@ -63,6 +81,10 @@ export function createWorkspaceResizeController(params) {
     if (!params.getInspectorOpen()) return;
     resizingInspector = true;
     inspectorPointerId = event.pointerId;
+    inspectorDragStartX = event.clientX;
+    inspectorDragStartWidth = Number(params.getInspectorWidth?.() || 0);
+    inspectorDragStartCollapsed = !!params.getInspectorListCollapsed();
+    inspectorDraggingStarted = false;
     const target = /** @type {HTMLElement | null} */ (event.currentTarget);
     target?.setPointerCapture?.(event.pointerId);
     event.preventDefault();
@@ -96,6 +118,12 @@ export function createWorkspaceResizeController(params) {
     }
     if (resizingInspector) {
       if (inspectorPointerId !== -1 && event.pointerId !== inspectorPointerId) return;
+      // Ignore synthetic move events after button release.
+      if ((event.buttons & 1) !== 1) return;
+      if (!inspectorDraggingStarted) {
+        if (Math.abs(event.clientX - inspectorDragStartX) < INSPECTOR_DRAG_START_THRESHOLD) return;
+        inspectorDraggingStarted = true;
+      }
       applyInspectorResize(event.clientX);
     }
   }
@@ -115,7 +143,14 @@ export function createWorkspaceResizeController(params) {
     }
     if (resizingInspector) {
       if (inspectorPointerId !== -1 && event.pointerId !== inspectorPointerId) return;
-      applyInspectorResize(event.clientX);
+      if (inspectorDraggingStarted) {
+        applyInspectorResize(event.clientX);
+      } else {
+        params.setInspectorLayout({
+          width: inspectorDragStartWidth,
+          collapsed: inspectorDragStartCollapsed,
+        });
+      }
       endInspectorResize();
     }
   }

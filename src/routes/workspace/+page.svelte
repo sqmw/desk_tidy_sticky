@@ -805,6 +805,9 @@
       await savePrefs({ overlayEnabled: stickiesVisible });
       if (stickiesVisible) await loadNotes();
       await windowSync.syncWindows();
+      if (stickiesVisible) {
+        await invoke("sync_all_note_window_layers");
+      }
     } catch (e) {
       console.error("toggleStickiesVisibility(workspace)", e);
     }
@@ -855,6 +858,27 @@
     setInspectorLayout: (next) => {
       inspectorListCollapsed = next.collapsed;
       inspectorWidth = next.width;
+    },
+    getInspectorWidth: () => inspectorWidth,
+    mapInspectorPointerClientX: (clientX) => {
+      const viewportRect = workspaceViewportEl?.getBoundingClientRect();
+      const left = viewportRect?.left ?? 0;
+      const scale = Number(workspaceLayoutScale || 1);
+      const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+      return (clientX - left) / safeScale;
+    },
+    mapInspectorRect: (rect) => {
+      const viewportRect = workspaceViewportEl?.getBoundingClientRect();
+      const viewportLeft = viewportRect?.left ?? 0;
+      const scale = Number(workspaceLayoutScale || 1);
+      const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+      const left = (rect.left - viewportLeft) / safeScale;
+      const right = (rect.right - viewportLeft) / safeScale;
+      return {
+        left,
+        right,
+        width: Math.max(0, right - left),
+      };
     },
     getSidebarWidth: () => sidebarWidth,
     getSidebarMaxWidth: () => stageLayout.sidebarMaxWidth,
@@ -1261,28 +1285,44 @@
   }
 
   .inspector-splitter {
+    --inspector-splitter-hit-width: 30px;
+    --inspector-splitter-visual-width: 8px;
+    width: var(--inspector-splitter-hit-width);
+    justify-self: center;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 70%, transparent);
+    background: transparent;
     cursor: col-resize;
     min-height: 0;
     position: relative;
+    touch-action: none;
+    z-index: 3;
+  }
+
+  .inspector-splitter::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(15, 23, 42, 0.001);
   }
 
   .inspector-splitter::after {
     content: "";
     position: absolute;
-    left: 2px;
-    right: 2px;
+    left: 50%;
     top: 50%;
-    transform: translateY(-50%);
+    width: var(--inspector-splitter-visual-width);
+    transform: translate(-50%, -50%);
     height: 60px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-border-active, #94a3b8) 46%, transparent);
-    opacity: 0;
-    transition: opacity 0.15s ease;
+    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 70%, transparent);
+    opacity: 0.92;
+    transition: background 0.15s ease, opacity 0.15s ease;
+    pointer-events: none;
   }
 
   .inspector-splitter:hover::after {
+    background: color-mix(in srgb, var(--ws-border-active, #94a3b8) 46%, transparent);
     opacity: 1;
   }
 
