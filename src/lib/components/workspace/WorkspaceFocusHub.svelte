@@ -468,6 +468,11 @@
   function setBreakReminderEnabled(enabled) {
     const nextEnabled = enabled === true;
     if (nextEnabled === safeConfig.breakReminderEnabled) return;
+    if (nextEnabled) {
+      ensureNotificationPermissionFromUserGesture().catch((error) =>
+        console.error("focus request notification permission", error),
+      );
+    }
     if (!nextEnabled) {
       activeBreakKind = "";
     } else {
@@ -485,6 +490,21 @@
     Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
       console.error("toggle break reminder", e),
     );
+  }
+
+  async function ensureNotificationPermissionFromUserGesture() {
+    if (typeof window === "undefined" || typeof Notification === "undefined") return;
+    notifyChecked = true;
+    if (Notification.permission === "granted") {
+      notifyEnabled = true;
+      return;
+    }
+    if (Notification.permission === "denied") {
+      notifyEnabled = false;
+      return;
+    }
+    const result = await Notification.requestPermission();
+    notifyEnabled = result === "granted";
   }
 
   /** @param {string} mode */
@@ -999,10 +1019,6 @@
       if (typeof window === "undefined" || typeof Notification === "undefined") return;
       notifyChecked = true;
       notifyEnabled = Notification.permission === "granted";
-      if (Notification.permission === "default") {
-        const result = await Notification.requestPermission();
-        notifyEnabled = result === "granted";
-      }
     } catch (error) {
       console.error("focus notification bootstrap", error);
     }

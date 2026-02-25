@@ -161,7 +161,9 @@ fn normalize_tags(input: Vec<String>) -> Vec<String> {
         if normalized.is_empty() {
             continue;
         }
-        let exists = out.iter().any(|item| item.eq_ignore_ascii_case(normalized.as_str()));
+        let exists = out
+            .iter()
+            .any(|item| item.eq_ignore_ascii_case(normalized.as_str()));
         if exists {
             continue;
         }

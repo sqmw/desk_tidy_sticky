@@ -9,6 +9,7 @@
     onBackToCompact,
     onToggleTheme,
     onOpenSettings = () => {},
+    onMinimize = () => {},
     onToggleMaximize,
     onHide = () => {},
     onChangeThemeTransitionShape = () => {},
@@ -100,6 +101,15 @@
       <button
         type="button"
         class="bar-btn icon-btn"
+        onclick={() => onMinimize()}
+        onpointerdown={(e) => e.stopPropagation()}
+        title={strings.minimizeWindow}
+      >
+        {@render iconMinimizeWindow()}
+      </button>
+      <button
+        type="button"
+        class="bar-btn icon-btn"
         onclick={onToggleMaximize}
         onpointerdown={(e) => e.stopPropagation()}
         title={isMaximized ? strings.restoreWindow : strings.maximizeWindow}
@@ -167,6 +177,12 @@
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7">
     <circle cx="12" cy="12" r="4.2"></circle>
     <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M19.1 4.9l-1.6 1.6M6.5 17.5l-1.6 1.6"></path>
+  </svg>
+{/snippet}
+
+{#snippet iconMinimizeWindow()}
+  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7">
+    <path d="M6 12h12"></path>
   </svg>
 {/snippet}
 

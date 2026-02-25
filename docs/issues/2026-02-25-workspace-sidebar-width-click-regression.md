@@ -53,3 +53,19 @@
 - 调整文件:
   - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/workspace/resize-controller.js`
   - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/workspace/+page.svelte`
+
+## Follow-up: Resize Cursor Not Showing (2026-02-25)
+- 输入证据:
+  - 用户反馈鼠标移动到侧栏宽度拖动条时，光标未显示为拖拽指示。
+- 判定:
+  - `Bug/回归`
+- 根因:
+  - 分隔条视觉宽度仅 `8px`，命中区域依赖伪元素外扩，hover 命中在不同区域不稳定。
+  - 结果是“按住拖动时逻辑可触发，但常规悬停不稳定显示拖拽光标”。
+- 修复:
+  - 将分隔条改为“真实可命中的宽 hitbox + 细视觉线”：
+    - `sidebar-splitter` 设为固定命中宽度（`30px`），并 `justify-self: center` 跨越边界两侧。
+    - 使用 `::before` 提供透明但可命中的覆盖层，保证 hover 命中稳定。
+    - 使用 `::after` 渲染细视觉线，hover 时仅增强视觉反馈，不改变命中层。
+- 调整文件:
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/workspace/+page.svelte`

@@ -18,6 +18,7 @@
     DEFAULT_SIDEBAR_MANUAL_SPLITTER_HEIGHT,
     resolveSidebarManualSplitHeights,
   } from "$lib/workspace/sidebar/manual-split-layout.js";
+  const MANUAL_BOTTOM_CARD_GAP = 8;
 
   let {
     strings,
@@ -104,17 +105,20 @@
   const manualBottomBlockHeight = $derived.by(() =>
     manualLayoutEnabled ? manualSplit.bottomHeight : 0,
   );
+  const manualBottomCardHeight = $derived.by(() =>
+    manualLayoutEnabled ? Math.max(0, manualBottomBlockHeight - MANUAL_BOTTOM_CARD_GAP) : 0,
+  );
   const manualSectionMaxHeight = $derived.by(() =>
-    manualLayoutEnabled ? Math.max(40, Math.round(manualBottomBlockHeight - 56)) : 0,
+    manualLayoutEnabled ? Math.max(40, Math.round(manualBottomCardHeight - 56)) : 0,
   );
   const noteFiltersBlockStyle = $derived.by(() =>
     manualLayoutEnabled
-      ? `--section-max-height:${manualSectionMaxHeight}px;--manual-block-height:${manualBottomBlockHeight}px;`
+      ? `--section-max-height:${manualSectionMaxHeight}px;--manual-block-height:${manualBottomCardHeight}px;`
       : `--section-max-height:${viewSectionMaxHeight}px;`,
   );
   const deadlineBlockStyle = $derived.by(() =>
     manualLayoutEnabled
-      ? `--section-max-height:${manualSectionMaxHeight}px;--manual-block-height:${manualBottomBlockHeight}px;`
+      ? `--section-max-height:${manualSectionMaxHeight}px;--manual-block-height:${manualBottomCardHeight}px;`
       : `--section-max-height:${deadlineSectionMaxHeight}px;`,
   );
 
@@ -569,8 +573,18 @@
       var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
   }
 
-  .sidebar.manual-layout .sidebar-body {
+  .sidebar:not(.manual-layout) .sidebar-body > .sidebar-block:last-child {
+    margin-bottom: 8px;
     overflow: hidden;
+  }
+
+  .sidebar.manual-layout .sidebar-body {
+    gap: 0;
+    overflow: hidden;
+  }
+
+  .sidebar.manual-layout .section-height-splitter {
+    margin: 10px 0;
   }
 
   .sidebar.manual-resizing {

@@ -1,6 +1,9 @@
+#[cfg(target_os = "macos")]
+mod macos_windows;
 mod notes;
 mod notes_service;
 mod preferences;
+#[cfg(target_os = "windows")]
 mod windows;
 
 use notes_service::NoteSortMode;
@@ -89,6 +92,12 @@ fn emit_notes_changed(app: &tauri::AppHandle) {
     let _ = app.emit("notes_changed", ());
 }
 
+fn show_and_focus_window(window: &tauri::WebviewWindow) {
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.set_focus();
+}
+
 fn ensure_workspace_panel_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
     if let Some(existing) = app.get_webview_window("workspace") {
         return Some(existing);
@@ -102,8 +111,7 @@ fn ensure_workspace_panel_window(app: &tauri::AppHandle) -> Option<tauri::Webvie
     .inner_size(1024.0, 720.0)
     .center()
     .decorations(false)
-    .transparent(false)
-    .skip_taskbar(true)
+    .skip_taskbar(false)
     .resizable(true)
     .maximizable(true);
     match builder.build() {
@@ -119,8 +127,7 @@ fn show_preferred_panel_window(app: &tauri::AppHandle) {
     let preferred = preferences::read_last_panel_window();
     if preferred == "workspace" {
         if let Some(w) = ensure_workspace_panel_window(app) {
-            let _ = w.show();
-            let _ = w.set_focus();
+            show_and_focus_window(&w);
             if let Some(main) = app.get_webview_window("main") {
                 let _ = main.hide();
             }
@@ -131,8 +138,7 @@ fn show_preferred_panel_window(app: &tauri::AppHandle) {
         let _ = ws.hide();
     }
     if let Some(main) = app.get_webview_window("main") {
-        let _ = main.show();
-        let _ = main.set_focus();
+        show_and_focus_window(&main);
     }
 }
 
@@ -142,6 +148,64 @@ fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
         "oldest" => NoteSortMode::Oldest,
         _ => NoteSortMode::Custom,
     }
+}
+
+#[cfg(target_os = "windows")]
+fn window_hwnd_isize(window: &tauri::WebviewWindow) -> Result<Option<isize>, String> {
+    match window.hwnd() {
+        Ok(v) => Ok(Some(v.0 as isize)),
+        Err(e) => {
+            let msg = e.to_string();
+            if msg
+                .to_lowercase()
+                .contains("underlying handle is not available")
+            {
+                Ok(None)
+            } else {
+                Err(msg)
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn window_ns_window_ptr(
+    window: &tauri::WebviewWindow,
+) -> Result<Option<*mut std::ffi::c_void>, String> {
+    match window.ns_window() {
+        Ok(v) => Ok(Some(v)),
+        Err(e) => {
+            let msg = e.to_string();
+            let normalized = msg.to_lowercase();
+            if normalized.contains("underlying handle is not available")
+                || normalized.contains("invalid window handle")
+            {
+                Ok(None)
+            } else {
+                Err(msg)
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn run_macos_window_op(
+    window: &tauri::WebviewWindow,
+    op_name: &'static str,
+    op: impl FnOnce(*mut std::ffi::c_void) -> Result<(), String> + Send + 'static,
+) -> Result<(), String> {
+    let Some(ns_window_ptr) = window_ns_window_ptr(window)? else {
+        return Ok(());
+    };
+    let ns_window_addr = ns_window_ptr as usize;
+    window
+        .run_on_main_thread(move || {
+            let ptr = ns_window_addr as *mut std::ffi::c_void;
+            if let Err(error) = op(ptr) {
+                eprintln!("{op_name} failed: {error}");
+            }
+        })
+        .map_err(|e| e.to_string())
 }
 
 fn apply_note_window_layer_with_interaction_by_label(
@@ -154,33 +218,57 @@ fn apply_note_window_layer_with_interaction_by_label(
         return Ok(());
     };
 
-    let hwnd = match w.hwnd() {
-        Ok(v) => v,
-        Err(e) => {
-            let msg = e.to_string();
-            if msg
-                .to_lowercase()
-                .contains("underlying handle is not available")
-            {
-                return Ok(());
-            }
-            return Err(msg);
-        }
-    };
-    let hwnd_isize = hwnd.0 as isize;
+    #[cfg(any(target_os = "windows", all(not(target_os = "windows"), not(target_os = "macos"))))]
     let should_be_top = !click_through || is_always_on_top;
 
-    if should_be_top {
-        let _ = w.set_always_on_top(true);
-        windows::detach_from_worker_w(hwnd_isize)?;
-        windows::set_topmost_no_activate(hwnd_isize, true)?;
-    } else {
-        let _ = w.set_always_on_top(false);
-        windows::set_topmost_no_activate(hwnd_isize, false)?;
-        windows::attach_to_worker_w(hwnd_isize)?;
+    #[cfg(target_os = "windows")]
+    {
+        let Some(hwnd_isize) = window_hwnd_isize(&w)? else {
+            return Ok(());
+        };
+        if should_be_top {
+            let _ = w.set_always_on_top(true);
+            windows::detach_from_worker_w(hwnd_isize)?;
+            windows::set_topmost_no_activate(hwnd_isize, true)?;
+        } else {
+            let _ = w.set_always_on_top(false);
+            windows::set_topmost_no_activate(hwnd_isize, false)?;
+            windows::attach_to_worker_w(hwnd_isize)?;
+        }
+        return Ok(());
     }
 
-    Ok(())
+    #[cfg(target_os = "macos")]
+    {
+        let should_be_top = is_always_on_top;
+        let interactive_desktop = !click_through;
+        if should_be_top {
+            let _ = w.set_always_on_top(true);
+            run_macos_window_op(
+                &w,
+                "macos_detach_from_desktop",
+                macos_windows::detach_from_worker_w,
+            )?;
+            run_macos_window_op(&w, "macos_set_topmost_true", |ptr| {
+                macos_windows::set_topmost_no_activate(ptr, true)
+            })?;
+        } else {
+            let _ = w.set_always_on_top(false);
+            run_macos_window_op(&w, "macos_set_topmost_false", |ptr| {
+                macos_windows::set_topmost_no_activate(ptr, false)
+            })?;
+            run_macos_window_op(&w, "macos_attach_to_desktop", move |ptr| {
+                macos_windows::attach_to_worker_w_with_mode(ptr, interactive_desktop)
+            })?;
+        }
+        return Ok(());
+    }
+
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    {
+        let _ = w.set_always_on_top(should_be_top);
+        Ok(())
+    }
 }
 
 fn get_overlay_click_through(app: &tauri::AppHandle) -> bool {
@@ -454,17 +542,64 @@ fn set_preferences(prefs: PanelPreferences) -> Result<(), String> {
 
 #[tauri::command]
 fn pin_window_to_desktop(window: tauri::WebviewWindow) -> Result<(), String> {
-    let hwnd = window.hwnd().map_err(|e| e.to_string())?;
-    windows::set_topmost_no_activate(hwnd.0 as isize, false)?;
-    windows::attach_to_worker_w(hwnd.0 as isize).map_err(|e| e.to_string())
+    #[cfg(target_os = "windows")]
+    {
+        let Some(hwnd_isize) = window_hwnd_isize(&window)? else {
+            return Ok(());
+        };
+        windows::set_topmost_no_activate(hwnd_isize, false)?;
+        return windows::attach_to_worker_w(hwnd_isize).map_err(|e| e.to_string());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let _ = window.set_always_on_top(false);
+        run_macos_window_op(
+            &window,
+            "macos_pin_attach_to_desktop",
+            macos_windows::attach_to_worker_w,
+        )?;
+        Ok(())
+    }
+
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    {
+        let _ = window.set_always_on_top(false);
+        Ok(())
+    }
 }
 
 #[tauri::command]
 fn unpin_window_from_desktop(window: tauri::WebviewWindow) -> Result<(), String> {
-    let hwnd = window.hwnd().map_err(|e| e.to_string())?;
-    windows::detach_from_worker_w(hwnd.0 as isize).map_err(|e| e.to_string())?;
-    windows::set_topmost_no_activate(hwnd.0 as isize, true)?;
-    Ok(())
+    #[cfg(target_os = "windows")]
+    {
+        let Some(hwnd_isize) = window_hwnd_isize(&window)? else {
+            return Ok(());
+        };
+        windows::detach_from_worker_w(hwnd_isize).map_err(|e| e.to_string())?;
+        windows::set_topmost_no_activate(hwnd_isize, true)?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        run_macos_window_op(
+            &window,
+            "macos_unpin_detach_from_desktop",
+            macos_windows::detach_from_worker_w,
+        )?;
+        run_macos_window_op(&window, "macos_unpin_set_topmost_true", |ptr| {
+            macos_windows::set_topmost_no_activate(ptr, true)
+        })?;
+        let _ = window.set_always_on_top(true);
+        Ok(())
+    }
+
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    {
+        let _ = window.set_always_on_top(true);
+        Ok(())
+    }
 }
 
 #[tauri::command]
@@ -502,26 +637,43 @@ fn sync_all_note_window_layers(app: tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn apply_window_no_snap_by_label(app: tauri::AppHandle, label: String) -> Result<(), String> {
-    let Some(w) = app.get_webview_window(label.as_str()) else {
-        return Ok(());
-    };
-    let hwnd = match w.hwnd() {
-        Ok(v) => v,
-        Err(e) => {
-            let msg = e.to_string();
-            if msg
-                .to_lowercase()
-                .contains("underlying handle is not available")
-            {
-                return Ok(());
-            }
-            return Err(msg);
+    #[cfg(target_os = "windows")]
+    {
+        let Some(w) = app.get_webview_window(label.as_str()) else {
+            return Ok(());
+        };
+        let Some(hwnd_isize) = window_hwnd_isize(&w)? else {
+            return Ok(());
+        };
+        if label == "main" {
+            return windows::disable_aero_snap(hwnd_isize);
         }
-    };
-    if label == "main" {
-        windows::disable_aero_snap(hwnd.0 as isize)
-    } else {
-        windows::disable_aero_snap_keep_resizable(hwnd.0 as isize)
+        return windows::disable_aero_snap_keep_resizable(hwnd_isize);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let Some(w) = app.get_webview_window(label.as_str()) else {
+            return Ok(());
+        };
+        if label == "main" {
+            return run_macos_window_op(
+                &w,
+                "macos_disable_no_snap",
+                macos_windows::disable_aero_snap,
+            );
+        }
+        return run_macos_window_op(
+            &w,
+            "macos_disable_no_snap_keep_resizable",
+            macos_windows::disable_aero_snap_keep_resizable,
+        );
+    }
+
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    {
+        let _ = (app, label);
+        Ok(())
     }
 }
 
@@ -574,7 +726,7 @@ fn get_overlay_interaction(app: tauri::AppHandle) -> Result<bool, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .manage(OverlayInputState::default())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             show_preferred_panel_window(app);
@@ -583,9 +735,10 @@ pub fn run() {
         .setup(|app| {
             #[cfg(desktop)]
             {
+                #[cfg(target_os = "windows")]
                 if let Some(main_window) = app.get_webview_window("main") {
-                    if let Ok(hwnd) = main_window.hwnd() {
-                        let _ = windows::disable_aero_snap(hwnd.0 as isize);
+                    if let Ok(Some(hwnd_isize)) = window_hwnd_isize(&main_window) {
+                        let _ = windows::disable_aero_snap(hwnd_isize);
                     }
                 }
 
@@ -641,7 +794,8 @@ pub fn run() {
                 });
 
                 let _tray = TrayIconBuilder::new()
-                    .icon(Image::from_bytes(include_bytes!("../icons/icon.ico"))?)
+                    .icon(Image::from_bytes(include_bytes!("../icons/tray-template.png"))?)
+                    .icon_as_template(true)
                     .menu(&menu)
                     .show_menu_on_left_click(true)
                     .on_menu_event(|app, event| {
@@ -662,6 +816,19 @@ pub fn run() {
                         }
                     })
                     .build(app)?;
+
+                #[cfg(target_os = "macos")]
+                if let Some(main_window) = app.get_webview_window("main") {
+                    if let Err(error) = main_window.run_on_main_thread(|| {
+                        if let Err(error) = macos_windows::set_application_icon_from_png(
+                            include_bytes!("../icons/dock-icon.png"),
+                        ) {
+                            eprintln!("set macOS app icon failed: {}", error);
+                        }
+                    }) {
+                        eprintln!("schedule macOS app icon update failed: {}", error);
+                    }
+                }
 
                 // Apply show panel on startup preference (defer to ensure window exists)
                 let app_handle = app.handle().clone();
@@ -744,6 +911,17 @@ pub fn run() {
             toggle_overlay_interaction,
             get_overlay_interaction,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|app_handle, event| {
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Reopen { .. } = event {
+            show_preferred_panel_window(app_handle);
+            return;
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        let _ = (app_handle, event);
+    });
 }

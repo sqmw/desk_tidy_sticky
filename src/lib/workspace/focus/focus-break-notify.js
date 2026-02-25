@@ -5,10 +5,6 @@
 export async function sendDesktopNotification(title, body) {
   try {
     if (typeof window === "undefined" || typeof Notification === "undefined") return false;
-    if (Notification.permission === "default") {
-      const result = await Notification.requestPermission();
-      if (result !== "granted") return false;
-    }
     if (Notification.permission !== "granted") return false;
     new Notification(title, { body });
     return true;

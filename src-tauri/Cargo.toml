@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset", "tray-icon", "image-ico"] }
+tauri = { version = "2", features = ["protocol-asset", "tray-icon", "image-ico", "image-png"] }
 tauri-plugin-opener = "2"
 tauri-plugin-store = "2"
 tauri-plugin-global-shortcut = "2"
@@ -29,6 +29,14 @@ serde_json = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
 directories = "5"
 chrono = { version = "0.4", features = ["serde"] }
-windows = { version = "0.58.0", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
 open = "5.3.3"
 base64 = "0.22"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.58.0", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.3"
+objc2-app-kit = "0.3.2"
+objc2-core-graphics = "0.3.2"
+objc2-foundation = "0.3.2"

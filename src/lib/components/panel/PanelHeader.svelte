@@ -27,6 +27,7 @@
     toggleLanguage,
     adjustGlass,
     hideWindow,
+    minimizeWindow,
     switchToWorkspace,
     saveNote,
     setViewMode,
@@ -53,6 +54,7 @@
       {toggleLanguage}
       {adjustGlass}
       {hideWindow}
+      {minimizeWindow}
       {switchToWorkspace}
       onOpenSettings={() => (showSettings = true)}
     />

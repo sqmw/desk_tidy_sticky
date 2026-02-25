@@ -373,6 +373,10 @@
     await getCurrentWindow().hide();
   }
 
+  async function minimizeWindow() {
+    await getCurrentWindow().minimize();
+  }
+
   async function switchToWorkspace() {
     await switchPanelWindow("workspace", invoke);
   }
@@ -477,6 +481,7 @@
       {toggleLanguage}
       {adjustGlass}
       {hideWindow}
+      {minimizeWindow}
       {switchToWorkspace}
       {saveNote}
       {setViewMode}

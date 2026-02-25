@@ -7,6 +7,7 @@
     toggleLanguage,
     adjustGlass,
     hideWindow,
+    minimizeWindow,
     onOpenSettings,
     switchToWorkspace,
   } = $props();
@@ -70,6 +71,7 @@
     <span class="glass-pct">{Math.round(glassOpacity * 100)}%</span>
   </button>
 
+  <button type="button" class="icon-btn" title={strings.minimizeWindow} onclick={minimizeWindow}>-</button>
   <button type="button" class="icon-btn" title={strings.hideWindow} onclick={hideWindow}>✕</button>
 </div>
 

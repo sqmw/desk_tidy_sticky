@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <path
+    fill="#000000"
+    fill-rule="evenodd"
+    d="M12 6H52A8 8 0 0 1 60 14V50A8 8 0 0 1 52 58H12A8 8 0 0 1 4 50V14A8 8 0 0 1 12 6Z
+       M39 50H52V37Z
+       M20 30H44A2.5 2.5 0 0 1 44 35H20A2.5 2.5 0 0 1 20 30Z"
+  />
+</svg>

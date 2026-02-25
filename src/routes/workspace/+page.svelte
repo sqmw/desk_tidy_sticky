@@ -1363,28 +1363,46 @@
   }
 
   .sidebar-splitter {
+    --splitter-hit-width: 30px;
+    --splitter-visual-width: 8px;
+    width: var(--splitter-hit-width);
+    justify-self: center;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 72%, transparent);
+    background: transparent;
+    cursor: ew-resize;
     cursor: col-resize;
     min-height: 0;
     position: relative;
+    touch-action: none;
+    z-index: 3;
+  }
+
+  .sidebar-splitter::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(15, 23, 42, 0.001);
   }
 
   .sidebar-splitter::after {
     content: "";
     position: absolute;
     top: 46%;
-    left: 2px;
-    right: 2px;
+    left: 50%;
+    width: var(--splitter-visual-width);
     height: 70px;
-    transform: translateY(-50%);
+    transform: translate(-50%, -50%);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-border-active, #94a3b8) 45%, transparent);
-    opacity: 0;
-    transition: opacity 0.15s ease;
+    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 72%, transparent);
+    opacity: 0.92;
+    transition: background 0.15s ease, opacity 0.15s ease;
+    pointer-events: none;
+    cursor: inherit;
   }
 
   .sidebar-splitter:hover::after {
+    background: color-mix(in srgb, var(--ws-border-active, #94a3b8) 45%, transparent);
     opacity: 1;
   }
 

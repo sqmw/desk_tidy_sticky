@@ -33,7 +33,7 @@ async function ensureWorkspaceWindow(invoke) {
     center: true,
     decorations: false,
     transparent: false,
-    skipTaskbar: true,
+    skipTaskbar: false,
     resizable: true,
     maximizable: true,
   });
