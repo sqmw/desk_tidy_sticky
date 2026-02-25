@@ -373,7 +373,11 @@
   }
 
   async function hideWindow() {
-    await getCurrentWindow().hide();
+    try {
+      await invoke("hide_panel_window", { label: getCurrentWindow().label });
+    } catch (e) {
+      console.error("hideWindow", e);
+    }
   }
 
   async function minimizeWindow() {

@@ -92,7 +92,33 @@ fn emit_notes_changed(app: &tauri::AppHandle) {
     let _ = app.emit("notes_changed", ());
 }
 
+const PANEL_WINDOW_LABELS: [&str; 2] = ["main", "workspace"];
+
+fn sync_panel_window_shell_state(app: &tauri::AppHandle) {
+    let mut any_visible_panel = false;
+    for label in PANEL_WINDOW_LABELS {
+        if let Some(window) = app.get_webview_window(label) {
+            let visible = window.is_visible().unwrap_or(false);
+            if visible {
+                any_visible_panel = true;
+            }
+            let _ = window.set_skip_taskbar(!visible);
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let policy = if any_visible_panel {
+            tauri::ActivationPolicy::Regular
+        } else {
+            tauri::ActivationPolicy::Accessory
+        };
+        let _ = app.set_activation_policy(policy);
+    }
+}
+
 fn show_and_focus_window(window: &tauri::WebviewWindow) {
+    let _ = window.set_skip_taskbar(false);
     let _ = window.show();
     let _ = window.unminimize();
     let _ = window.set_focus();
@@ -125,21 +151,38 @@ fn ensure_workspace_panel_window(app: &tauri::AppHandle) -> Option<tauri::Webvie
 
 fn show_preferred_panel_window(app: &tauri::AppHandle) {
     let preferred = preferences::read_last_panel_window();
+    let mut shown_workspace = false;
     if preferred == "workspace" {
         if let Some(w) = ensure_workspace_panel_window(app) {
             show_and_focus_window(&w);
+            shown_workspace = true;
             if let Some(main) = app.get_webview_window("main") {
                 let _ = main.hide();
             }
-            return;
         }
     }
-    if let Some(ws) = app.get_webview_window("workspace") {
-        let _ = ws.hide();
+
+    if !shown_workspace {
+        if let Some(ws) = app.get_webview_window("workspace") {
+            let _ = ws.hide();
+        }
+        if let Some(main) = app.get_webview_window("main") {
+            show_and_focus_window(&main);
+        }
     }
-    if let Some(main) = app.get_webview_window("main") {
-        show_and_focus_window(&main);
+
+    sync_panel_window_shell_state(app);
+}
+
+#[tauri::command]
+fn hide_panel_window(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    let target = if label == "workspace" { "workspace" } else { "main" };
+    if let Some(window) = app.get_webview_window(target) {
+        let _ = window.hide();
+        let _ = window.set_skip_taskbar(true);
     }
+    sync_panel_window_shell_state(&app);
+    Ok(())
 }
 
 fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
@@ -843,6 +886,7 @@ pub fn run() {
                         if let Some(w) = app_handle.get_webview_window("workspace") {
                             let _ = w.hide();
                         }
+                        sync_panel_window_shell_state(&app_handle);
                     }
                 });
             }
@@ -857,12 +901,13 @@ pub fn run() {
                     if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
                         if shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyN) {
                             if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.set_focus();
                                 if window.is_visible().unwrap_or(false) {
                                     let _ = window.hide();
+                                    let _ = window.set_skip_taskbar(true);
                                 } else {
-                                    let _ = window.show();
+                                    show_and_focus_window(&window);
                                 }
+                                sync_panel_window_shell_state(app);
                             }
                         } else if shortcut
                             .matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyO)
@@ -910,6 +955,7 @@ pub fn run() {
             update_tray_texts,
             toggle_overlay_interaction,
             get_overlay_interaction,
+            hide_panel_window,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

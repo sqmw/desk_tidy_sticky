@@ -833,7 +833,7 @@
 
   async function hideWindow() {
     try {
-      await getCurrentWindow().hide();
+      await invoke("hide_panel_window", { label: getCurrentWindow().label });
     } catch (e) {
       console.error("hideWindow(workspace)", e);
     }

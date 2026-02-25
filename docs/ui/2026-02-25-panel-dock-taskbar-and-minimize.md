@@ -12,8 +12,10 @@
 
 ## Behavior Contract
 - Close button:
-  - still calls `hide()`.
-  - no change to existing tray/restore flow.
+  - still uses hide semantics (not destroy/quit), but now routed by backend unified command.
+  - when all panel windows are hidden:
+    - macOS: Dock icon is hidden (switch to Accessory policy), only menu bar icon remains.
+    - Windows: taskbar icon is hidden; reopen via tray/shortcut restores it.
 - Minimize button:
   - calls `minimize()`.
   - users can restore via Dock/taskbar click.
@@ -49,9 +51,26 @@
 - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/strings.js`
   - add `minimizeWindow` for `en` / `zh`
 
+5. Unified close-as-hide shell policy
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/lib.rs`
+  - add `hide_panel_window` command
+  - add `sync_panel_window_shell_state`:
+    - visible panel window => `skip_taskbar=false`
+    - hidden panel window => `skip_taskbar=true`
+    - macOS all hidden => app activation policy set to `Accessory`
+    - any shown => app activation policy set back to `Regular`
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/+page.svelte`
+  - close action now invokes `hide_panel_window`
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/workspace/+page.svelte`
+  - close action now invokes `hide_panel_window`
+
 ## Regression Checklist
 1. Launch app and verify Dock/taskbar icon is visible when main/workspace window is shown.
 2. Compact panel `-` minimizes window and can be restored from Dock/taskbar.
 3. Workspace top-bar minimize behaves the same.
 4. Close button still hides window (does not exit).
 5. Sticky note windows still do not create extra Dock/taskbar entries.
+6. Close panel window and verify:
+   - macOS Dock icon disappears (menu bar tray remains).
+   - Windows taskbar icon disappears (tray remains).
+7. Trigger tray “Show main window” and verify Dock/taskbar icon is restored.
