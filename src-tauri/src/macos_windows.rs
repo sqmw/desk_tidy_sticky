@@ -41,11 +41,12 @@ pub fn attach_to_worker_w_with_mode(
     let window = cast_ns_window_ptr(ns_window_ptr)?;
     if interactive {
         window.setLevel(desktop_icon_interactive_level());
-        window.orderFront(None);
+        window.setIgnoresMouseEvents(false);
+        window.makeKeyAndOrderFront(None);
     } else {
         window.setLevel(desktop_window_level());
-        // Keep desktop-level semantics, but bring window to front within that low level
-        // so sticky notes stay visible above wallpaper/background windows.
+        // Keep desktop-level semantics and pass-through behavior to match desktop sticker mode.
+        window.setIgnoresMouseEvents(true);
         window.orderFront(None);
     }
     Ok(())
@@ -54,6 +55,7 @@ pub fn attach_to_worker_w_with_mode(
 pub fn detach_from_worker_w(ns_window_ptr: *mut c_void) -> Result<(), String> {
     let window = cast_ns_window_ptr(ns_window_ptr)?;
     window.setLevel(normal_window_level());
+    window.setIgnoresMouseEvents(false);
     Ok(())
 }
 

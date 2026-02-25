@@ -98,6 +98,7 @@ export function createWindowSync(deps) {
 
     syncInFlight = (async () => {
       let createdWindowCount = 0;
+      let restoredWindowCount = 0;
       if (!deps.getStickiesVisible()) {
         const wins = await WebviewWindow.getAll();
         for (const w of wins) {
@@ -133,11 +134,27 @@ export function createWindowSync(deps) {
           if (!exists) {
             await openNoteWindow(n);
             createdWindowCount += 1;
+            continue;
+          }
+          try {
+            const [visible, minimized] = await Promise.all([
+              exists.isVisible(),
+              exists.isMinimized(),
+            ]);
+            if (minimized) {
+              await exists.unminimize();
+            }
+            if (!visible || minimized) {
+              await exists.show();
+              restoredWindowCount += 1;
+            }
+          } catch (e) {
+            console.error("syncWindows(restore)", e);
           }
         }
       }
 
-      if (createdWindowCount > 0) {
+      if (createdWindowCount > 0 || restoredWindowCount > 0) {
         void syncAllNoteLayersWithRetry();
       }
     })();

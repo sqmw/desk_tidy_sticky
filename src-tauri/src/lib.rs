@@ -94,6 +94,26 @@ fn emit_notes_changed(app: &tauri::AppHandle) {
 
 const PANEL_WINDOW_LABELS: [&str; 2] = ["main", "workspace"];
 
+#[cfg(target_os = "macos")]
+fn apply_macos_runtime_dock_icon(app: &tauri::AppHandle) {
+    let Some(window) = app
+        .get_webview_window("workspace")
+        .or_else(|| app.get_webview_window("main"))
+    else {
+        return;
+    };
+
+    if let Err(error) = window.run_on_main_thread(|| {
+        if let Err(error) =
+            macos_windows::set_application_icon_from_png(include_bytes!("../icons/dock-icon.png"))
+        {
+            eprintln!("set macOS app icon failed: {}", error);
+        }
+    }) {
+        eprintln!("schedule macOS app icon update failed: {}", error);
+    }
+}
+
 fn sync_panel_window_shell_state(app: &tauri::AppHandle) {
     let mut any_visible_panel = false;
     for label in PANEL_WINDOW_LABELS {
@@ -114,6 +134,9 @@ fn sync_panel_window_shell_state(app: &tauri::AppHandle) {
             tauri::ActivationPolicy::Accessory
         };
         let _ = app.set_activation_policy(policy);
+        if any_visible_panel {
+            apply_macos_runtime_dock_icon(app);
+        }
     }
 }
 
@@ -176,7 +199,11 @@ fn show_preferred_panel_window(app: &tauri::AppHandle) {
 
 #[tauri::command]
 fn hide_panel_window(app: tauri::AppHandle, label: String) -> Result<(), String> {
-    let target = if label == "workspace" { "workspace" } else { "main" };
+    let target = if label == "workspace" {
+        "workspace"
+    } else {
+        "main"
+    };
     if let Some(window) = app.get_webview_window(target) {
         let _ = window.hide();
         let _ = window.set_skip_taskbar(true);
@@ -261,7 +288,10 @@ fn apply_note_window_layer_with_interaction_by_label(
         return Ok(());
     };
 
-    #[cfg(any(target_os = "windows", all(not(target_os = "windows"), not(target_os = "macos"))))]
+    #[cfg(any(
+        target_os = "windows",
+        all(not(target_os = "windows"), not(target_os = "macos"))
+    ))]
     let should_be_top = !click_through || is_always_on_top;
 
     #[cfg(target_os = "windows")]
@@ -837,7 +867,9 @@ pub fn run() {
                 });
 
                 let _tray = TrayIconBuilder::new()
-                    .icon(Image::from_bytes(include_bytes!("../icons/tray-template.png"))?)
+                    .icon(Image::from_bytes(include_bytes!(
+                        "../icons/tray-template.png"
+                    ))?)
                     .icon_as_template(true)
                     .menu(&menu)
                     .show_menu_on_left_click(true)
@@ -861,17 +893,7 @@ pub fn run() {
                     .build(app)?;
 
                 #[cfg(target_os = "macos")]
-                if let Some(main_window) = app.get_webview_window("main") {
-                    if let Err(error) = main_window.run_on_main_thread(|| {
-                        if let Err(error) = macos_windows::set_application_icon_from_png(
-                            include_bytes!("../icons/dock-icon.png"),
-                        ) {
-                            eprintln!("set macOS app icon failed: {}", error);
-                        }
-                    }) {
-                        eprintln!("schedule macOS app icon update failed: {}", error);
-                    }
-                }
+                apply_macos_runtime_dock_icon(&app.handle());
 
                 // Apply show panel on startup preference (defer to ensure window exists)
                 let app_handle = app.handle().clone();
