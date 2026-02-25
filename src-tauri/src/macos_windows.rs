@@ -44,7 +44,9 @@ pub fn attach_to_worker_w_with_mode(
         window.orderFront(None);
     } else {
         window.setLevel(desktop_window_level());
-        window.orderBack(None);
+        // Keep desktop-level semantics, but bring window to front within that low level
+        // so sticky notes stay visible above wallpaper/background windows.
+        window.orderFront(None);
     }
     Ok(())
 }
