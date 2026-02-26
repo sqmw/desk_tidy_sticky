@@ -1116,25 +1116,25 @@
           />
         {/if}
       </div>
-    {:else}
-      <section class="focus-pane">
-        <WorkspaceFocusHub
-          {strings}
-          compact={stageLayout.focusCompact}
-          tasks={focusTasks}
-          stats={focusStats}
-          selectedTaskId={focusSelectedTaskId}
-          command={focusCommand}
-          breakSession={focusBreakSession}
-          {pomodoroConfig}
-          onTasksChange={changeFocusTasks}
-          onStatsChange={changeFocusStats}
-          onBreakSessionChange={changeFocusBreakSession}
-          onSelectedTaskIdChange={changeFocusSelectedTask}
-          onPomodoroConfigChange={changePomodoroConfig}
-        />
-      </section>
     {/if}
+
+    <section class="focus-pane" class:hidden={mainTab !== WORKSPACE_MAIN_TAB_FOCUS}>
+      <WorkspaceFocusHub
+        {strings}
+        compact={stageLayout.focusCompact}
+        tasks={focusTasks}
+        stats={focusStats}
+        selectedTaskId={focusSelectedTaskId}
+        command={focusCommand}
+        breakSession={focusBreakSession}
+        {pomodoroConfig}
+        onTasksChange={changeFocusTasks}
+        onStatsChange={changeFocusStats}
+        onBreakSessionChange={changeFocusBreakSession}
+        onSelectedTaskIdChange={changeFocusSelectedTask}
+        onPomodoroConfigChange={changePomodoroConfig}
+      />
+    </section>
   </main>
   </div>
 </div>
@@ -1283,6 +1283,10 @@
     scrollbar-width: thin;
     scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
       var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+  }
+
+  .focus-pane.hidden {
+    display: none;
   }
 
   .focus-pane::-webkit-scrollbar {
