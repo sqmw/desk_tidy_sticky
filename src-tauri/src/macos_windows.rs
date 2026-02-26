@@ -35,6 +35,10 @@ fn floating_window_level() -> isize {
     CGWindowLevelForKey(CGWindowLevelKey::FloatingWindowLevelKey) as isize
 }
 
+fn desktop_icon_interactive_level() -> isize {
+    (CGWindowLevelForKey(CGWindowLevelKey::DesktopIconWindowLevelKey) + 1) as isize
+}
+
 fn log_level(tag: &str, window: &NSWindow) {
     eprintln!(
         "[macos-layer] {tag} current={} desktop={} desktop_icon={} normal={} floating={} ignore_mouse={}",
@@ -60,6 +64,7 @@ fn apply_desktop_sticky_window_traits(window: &NSWindow) {
     window.setAnimationBehavior(NSWindowAnimationBehavior::None);
 }
 
+#[allow(dead_code)]
 fn apply_wallpaper_window_traits(window: &NSWindow) {
     window.setCanHide(false);
     window.setHidesOnDeactivate(false);
@@ -91,6 +96,7 @@ pub fn attach_to_worker_w(ns_window_ptr: *mut c_void) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn attach_to_wallpaper_layer(
     ns_window_ptr: *mut c_void,
 ) -> Result<(), String> {
@@ -100,6 +106,30 @@ pub fn attach_to_wallpaper_layer(
     window.setLevel(desktop_window_level());
     window.orderBack(None);
     log_level("attach_to_wallpaper_layer", window);
+    Ok(())
+}
+
+pub fn attach_to_wallpaper_layer_with_interaction(
+    ns_window_ptr: *mut c_void,
+    click_through: bool,
+) -> Result<(), String> {
+    let window = cast_ns_window_ptr(ns_window_ptr)?;
+    window.setCanHide(false);
+    window.setHidesOnDeactivate(false);
+    window.setCollectionBehavior(desktop_sticky_collection_behavior());
+    window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+    if click_through {
+        window.setIgnoresMouseEvents(true);
+        window.setLevel(desktop_window_level());
+        window.orderBack(None);
+        log_level("attach_to_wallpaper_layer_with_interaction(pass-through)", window);
+    } else {
+        window.setIgnoresMouseEvents(false);
+        // Plash-like browsing mode: move above desktop icons for direct interaction.
+        window.setLevel(desktop_icon_interactive_level());
+        window.orderFrontRegardless();
+        log_level("attach_to_wallpaper_layer_with_interaction(interactive)", window);
+    }
     Ok(())
 }
 
