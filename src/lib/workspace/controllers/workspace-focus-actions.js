@@ -4,6 +4,7 @@
  *     breakReminderEnabled: boolean;
  *     focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number;
  *     miniBreakEveryMinutes: number; miniBreakDurationSeconds: number; longBreakEveryMinutes: number; longBreakDurationMinutes: number; breakNotifyBeforeSeconds: number;
+ *     taskStartReminderEnabled: boolean; taskStartReminderLeadMinutes: number;
  *     miniBreakPostponeMinutes: number; longBreakPostponeMinutes: number; breakPostponeLimit: number; breakStrictMode: boolean; breakReminderMode: string;
  *     independentMiniBreakEveryMinutes: number; independentLongBreakEveryMinutes: number;
  *   };
@@ -18,6 +19,7 @@
  *     breakReminderEnabled: boolean;
  *     focusMinutes: number; shortBreakMinutes: number; longBreakMinutes: number; longBreakEvery: number;
  *     miniBreakEveryMinutes: number; miniBreakDurationSeconds: number; longBreakEveryMinutes: number; longBreakDurationMinutes: number; breakNotifyBeforeSeconds: number;
+ *     taskStartReminderEnabled: boolean; taskStartReminderLeadMinutes: number;
  *     miniBreakPostponeMinutes: number; longBreakPostponeMinutes: number; breakPostponeLimit: number; breakStrictMode: boolean; breakReminderMode: string;
  *     independentMiniBreakEveryMinutes: number; independentLongBreakEveryMinutes: number;
  *   }) => void;
@@ -33,6 +35,7 @@ export function createWorkspaceFocusActions(deps) {
    * breakReminderEnabled:boolean;
    * focusMinutes:number;shortBreakMinutes:number;longBreakMinutes:number;longBreakEvery:number;
    * miniBreakEveryMinutes:number;miniBreakDurationSeconds:number;longBreakEveryMinutes:number;longBreakDurationMinutes:number;breakNotifyBeforeSeconds:number;
+   * taskStartReminderEnabled:boolean;taskStartReminderLeadMinutes:number;
    * miniBreakPostponeMinutes:number;longBreakPostponeMinutes:number;breakPostponeLimit:number;breakStrictMode:boolean;breakReminderMode:string;
    * independentMiniBreakEveryMinutes:number;independentLongBreakEveryMinutes:number;
    * }} next
@@ -51,6 +54,8 @@ export function createWorkspaceFocusActions(deps) {
       pomodoroLongBreakEveryMinutes: safe.longBreakEveryMinutes,
       pomodoroLongBreakDurationMinutes: safe.longBreakDurationMinutes,
       pomodoroBreakNotifyBeforeSeconds: safe.breakNotifyBeforeSeconds,
+      pomodoroTaskStartReminderEnabled: safe.taskStartReminderEnabled,
+      pomodoroTaskStartReminderLeadMinutes: safe.taskStartReminderLeadMinutes,
       pomodoroMiniBreakPostponeMinutes: safe.miniBreakPostponeMinutes,
       pomodoroLongBreakPostponeMinutes: safe.longBreakPostponeMinutes,
       pomodoroBreakPostponeLimit: safe.breakPostponeLimit,

@@ -42,6 +42,17 @@ function monitorToLogicalBounds(monitor) {
 async function applyOverlayWindowGeometry(label, monitor, window) {
   const logical = monitorToLogicalBounds(monitor);
   try {
+    // Ensure geometry APIs remain available when reusing a previously fullscreen overlay window.
+    try {
+      await window.setSimpleFullscreen(false);
+    } catch (_) {
+      // noop
+    }
+    try {
+      await window.setFullscreen(false);
+    } catch (_) {
+      // noop
+    }
     await window.setPosition(new LogicalPosition(logical.x, logical.y));
     await window.setSize(new LogicalSize(logical.width, logical.height));
   } catch (error) {
@@ -70,6 +81,15 @@ async function applyOverlayWindowRuntimeState(window) {
     // noop
   }
   await window.show();
+  try {
+    await window.setSimpleFullscreen(true);
+  } catch (_) {
+    try {
+      await window.setFullscreen(true);
+    } catch (_) {
+      // noop
+    }
+  }
   try {
     await window.setFocus();
   } catch (_) {

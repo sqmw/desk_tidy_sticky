@@ -85,6 +85,10 @@ pub struct PanelPreferences {
     pub pomodoro_long_break_duration_minutes: i32,
     #[serde(default = "default_pomodoro_break_notify_before_seconds")]
     pub pomodoro_break_notify_before_seconds: i32,
+    #[serde(default = "default_false")]
+    pub pomodoro_task_start_reminder_enabled: bool,
+    #[serde(default = "default_pomodoro_task_start_reminder_lead_minutes")]
+    pub pomodoro_task_start_reminder_lead_minutes: i32,
     #[serde(default = "default_true")]
     pub pomodoro_break_reminder_enabled: bool,
     #[serde(default = "default_pomodoro_mini_break_postpone_minutes")]
@@ -178,6 +182,9 @@ fn default_pomodoro_long_break_duration_minutes() -> i32 {
     5
 }
 fn default_pomodoro_break_notify_before_seconds() -> i32 {
+    10
+}
+fn default_pomodoro_task_start_reminder_lead_minutes() -> i32 {
     10
 }
 fn default_pomodoro_mini_break_postpone_minutes() -> i32 {

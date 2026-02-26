@@ -25,6 +25,8 @@ export function getSafeConfig(config, clamp) {
     longBreakEveryMinutes: clamp(raw.longBreakEveryMinutes, 30, 1, 180),
     longBreakDurationMinutes: clamp(raw.longBreakDurationMinutes, 5, 1, 30),
     breakNotifyBeforeSeconds: clamp(raw.breakNotifyBeforeSeconds, 10, 0, 120),
+    taskStartReminderEnabled: raw.taskStartReminderEnabled === true,
+    taskStartReminderLeadMinutes: clamp(raw.taskStartReminderLeadMinutes, 10, 1, 60),
     miniBreakPostponeMinutes: clamp(raw.miniBreakPostponeMinutes, 5, 1, 30),
     longBreakPostponeMinutes: clamp(raw.longBreakPostponeMinutes, 10, 1, 60),
     breakPostponeLimit: clamp(raw.breakPostponeLimit, 3, 0, 10),

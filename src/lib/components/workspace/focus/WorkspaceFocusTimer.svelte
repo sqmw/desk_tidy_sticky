@@ -27,6 +27,8 @@
     draftLongBreakEveryMinutes = $bindable(30),
     draftLongBreakDurationMinutes = $bindable(5),
     draftBreakNotifyBeforeSeconds = $bindable(10),
+    draftTaskStartReminderEnabled = $bindable(false),
+    draftTaskStartReminderLeadMinutes = $bindable(10),
     draftMiniBreakPostponeMinutes = $bindable(5),
     draftLongBreakPostponeMinutes = $bindable(10),
     draftBreakPostponeLimit = $bindable(3),
@@ -226,6 +228,19 @@
             min={0}
             max={120}
             title={strings.pomodoroBreakNotifyBeforeSeconds || "Notify before (sec)"}
+          />
+        </label>
+        <label class="strict-mode-row">
+          <span>{strings.pomodoroTaskStartReminderToggle || "Task start reminder"}</span>
+          <input type="checkbox" bind:checked={draftTaskStartReminderEnabled} />
+        </label>
+        <label>
+          <span>{strings.pomodoroTaskStartReminderLeadMinutes || "Remind before task start (min)"}</span>
+          <TargetPomodoroInput
+            bind:value={draftTaskStartReminderLeadMinutes}
+            min={1}
+            max={60}
+            title={strings.pomodoroTaskStartReminderLeadMinutes || "Remind before task start (min)"}
           />
         </label>
         <label>

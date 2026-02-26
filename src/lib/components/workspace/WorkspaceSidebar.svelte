@@ -254,13 +254,15 @@
   class:manual-resizing={manualResizeDragging}
 >
   <div class="brand" data-drag-handle="workspace" onpointerdown={onDragStart}>
-    <span
-      class="brand-pill"
-      class:traffic-reserved={showMacTrafficLights}
-      class:traffic-hidden={isMac && !showMacTrafficLights}
-    >
-      {strings.workspaceBrandTag}
-    </span>
+    {#if isMac}
+      <span
+        class="brand-pill"
+        class:traffic-reserved={showMacTrafficLights}
+        class:traffic-hidden={isMac && !showMacTrafficLights}
+      >
+        {strings.workspaceBrandTag}
+      </span>
+    {/if}
     <h1>{collapsed ? "WS" : strings.workspaceTitle}</h1>
     {#if !collapsed}
       <p>{strings.workspaceHint}</p>

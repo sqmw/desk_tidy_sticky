@@ -134,6 +134,8 @@
     longBreakEveryMinutes: 30,
     longBreakDurationMinutes: 5,
     breakNotifyBeforeSeconds: 10,
+    taskStartReminderEnabled: false,
+    taskStartReminderLeadMinutes: 10,
     miniBreakPostponeMinutes: 5,
     longBreakPostponeMinutes: 10,
     breakPostponeLimit: 3,

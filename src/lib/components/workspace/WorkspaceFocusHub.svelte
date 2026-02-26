@@ -8,6 +8,7 @@
     getDateKey,
     getRecentDateKeys,
     getTodayTasks,
+    timeToMinutes,
   } from "$lib/workspace/focus/focus-model.js";
   import {
     buildFocusHeatmap,
@@ -64,6 +65,11 @@
     emitBreakOverlayState,
     ensureBreakOverlayWindows,
   } from "$lib/workspace/focus/focus-break-overlay-windows.js";
+  import {
+    clearFocusTimerRuntimeCache,
+    loadFocusTimerRuntimeCache,
+    saveFocusTimerRuntimeCache,
+  } from "$lib/workspace/focus/focus-timer-runtime-cache.js";
 
   let {
     strings,
@@ -90,6 +96,8 @@
       longBreakEveryMinutes: 30,
       longBreakDurationMinutes: 5,
       breakNotifyBeforeSeconds: 10,
+      taskStartReminderEnabled: false,
+      taskStartReminderLeadMinutes: 10,
       breakReminderMode: BREAK_REMINDER_MODE_PANEL,
       independentMiniBreakEveryMinutes: 10,
       independentLongBreakEveryMinutes: 30,
@@ -132,6 +140,8 @@
   let draftLongBreakEveryMinutes = $state(30);
   let draftLongBreakDurationMinutes = $state(5);
   let draftBreakNotifyBeforeSeconds = $state(10);
+  let draftTaskStartReminderEnabled = $state(false);
+  let draftTaskStartReminderLeadMinutes = $state(10);
   let draftMiniBreakPostponeMinutes = $state(5);
   let draftLongBreakPostponeMinutes = $state(10);
   let draftBreakPostponeLimit = $state(3);
@@ -152,6 +162,10 @@
   let overlaySyncInFlight = false;
   let overlaySyncQueued = false;
   let lastOverlayPayloadKey = "";
+  let timerRuntimeRestored = false;
+  /** @type {Set<string>} */
+  let sentTaskStartReminderKeys = new Set();
+  let taskStartReminderDateKey = "";
   /** @type {null | Promise<string[]>} */
   let overlayEnsurePromise = null;
   /** @type {"mini" | "long" | ""} */
@@ -222,6 +236,47 @@
   const breakTimerActive = $derived(
     Boolean(activeBreakKind) && (phase === PHASE_SHORT_BREAK || phase === PHASE_LONG_BREAK),
   );
+
+  function restoreTimerRuntimeFromCache() {
+    const cached = loadFocusTimerRuntimeCache();
+    if (!cached) return;
+    phase = cached.phase;
+    remainingSec = cached.remainingSec;
+    running = cached.running;
+    hasStarted = cached.hasStarted;
+    completedFocusCount = cached.completedFocusCount;
+    focusSinceBreakSec = cached.focusSinceBreakSec;
+    nextMiniBreakAtSec = cached.nextMiniBreakAtSec;
+    nextLongBreakAtSec = cached.nextLongBreakAtSec;
+    nextMiniWarnAtSec = cached.nextMiniWarnAtSec;
+    nextLongWarnAtSec = cached.nextLongWarnAtSec;
+    lastBreakReminderAtSec = cached.lastBreakReminderAtSec;
+    activeBreakKind = /** @type {"" | "mini" | "long"} */ (cached.activeBreakKind);
+    skipUnlockedAfterPostpone = cached.skipUnlockedAfterPostpone;
+  }
+
+  function persistTimerRuntimeToCache() {
+    if (!hasStarted && !running) {
+      clearFocusTimerRuntimeCache();
+      return;
+    }
+    saveFocusTimerRuntimeCache({
+      phase,
+      remainingSec,
+      running,
+      hasStarted,
+      completedFocusCount,
+      focusSinceBreakSec,
+      nextMiniBreakAtSec,
+      nextLongBreakAtSec,
+      nextMiniWarnAtSec,
+      nextLongWarnAtSec,
+      lastBreakReminderAtSec,
+      activeBreakKind,
+      skipUnlockedAfterPostpone,
+      savedAt: Date.now(),
+    });
+  }
 
   /** @param {number} sec */
   function formatTimer(sec) {
@@ -360,7 +415,6 @@
   }
 
   function tickBreakReminderClock() {
-    nowTick = Date.now();
     if (!safeConfig.breakReminderEnabled) return;
     focusSinceBreakSec += 1;
     if (
@@ -390,6 +444,39 @@
       notifyBreak("start", dueKind);
     }
     applyBreakNow(dueKind);
+  }
+
+  /**
+   * @param {number} nowTs
+   */
+  function tickTaskStartReminderClock(nowTs) {
+    if (!safeConfig.taskStartReminderEnabled) return;
+    if (!notifyEnabled) return;
+    const now = new Date(nowTs);
+    const dateKey = getDateKey(now);
+    if (taskStartReminderDateKey !== dateKey) {
+      taskStartReminderDateKey = dateKey;
+      sentTaskStartReminderKeys = new Set();
+    }
+    const leadMinutes = clampInt(safeConfig.taskStartReminderLeadMinutes, 10, 1, 60);
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const dayStats = ensureDayStats(stats, dateKey);
+    const tasksForToday = getTodayTasks(tasks, now);
+    for (const task of tasksForToday) {
+      const taskId = String(task?.id || "");
+      if (!taskId) continue;
+      const sentKey = `${dateKey}:${taskId}`;
+      if (sentTaskStartReminderKeys.has(sentKey)) continue;
+      if (isFocusTaskCompleted(task, dayStats)) continue;
+      const startMinutes = timeToMinutes(String(task.startTime || "00:00"));
+      const remindAt = Math.max(0, startMinutes - leadMinutes);
+      if (nowMinutes < remindAt || nowMinutes >= startMinutes) continue;
+      sentTaskStartReminderKeys.add(sentKey);
+      notifyTaskStart(task, leadMinutes).catch((error) =>
+        console.error("notify task start reminder", error),
+      );
+      break;
+    }
   }
 
   /**
@@ -665,6 +752,13 @@
         0,
         120,
       ),
+      taskStartReminderEnabled: draftTaskStartReminderEnabled,
+      taskStartReminderLeadMinutes: clampInt(
+        draftTaskStartReminderLeadMinutes,
+        safeConfig.taskStartReminderLeadMinutes,
+        1,
+        60,
+      ),
       miniBreakPostponeMinutes: clampInt(
         draftMiniBreakPostponeMinutes,
         safeConfig.miniBreakPostponeMinutes,
@@ -688,6 +782,11 @@
       independentMiniBreakEveryMinutes: safeConfig.independentMiniBreakEveryMinutes,
       independentLongBreakEveryMinutes: safeConfig.independentLongBreakEveryMinutes,
     };
+    if (next.taskStartReminderEnabled) {
+      ensureNotificationPermissionFromUserGesture().catch((error) =>
+        console.error("focus request notification permission for task reminder", error),
+      );
+    }
     Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
       console.error("save pomodoro config", e),
     );
@@ -707,6 +806,8 @@
     draftLongBreakEveryMinutes = safeConfig.longBreakEveryMinutes;
     draftLongBreakDurationMinutes = safeConfig.longBreakDurationMinutes;
     draftBreakNotifyBeforeSeconds = safeConfig.breakNotifyBeforeSeconds;
+    draftTaskStartReminderEnabled = safeConfig.taskStartReminderEnabled;
+    draftTaskStartReminderLeadMinutes = safeConfig.taskStartReminderLeadMinutes;
     draftMiniBreakPostponeMinutes = safeConfig.miniBreakPostponeMinutes;
     draftLongBreakPostponeMinutes = safeConfig.longBreakPostponeMinutes;
     draftBreakPostponeLimit = safeConfig.breakPostponeLimit;
@@ -733,6 +834,21 @@
       : `${strings.pomodoroBreakDuration || "Duration"} ${
           isMini ? formatSecondsBrief(breakPlanSec.miniDurationSec) : `${safeConfig.longBreakDurationMinutes}m`
         }`;
+    await sendDesktopNotification(title, body);
+  }
+
+  /**
+   * @param {{ title?: string; startTime?: string }} task
+   * @param {number} leadMinutes
+   */
+  async function notifyTaskStart(task, leadMinutes) {
+    if (!notifyEnabled) return;
+    const title = strings.pomodoroTaskStartSoon || "Task starts soon";
+    const taskTitle = String(task?.title || strings.pomodoroNoTaskSelected || "Not selected");
+    const startTime = String(task?.startTime || "00:00");
+    const body = `${taskTitle} · ${strings.pomodoroTaskStartAt || "Starts at"} ${startTime} · ${
+      strings.pomodoroTaskStartLead || "In"
+    } ${leadMinutes}m`;
     await sendDesktopNotification(title, body);
   }
 
@@ -1015,6 +1131,8 @@
   });
 
   onMount(async () => {
+    restoreTimerRuntimeFromCache();
+    timerRuntimeRestored = true;
     try {
       if (typeof window === "undefined" || typeof Notification === "undefined") return;
       notifyChecked = true;
@@ -1026,11 +1144,12 @@
 
   onMount(() => {
     const clockId = setInterval(() => {
+      const now = Date.now();
+      nowTick = now;
+      tickTaskStartReminderClock(now);
       if (phase === PHASE_FOCUS) {
         tickBreakReminderClock();
-        return;
       }
-      nowTick = Date.now();
     }, 1000);
     return () => clearInterval(clockId);
   });
@@ -1103,6 +1222,37 @@
   });
 
   $effect(() => {
+    if (!timerRuntimeRestored) return;
+    const _phase = phase;
+    const _remaining = remainingSec;
+    const _running = running;
+    const _started = hasStarted;
+    const _count = completedFocusCount;
+    const _focusSinceBreak = focusSinceBreakSec;
+    const _miniAt = nextMiniBreakAtSec;
+    const _longAt = nextLongBreakAtSec;
+    const _miniWarn = nextMiniWarnAtSec;
+    const _longWarn = nextLongWarnAtSec;
+    const _lastReminder = lastBreakReminderAtSec;
+    const _activeBreak = activeBreakKind;
+    const _skipUnlocked = skipUnlockedAfterPostpone;
+    void _phase;
+    void _remaining;
+    void _running;
+    void _started;
+    void _count;
+    void _focusSinceBreak;
+    void _miniAt;
+    void _longAt;
+    void _miniWarn;
+    void _longWarn;
+    void _lastReminder;
+    void _activeBreak;
+    void _skipUnlocked;
+    persistTimerRuntimeToCache();
+  });
+
+  $effect(() => {
     if (!running) return;
     const id = setInterval(() => {
       if (!running) return;
@@ -1158,6 +1308,8 @@
         bind:draftLongBreakEveryMinutes
         bind:draftLongBreakDurationMinutes
         bind:draftBreakNotifyBeforeSeconds
+        bind:draftTaskStartReminderEnabled
+        bind:draftTaskStartReminderLeadMinutes
         bind:draftMiniBreakPostponeMinutes
         bind:draftLongBreakPostponeMinutes
         bind:draftBreakPostponeLimit

@@ -872,11 +872,13 @@ pub fn run() {
                     quit: quit_i,
                 });
 
-                let _tray = TrayIconBuilder::new()
-                    .icon(Image::from_bytes(include_bytes!(
-                        "../icons/tray-template.png"
-                    ))?)
-                    .icon_as_template(true)
+                #[cfg(target_os = "macos")]
+                let tray_icon = Image::from_bytes(include_bytes!("../icons/tray-template.png"))?;
+                #[cfg(not(target_os = "macos"))]
+                let tray_icon = Image::from_bytes(include_bytes!("../icons/tray-color.png"))?;
+
+                let tray_builder = TrayIconBuilder::new()
+                    .icon(tray_icon)
                     .menu(&menu)
                     .show_menu_on_left_click(true)
                     .on_menu_event(|app, event| {
@@ -895,8 +897,14 @@ pub fn run() {
                         } else if event.id.as_ref() == "quit" {
                             app.exit(0);
                         }
-                    })
-                    .build(app)?;
+                    });
+
+                #[cfg(target_os = "macos")]
+                let tray_builder = tray_builder.icon_as_template(true);
+                #[cfg(not(target_os = "macos"))]
+                let tray_builder = tray_builder.icon_as_template(false);
+
+                let _tray = tray_builder.build(app)?;
 
                 #[cfg(target_os = "macos")]
                 apply_macos_runtime_dock_icon(&app.handle());

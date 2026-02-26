@@ -7,5 +7,6 @@ fn main() {
     println!("cargo:rerun-if-changed=icons/dock-icon.png");
     println!("cargo:rerun-if-changed=icons/tray-template.svg");
     println!("cargo:rerun-if-changed=icons/tray-template.png");
+    println!("cargo:rerun-if-changed=icons/tray-color.png");
     tauri_build::build()
 }

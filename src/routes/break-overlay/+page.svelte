@@ -286,13 +286,16 @@
   }
 
   .overlay-shell {
-    width: 100vw;
-    height: 100vh;
+    width: 100dvw;
+    height: 100dvh;
+    min-height: 100dvh;
     display: grid;
     grid-template-rows: 1fr auto;
     justify-items: center;
     align-items: center;
     padding: 36px 20px 26px;
+    padding-top: calc(36px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(26px + env(safe-area-inset-bottom, 0px));
     background: #4f989b;
     color: #f8fbff;
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
@@ -377,6 +380,8 @@
   @media (max-width: 780px) {
     .overlay-shell {
       padding: 20px 12px 16px;
+      padding-top: calc(20px + env(safe-area-inset-top, 0px));
+      padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     }
 
     .overlay-center {
