@@ -327,8 +327,11 @@
     width: min(680px, calc(100vw - 90px));
     height: 12px;
     border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    background: rgba(255, 255, 255, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.58);
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow:
+      inset 0 1px 2px rgba(255, 255, 255, 0.35),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
     overflow: hidden;
     margin: 0 auto;
   }
@@ -336,7 +339,8 @@
   .progress-fill {
     display: block;
     height: 100%;
-    background: rgba(255, 255, 255, 0.88);
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(58, 132, 126, 0.96), rgba(79, 152, 155, 0.98));
     transition: width 160ms linear;
   }
 

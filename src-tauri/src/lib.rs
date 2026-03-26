@@ -161,6 +161,7 @@ fn ensure_workspace_panel_window(app: &tauri::AppHandle) -> Option<tauri::Webvie
     .title("Desk Tidy Workspace")
     .inner_size(1024.0, 720.0)
     .center()
+    .transparent(true)
     .decorations(false)
     .skip_taskbar(false)
     .resizable(true)

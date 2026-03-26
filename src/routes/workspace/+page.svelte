@@ -983,7 +983,11 @@
 </svelte:head>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="workspace-viewport" bind:this={workspaceViewportEl}>
+<div
+  class="workspace-viewport"
+  class:mac-windowed={isMac && !windowMaximized}
+  bind:this={workspaceViewportEl}
+>
   {#if showMacTrafficLights}
     <WorkspaceMacTrafficLights
       {strings}
@@ -996,6 +1000,7 @@
   <div
     class="workspace"
     class:theme-dark={workspaceThemeDark}
+    class:mac-windowed={isMac && !windowMaximized}
     style={`--sidebar-width: ${sidebarWidth}px; --ws-ui-scale: ${workspaceLayoutScale}; --ws-layout-scale: 1; --ws-text-scale: ${workspaceTextScale}; ${workspaceThemeVarStyle}`}
   >
   <WorkspaceSidebar
@@ -1178,6 +1183,7 @@
     height: 100%;
     width: 100%;
     overflow: hidden;
+    background: transparent;
   }
 
   :global(*) {
@@ -1189,6 +1195,11 @@
     width: 100vw;
     height: 100vh;
     overflow: hidden;
+  }
+
+  .workspace-viewport.mac-windowed {
+    border-radius: 18px;
+    isolation: isolate;
   }
 
   .workspace {
@@ -1229,6 +1240,12 @@
     transform-origin: top left;
     cursor: default;
     view-transition-name: workspace-root;
+  }
+
+  .workspace.mac-windowed {
+    overflow: hidden;
+    border-radius: 18px;
+    background-clip: padding-box;
   }
 
   .workspace.theme-dark {

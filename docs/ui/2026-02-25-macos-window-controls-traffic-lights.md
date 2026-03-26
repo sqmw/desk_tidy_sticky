@@ -44,6 +44,21 @@
 - macOS 全屏态下不再显示 `WORKSPACE` 英文标签（隐藏而非恢复显示），避免状态切换时闪回。
 - 交通灯 glyph 做统一微偏移校正（右下 `0.24px`），修复三按钮符号视觉偏左上。
 
+## 2026-03-26 补充：工作台窗口外轮廓圆角恢复
+- 判定：`Bug`
+- 现象：macOS 无边框工作台窗口左上角仍显示为方角，和系统窗口圆角观感不一致。
+- 根因：
+  - `workspace` 根容器是满窗矩形背景；
+  - 外层只有 `overflow: hidden`，未在 mac 非全屏态下执行窗口级圆角裁切；
+  - 运行时创建的 `workspace` 窗口未显式透明，裁切后仍可能露出矩形底色。
+- 修复：
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/workspace/+page.svelte`
+    - 为 `workspace-viewport` 和 `.workspace` 增加 `mac-windowed` 条件类；
+    - 在 `isMac && !windowMaximized` 时应用 `18px` 圆角和内容裁切；
+    - 页面根背景改为透明，避免圆角外露底色。
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/lib.rs`
+    - 运行时创建 `workspace` 窗口时显式 `.transparent(true)`，保证和配置窗口一致。
+
 5. 紧凑面板头部按钮样式
 - 文件：`/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/panel/HeaderActions.svelte`
 - 文件：`/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/panel/PanelHeader.svelte`
