@@ -21,3 +21,10 @@ The project's `.gitignore` rules (updated 2026-02-06) are designed to keep the r
 
 ### Temporary Files
 - **Output Checks**: `check_output_*.txt` files are ignored.
+
+## Syncthing Sync
+
+This project supports Syncthing-based sync with a repository-level ignore file:
+- **Root `.stignore`** mirrors `.gitignore` + `src-tauri/.gitignore` to avoid syncing build artifacts and temp files.
+- **Manual setup guide**: see `docs/sync/syncthing.md`.
+  - Recommended default: **Send Only** on the primary device, **Receive Only** on other devices to reduce conflicts.

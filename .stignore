@@ -1,0 +1,45 @@
+# Syncthing ignore rules for this repo
+# Mirrors .gitignore + src-tauri/.gitignore for build artifacts, logs, and local config.
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Node
+node_modules/
+build/
+.svelte-kit/
+package/
+.npm/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Rust/Tauri
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Temporary/Output files
+check_output_*.txt
