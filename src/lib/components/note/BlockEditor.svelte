@@ -168,10 +168,28 @@
   }
 
   /**
+   * Restore caret after Svelte re-renders the current contenteditable block.
+   * @param {string} blockId
+   * @param {number} start
+   * @param {number} end
+   */
+  async function restoreBlockCaret(blockId, start, end) {
+    await tick();
+    const selector = `.block-input[data-block-id="${blockId}"]`;
+    const input = /** @type {HTMLElement | null} */ (rootEl?.querySelector(selector));
+    if (!input) return;
+    input.focus();
+    const len = (input.textContent ?? "").length;
+    const nextStart = Math.max(0, Math.min(start, len));
+    const nextEnd = Math.max(nextStart, Math.min(end, len));
+    setSelectionOffsets(input, nextStart, nextEnd);
+  }
+
+  /**
    * @param {number} idx
    * @param {Event} event
    */
-  function onBlockInput(idx, event) {
+  async function onBlockInput(idx, event) {
     const current = blocks[idx];
     if (!current) return;
     const target = /** @type {HTMLElement | null} */ (event.currentTarget);
@@ -186,6 +204,7 @@
     });
     if (!shortcut) {
       setBlockText(idx, value);
+      await restoreBlockCaret(current.id, start, end);
       return;
     }
     const next = applyShortcutAt(blocks, idx, shortcut);

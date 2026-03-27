@@ -46,3 +46,14 @@
 2. 拖拽排序、切换块类型、待办勾选正常。
 3. 工作台详情保存/取消逻辑不变。
 4. 查看态渲染逻辑不变。
+
+## 2026-03-26 补充：工作台详情编辑 Backspace 光标跳首位
+
+- 判定：这是 Bug/回归，不是设计行为。
+- 根因：`BlockEditor` 使用 `contenteditable`，输入后会立即 `commit -> 更新 blocks -> 触发 Svelte 回写 DOM`，浏览器原有的 caret 状态在这条链路下没有被稳定保留，导致回退一次后光标跳到块首。
+- 修复：在普通输入路径中显式记录当前块的选区位置，待 DOM 刷新后恢复焦点和 caret。
+- 代码：
+  - `src/lib/components/note/BlockEditor.svelte`
+- 回归：
+  - 工作台详情编辑中，连续输入/回退时光标不应再跳到首位
+  - 不影响 Enter 拆块、Backspace 合并块等已有快捷行为

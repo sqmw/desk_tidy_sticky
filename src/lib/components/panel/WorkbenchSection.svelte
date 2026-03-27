@@ -1,4 +1,6 @@
 <script>
+  import { tick } from "svelte";
+
   let {
     strings,
     viewMode,
@@ -120,6 +122,14 @@
   let hoverInsertIndex = $state(/** @type {number | null} */ (null));
   let priorityMenuNoteId = $state(/** @type {string | null} */ (null));
   let priorityMenuTagDraft = $state("");
+  /** @type {HTMLElement | null} */
+  let priorityMenuAnchorEl = $state(null);
+  /** @type {HTMLDivElement | null} */
+  let priorityMenuOverlayEl = $state(null);
+  /** @type {HTMLInputElement | null} */
+  let priorityMenuInputEl = $state(null);
+  let priorityMenuStyle = $state("");
+  let priorityMenuInputVersion = 0;
   let pointerDragActive = $state(false);
   /** @type {number | null} */
   let pointerDragId = $state(null);
@@ -134,6 +144,11 @@
   const draggingNote = $derived(
     draggingNoteId
       ? renderedNotes.find((/** @type {{ id: string | number }} */ n) => String(n.id) === draggingNoteId) ?? null
+      : null,
+  );
+  const priorityMenuNote = $derived(
+    priorityMenuNoteId
+      ? renderedNotes.find((/** @type {{ id: string | number }} */ n) => String(n.id) === priorityMenuNoteId) ?? null
       : null,
   );
 
@@ -320,15 +335,69 @@
     endQuadrantDrag();
   }
 
-  /** @param {string} noteId */
-  function togglePriorityMenu(noteId) {
+  function closePriorityMenu() {
+    priorityMenuNoteId = null;
+    priorityMenuTagDraft = "";
+    priorityMenuAnchorEl = null;
+    priorityMenuStyle = "";
+  }
+
+  function updatePriorityMenuPosition() {
+    if (!priorityMenuAnchorEl || typeof window === "undefined") return;
+    const viewportPadding = 16;
+    const menuWidth = Math.min(240, Math.max(176, window.innerWidth - viewportPadding * 2));
+    const anchorRect = priorityMenuAnchorEl.getBoundingClientRect();
+    const menuHeight = priorityMenuOverlayEl?.offsetHeight ?? 0;
+    const gap = 6;
+    const maxLeft = Math.max(viewportPadding, window.innerWidth - menuWidth - viewportPadding);
+    const rightAlignedLeft = anchorRect.right - menuWidth;
+    const leftAlignedLeft = anchorRect.left;
+    const left =
+      rightAlignedLeft < viewportPadding && leftAlignedLeft <= maxLeft
+        ? Math.min(leftAlignedLeft, maxLeft)
+        : Math.max(viewportPadding, Math.min(rightAlignedLeft, maxLeft));
+    const topAbove = anchorRect.top - menuHeight - gap;
+    const topBelow = anchorRect.bottom + gap;
+    const maxTop = Math.max(viewportPadding, window.innerHeight - menuHeight - viewportPadding);
+    const top =
+      menuHeight > 0 && topAbove >= viewportPadding
+        ? topAbove
+        : Math.max(viewportPadding, Math.min(topBelow, maxTop));
+    priorityMenuStyle = `left:${Math.round(left)}px;top:${Math.round(top)}px;width:${Math.round(menuWidth)}px;`;
+  }
+
+  /**
+   * @param {string} noteId
+   * @param {HTMLElement | null} [anchor]
+   */
+  async function togglePriorityMenu(noteId, anchor = null) {
     if (priorityMenuNoteId === noteId) {
-      priorityMenuNoteId = null;
-      priorityMenuTagDraft = "";
+      closePriorityMenu();
       return;
     }
     priorityMenuNoteId = noteId;
+    priorityMenuAnchorEl = anchor;
     priorityMenuTagDraft = "";
+    priorityMenuStyle = "";
+    await tick();
+    updatePriorityMenuPosition();
+    priorityMenuInputEl?.focus();
+  }
+
+  /** @param {Event} event */
+  async function onPriorityTagInput(event) {
+    const input = /** @type {HTMLInputElement | null} */ (event.currentTarget instanceof HTMLInputElement ? event.currentTarget : null);
+    if (!input) return;
+    const nextValue = input.value;
+    const start = input.selectionStart ?? nextValue.length;
+    const end = input.selectionEnd ?? start;
+    const version = ++priorityMenuInputVersion;
+    priorityMenuTagDraft = nextValue;
+    await tick();
+    if (version !== priorityMenuInputVersion) return;
+    if (!priorityMenuInputEl) return;
+    priorityMenuInputEl.focus({ preventScroll: true });
+    priorityMenuInputEl.setSelectionRange(start, end);
   }
 
   /**
@@ -352,6 +421,8 @@
       ? current.filter((t) => normalizeTagText(t).toLocaleLowerCase() !== normalized.toLocaleLowerCase())
       : [...current, normalized];
     await updateTags(note, next);
+    await tick();
+    updatePriorityMenuPosition();
   }
 
   /** @param {any} note */
@@ -364,6 +435,8 @@
     }
     await updateTags(note, [...current, normalized]);
     priorityMenuTagDraft = "";
+    await tick();
+    updatePriorityMenuPosition();
   }
 
   /** @param {PointerEvent} e */
@@ -371,8 +444,13 @@
     const target = /** @type {Element | null} */ (e.target instanceof Element ? e.target : null);
     if (!target) return;
     if (target.closest(".priority-wrap")) return;
-    priorityMenuNoteId = null;
-    priorityMenuTagDraft = "";
+    if (target.closest(".priority-menu-overlay")) return;
+    closePriorityMenu();
+  }
+
+  function onWorkbenchScroll() {
+    if (!priorityMenuNoteId) return;
+    updatePriorityMenuPosition();
   }
 
   /**
@@ -486,7 +564,7 @@
   }
 </script>
 
-<section class="workbench">
+<section class="workbench" onscroll={onWorkbenchScroll}>
   <div class="summary">
     <div class="summary-chip">{strings.workspaceTitle}</div>
     <div class="summary-chip">{totalCount} {strings.active.toLowerCase()}</div>
@@ -571,50 +649,23 @@
                           type="button"
                           class="action-btn priority"
                           title={`${strings.priority}: ${priorityActionLabel(note.priority)}`}
-                          onclick={() => togglePriorityMenu(String(note.id))}
+                          onclick={(e) =>
+                            togglePriorityMenu(
+                              String(note.id),
+                              /** @type {HTMLElement | null} */ (e.currentTarget instanceof HTMLElement ? e.currentTarget : null),
+                            )}
                         >
                           {priorityActionLabel(note.priority)}
                         </button>
-                        {#if priorityMenuNoteId === String(note.id)}
-                          <div class="priority-menu">
-                            <button type="button" class="priority-item" onclick={() => selectPriority(note, null)}>{strings.priorityUnassigned}</button>
-                            <button type="button" class="priority-item" onclick={() => selectPriority(note, 1)}>Q1</button>
-                            <button type="button" class="priority-item" onclick={() => selectPriority(note, 2)}>Q2</button>
-                            <button type="button" class="priority-item" onclick={() => selectPriority(note, 3)}>Q3</button>
-                            <button type="button" class="priority-item" onclick={() => selectPriority(note, 4)}>Q4</button>
-                            {#if usedTags.length > 0}
-                              <div class="priority-menu-divider"></div>
-                              <div class="priority-menu-caption">{strings.workspaceTagsFilter || strings.tags}</div>
-                              <div class="priority-tag-list">
-                                {#each usedTags as tag (tag)}
-                                  <button
-                                    type="button"
-                                    class="priority-tag-item"
-                                    class:active={hasTagText(noteTags(note), tag)}
-                                    onclick={() => toggleCustomTag(note, tag)}
-                                    title={`#${tag}`}
-                                  >
-                                    #{tag}
-                                  </button>
-                                {/each}
-                              </div>
-                            {/if}
-                            <div class="priority-menu-divider"></div>
-                            <div class="priority-tag-create">
-                              <input
-                                type="text"
-                                class="priority-tag-input"
-                                bind:value={priorityMenuTagDraft}
-                                placeholder={strings.tagsPlaceholder}
-                                onkeydown={(e) => e.key === "Enter" && createCustomTag(note)}
-                              />
-                              <button type="button" class="priority-tag-add" onclick={() => createCustomTag(note)}>
-                                {strings.workspaceCreateNote || strings.saveNote}
-                              </button>
-                            </div>
-                          </div>
-                        {/if}
                       </div>
+                      <button
+                        type="button"
+                        class="action-btn danger"
+                        title={strings.delete}
+                        onclick={() => deleteNote(note)}
+                      >
+                        {@render iconDelete()}
+                      </button>
                     </div>
                   </article>
                 {/if}
@@ -678,51 +729,14 @@
                   type="button"
                   class="action-btn priority"
                   title={`${strings.priority}: ${priorityActionLabel(note.priority)}`}
-                  onclick={() => togglePriorityMenu(String(note.id))}
+                  onclick={(e) =>
+                    togglePriorityMenu(
+                      String(note.id),
+                      /** @type {HTMLElement | null} */ (e.currentTarget instanceof HTMLElement ? e.currentTarget : null),
+                    )}
                 >
                   {priorityActionLabel(note.priority)}
                 </button>
-                {#if priorityMenuNoteId === String(note.id)}
-                  <div class="priority-menu">
-                    <button type="button" class="priority-item" onclick={() => selectPriority(note, null)}>
-                      {strings.priorityUnassigned}
-                    </button>
-                    <button type="button" class="priority-item" onclick={() => selectPriority(note, 1)}>Q1</button>
-                    <button type="button" class="priority-item" onclick={() => selectPriority(note, 2)}>Q2</button>
-                    <button type="button" class="priority-item" onclick={() => selectPriority(note, 3)}>Q3</button>
-                    <button type="button" class="priority-item" onclick={() => selectPriority(note, 4)}>Q4</button>
-                    {#if usedTags.length > 0}
-                      <div class="priority-menu-divider"></div>
-                      <div class="priority-menu-caption">{strings.workspaceTagsFilter || strings.tags}</div>
-                      <div class="priority-tag-list">
-                        {#each usedTags as tag (tag)}
-                          <button
-                            type="button"
-                            class="priority-tag-item"
-                            class:active={hasTagText(noteTags(note), tag)}
-                            onclick={() => toggleCustomTag(note, tag)}
-                            title={`#${tag}`}
-                          >
-                            #{tag}
-                          </button>
-                        {/each}
-                      </div>
-                    {/if}
-                    <div class="priority-menu-divider"></div>
-                    <div class="priority-tag-create">
-                      <input
-                        type="text"
-                        class="priority-tag-input"
-                        bind:value={priorityMenuTagDraft}
-                        placeholder={strings.tagsPlaceholder}
-                        onkeydown={(e) => e.key === "Enter" && createCustomTag(note)}
-                      />
-                      <button type="button" class="priority-tag-add" onclick={() => createCustomTag(note)}>
-                        {strings.workspaceCreateNote || strings.saveNote}
-                      </button>
-                    </div>
-                  </div>
-                {/if}
               </div>
               {#if viewMode === "active"}
                 <button
@@ -764,6 +778,14 @@
                   {@render iconArchive()}
                 {/if}
               </button>
+              <button
+                type="button"
+                class="action-btn danger"
+                title={strings.delete}
+                onclick={() => deleteNote(note)}
+              >
+                {@render iconDelete()}
+              </button>
             {/if}
           </div>
         </article>
@@ -771,6 +793,52 @@
     </div>
   {/if}
 </section>
+
+{#if priorityMenuNote}
+  <div class="priority-menu priority-menu-overlay" bind:this={priorityMenuOverlayEl} style={priorityMenuStyle} data-no-drag="true">
+    <button type="button" class="priority-item" onclick={() => selectPriority(priorityMenuNote, null)}>
+      {strings.priorityUnassigned}
+    </button>
+    <button type="button" class="priority-item" onclick={() => selectPriority(priorityMenuNote, 1)}>Q1</button>
+    <button type="button" class="priority-item" onclick={() => selectPriority(priorityMenuNote, 2)}>Q2</button>
+    <button type="button" class="priority-item" onclick={() => selectPriority(priorityMenuNote, 3)}>Q3</button>
+    <button type="button" class="priority-item" onclick={() => selectPriority(priorityMenuNote, 4)}>Q4</button>
+    {#if usedTags.length > 0}
+      <div class="priority-menu-divider"></div>
+      <div class="priority-menu-caption">{strings.workspaceTagsFilter || strings.tags}</div>
+      <div class="priority-tag-list">
+        {#each usedTags as tag (tag)}
+          <button
+            type="button"
+            class="priority-tag-item"
+            class:active={hasTagText(noteTags(priorityMenuNote), tag)}
+            onclick={() => toggleCustomTag(priorityMenuNote, tag)}
+            title={`#${tag}`}
+          >
+            #{tag}
+          </button>
+        {/each}
+      </div>
+    {/if}
+    <div class="priority-menu-divider"></div>
+    <div class="priority-tag-create">
+      <input
+        type="text"
+        class="priority-tag-input"
+        bind:this={priorityMenuInputEl}
+        value={priorityMenuTagDraft}
+        placeholder={strings.tagsPlaceholder}
+        oninput={onPriorityTagInput}
+        onkeydown={(e) => e.key === "Enter" && createCustomTag(priorityMenuNote)}
+      />
+      <div class="priority-tag-actions">
+        <button type="button" class="priority-tag-add" onclick={() => createCustomTag(priorityMenuNote)}>
+          {strings.workspaceCreateTag || strings.tags}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 {#if pointerDragActive && draggingNote}
   <div
@@ -794,6 +862,7 @@
   onpointermove={onPointerMove}
   onpointerup={onPointerUp}
   onpointercancel={onPointerUp}
+  onresize={updatePriorityMenuPosition}
 />
 
 {#snippet iconDragHandle()}
@@ -1274,11 +1343,8 @@
   }
 
   .priority-menu {
-    position: absolute;
-    z-index: 12;
-    right: 0;
-    bottom: calc(100% + 6px);
-    min-width: 108px;
+    position: fixed;
+    z-index: 50;
     border: 1px solid var(--ws-border, #dbe5f1);
     border-radius: 10px;
     background: color-mix(in srgb, var(--ws-panel-bg, #ffffff) 92%, transparent);
@@ -1288,6 +1354,10 @@
     flex-direction: column;
     padding: 4px;
     gap: 2px;
+  }
+
+  .priority-menu-overlay {
+    max-width: calc(100vw - 32px);
   }
 
   .priority-item {
@@ -1325,7 +1395,7 @@
     flex-wrap: wrap;
     gap: 4px;
     padding: 2px 4px 4px;
-    max-width: 220px;
+    max-width: 100%;
   }
 
   .priority-tag-item {
@@ -1355,25 +1425,32 @@
   }
 
   .priority-tag-create {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 4px;
-    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 4px 4px;
   }
 
   .priority-tag-input {
+    width: 100%;
     min-width: 0;
     border: 1px solid var(--ws-border-soft, #d7dfec);
     border-radius: 8px;
     background: var(--ws-btn-bg, #f8fafc);
     color: var(--ws-text, #334155);
-    padding: 6px 8px;
+    padding: 7px 10px;
     font-size: 11px;
+    line-height: 1.2;
     outline: none;
   }
 
   .priority-tag-input:focus {
     border-color: var(--ws-border-active, #94a3b8);
+  }
+
+  .priority-tag-actions {
+    display: flex;
+    justify-content: flex-end;
   }
 
   .priority-tag-add {
@@ -1383,7 +1460,8 @@
     color: var(--ws-text, #334155);
     font-size: 11px;
     font-weight: 700;
-    padding: 6px 9px;
+    min-height: 30px;
+    padding: 6px 10px;
     cursor: pointer;
     white-space: nowrap;
   }
