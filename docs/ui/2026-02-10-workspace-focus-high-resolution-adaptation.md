@@ -37,3 +37,23 @@
 3. 统计能力改为“底部可折叠统计面板”：
    - 默认收起，保证核心操作区域宽度；
    - 需要时一键展开，保留完整统计能力。
+
+## 2026-03-26 补充：单任务时任务卡不再被拉伸填满
+
+### 判定
+- 类型：`Bug/回归`
+- 现象：当 `专注任务规划` 中只有 1 条任务时，整个任务卡会被列表容器纵向撑满，看起来像“巨大的空白卡片”。
+
+### 根因
+- `WorkspaceFocusPlanner.svelte` 中的任务列表容器使用了 `display: grid`，同时容器本身又有较大的可用高度。
+- 当只有一行时，grid 默认会把这唯一一行按容器剩余空间拉伸，导致单卡高度畸形。
+
+### 修复
+- 文件：`/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusPlanner.svelte`
+- 调整：
+  1. `.task-list` 增加 `align-content: start`
+  2. `.task-list` 增加 `grid-auto-rows: max-content`
+
+### 结果
+- 单任务时，任务卡按内容高度显示。
+- 多任务时，列表仍保持可滚动，不影响现有大屏高度利用。

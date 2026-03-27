@@ -69,7 +69,7 @@
 
 ## 体验修正（2026-02-09 第二轮）
 ### 番茄功能补强
-1. 任务支持设置 `目标番茄数`（每日任务粒度）。
+1. 历史版本曾支持设置 `目标番茄数`（每日任务粒度）。
 2. 今日任务区展示每条任务的番茄进度：`完成/目标`。
 3. 统计区新增任务维度进度汇总与百分比（今日任务完成率）。
 4. 计时卡新增阶段进度条，强化专注状态反馈。
@@ -110,3 +110,94 @@
 4. 修复“25m/40m 与设置面板不同步”问题：
    - 点击快捷档时，实时同步设置面板中的“专注（分钟）”草稿值；
    - 避免出现“外部已切换，面板里仍是旧值”的状态不一致。
+
+## 2026-03-26 补充：番茄运行态边界收口
+
+### 判定
+- 类型：`设计收敛`
+- 原因：番茄钟与独立休息控制长期共用 `focus / shortBreak / longBreak` phase，已经多次引入计时冻结、错误恢复和 overlay 串扰回归。
+
+### 新边界
+1. `番茄钟` 只负责：
+   - 任务选择
+   - 专注倒计时
+   - 完成一个番茄后的统计累积
+2. `休息控制` 只负责：
+   - 按独立配置触发小休 / 长休提醒
+   - 管理休息 overlay 的开始、跳过、延后与倒计时
+3. 两条链路不再共享番茄 phase。
+
+### 代码收敛
+- 文件：`/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
+- 文件：`/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusTimer.svelte`
+
+1. 番茄主计时器不再进入 `shortBreak / longBreak`。
+2. 每次番茄倒计时结束后：
+   - 只累计一次完成数与统计；
+   - 计时器回到新的专注态；
+   - 等待用户再次点击开始。
+3. 番茄设置面板移除：
+   - `短休息（分钟）`
+   - `长休息（分钟）`
+   - `每多少轮长休一次`
+4. 历史配置字段仍保留兼容，不主动删除，但不再驱动当前番茄运行态。
+
+### 回归结果
+1. 番茄计时完成后，不会再自动切到内建短休 / 长休 phase。
+2. 独立休息提醒不会再被番茄 phase 污染。
+3. 旧缓存中残留的短休 / 长休 phase 会在恢复时统一归一到专注态。
+
+## 2026-03-27 补充：目标番茄数能力下线
+
+### 判定
+- 类型：`设计收敛`
+
+### 当前状态
+1. 任务不再设置“目标番茄数”。
+2. 任务仍保留“已完成多少个番茄”的统计。
+3. 今日任务、计时卡、统计面板、截止任务卡均已移除 `done/target` 和基于目标的完成率语义。
+
+### 文档入口
+- 现行说明：
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/ui/2026-03-27-workspace-focus-target-pomodoro-removal.md`
+
+## 2026-03-27 补充：任务运行态可视化
+
+### 判定
+- 类型：`设计收敛`
+
+### 问题
+1. 任务点击 `开始` 后，顶部计时器会切到该任务并启动倒计时。
+2. 但任务规划列表本身没有显示“已开始”的任务态，用户需要来回对照顶部计时器和底部任务列表，认知成本高。
+
+### 调整
+1. 当前已开始的任务行显示 `已开始` 状态胶囊。
+2. 任务行加入低饱和青绿色进度底纹，直接反映当前番茄进度。
+3. 任务行的 `开始` 按钮在该任务已启动后切为 `已开始` 并禁用，避免误解为“还没开始”。
+
+### 实现
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
+  - 负责提供当前运行任务 `id`、是否开始、是否运行与进度百分比。
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusPlanner.svelte`
+  - 将运行态透传到单条任务组件。
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusPlannerTaskItem.svelte`
+  - 负责最终视觉呈现。
+
+## 2026-03-27 补充：计时器顶部信息层级收敛
+
+### 判定
+- 类型：`设计收敛`
+
+### 问题
+1. 顶部计时器区在“当前任务”之外，还保留了一个单独的“今日番茄数”大块。
+2. 在目标番茄数与任务完成率退役后，这个大块显得信息价值偏低，但占位又过重，容易让人感觉还是旧模型残留。
+
+### 调整
+1. `当前任务` 升为左侧主信息卡。
+2. `今日番茄数` 压缩为右侧摘要 chip。
+3. 顶部不再提供任务选择与 `25m/40m` 快捷档。
+4. 顶部只保留开始/暂停与重置，作为纯运行控制区。
+5. 原 `设置` 下沉到 `专注任务规划` 区，通过 `编辑设置` 入口展开。
+
+### 代码位置
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusTimer.svelte`

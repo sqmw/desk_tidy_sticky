@@ -1,4 +1,4 @@
-import { ensureDayStats, normalizeFocusTask } from "$lib/workspace/focus/focus-model.js";
+import { ensureDayStats, normalizeFocusTask, timeToMinutes } from "$lib/workspace/focus/focus-model.js";
 import { normalizeBreakReminderMode } from "$lib/workspace/focus/focus-break-reminder-mode.js";
 
 export const PHASE_FOCUS = "focus";
@@ -135,10 +135,8 @@ export function removeTaskFromState(tasks, stats, taskId) {
  * title?: string;
  * startTime?: string;
  * endTime?: string;
- * targetPomodoros?: number;
  * recurrence?: string;
  * weekdays?: number[];
- * breakProfile?: { miniBreakEveryMinutes: number; longBreakEveryMinutes: number } | null;
  * }} patch
  */
 export function updateTaskInState(tasks, taskId, patch) {
@@ -183,25 +181,13 @@ export function applyFocusCompleted(stats, todayKey, selectedTaskId, focusMinute
 }
 
 /**
- * @param {any} task
- * @param {any} todayStats
- */
-export function isFocusTaskCompleted(task, todayStats) {
-  const safeTarget = Math.max(1, Number(task?.targetPomodoros || 1));
-  const donePomodoros = Number(todayStats?.taskPomodoros?.[task?.id] || 0);
-  return donePomodoros >= safeTarget;
-}
-
-/**
  * @param {{
  * id?: string;
  * title: string;
  * startTime: string;
  * endTime: string;
- * targetPomodoros: number;
  * recurrence: string;
  * weekdays: number[];
- * breakProfile?: { miniBreakEveryMinutes: number; longBreakEveryMinutes: number } | null;
  * }} draft
  */
 export function buildFocusTaskFromDraft(draft) {
@@ -210,10 +196,8 @@ export function buildFocusTaskFromDraft(draft) {
     title: draft.title,
     startTime: draft.startTime,
     endTime: draft.endTime,
-    targetPomodoros: draft.targetPomodoros,
     recurrence: draft.recurrence,
     weekdays: draft.weekdays,
-    breakProfile: draft.breakProfile ?? null,
     enabled: true,
     createdAt: new Date().toISOString(),
   });
@@ -224,8 +208,6 @@ export function buildFocusTaskFromDraft(draft) {
  * @param {any} todayStats
  */
 export function buildTodaySummary(todayTasks, todayStats) {
-  const completedCount = todayTasks.filter((task) => isFocusTaskCompleted(task, todayStats)).length;
-  const targetPomodoros = todayTasks.reduce((sum, task) => sum + Number(task.targetPomodoros || 1), 0);
   const donePomodoros = todayTasks.reduce(
     (sum, task) => sum + Number(todayStats.taskPomodoros?.[task.id] || 0),
     0,
@@ -234,13 +216,15 @@ export function buildTodaySummary(todayTasks, todayStats) {
     .map((task) => ({
       id: task.id,
       title: task.title,
+      startTime: task.startTime,
+      endTime: task.endTime,
+      startMinutes: timeToMinutes(task.startTime || "00:00"),
+      endMinutes: timeToMinutes(task.endTime || "23:59"),
       pomodoros: Number(todayStats.taskPomodoros?.[task.id] || 0),
     }))
-    .sort((a, b) => b.pomodoros - a.pomodoros)
-    .slice(0, 5);
+    .sort((a, b) => a.startMinutes - b.startMinutes);
   return {
-    completedCount,
-    targetPomodoros,
+    taskCount: todayTasks.length,
     donePomodoros,
     taskDistribution,
   };

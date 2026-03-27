@@ -39,6 +39,7 @@ function normalizeRuntime(raw) {
     nextLongWarnAtSec: Math.max(0, Math.floor(safeNumber(obj.nextLongWarnAtSec, 30 * 60 - 10))),
     lastBreakReminderAtSec: Math.floor(safeNumber(obj.lastBreakReminderAtSec, -1)),
     activeBreakKind: activeBreakKind === "mini" || activeBreakKind === "long" ? activeBreakKind : "",
+    breakRemainingSec: Math.max(0, Math.floor(safeNumber(obj.breakRemainingSec, 0))),
     skipUnlockedAfterPostpone: safeBool(obj.skipUnlockedAfterPostpone, false),
     savedAt: Math.max(0, Math.floor(safeNumber(obj.savedAt, 0))),
   };

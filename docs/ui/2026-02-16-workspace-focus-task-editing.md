@@ -10,10 +10,44 @@
    - 任务标题
    - 开始时间
    - 结束时间
-   - 目标番茄数
    - 重复规则（无/每天/工作日/自定义）
    - 自定义星期（仅 `custom` 时显示）
 3. 保存后通过 Hub 回调更新任务集合，保持任务 `id` 与历史统计关联不丢失。
+
+## 2026-03-27 状态更新
+- `目标番茄数` 已从专注任务模型中移除。
+- 当前编辑态只保留：
+  - 标题
+  - 开始时间
+  - 结束时间
+  - 重复规则
+  - 自定义星期
+- 现行实现说明请参考：
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/ui/2026-03-27-workspace-focus-target-pomodoro-removal.md`
+
+## 2026-03-27 状态更新（二）：已开始任务显式高亮
+- 判定：`设计收敛`
+- 依据：
+  - 点击任务行 `开始` 时，`WorkspaceFocusHub` 已经会更新 `selectedTaskId / running / hasStarted`。
+  - 旧版 `WorkspaceFocusPlannerTaskItem` 没有消费这些运行态，所以用户只能从顶部计时器判断哪条任务正在运行。
+
+### 行为调整
+1. 任务点击 `开始` 后，该任务行会进入 `已开始` 状态。
+2. `已开始` 状态会在任务标题后展示状态胶囊。
+3. 任务行背景加入横向进度底纹，直接映射当前番茄倒计时进度。
+4. 当前任务的主按钮改为运行态按钮：
+   - 运行中：`暂停`
+   - 已暂停：`继续`
+   - 未开始：`开始`
+5. 顶部计时卡不再提供 `暂停/重置`，任务行成为唯一运行控制入口。
+
+### 代码落点
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
+  - 将 `selectedTaskId / hasStarted / running / 当前进度百分比` 传递到 Planner。
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusPlanner.svelte`
+  - 将“当前运行任务”状态映射到对应任务行。
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusPlannerTaskItem.svelte`
+  - 渲染 `已开始` 状态标签与进度底纹。
 
 ## 代码变更
 - `src/lib/components/workspace/focus/WorkspaceFocusPlannerTaskItem.svelte`

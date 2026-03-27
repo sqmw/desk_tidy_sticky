@@ -31,15 +31,13 @@
 ### 4) 修正休息间隔旧限制残留
 - 文件：`src/lib/components/workspace/WorkspaceFocusHub.svelte`
 - 把仍残留的 5/15 分钟下限统一改为 1 分钟：
-  - 任务 breakProfile 的保存/创建路径
   - 设置保存路径（mini/long interval）
 
 ### 5) 配置归一化保持一致
 - 文件：
   - `src/lib/workspace/focus/focus-runtime.js`
-  - `src/lib/workspace/focus/focus-break-profile.js`
   - `src/lib/workspace/preferences-service.js`
-- 统一允许 1 分钟级间隔并保持独立间隔与任务间隔归一化一致。
+- 统一允许 1 分钟级间隔并保持独立休息间隔归一化一致。
 
 ### 6) 文案补充
 - 文件：`src/lib/strings.js`

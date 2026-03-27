@@ -455,11 +455,7 @@
                     <span>{deadlineLabel(item)}</span>
                   </div>
                   <div class="deadline-progress-row">
-                    <span>🍅 {item.donePomodoros}/{item.targetPomodoros}</span>
-                    <span>{Math.min(100, Math.round((item.donePomodoros / Math.max(1, item.targetPomodoros)) * 100))}%</span>
-                  </div>
-                  <div class="deadline-progress">
-                    <span style={`width:${Math.min(100, Math.round((item.donePomodoros / Math.max(1, item.targetPomodoros)) * 100))}%`}></span>
+                    <span>🍅 {item.donePomodoros}</span>
                   </div>
                   <div class="deadline-actions">
                     <button type="button" class="deadline-action-btn" onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "select"); }}>
@@ -1027,6 +1023,8 @@
 
   .deadline-list {
     display: grid;
+    align-content: start;
+    grid-auto-rows: max-content;
     gap: 6px;
     min-height: 0;
     max-height: var(--section-max-height, 320px);
@@ -1153,25 +1151,10 @@
   .deadline-progress-row {
     margin-top: 6px;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 6px;
     font-size: 10px;
     color: var(--ws-muted, #64748b);
-  }
-
-  .deadline-progress {
-    margin-top: 4px;
-    height: 6px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 62%, transparent);
-    overflow: hidden;
-  }
-
-  .deadline-progress > span {
-    display: block;
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(90deg, color-mix(in srgb, var(--ws-accent, #1d4ed8) 65%, #60a5fa) 0%, var(--ws-accent, #1d4ed8) 100%);
   }
 
   .deadline-actions {

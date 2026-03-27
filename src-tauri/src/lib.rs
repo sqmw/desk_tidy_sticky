@@ -42,6 +42,73 @@ impl Default for OverlayInputState {
     }
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BreakReminderWatchSnapshot {
+    enabled: bool,
+    active_break_kind: String,
+    mini_due_at_ms: i64,
+    long_due_at_ms: i64,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BreakReminderDuePayload {
+    kind: String,
+    due_at_ms: i64,
+}
+
+#[derive(Debug, Clone, Default)]
+struct BreakReminderWatchInner {
+    enabled: bool,
+    active_break_kind: String,
+    mini_due_at_ms: i64,
+    long_due_at_ms: i64,
+    last_emitted_due_at_ms: i64,
+}
+
+#[derive(Clone, Default)]
+struct BreakReminderWatchState(Arc<Mutex<BreakReminderWatchInner>>);
+
+impl BreakReminderWatchState {
+    fn update(&self, snapshot: BreakReminderWatchSnapshot) -> Result<(), String> {
+        let mut guard = self
+            .0
+            .lock()
+            .map_err(|_| "break reminder watchdog mutex poisoned".to_string())?;
+        guard.enabled = snapshot.enabled;
+        guard.active_break_kind = snapshot.active_break_kind;
+        guard.mini_due_at_ms = snapshot.mini_due_at_ms.max(0);
+        guard.long_due_at_ms = snapshot.long_due_at_ms.max(0);
+        if !guard.enabled
+            || !guard.active_break_kind.is_empty()
+            || (guard.mini_due_at_ms <= 0 && guard.long_due_at_ms <= 0)
+        {
+            guard.last_emitted_due_at_ms = 0;
+        }
+        Ok(())
+    }
+
+    fn snapshot(&self) -> Result<BreakReminderWatchInner, String> {
+        self.0
+            .lock()
+            .map_err(|_| "break reminder watchdog mutex poisoned".to_string())
+            .map(|guard| guard.clone())
+    }
+
+    fn mark_emitted(&self, due_at_ms: i64) -> Result<bool, String> {
+        let mut guard = self
+            .0
+            .lock()
+            .map_err(|_| "break reminder watchdog mutex poisoned".to_string())?;
+        if guard.last_emitted_due_at_ms == due_at_ms {
+            return Ok(false);
+        }
+        guard.last_emitted_due_at_ms = due_at_ms;
+        Ok(true)
+    }
+}
+
 #[tauri::command]
 fn update_tray_texts(app: tauri::AppHandle, texts: HashMap<String, String>) -> Result<(), String> {
     if let Some(state) = app.try_state::<TrayMenuState>() {
@@ -149,6 +216,14 @@ fn show_and_focus_window(window: &tauri::WebviewWindow) {
     let _ = window.set_focus();
 }
 
+fn ensure_hidden_workspace_runtime_window(app: &tauri::AppHandle) {
+    let Some(window) = ensure_workspace_panel_window(app) else {
+        return;
+    };
+    let _ = window.hide();
+    let _ = window.set_skip_taskbar(true);
+}
+
 fn ensure_workspace_panel_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
     if let Some(existing) = app.get_webview_window("workspace") {
         return Some(existing);
@@ -162,6 +237,7 @@ fn ensure_workspace_panel_window(app: &tauri::AppHandle) -> Option<tauri::Webvie
     .inner_size(1024.0, 720.0)
     .center()
     .transparent(true)
+    .visible(false)
     .decorations(false)
     .skip_taskbar(false)
     .resizable(true)
@@ -804,10 +880,120 @@ fn get_overlay_interaction(app: tauri::AppHandle) -> Result<bool, String> {
     }
 }
 
+#[tauri::command]
+fn apply_break_overlay_window_traits(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let Some(window) = app.get_webview_window(label.as_str()) else {
+            return Ok(());
+        };
+        return run_macos_window_op(
+            &window,
+            "macos_apply_break_overlay_window_traits",
+            macos_windows::apply_break_overlay_window_traits,
+        );
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, label);
+        Ok(())
+    }
+}
+
+#[tauri::command]
+fn set_break_overlay_presentation(app: tauri::AppHandle, active: bool) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        if active {
+            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        }
+        let Some(window) = app
+            .get_webview_window("workspace")
+            .or_else(|| app.get_webview_window("main"))
+            .or_else(|| app.webview_windows().values().next().cloned())
+        else {
+            return Ok(());
+        };
+        let result = window
+            .run_on_main_thread(move || {
+                if let Err(error) = macos_windows::set_break_overlay_presentation(active) {
+                    eprintln!("macos_set_break_overlay_presentation failed: {}", error);
+                }
+            })
+            .map_err(|e| e.to_string());
+        if result.is_ok() && !active {
+            sync_panel_window_shell_state(&app);
+        }
+        return result;
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, active);
+        Ok(())
+    }
+}
+
+#[tauri::command]
+fn sync_break_reminder_watchdog(
+    state: tauri::State<'_, BreakReminderWatchState>,
+    snapshot: BreakReminderWatchSnapshot,
+) -> Result<(), String> {
+    state.update(snapshot)
+}
+
+fn start_break_reminder_watchdog(app: &tauri::AppHandle) {
+    let Some(state) = app.try_state::<BreakReminderWatchState>() else {
+        return;
+    };
+    let state = state.inner().clone();
+    let app_handle = app.clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        let snapshot = match state.snapshot() {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                eprintln!("break reminder watchdog snapshot failed: {}", error);
+                continue;
+            }
+        };
+        if !snapshot.enabled || !snapshot.active_break_kind.is_empty() {
+            continue;
+        }
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|duration| duration.as_millis() as i64)
+            .unwrap_or(0);
+        let due = if snapshot.long_due_at_ms > 0 && now_ms >= snapshot.long_due_at_ms {
+            Some(("long".to_string(), snapshot.long_due_at_ms))
+        } else if snapshot.mini_due_at_ms > 0 && now_ms >= snapshot.mini_due_at_ms {
+            Some(("mini".to_string(), snapshot.mini_due_at_ms))
+        } else {
+            None
+        };
+        let Some((kind, due_at_ms)) = due else {
+            continue;
+        };
+        match state.mark_emitted(due_at_ms) {
+            Ok(true) => {
+                ensure_hidden_workspace_runtime_window(&app_handle);
+                let payload = BreakReminderDuePayload { kind, due_at_ms };
+                if let Err(error) = app_handle.emit("focus_break_due", payload) {
+                    eprintln!("break reminder watchdog emit failed: {}", error);
+                }
+            }
+            Ok(false) => {}
+            Err(error) => eprintln!("break reminder watchdog mark failed: {}", error),
+        }
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         .manage(OverlayInputState::default())
+        .manage(BreakReminderWatchState::default())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             show_preferred_panel_window(app);
         }))
@@ -910,6 +1096,9 @@ pub fn run() {
                 #[cfg(target_os = "macos")]
                 apply_macos_runtime_dock_icon(&app.handle());
 
+                ensure_hidden_workspace_runtime_window(&app.handle());
+                start_break_reminder_watchdog(&app.handle());
+
                 // Apply show panel on startup preference (defer to ensure window exists)
                 let app_handle = app.handle().clone();
                 std::thread::spawn(move || {
@@ -992,6 +1181,9 @@ pub fn run() {
             update_tray_texts,
             toggle_overlay_interaction,
             get_overlay_interaction,
+            apply_break_overlay_window_traits,
+            set_break_overlay_presentation,
+            sync_break_reminder_watchdog,
             hide_panel_window,
         ])
         .build(tauri::generate_context!())

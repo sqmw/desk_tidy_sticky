@@ -1,6 +1,7 @@
 import { availableMonitors } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
+import { invoke } from "@tauri-apps/api/core";
 
 export const BREAK_OVERLAY_EVENT_UPDATE = "focus_break_overlay_update";
 export const BREAK_OVERLAY_EVENT_ACTION = "focus_break_overlay_action";
@@ -42,7 +43,7 @@ function monitorToLogicalBounds(monitor) {
 async function applyOverlayWindowGeometry(label, monitor, window) {
   const logical = monitorToLogicalBounds(monitor);
   try {
-    // Ensure geometry APIs remain available when reusing a previously fullscreen overlay window.
+    // Clear legacy fullscreen state before applying native macOS overlay traits.
     try {
       await window.setSimpleFullscreen(false);
     } catch (_) {
@@ -82,13 +83,9 @@ async function applyOverlayWindowRuntimeState(window) {
   }
   await window.show();
   try {
-    await window.setSimpleFullscreen(true);
+    await invoke("apply_break_overlay_window_traits", { label: window.label });
   } catch (_) {
-    try {
-      await window.setFullscreen(true);
-    } catch (_) {
-      // noop
-    }
+    // noop
   }
   try {
     await window.setFocus();
@@ -189,6 +186,11 @@ export async function ensureBreakOverlayWindows() {
   const monitors = await availableMonitors();
   if (!Array.isArray(monitors) || monitors.length === 0) {
     await closeStaleOverlayWindows(new Set());
+    try {
+      await invoke("set_break_overlay_presentation", { active: false });
+    } catch (_) {
+      // noop
+    }
     return [];
   }
   const keepLabels = new Set();
@@ -198,11 +200,21 @@ export async function ensureBreakOverlayWindows() {
     await ensureOverlayWindow(label, monitors[index]);
   }
   await closeStaleOverlayWindows(keepLabels);
+  try {
+    await invoke("set_break_overlay_presentation", { active: true });
+  } catch (_) {
+    // noop
+  }
   return Array.from(keepLabels);
 }
 
 export async function closeBreakOverlayWindows() {
   await closeStaleOverlayWindows(new Set());
+  try {
+    await invoke("set_break_overlay_presentation", { active: false });
+  } catch (_) {
+    // noop
+  }
 }
 
 /**
@@ -228,6 +240,11 @@ export async function closeBreakOverlayWindowsByLabels(labels) {
         console.error("destroy break overlay by label failed", label, destroyError);
       }
     }
+  }
+  try {
+    await invoke("set_break_overlay_presentation", { active: false });
+  } catch (_) {
+    // noop
   }
 }
 

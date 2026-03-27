@@ -1,5 +1,4 @@
 import { ensureDayStats, getDateKey, getTodayTasks, timeToMinutes } from "$lib/workspace/focus/focus-model.js";
-import { isFocusTaskCompleted } from "$lib/workspace/focus/focus-runtime.js";
 
 /**
  * @param {any[]} tasks
@@ -13,7 +12,6 @@ export function getFocusDeadlinesForToday(tasks, stats, now = new Date(), limit 
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
   return todayTasks
-    .filter((task) => !isFocusTaskCompleted(task, day))
     .map((task) => {
       const startMinutes = timeToMinutes(task.startTime || "00:00");
       const endMinutes = timeToMinutes(task.endTime || "23:59");
@@ -31,7 +29,6 @@ export function getFocusDeadlinesForToday(tasks, stats, now = new Date(), limit 
         minutesLeft,
         startMinutes,
         donePomodoros: Number(day.taskPomodoros?.[task.id] || 0),
-        targetPomodoros: Number(task.targetPomodoros || 1),
       };
     })
     .sort((a, b) => {

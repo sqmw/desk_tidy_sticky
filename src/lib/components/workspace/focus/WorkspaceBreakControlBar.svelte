@@ -111,62 +111,67 @@
     </div>
   </div>
 
-  <div class="break-countdown-grid">
-    <div class="countdown-card">
-      <span class="countdown-label">{strings.pomodoroMiniBreakIn || "Mini break in"}</span>
-      <strong class="countdown-value">{nextMiniBreakText}</strong>
-    </div>
-    <div class="countdown-card">
-      <span class="countdown-label">{strings.pomodoroLongBreakIn || "Long break in"}</span>
-      <strong class="countdown-value">{nextLongBreakText}</strong>
-    </div>
+  <div class="break-countdown-strip" aria-label={strings.pomodoroBreakActionPanel || "Break status"}>
+    <article class="break-countdown-card mini">
+      <span class="break-countdown-label">{strings.pomodoroMiniBreakIn || "Mini break in"}</span>
+      <strong class="break-countdown-value">{nextMiniBreakText}</strong>
+    </article>
+    <article class="break-countdown-card long">
+      <span class="break-countdown-label">{strings.pomodoroLongBreakIn || "Long break in"}</span>
+      <strong class="break-countdown-value">{nextLongBreakText}</strong>
+    </article>
   </div>
 
-  <div class="schedule-grid">
-    <label>
-      <span>{strings.pomodoroBreakScheduleIndependentMini || "Mini break interval (min)"}</span>
-      <input
-        type="number"
-        min="1"
-        max="180"
-        value={String(miniEveryMinutes)}
-        oninput={(event) => onIntervalInput("mini", event)}
-        onchange={(event) => onIntervalInput("mini", event)}
-      />
-    </label>
-    <label>
-      <span>{strings.pomodoroBreakScheduleIndependentLong || "Long break interval (min)"}</span>
-      <input
-        type="number"
-        min="1"
-        max="360"
-        value={String(longEveryMinutes)}
-        oninput={(event) => onIntervalInput("long", event)}
-        onchange={(event) => onIntervalInput("long", event)}
-      />
-    </label>
-    <label>
-      <span>{strings.pomodoroMiniBreakDurationSeconds || "Mini break duration (sec)"}</span>
-      <input
-        type="number"
-        min="10"
-        max="300"
-        value={String(miniDurationSec)}
-        oninput={(event) => onDurationInput("mini", event)}
-        onchange={(event) => onDurationInput("mini", event)}
-      />
-    </label>
-    <label>
-      <span>{strings.pomodoroLongBreakDurationMinutes || "Long break duration (min)"}</span>
-      <input
-        type="number"
-        min="1"
-        max="30"
-        value={String(longDurationMin)}
-        oninput={(event) => onDurationInput("long", event)}
-        onchange={(event) => onDurationInput("long", event)}
-      />
-    </label>
+  <div class="schedule-columns">
+    <section class="schedule-column" aria-label={strings.pomodoroMiniBreakIn || "Mini break"}>
+      <label>
+        <span>{strings.pomodoroBreakScheduleIndependentMini || "Mini break interval (min)"}</span>
+        <input
+          type="number"
+          min="1"
+          max="180"
+          value={String(miniEveryMinutes)}
+          oninput={(event) => onIntervalInput("mini", event)}
+          onchange={(event) => onIntervalInput("mini", event)}
+        />
+      </label>
+      <label>
+        <span>{strings.pomodoroMiniBreakDurationSeconds || "Mini break duration (sec)"}</span>
+        <input
+          type="number"
+          min="10"
+          max="300"
+          value={String(miniDurationSec)}
+          oninput={(event) => onDurationInput("mini", event)}
+          onchange={(event) => onDurationInput("mini", event)}
+        />
+      </label>
+    </section>
+
+    <section class="schedule-column" aria-label={strings.pomodoroLongBreakIn || "Long break"}>
+      <label>
+        <span>{strings.pomodoroBreakScheduleIndependentLong || "Long break interval (min)"}</span>
+        <input
+          type="number"
+          min="1"
+          max="360"
+          value={String(longEveryMinutes)}
+          oninput={(event) => onIntervalInput("long", event)}
+          onchange={(event) => onIntervalInput("long", event)}
+        />
+      </label>
+      <label>
+        <span>{strings.pomodoroLongBreakDurationMinutes || "Long break duration (min)"}</span>
+        <input
+          type="number"
+          min="1"
+          max="30"
+          value={String(longDurationMin)}
+          oninput={(event) => onDurationInput("long", event)}
+          onchange={(event) => onDurationInput("long", event)}
+        />
+      </label>
+    </section>
   </div>
 
   <div class="quick-test-actions">
@@ -270,52 +275,91 @@
     background: color-mix(in srgb, var(--ws-accent, #3b82f6) 16%, transparent);
   }
 
-  .break-countdown-grid {
+  .schedule-columns {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 14px;
+    align-items: start;
   }
 
-  .countdown-card {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--ws-card-bg, #fff) 90%, transparent);
-    padding: 7px 9px;
+  .break-countdown-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .break-countdown-card {
+    position: relative;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d6e0ee) 90%, transparent);
+    border-radius: 12px;
+    padding: 10px 12px;
     display: grid;
     gap: 4px;
-    min-height: 52px;
+    min-width: 0;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--ws-card-bg, #fff) 96%, transparent) 0%, color-mix(in srgb, var(--ws-card-bg, #fff) 90%, transparent) 100%);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent),
+      0 8px 18px color-mix(in srgb, #0f172a 5%, transparent);
+    overflow: hidden;
   }
 
-  .countdown-label {
+  .break-countdown-card::before {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 3px;
+    opacity: 0.95;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--ws-accent, #1d4ed8) 78%, #0ea5e9), #38bdf8);
+  }
+
+  .break-countdown-card.long::before {
+    background: linear-gradient(90deg, color-mix(in srgb, #0f766e 72%, #14b8a6), #5eead4);
+  }
+
+  .break-countdown-label {
     font-size: 11px;
     color: var(--ws-muted, #64748b);
   }
 
-  .countdown-value {
+  .break-countdown-value {
     font-family: "Segoe UI", "Consolas", monospace;
-    font-size: 18px;
+    font-size: clamp(18px, 1.25vw, 24px);
     line-height: 1;
     color: var(--ws-text-strong, #0f172a);
-    letter-spacing: 0.3px;
+    letter-spacing: 0.4px;
   }
 
-  .schedule-grid {
+  .schedule-column {
+    position: relative;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
+    gap: 8px;
+    min-width: 0;
+    padding-inline: 2px;
   }
 
-  .schedule-grid label {
+  .schedule-column + .schedule-column::before {
+    content: "";
+    position: absolute;
+    left: -8px;
+    top: 2px;
+    bottom: 2px;
+    width: 1px;
+    background: color-mix(in srgb, var(--ws-border-soft, #d6e0ee) 82%, transparent);
+  }
+
+  .schedule-column label {
     display: grid;
     gap: 4px;
   }
 
-  .schedule-grid span {
+  .schedule-column label > span {
     font-size: 11px;
     color: var(--ws-muted, #64748b);
   }
 
-  .schedule-grid input {
+  .schedule-column input {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 9px;
     min-height: 31px;
@@ -351,9 +395,13 @@
   }
 
   @media (max-width: 900px) {
-    .break-countdown-grid,
-    .schedule-grid {
+    .break-countdown-strip,
+    .schedule-columns {
       grid-template-columns: 1fr;
+    }
+
+    .schedule-column + .schedule-column::before {
+      display: none;
     }
   }
 </style>

@@ -1,5 +1,4 @@
 <script>
-  import TargetPomodoroInput from "$lib/components/workspace/focus/TargetPomodoroInput.svelte";
   import WorkspaceFocusPlannerTaskItem from "$lib/components/workspace/focus/WorkspaceFocusPlannerTaskItem.svelte";
 
   let {
@@ -9,23 +8,25 @@
     draftTitle = $bindable(""),
     draftStartTime = $bindable("09:00"),
     draftEndTime = $bindable("10:00"),
-    draftTargetPomodoros = $bindable(1),
     draftRecurrence = $bindable("none"),
     draftWeekdays = $bindable([1, 2, 3, 4, 5]),
-    draftUseDefaultBreakProfile = $bindable(true),
-    draftTaskMiniBreakEveryMinutes = $bindable(10),
-    draftTaskLongBreakEveryMinutes = $bindable(30),
-    defaultMiniBreakEveryMinutes = 10,
-    defaultLongBreakEveryMinutes = 30,
     tasks = [],
+    showSettings = false,
+    selectedTaskId = "",
+    activeTaskStarted = false,
+    activeTaskRunning = false,
+    activeTaskProgress = 0,
     showingAllTasks = false,
     todayTaskCount = 0,
     todayStats,
     onAddTask = () => {},
+    onToggleSettings = () => {},
     onToggleWeekday = () => {},
     onStartTask = () => {},
+    onToggleTask = () => {},
     onRemoveTask = () => {},
     onUpdateTask = () => {},
+    settingsPanel = undefined,
     weekdayLabel = /** @type {(day: number) => string} */ ((day) => String(day)),
   } = $props();
 </script>
@@ -33,22 +34,29 @@
 <div class="planner-card">
   <div class="planner-head">
     <h3>{strings.pomodoroTaskPlanner}</h3>
-    {#if showingAllTasks}
-      <span>
-        {strings.workspacePlannerShowingAllHint || "No tasks match today. Showing all tasks."}
-        · {strings.workspacePlannerTodayMatched || "Today matched"} {todayTaskCount}
-      </span>
-    {:else}
-      <span>{strings.todo}: {todayStats.completedCount}/{tasks.length} · 🍅 {todayStats.donePomodoros}/{todayStats.targetPomodoros}</span>
-    {/if}
+    <div class="planner-head-side">
+      {#if showingAllTasks}
+        <span>
+          {strings.workspacePlannerShowingAllHint || "No tasks match today. Showing all tasks."}
+          · {strings.workspacePlannerTodayMatched || "Today matched"} {todayTaskCount}
+        </span>
+      {:else}
+        <span>
+          {strings.pomodoroTask || "Tasks"}: {todayStats.taskCount ?? tasks.length}
+          · 🍅 {todayStats.donePomodoros || 0}
+        </span>
+      {/if}
+      <button type="button" class="btn planner-settings-btn" onclick={() => onToggleSettings()}>
+        {showSettings
+          ? (strings.workspaceFocusHideSettings || "Hide settings")
+          : (strings.workspaceFocusEditSettings || "Edit settings")}
+      </button>
+    </div>
   </div>
   <div class="planner-form">
     <input class="field-title" type="text" placeholder={strings.pomodoroTaskTitle} bind:value={draftTitle} />
     <input class="field-start" type="time" bind:value={draftStartTime} />
     <input class="field-end" type="time" bind:value={draftEndTime} />
-    <div class="field-target">
-      <TargetPomodoroInput bind:value={draftTargetPomodoros} min={1} max={24} title={strings.pomodoroTargetCount} />
-    </div>
     <select class="field-recur" bind:value={draftRecurrence}>
       <option value={recurrence.NONE}>{strings.recurrenceNone}</option>
       <option value={recurrence.DAILY}>{strings.recurrenceDaily}</option>
@@ -71,52 +79,11 @@
       {/each}
     </div>
   {/if}
-  <div class="draft-break-row">
-    <span class="draft-break-label">{strings.pomodoroTaskBreakProfile || "Task break profile"}</span>
-    <div class="draft-break-toggle">
-      <button
-        type="button"
-        class="btn tiny chip-btn"
-        class:active={draftUseDefaultBreakProfile}
-        onclick={() => (draftUseDefaultBreakProfile = true)}
-      >
-        {strings.pomodoroTaskBreakDefault || "Default"}
-      </button>
-      <button
-        type="button"
-        class="btn tiny chip-btn"
-        class:active={!draftUseDefaultBreakProfile}
-        onclick={() => (draftUseDefaultBreakProfile = false)}
-      >
-        {strings.pomodoroTaskBreakCustom || "Custom"}
-      </button>
-      {#if draftUseDefaultBreakProfile}
-        <span class="draft-break-hint">{defaultMiniBreakEveryMinutes}/{defaultLongBreakEveryMinutes}m</span>
-      {/if}
+  {#if showSettings && typeof settingsPanel === "function"}
+    <div class="planner-settings">
+      {@render settingsPanel()}
     </div>
-    {#if !draftUseDefaultBreakProfile}
-      <div class="draft-break-inputs">
-        <label>
-          <span>{strings.pomodoroTaskBreakMiniEveryMinutes || "Task mini every (min)"}</span>
-          <TargetPomodoroInput
-            bind:value={draftTaskMiniBreakEveryMinutes}
-            min={5}
-            max={180}
-            title={strings.pomodoroTaskBreakMiniEveryMinutes || "Task mini every (min)"}
-          />
-        </label>
-        <label>
-          <span>{strings.pomodoroTaskBreakLongEveryMinutes || "Task long every (min)"}</span>
-          <TargetPomodoroInput
-            bind:value={draftTaskLongBreakEveryMinutes}
-            min={15}
-            max={360}
-            title={strings.pomodoroTaskBreakLongEveryMinutes || "Task long every (min)"}
-          />
-        </label>
-      </div>
-    {/if}
-  </div>
+  {/if}
   <div class="task-list">
     {#if tasks.length === 0}
       <div class="empty">{strings.pomodoroNoTasksToday}</div>
@@ -127,12 +94,14 @@
           {recurrence}
           {weekdays}
           {task}
+          startedTask={activeTaskStarted && selectedTaskId === task.id}
+          runningTask={activeTaskRunning && selectedTaskId === task.id}
+          activeProgress={activeTaskStarted && selectedTaskId === task.id ? activeTaskProgress : 0}
           donePomodoros={todayStats.taskPomodoros?.[task.id] || 0}
           onStartTask={onStartTask}
+          onToggleTask={onToggleTask}
           onRemoveTask={onRemoveTask}
           onUpdateTask={onUpdateTask}
-          {defaultMiniBreakEveryMinutes}
-          {defaultLongBreakEveryMinutes}
           {weekdayLabel}
         />
       {/each}
@@ -176,13 +145,20 @@
     color: var(--ws-muted, #64748b);
   }
 
+  .planner-head-side {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
   .planner-form {
     display: grid;
     grid-template-columns:
       minmax(160px, 1.8fr)
       minmax(88px, 0.95fr)
       minmax(88px, 0.95fr)
-      minmax(82px, 0.76fr)
       minmax(112px, 1fr)
       minmax(96px, max-content);
     gap: 6px;
@@ -200,10 +176,6 @@
     height: clamp(34px, 2.3vw, 40px);
     outline: none;
     box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
-  }
-
-  .field-target {
-    min-width: 0;
   }
 
   .btn {
@@ -224,6 +196,13 @@
     min-width: 92px;
   }
 
+  .planner-settings-btn {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 11px;
+    border-radius: 999px;
+  }
+
   .btn.primary {
     border-color: var(--ws-border-active, #2f4368);
     background: linear-gradient(180deg, color-mix(in srgb, var(--ws-accent, #1d4ed8) 26%, #334155) 0%, #273a57 100%);
@@ -236,56 +215,6 @@
     display: flex;
     gap: 4px;
     flex-wrap: wrap;
-  }
-
-  .draft-break-row {
-    margin-top: 6px;
-    display: grid;
-    gap: 6px;
-  }
-
-  .draft-break-label {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-  }
-
-  .draft-break-toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-
-  .chip-btn {
-    border-radius: 999px;
-  }
-
-  .chip-btn.active {
-    border-color: var(--ws-border-active, #2f4368);
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, var(--ws-btn-bg, #fff));
-    color: var(--ws-text-strong, #0f172a);
-    font-weight: 700;
-  }
-
-  .draft-break-hint {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-  }
-
-  .draft-break-inputs {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .draft-break-inputs label {
-    display: grid;
-    gap: 4px;
-  }
-
-  .draft-break-inputs span {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
   }
 
   .day-chip {
@@ -311,7 +240,13 @@
     max-height: clamp(220px, 44vh, 620px);
     overflow: auto;
     display: grid;
+    align-content: start;
+    grid-auto-rows: max-content;
     gap: 6px;
+  }
+
+  .planner-settings {
+    margin-top: 8px;
   }
 
   .empty {
@@ -334,7 +269,6 @@
 
     .field-start,
     .field-end,
-    .field-target,
     .field-recur,
     .field-add {
       grid-column: span 1;
@@ -353,7 +287,6 @@
 
     .field-start,
     .field-end,
-    .field-target,
     .field-recur,
     .field-add {
       grid-column: span 1;
@@ -374,8 +307,5 @@
       grid-column: 1 / -1;
     }
 
-    .draft-break-inputs {
-      grid-template-columns: 1fr;
-    }
   }
 </style>

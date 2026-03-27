@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { listen } from "@tauri-apps/api/event";
+  import { invoke } from "@tauri-apps/api/core";
   import {
     RECURRENCE,
     clampInt,
@@ -19,8 +20,8 @@
   import WorkspaceFocusTimer from "$lib/components/workspace/focus/WorkspaceFocusTimer.svelte";
   import WorkspaceBreakControlBar from "$lib/components/workspace/focus/WorkspaceBreakControlBar.svelte";
   import WorkspaceFocusPlanner from "$lib/components/workspace/focus/WorkspaceFocusPlanner.svelte";
+  import WorkspaceFocusSettingsPanel from "$lib/components/workspace/focus/WorkspaceFocusSettingsPanel.svelte";
   import WorkspaceFocusStats from "$lib/components/workspace/focus/WorkspaceFocusStats.svelte";
-  import { resolveBreakTimingConfig } from "$lib/workspace/focus/focus-break-profile.js";
   import {
     BREAK_REMINDER_MODE_FULLSCREEN,
     BREAK_REMINDER_MODE_OPTIONS,
@@ -47,12 +48,7 @@
     getBreakPlanSec,
     getPhaseDurationSec,
     getSafeConfig,
-    isFocusTaskCompleted,
-    nextPhaseState,
-    phaseLabel,
     PHASE_FOCUS,
-    PHASE_LONG_BREAK,
-    PHASE_SHORT_BREAK,
     removeTaskFromState,
     updateTaskInState,
   } from "$lib/workspace/focus/focus-runtime.js";
@@ -70,6 +66,8 @@
     loadFocusTimerRuntimeCache,
     saveFocusTimerRuntimeCache,
   } from "$lib/workspace/focus/focus-timer-runtime-cache.js";
+
+  const BREAK_DUE_EVENT = "focus_break_due";
 
   let {
     strings,
@@ -125,16 +123,9 @@
   let draftTitle = $state("");
   let draftStartTime = $state("09:00");
   let draftEndTime = $state("10:00");
-  let draftTargetPomodoros = $state(1);
   let draftRecurrence = $state(RECURRENCE.NONE);
   let draftWeekdays = $state([1, 2, 3, 4, 5]);
-  let draftUseDefaultBreakProfile = $state(true);
-  let draftTaskMiniBreakEveryMinutes = $state(10);
-  let draftTaskLongBreakEveryMinutes = $state(30);
   let draftFocusMinutes = $state(25);
-  let draftShortBreakMinutes = $state(5);
-  let draftLongBreakMinutes = $state(15);
-  let draftLongBreakEvery = $state(4);
   let draftMiniBreakEveryMinutes = $state(10);
   let draftMiniBreakDurationSeconds = $state(20);
   let draftLongBreakEveryMinutes = $state(30);
@@ -170,6 +161,7 @@
   let overlayEnsurePromise = null;
   /** @type {"mini" | "long" | ""} */
   let activeBreakKind = $state("");
+  let breakRemainingSec = $state(0);
   let skipUnlockedAfterPostpone = $state(false);
   let localBreakSession = $state({
     mode: BREAK_SESSION_NONE,
@@ -197,62 +189,92 @@
   const fallbackToAllTasks = $derived(todayTasks.length === 0 && tasks.length > 0);
   const focusSelectableTasks = $derived.by(() => (fallbackToAllTasks ? tasks : todayTasks));
   const selectedTask = $derived(focusSelectableTasks.find((task) => task.id === selectedTaskId) || null);
-  const selectedTaskBreakProfile = $derived(
-    selectedTask?.breakProfile && typeof selectedTask.breakProfile === "object"
-      ? selectedTask.breakProfile
-      : null,
-  );
-  const activeBreakTimingConfig = $derived(
-    resolveBreakTimingConfig(safeConfig, selectedTask),
-  );
-  const breakPlanSec = $derived(getBreakPlanSec(activeBreakTimingConfig));
+  const breakPlanSec = $derived(getBreakPlanSec({
+    miniBreakEveryMinutes: safeConfig.independentMiniBreakEveryMinutes,
+    miniBreakDurationSeconds: safeConfig.miniBreakDurationSeconds,
+    longBreakEveryMinutes: safeConfig.independentLongBreakEveryMinutes,
+    longBreakDurationMinutes: safeConfig.longBreakDurationMinutes,
+    breakNotifyBeforeSeconds: safeConfig.breakNotifyBeforeSeconds,
+  }));
   const todaySummary = $derived(buildTodaySummary(todayTasks, todayStats));
   const plannerTasks = $derived(focusSelectableTasks);
   const plannerShowingAllTasks = $derived(fallbackToAllTasks);
-  const plannerCompletedCount = $derived.by(() =>
-    plannerTasks.filter((task) => isFocusTaskCompleted(task, todayStats)).length,
-  );
-  const plannerTargetPomodoros = $derived.by(() =>
-    plannerTasks.reduce((sum, task) => sum + Number(task.targetPomodoros || 1), 0),
-  );
   const plannerDonePomodoros = $derived.by(() =>
     plannerTasks.reduce((sum, task) => sum + Number(todayStats.taskPomodoros?.[task.id] || 0), 0),
   );
-  const todayCompletedCount = $derived(todaySummary.completedCount);
-  const todayTargetPomodoros = $derived(todaySummary.targetPomodoros);
-  const todayDonePomodoros = $derived(todaySummary.donePomodoros);
   const timerTaskOptions = $derived(buildTimerTaskOptions(focusSelectableTasks));
   const selectedTaskDonePomodoros = $derived(
     selectedTaskId ? Number(todayStats.taskPomodoros?.[selectedTaskId] || 0) : 0,
   );
-  const selectedTaskTargetPomodoros = $derived(
-    selectedTask ? Number(selectedTask.targetPomodoros || 1) : 0,
-  );
   const todayTaskDistribution = $derived(todaySummary.taskDistribution);
+  const currentMinutes = $derived.by(() => {
+    const now = new Date(nowTick);
+    return now.getHours() * 60 + now.getMinutes();
+  });
   const nextMiniBreakCountdown = $derived(Math.max(0, nextMiniBreakAtSec - focusSinceBreakSec));
   const nextLongBreakCountdown = $derived(Math.max(0, nextLongBreakAtSec - focusSinceBreakSec));
   const breakSessionActive = $derived(isBreakSessionActive(localBreakSession, nowTick));
   const breakSessionRemainingText = $derived(getBreakSessionRemainingText(localBreakSession, nowTick));
-  const breakTimerActive = $derived(
-    Boolean(activeBreakKind) && (phase === PHASE_SHORT_BREAK || phase === PHASE_LONG_BREAK),
-  );
+  const breakTimerActive = $derived(Boolean(activeBreakKind) && breakRemainingSec > 0);
+
+  function getFocusDurationSec(config = safeConfig) {
+    return getPhaseDurationSec(PHASE_FOCUS, config);
+  }
 
   function restoreTimerRuntimeFromCache() {
     const cached = loadFocusTimerRuntimeCache();
     if (!cached) return;
-    phase = cached.phase;
-    remainingSec = cached.remainingSec;
-    running = cached.running;
-    hasStarted = cached.hasStarted;
-    completedFocusCount = cached.completedFocusCount;
-    focusSinceBreakSec = cached.focusSinceBreakSec;
-    nextMiniBreakAtSec = cached.nextMiniBreakAtSec;
-    nextLongBreakAtSec = cached.nextLongBreakAtSec;
-    nextMiniWarnAtSec = cached.nextMiniWarnAtSec;
-    nextLongWarnAtSec = cached.nextLongWarnAtSec;
-    lastBreakReminderAtSec = cached.lastBreakReminderAtSec;
-    activeBreakKind = /** @type {"" | "mini" | "long"} */ (cached.activeBreakKind);
-    skipUnlockedAfterPostpone = cached.skipUnlockedAfterPostpone;
+    const restored = cached.phase !== PHASE_FOCUS
+      ? {
+          ...cached,
+          phase: PHASE_FOCUS,
+          remainingSec: getFocusDurationSec(),
+          running: false,
+          hasStarted: false,
+          activeBreakKind: "",
+          breakRemainingSec: 0,
+          skipUnlockedAfterPostpone: false,
+        }
+      : cached;
+    phase = restored.phase;
+    remainingSec = restored.remainingSec;
+    running = restored.running;
+    hasStarted = restored.hasStarted;
+    completedFocusCount = restored.completedFocusCount;
+    focusSinceBreakSec = restored.focusSinceBreakSec;
+    nextMiniBreakAtSec = restored.nextMiniBreakAtSec;
+    nextLongBreakAtSec = restored.nextLongBreakAtSec;
+    nextMiniWarnAtSec = restored.nextMiniWarnAtSec;
+    nextLongWarnAtSec = restored.nextLongWarnAtSec;
+    lastBreakReminderAtSec = restored.lastBreakReminderAtSec;
+    activeBreakKind = /** @type {"" | "mini" | "long"} */ (restored.activeBreakKind);
+    breakRemainingSec = Math.max(0, Math.floor(Number(restored.breakRemainingSec || 0)));
+    skipUnlockedAfterPostpone = restored.skipUnlockedAfterPostpone;
+  }
+
+  function shouldTickBreakReminderClock() {
+    if (!safeConfig.breakReminderEnabled) return false;
+    if (activeBreakKind) return false;
+    return true;
+  }
+
+  async function syncBreakReminderWatchdogState() {
+    const enabled = safeConfig.breakReminderEnabled === true;
+    const activeKind = String(activeBreakKind || "");
+    const miniDueAtMs = enabled && !activeKind
+      ? Date.now() + Math.max(0, nextMiniBreakAtSec - focusSinceBreakSec) * 1000
+      : 0;
+    const longDueAtMs = enabled && !activeKind
+      ? Date.now() + Math.max(0, nextLongBreakAtSec - focusSinceBreakSec) * 1000
+      : 0;
+    await invoke("sync_break_reminder_watchdog", {
+      snapshot: {
+        enabled,
+        activeBreakKind: activeKind,
+        miniDueAtMs,
+        longDueAtMs,
+      },
+    });
   }
 
   function persistTimerRuntimeToCache() {
@@ -273,6 +295,7 @@
       nextLongWarnAtSec,
       lastBreakReminderAtSec,
       activeBreakKind,
+      breakRemainingSec,
       skipUnlockedAfterPostpone,
       savedAt: Date.now(),
     });
@@ -339,41 +362,30 @@
     });
   }
 
-  function advancePhase() {
-    const next = nextPhaseState(phase, completedFocusCount, safeConfig.longBreakEvery);
-    phase = next.phase;
-    completedFocusCount = next.completedFocusCount;
-    remainingSec = getPhaseDurationSec(phase, safeConfig);
-    if (next.phase !== PHASE_FOCUS) {
-      focusSinceBreakSec = 0;
-      lastBreakReminderAtSec = -1;
-      nextMiniBreakAtSec = breakPlanSec.miniEverySec;
-      nextLongBreakAtSec = breakPlanSec.longEverySec;
-      nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
-      nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
-    }
+  function completeFocusCycle() {
+    completedFocusCount += 1;
+    phase = PHASE_FOCUS;
+    remainingSec = getFocusDurationSec();
+    running = false;
+    hasStarted = false;
   }
 
   /** @param {"mini" | "long"} kind */
   function applyBreakNow(kind) {
     activeBreakKind = kind;
     lastBreakReminderAtSec = -1;
+    breakRemainingSec = kind === BREAK_KIND_LONG ? breakPlanSec.longDurationSec : breakPlanSec.miniDurationSec;
     if (kind === BREAK_KIND_LONG) {
       focusSinceBreakSec = 0;
-      phase = PHASE_LONG_BREAK;
-      remainingSec = breakPlanSec.longDurationSec;
       nextLongBreakAtSec = breakPlanSec.longEverySec;
       nextMiniBreakAtSec = breakPlanSec.miniEverySec;
     } else {
-      phase = PHASE_SHORT_BREAK;
-      remainingSec = breakPlanSec.miniDurationSec;
       // Mini break should not reset the long-break countdown.
       nextMiniBreakAtSec = focusSinceBreakSec + breakPlanSec.miniEverySec;
     }
     nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
     nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
-    hasStarted = true;
-    running = true;
+    skipUnlockedAfterPostpone = false;
   }
 
   function postponeBreak() {
@@ -388,11 +400,8 @@
       nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
     }
     activeBreakKind = "";
+    breakRemainingSec = 0;
     skipUnlockedAfterPostpone = true;
-    phase = PHASE_FOCUS;
-    remainingSec = getPhaseDurationSec(PHASE_FOCUS, safeConfig);
-    hasStarted = true;
-    running = true;
   }
 
   function skipBreak() {
@@ -407,11 +416,8 @@
       nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
     }
     activeBreakKind = "";
+    breakRemainingSec = 0;
     skipUnlockedAfterPostpone = false;
-    phase = PHASE_FOCUS;
-    remainingSec = getPhaseDurationSec(PHASE_FOCUS, safeConfig);
-    hasStarted = true;
-    running = true;
   }
 
   function tickBreakReminderClock() {
@@ -467,7 +473,6 @@
       if (!taskId) continue;
       const sentKey = `${dateKey}:${taskId}`;
       if (sentTaskStartReminderKeys.has(sentKey)) continue;
-      if (isFocusTaskCompleted(task, dayStats)) continue;
       const startMinutes = timeToMinutes(String(task.startTime || "00:00"));
       const remindAt = Math.max(0, startMinutes - leadMinutes);
       if (nowMinutes < remindAt || nowMinutes >= startMinutes) continue;
@@ -502,17 +507,6 @@
     Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
       console.error("change independent break intervals", e),
     );
-    if (selectedTask?.id && selectedTaskBreakProfile) {
-      const nextProfile = {
-        miniBreakEveryMinutes: kind === "mini"
-          ? safeMinutes
-          : Number(selectedTaskBreakProfile.miniBreakEveryMinutes || safeConfig.miniBreakEveryMinutes),
-        longBreakEveryMinutes: kind === "long"
-          ? safeMinutes
-          : Number(selectedTaskBreakProfile.longBreakEveryMinutes || safeConfig.longBreakEveryMinutes),
-      };
-      updateTask(selectedTask.id, { breakProfile: nextProfile });
-    }
   }
 
   /**
@@ -606,15 +600,17 @@
   }
 
   function toggleRunning() {
-    if (remainingSec <= 0) remainingSec = getPhaseDurationSec(phase, safeConfig);
+    if (remainingSec <= 0) remainingSec = getFocusDurationSec();
+    phase = PHASE_FOCUS;
     running = !running;
     if (running) hasStarted = true;
   }
 
   function resetCurrentPhase() {
+    phase = PHASE_FOCUS;
     running = false;
     hasStarted = false;
-    remainingSec = getPhaseDurationSec(phase, safeConfig);
+    remainingSec = getFocusDurationSec();
   }
 
   /** @param {number} minutes */
@@ -637,8 +633,9 @@
   function startTaskFocus(taskId) {
     selectedTaskId = taskId;
     phase = PHASE_FOCUS;
-    remainingSec = getPhaseDurationSec(PHASE_FOCUS, safeConfig);
+    remainingSec = getFocusDurationSec();
     running = true;
+    hasStarted = true;
   }
 
   /** @param {string} taskId */
@@ -660,10 +657,8 @@
    * title?: string;
    * startTime?: string;
    * endTime?: string;
-   * targetPomodoros?: number;
    * recurrence?: string;
    * weekdays?: number[];
-   * breakProfile?: { miniBreakEveryMinutes: number; longBreakEveryMinutes: number } | null;
    * }} patch
    */
   function updateTask(taskId, patch) {
@@ -677,32 +672,11 @@
       title,
       startTime: draftStartTime,
       endTime: draftEndTime,
-      targetPomodoros: draftTargetPomodoros,
       recurrence: draftRecurrence,
       weekdays: draftRecurrence === RECURRENCE.CUSTOM ? draftWeekdays : [],
-      breakProfile: draftUseDefaultBreakProfile
-        ? null
-        : {
-            miniBreakEveryMinutes: clampInt(
-              draftTaskMiniBreakEveryMinutes,
-              safeConfig.miniBreakEveryMinutes,
-              1,
-              180,
-            ),
-            longBreakEveryMinutes: clampInt(
-              draftTaskLongBreakEveryMinutes,
-              safeConfig.longBreakEveryMinutes,
-              1,
-              360,
-            ),
-          },
     });
     emitTasks([...tasks, next]);
     draftTitle = "";
-    draftTargetPomodoros = 1;
-    draftUseDefaultBreakProfile = true;
-    draftTaskMiniBreakEveryMinutes = safeConfig.miniBreakEveryMinutes;
-    draftTaskLongBreakEveryMinutes = safeConfig.longBreakEveryMinutes;
     if (!selectedTaskId) selectedTaskId = next.id;
   }
 
@@ -718,10 +692,11 @@
 
   function saveTimerConfig() {
     const next = {
+      breakReminderEnabled: safeConfig.breakReminderEnabled,
       focusMinutes: clampInt(draftFocusMinutes, safeConfig.focusMinutes, 5, 90),
-      shortBreakMinutes: clampInt(draftShortBreakMinutes, safeConfig.shortBreakMinutes, 1, 30),
-      longBreakMinutes: clampInt(draftLongBreakMinutes, safeConfig.longBreakMinutes, 5, 60),
-      longBreakEvery: clampInt(draftLongBreakEvery, safeConfig.longBreakEvery, 2, 8),
+      shortBreakMinutes: safeConfig.shortBreakMinutes,
+      longBreakMinutes: safeConfig.longBreakMinutes,
+      longBreakEvery: safeConfig.longBreakEvery,
       miniBreakEveryMinutes: clampInt(
         draftMiniBreakEveryMinutes,
         safeConfig.miniBreakEveryMinutes,
@@ -791,16 +766,14 @@
       console.error("save pomodoro config", e),
     );
     if (!running && !hasStarted) {
-      remainingSec = getPhaseDurationSec(phase, safeConfig);
+      phase = PHASE_FOCUS;
+      remainingSec = getFocusDurationSec(next);
     }
     showConfig = false;
   }
 
   function openTimerSettings() {
     draftFocusMinutes = safeConfig.focusMinutes;
-    draftShortBreakMinutes = safeConfig.shortBreakMinutes;
-    draftLongBreakMinutes = safeConfig.longBreakMinutes;
-    draftLongBreakEvery = safeConfig.longBreakEvery;
     draftMiniBreakEveryMinutes = safeConfig.miniBreakEveryMinutes;
     draftMiniBreakDurationSeconds = safeConfig.miniBreakDurationSeconds;
     draftLongBreakEveryMinutes = safeConfig.longBreakEveryMinutes;
@@ -856,16 +829,18 @@
    * @returns {Record<string, any>}
    */
   function buildBreakOverlayPayload() {
-    const isLong = phase === PHASE_LONG_BREAK || activeBreakKind === BREAK_KIND_LONG;
-    const totalSec = isLong ? breakPlanSec.longDurationSec : breakPlanSec.miniDurationSec;
-    const safeTotal = Math.max(1, Math.floor(totalSec));
-    const safeRemaining = Math.max(0, Math.floor(remainingSec));
+    const isLong = activeBreakKind === BREAK_KIND_LONG;
+    const safeTotal = Math.max(
+      1,
+      Math.floor(isLong ? breakPlanSec.longDurationSec : breakPlanSec.miniDurationSec),
+    );
+    const safeRemaining = Math.max(0, Math.floor(breakRemainingSec));
     const progress = Math.max(0, Math.min(100, Math.round(((safeTotal - safeRemaining) / safeTotal) * 100)));
     return {
       title: isLong
         ? (strings.pomodoroLongBreakNow || "Take a long break")
         : (strings.pomodoroMiniBreakNow || "Take a mini break"),
-      taskText: selectedTask ? selectedTask.title : (strings.pomodoroNoTaskSelected || "Not selected"),
+      taskText: "",
       remainingPrefix: strings.pomodoroBreakRemaining || "Remaining",
       remainingText: `${strings.pomodoroBreakRemaining || "Remaining"} ${formatTimer(safeRemaining)}`,
       remainingSeconds: safeRemaining,
@@ -980,8 +955,9 @@
 
   $effect(() => {
     if (running || hasStarted) return;
-    const target = getPhaseDurationSec(phase, safeConfig);
+    const target = getFocusDurationSec();
     if (remainingSec !== target) remainingSec = target;
+    if (phase !== PHASE_FOCUS) phase = PHASE_FOCUS;
   });
 
   $effect(() => {
@@ -1033,12 +1009,6 @@
   });
 
   $effect(() => {
-    if (!draftUseDefaultBreakProfile) return;
-    draftTaskMiniBreakEveryMinutes = safeConfig.miniBreakEveryMinutes;
-    draftTaskLongBreakEveryMinutes = safeConfig.longBreakEveryMinutes;
-  });
-
-  $effect(() => {
     if (focusSelectableTasks.length === 0) {
       if (selectedTaskId) selectedTaskId = "";
       return;
@@ -1074,9 +1044,7 @@
     if (safeConfig.breakReminderEnabled) return;
     if (activeBreakKind) {
       activeBreakKind = "";
-      phase = PHASE_FOCUS;
-      remainingSec = getPhaseDurationSec(PHASE_FOCUS, safeConfig);
-      running = true;
+      breakRemainingSec = 0;
     }
   });
 
@@ -1101,11 +1069,10 @@
 
   $effect(() => {
     if (!breakTimerActive) return;
-    if (remainingSec > 0) return;
+    if (breakRemainingSec > 0) return;
     activeBreakKind = "";
+    breakRemainingSec = 0;
     skipUnlockedAfterPostpone = false;
-    phase = PHASE_FOCUS;
-    remainingSec = getPhaseDurationSec(PHASE_FOCUS, safeConfig);
     closeBreakOverlayEverywhere(true).catch((error) =>
       console.error("focus force close overlay at zero", error),
     );
@@ -1113,17 +1080,13 @@
 
   $effect(() => {
     if (!breakTimerActive) return;
-    const _tick = remainingSec;
-    const _phase = phase;
+    const _tick = breakRemainingSec;
     const _skipReady = skipUnlockedAfterPostpone;
     const _strict = safeConfig.breakStrictMode;
-    const _taskTitle = selectedTask?.title || "";
     const _labelsCount = breakOverlayLabels.length;
     void _tick;
-    void _phase;
     void _skipReady;
     void _strict;
-    void _taskTitle;
     void _labelsCount;
     syncBreakOverlay().catch((error) => {
       console.error("focus sync break overlay", error);
@@ -1147,7 +1110,7 @@
       const now = Date.now();
       nowTick = now;
       tickTaskStartReminderClock(now);
-      if (phase === PHASE_FOCUS) {
+      if (shouldTickBreakReminderClock()) {
         tickBreakReminderClock();
       }
     }, 1000);
@@ -1159,6 +1122,8 @@
     let unlistenAction = null;
     /** @type {null | (() => void)} */
     let unlistenReady = null;
+    /** @type {null | (() => void)} */
+    let unlistenDue = null;
     let disposed = false;
 
     const bootstrap = async () => {
@@ -1197,6 +1162,22 @@
       } catch (error) {
         console.error("focus listen break overlay ready", error);
       }
+
+      try {
+        unlistenDue = await listen(BREAK_DUE_EVENT, (event) => {
+          const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+          const kind = String(payload?.kind || "");
+          if (!safeConfig.breakReminderEnabled) return;
+          if (activeBreakKind) return;
+          if (kind !== BREAK_KIND_MINI && kind !== BREAK_KIND_LONG) return;
+          notifyBreak("start", kind).catch((error) =>
+            console.error("focus notify native break due", error),
+          );
+          applyBreakNow(kind);
+        });
+      } catch (error) {
+        console.error("focus listen native break due", error);
+      }
     };
 
     bootstrap();
@@ -1213,12 +1194,41 @@
       } catch (error) {
         console.error("focus unlisten break overlay ready", error);
       }
+      try {
+        unlistenDue?.();
+      } catch (error) {
+        console.error("focus unlisten native break due", error);
+      }
       if (disposed) {
         closeBreakOverlayEverywhere(true).catch((error) =>
           console.error("focus close break overlay windows on destroy", error),
         );
+        invoke("sync_break_reminder_watchdog", {
+          snapshot: {
+            enabled: false,
+            activeBreakKind: "",
+            miniDueAtMs: 0,
+            longDueAtMs: 0,
+          },
+        }).catch((error) => console.error("focus disable break reminder watchdog on destroy", error));
       }
     };
+  });
+
+  $effect(() => {
+    const _enabled = safeConfig.breakReminderEnabled;
+    const _activeBreakKind = activeBreakKind;
+    const _focusSinceBreak = focusSinceBreakSec;
+    const _miniAt = nextMiniBreakAtSec;
+    const _longAt = nextLongBreakAtSec;
+    void _enabled;
+    void _activeBreakKind;
+    void _focusSinceBreak;
+    void _miniAt;
+    void _longAt;
+    syncBreakReminderWatchdogState().catch((error) =>
+      console.error("focus sync break reminder watchdog", error),
+    );
   });
 
   $effect(() => {
@@ -1235,6 +1245,7 @@
     const _longWarn = nextLongWarnAtSec;
     const _lastReminder = lastBreakReminderAtSec;
     const _activeBreak = activeBreakKind;
+    const _breakRemaining = breakRemainingSec;
     const _skipUnlocked = skipUnlockedAfterPostpone;
     void _phase;
     void _remaining;
@@ -1248,8 +1259,27 @@
     void _longWarn;
     void _lastReminder;
     void _activeBreak;
+    void _breakRemaining;
     void _skipUnlocked;
     persistTimerRuntimeToCache();
+  });
+
+  $effect(() => {
+    if (!breakTimerActive) return;
+    const id = setInterval(() => {
+      if (!activeBreakKind) return;
+      if (breakRemainingSec <= 1) {
+        activeBreakKind = "";
+        breakRemainingSec = 0;
+        skipUnlockedAfterPostpone = false;
+        closeBreakOverlayEverywhere(true).catch((error) =>
+          console.error("focus close break overlay windows on independent break complete", error),
+        );
+        return;
+      }
+      breakRemainingSec -= 1;
+    }, 1000);
+    return () => clearInterval(id);
   });
 
   $effect(() => {
@@ -1257,17 +1287,8 @@
     const id = setInterval(() => {
       if (!running) return;
       if (remainingSec <= 1) {
-        running = false;
-        if (phase === PHASE_FOCUS) {
-          onFocusCompleted();
-        } else {
-          activeBreakKind = "";
-          skipUnlockedAfterPostpone = false;
-          closeBreakOverlayEverywhere(true).catch((error) =>
-            console.error("focus close break overlay windows on break complete", error),
-          );
-        }
-        advancePhase();
+        onFocusCompleted();
+        completeFocusCycle();
         return;
       }
       remainingSec -= 1;
@@ -1281,50 +1302,20 @@
     <div class="focus-slot timer-slot">
       <WorkspaceFocusTimer
         {strings}
-        phaseLabelText={phaseLabel(phase, strings)}
         timerText={formatTimer(remainingSec)}
         breakMiniCountdownText={formatTimer(nextMiniBreakCountdown)}
         breakLongCountdownText={formatTimer(nextLongBreakCountdown)}
-        roundText={`${completedFocusCount % safeConfig.longBreakEvery}/${safeConfig.longBreakEvery}`}
         taskText={selectedTask ? selectedTask.title : strings.pomodoroNoTaskSelected}
         phaseProgress={Math.round(
-          ((getPhaseDurationSec(phase, safeConfig) - remainingSec) / Math.max(getPhaseDurationSec(phase, safeConfig), 1)) * 100,
+          ((getFocusDurationSec() - remainingSec) / Math.max(getFocusDurationSec(), 1)) * 100,
         )}
-        {running}
-        {hasStarted}
-        {showConfig}
         {showBreakPanel}
-        focusMinutes={safeConfig.focusMinutes}
         selectedTaskId={selectedTaskId}
-        taskOptions={timerTaskOptions}
         selectedTaskDonePomodoros={selectedTaskDonePomodoros}
-        selectedTaskTargetPomodoros={selectedTaskTargetPomodoros}
-        bind:draftFocusMinutes
-        bind:draftShortBreakMinutes
-        bind:draftLongBreakMinutes
-        bind:draftLongBreakEvery
-        bind:draftMiniBreakEveryMinutes
-        bind:draftMiniBreakDurationSeconds
-        bind:draftLongBreakEveryMinutes
-        bind:draftLongBreakDurationMinutes
-        bind:draftBreakNotifyBeforeSeconds
-        bind:draftTaskStartReminderEnabled
-        bind:draftTaskStartReminderLeadMinutes
-        bind:draftMiniBreakPostponeMinutes
-        bind:draftLongBreakPostponeMinutes
-        bind:draftBreakPostponeLimit
-        bind:draftBreakStrictMode
-        onApplyFocusPreset={applyFocusPreset}
-        onSelectTask={selectTask}
-        onToggleRunning={toggleRunning}
-        onReset={resetCurrentPhase}
-        onToggleSettings={() => (showConfig ? (showConfig = false) : openTimerSettings())}
         onToggleBreakPanel={(next = !showBreakPanel) => {
           showBreakPanel = !!next;
           if (showBreakPanel && showConfig) showConfig = false;
         }}
-        onSaveSettings={saveTimerConfig}
-        onCancelSettings={() => (showConfig = false)}
       >
         {#snippet breakPanel()}
           <WorkspaceBreakControlBar
@@ -1357,30 +1348,52 @@
         bind:draftTitle
         bind:draftStartTime
         bind:draftEndTime
-        bind:draftTargetPomodoros
         bind:draftRecurrence
         bind:draftWeekdays
-        bind:draftUseDefaultBreakProfile
-        bind:draftTaskMiniBreakEveryMinutes
-        bind:draftTaskLongBreakEveryMinutes
-        defaultMiniBreakEveryMinutes={safeConfig.miniBreakEveryMinutes}
-        defaultLongBreakEveryMinutes={safeConfig.longBreakEveryMinutes}
         tasks={plannerTasks}
+        showSettings={showConfig}
+        selectedTaskId={selectedTaskId}
+        activeTaskStarted={hasStarted}
+        activeTaskRunning={running}
+        activeTaskProgress={Math.round(
+          ((getFocusDurationSec() - remainingSec) / Math.max(getFocusDurationSec(), 1)) * 100,
+        )}
         showingAllTasks={plannerShowingAllTasks}
         todayTaskCount={todayTasks.length}
         todayStats={{
-          completedCount: plannerCompletedCount,
+          taskCount: plannerTasks.length,
           donePomodoros: plannerDonePomodoros,
-          targetPomodoros: plannerTargetPomodoros,
           taskPomodoros: todayStats.taskPomodoros,
         }}
         onAddTask={addTask}
+        onToggleSettings={() => (showConfig ? (showConfig = false) : openTimerSettings())}
         onToggleWeekday={toggleDraftWeekday}
         onStartTask={startTaskFocus}
+        onToggleTask={toggleRunning}
         onRemoveTask={removeTask}
         onUpdateTask={updateTask}
         {weekdayLabel}
-      />
+      >
+        {#snippet settingsPanel()}
+          <WorkspaceFocusSettingsPanel
+            {strings}
+            bind:draftFocusMinutes
+            bind:draftMiniBreakEveryMinutes
+            bind:draftMiniBreakDurationSeconds
+            bind:draftLongBreakEveryMinutes
+            bind:draftLongBreakDurationMinutes
+            bind:draftBreakNotifyBeforeSeconds
+            bind:draftTaskStartReminderEnabled
+            bind:draftTaskStartReminderLeadMinutes
+            bind:draftMiniBreakPostponeMinutes
+            bind:draftLongBreakPostponeMinutes
+            bind:draftBreakPostponeLimit
+            bind:draftBreakStrictMode
+            onSaveSettings={saveTimerConfig}
+            onCancelSettings={() => (showConfig = false)}
+          />
+        {/snippet}
+      </WorkspaceFocusPlanner>
     </div>
   </div>
 
@@ -1397,8 +1410,7 @@
         {strings}
         todayFocusMinutes={Math.round((todayStats.focusSeconds || 0) / 60)}
         todayPomodoros={todayStats.pomodoros || 0}
-        todayTaskTargetPomodoros={todayTargetPomodoros}
-        todayTaskDonePomodoros={todayDonePomodoros}
+        todayTaskCount={todaySummary.taskCount}
         {weekFocusMinutes}
         {weekPomodoros}
         {weekAverageMinutes}
@@ -1407,6 +1419,7 @@
         bestDayMinutes={bestFocusDay.minutes}
         heatmapCells={focusHeatmap}
         taskDistribution={todayTaskDistribution}
+        {currentMinutes}
       />
     {/if}
   </section>

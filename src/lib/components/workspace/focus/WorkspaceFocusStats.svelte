@@ -1,10 +1,11 @@
 <script>
+  import WorkspaceTaskTimeline from "$lib/components/workspace/focus/WorkspaceTaskTimeline.svelte";
+
   let {
     strings,
     todayFocusMinutes = 0,
     todayPomodoros = 0,
-    todayTaskTargetPomodoros = 0,
-    todayTaskDonePomodoros = 0,
+    todayTaskCount = 0,
     weekFocusMinutes = 0,
     weekPomodoros = 0,
     weekAverageMinutes = 0,
@@ -13,13 +14,8 @@
     bestDayMinutes = 0,
     heatmapCells = [],
     taskDistribution = [],
+    currentMinutes = 0,
   } = $props();
-
-  const completionRate = $derived(
-    todayTaskTargetPomodoros <= 0
-      ? 0
-      : Math.round((Math.min(todayTaskDonePomodoros, todayTaskTargetPomodoros) / todayTaskTargetPomodoros) * 100),
-  );
 </script>
 
 <div class="stats-card">
@@ -41,12 +37,8 @@
     <strong>{weekPomodoros}</strong>
   </div>
   <div class="stat">
-    <span>{strings.pomodoroTargetCount}</span>
-    <strong>{todayTaskDonePomodoros}/{todayTaskTargetPomodoros || 0}</strong>
-  </div>
-  <div class="stat">
-    <span>{strings.todo}</span>
-    <strong>{completionRate}%</strong>
+    <span>{strings.pomodoroTask || "Tasks"}</span>
+    <strong>{todayTaskCount}</strong>
   </div>
   <div class="stat">
     <span>{strings.pomodoroStreakDays}</span>
@@ -80,18 +72,7 @@
 
   <div class="dist-wrap">
     <div class="dist-title">{strings.pomodoroTaskDistributionToday}</div>
-    {#if taskDistribution.length === 0}
-      <div class="dist-empty">{strings.pomodoroNoTasksToday}</div>
-    {:else}
-      <div class="dist-list">
-        {#each taskDistribution as item (item.id)}
-          <div class="dist-row">
-            <span class="dist-name">{item.title}</span>
-            <strong class="dist-val">🍅 {item.pomodoros}</strong>
-          </div>
-        {/each}
-      </div>
-    {/if}
+    <WorkspaceTaskTimeline {strings} tasks={taskDistribution} {currentMinutes} />
   </div>
 </div>
 
@@ -200,36 +181,4 @@
     color: var(--ws-muted, #64748b);
   }
 
-  .dist-empty {
-    font-size: 12px;
-    color: var(--ws-muted, #64748b);
-  }
-
-  .dist-list {
-    display: grid;
-    gap: 4px;
-  }
-
-  .dist-row {
-    border: 1px solid var(--ws-border-soft, #dbe4ef);
-    border-radius: 8px;
-    padding: 6px 8px;
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    align-items: center;
-  }
-
-  .dist-name {
-    font-size: 12px;
-    color: var(--ws-text, #334155);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .dist-val {
-    font-size: 12px;
-    color: var(--ws-text-strong, #0f172a);
-  }
 </style>

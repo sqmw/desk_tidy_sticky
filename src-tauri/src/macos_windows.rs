@@ -1,6 +1,7 @@
 use objc2::{AnyThread, MainThreadMarker};
 use objc2_app_kit::{
-    NSApplication, NSImage, NSWindow, NSWindowAnimationBehavior, NSWindowCollectionBehavior,
+    NSApplication, NSApplicationPresentationOptions, NSImage, NSWindow,
+    NSWindowAnimationBehavior, NSWindowCollectionBehavior,
 };
 use objc2_core_graphics::{CGWindowLevelForKey, CGWindowLevelKey};
 use objc2_foundation::NSData;
@@ -35,6 +36,10 @@ fn floating_window_level() -> isize {
     CGWindowLevelForKey(CGWindowLevelKey::FloatingWindowLevelKey) as isize
 }
 
+fn screen_saver_window_level() -> isize {
+    CGWindowLevelForKey(CGWindowLevelKey::ScreenSaverWindowLevelKey) as isize
+}
+
 fn desktop_icon_interactive_level() -> isize {
     (CGWindowLevelForKey(CGWindowLevelKey::DesktopIconWindowLevelKey) + 1) as isize
 }
@@ -55,6 +60,13 @@ fn desktop_sticky_collection_behavior() -> NSWindowCollectionBehavior {
     NSWindowCollectionBehavior::Stationary
         | NSWindowCollectionBehavior::IgnoresCycle
         | NSWindowCollectionBehavior::FullScreenNone
+}
+
+fn break_overlay_collection_behavior() -> NSWindowCollectionBehavior {
+    NSWindowCollectionBehavior::MoveToActiveSpace
+        | NSWindowCollectionBehavior::Stationary
+        | NSWindowCollectionBehavior::IgnoresCycle
+        | NSWindowCollectionBehavior::FullScreenAuxiliary
 }
 
 fn apply_desktop_sticky_window_traits(window: &NSWindow) {
@@ -169,6 +181,37 @@ pub fn set_topmost_no_activate(ns_window_ptr: *mut c_void, topmost: bool) -> Res
     } else {
         window.setLevel(normal_window_level());
         log_level("set_topmost_no_activate(false)", window);
+    }
+    Ok(())
+}
+
+pub fn apply_break_overlay_window_traits(ns_window_ptr: *mut c_void) -> Result<(), String> {
+    let window = cast_ns_window_ptr(ns_window_ptr)?;
+    window.setCanHide(false);
+    window.setHidesOnDeactivate(false);
+    window.setIgnoresMouseEvents(false);
+    window.setCollectionBehavior(break_overlay_collection_behavior());
+    window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+    window.setLevel(screen_saver_window_level());
+    window.orderFrontRegardless();
+    log_level("apply_break_overlay_window_traits", window);
+    Ok(())
+}
+
+#[allow(deprecated)]
+pub fn set_break_overlay_presentation(active: bool) -> Result<(), String> {
+    let Some(mtm) = MainThreadMarker::new() else {
+        return Err("set_break_overlay_presentation must run on macOS main thread".to_string());
+    };
+    let app = NSApplication::sharedApplication(mtm);
+    let options = if active {
+        NSApplicationPresentationOptions::HideDock | NSApplicationPresentationOptions::HideMenuBar
+    } else {
+        NSApplicationPresentationOptions::Default
+    };
+    app.setPresentationOptions(options);
+    if active {
+        app.activateIgnoringOtherApps(true);
     }
     Ok(())
 }

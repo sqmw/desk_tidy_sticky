@@ -1,5 +1,15 @@
 # 2026-02-16 专注任务休息参数 + 独立休息间隔
 
+## 2026-03-27 状态更新
+- 该方案已退役，不再作为现行实现依据。
+- 原因：产品边界已收敛为
+  1. `番茄任务` 只负责任务规划与专注计时；
+  2. `休息控制` 只负责全局独立提醒。
+- 当前实现中，任务级 `breakProfile`、相关 UI 与 `focus-break-profile.js` 已移除。
+- 现行说明请参考：
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/ui/2026-02-16-workspace-break-control-independent-only.md`
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/ui/2026-03-27-workspace-focus-target-pomodoro-removal.md`
+
 ## 目标
 - 每个专注任务支持自己的休息控制参数（默认继承全局，支持单独修改）。
 - 休息控制条支持“独立间隔”模式，用于非任务场景（如看书）下管理休息节奏。

@@ -1,5 +1,11 @@
 # Workspace 番茄“目标番茄数”滚轮输入与样式优化（2026-02-09）
 
+## 2026-03-27 状态更新
+- 该能力已退役。
+- 原因：`目标番茄数` 整体从产品中移除，相关输入控件、完成判定和展示逻辑不再保留。
+- 当前有效结论请转到：
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/ui/2026-03-27-workspace-focus-target-pomodoro-removal.md`
+
 ## 问题
 1. 使用原生 `number` 输入框，视觉与工作台风格不一致。
 2. 原生上下箭头在深色主题下观感差，且交互不够直观。

@@ -17,9 +17,8 @@
 
 ### 2) 番茄进度可视化
 - 新增任务番茄进度行：
-  - `🍅 done/target`
-  - 百分比
-- 新增细进度条，快速判断完成度。
+  - 历史版本为 `🍅 done/target`
+  - 历史版本带百分比与细进度条
 
 ### 3) 卡片快捷动作
 - 每张卡新增两个动作按钮：
@@ -47,3 +46,36 @@
 ## 校验
 - 执行：`npm run check`
 - 结果：`0 errors, 0 warnings`
+
+## 2026-03-26 补充：单任务时今日任务卡不再纵向拉伸
+
+### 判定
+- 类型：`Bug/回归`
+- 现象：左侧 `今日任务` 区只有 1 张卡片时，卡片会被拉伸填满整块区域，底部出现大面积无意义留白。
+
+### 根因
+- `WorkspaceSidebar.svelte` 中的 `.deadline-list` 使用了 `display: grid`，并在自动/手动布局下拥有固定可用高度。
+- 当列表只有一项时，grid 唯一一行会按剩余空间被拉大，导致单卡高度失真。
+
+### 修复
+- 文件：`/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceSidebar.svelte`
+- 调整：
+  1. `.deadline-list` 增加 `align-content: start`
+  2. `.deadline-list` 增加 `grid-auto-rows: max-content`
+
+### 结果
+- 单任务时，左侧今日任务卡按内容高度展示。
+- 多任务时，仍保持原有滚动和高度分配策略。
+
+## 2026-03-27 补充：截止任务卡移除目标番茄进度条
+
+### 判定
+- 类型：`设计收敛`
+
+### 变化
+1. 左侧 `今日截止任务` 卡片不再显示 `done/target`、百分比和进度条。
+2. 改为只显示当前任务已完成番茄次数：`🍅 done`。
+3. 截止任务列表不再因为“达到目标番茄数”而过滤任务。
+
+### 原因
+- `目标番茄数` 能力已经整体下线，保留进度条只会继续引入错误语义。
