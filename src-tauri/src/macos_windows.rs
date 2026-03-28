@@ -1,7 +1,7 @@
 use objc2::{AnyThread, MainThreadMarker};
 use objc2_app_kit::{
-    NSApplication, NSApplicationPresentationOptions, NSImage, NSWindow,
-    NSWindowAnimationBehavior, NSWindowCollectionBehavior,
+    NSApplication, NSApplicationActivationOptions, NSApplicationPresentationOptions, NSImage,
+    NSRunningApplication, NSWindow, NSWindowAnimationBehavior, NSWindowCollectionBehavior,
 };
 use objc2_core_graphics::{CGWindowLevelForKey, CGWindowLevelKey};
 use objc2_foundation::NSData;
@@ -63,7 +63,7 @@ fn desktop_sticky_collection_behavior() -> NSWindowCollectionBehavior {
 }
 
 fn break_overlay_collection_behavior() -> NSWindowCollectionBehavior {
-    NSWindowCollectionBehavior::MoveToActiveSpace
+    NSWindowCollectionBehavior::CanJoinAllSpaces
         | NSWindowCollectionBehavior::Stationary
         | NSWindowCollectionBehavior::IgnoresCycle
         | NSWindowCollectionBehavior::FullScreenAuxiliary
@@ -193,6 +193,7 @@ pub fn apply_break_overlay_window_traits(ns_window_ptr: *mut c_void) -> Result<(
     window.setCollectionBehavior(break_overlay_collection_behavior());
     window.setAnimationBehavior(NSWindowAnimationBehavior::None);
     window.setLevel(screen_saver_window_level());
+    window.makeKeyAndOrderFront(None);
     window.orderFrontRegardless();
     log_level("apply_break_overlay_window_traits", window);
     Ok(())
@@ -211,6 +212,8 @@ pub fn set_break_overlay_presentation(active: bool) -> Result<(), String> {
     };
     app.setPresentationOptions(options);
     if active {
+        let current_app = NSRunningApplication::currentApplication();
+        let _ = current_app.activateWithOptions(NSApplicationActivationOptions::ActivateAllWindows);
         app.activateIgnoringOtherApps(true);
     }
     Ok(())

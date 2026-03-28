@@ -57,7 +57,6 @@
     BREAK_OVERLAY_EVENT_ACTION,
     BREAK_OVERLAY_EVENT_READY,
     closeBreakOverlayWindows,
-    closeBreakOverlayWindowsByLabels,
     emitBreakOverlayState,
     ensureBreakOverlayWindows,
   } from "$lib/workspace/focus/focus-break-overlay-windows.js";
@@ -996,15 +995,14 @@
     const labels = Array.isArray(breakOverlayLabels) ? [...breakOverlayLabels] : [];
     if (!force && labels.length === 0) return;
     overlayClosing = true;
-    if (labels.length > 0) {
-      try {
-        await emitBreakOverlayState(labels, { close: true });
-      } catch (error) {
-        console.error("focus emit break overlay close", error);
-      }
-      await closeBreakOverlayWindowsByLabels(labels);
-    }
     try {
+      if (labels.length > 0) {
+        try {
+          await emitBreakOverlayState(labels, { close: true });
+        } catch (error) {
+          console.error("focus emit break overlay close", error);
+        }
+      }
       await closeBreakOverlayWindows();
     } finally {
       if (breakOverlayLabels.length > 0) breakOverlayLabels = [];

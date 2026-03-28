@@ -144,3 +144,170 @@
 ### 结果
 1. overlay 在已有其他全屏 App 的前提下，更容易一次性进入当前活跃 Space。
 2. 降低“必须三指切一下 Space 才出现”的偶发概率。
+
+## 2026-03-28 补充：休息 overlay 结束后不再改写主窗口行为
+
+### 判定
+- 类型：`Bug/回归`
+- 现象：休息 overlay 结束后，原本已经打开的 `workspace` 或 `main` 面板窗口，偶发会被收成“仅剩菜单栏图标”的状态。
+- 期望：休息提醒只能管理 overlay 自己的展示与关闭，不能顺手改动主窗口的打开/显示策略。
+
+### 根因
+1. `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/lib.rs`
+   中 `set_break_overlay_presentation(active: false)` 在 overlay 结束后会直接调用 `sync_panel_window_shell_state(&app)`。
+2. 这意味着休息 overlay 结束时，会重新推导整个 app 的 panel shell state：
+   - `skip_taskbar`
+   - `ActivationPolicy`
+   - Dock 图标显隐
+3. 这种“结束 overlay 时顺手同步主窗口状态”的做法越过了 overlay 的职责边界，因此会把不该被动到的窗口状态也一起改掉。
+
+### 修复
+1. 新增 `BreakOverlayPresentationState`：
+   - 在 overlay 激活前先记录“进入休息前是否需要 `Regular` activation policy”。
+2. overlay 结束时改为恢复进入休息前的 app presentation 状态：
+   - 若休息前有可见 panel，则恢复 `Regular`
+   - 若休息前没有可见 panel，则恢复 `Accessory`
+3. 不再在 overlay 结束时直接调用 `sync_panel_window_shell_state(&app)` 去重算主窗口行为。
+
+### 结果
+1. 休息 overlay 只负责自己的 presentation 生命周期。
+2. `workspace/main` 的显示策略不再被 overlay 结束路径误改。
+3. 用户原本打开着哪个窗口、Dock 是否应保留，不再被休息提醒链路“顺手收掉”。
+
+## 2026-03-28 补充：watchdog 不再隐藏已打开的 workspace
+
+### 判定
+- 类型：`Bug/回归`
+- 现象：即使已经打开了 `workspace`，一到休息时间它也会被直接藏起来；overlay 结束后看起来就只剩菜单栏图标。
+
+### 根因
+1. Rust watchdog 在发出 `focus_break_due` 前会调用：
+   - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/lib.rs`
+   - `ensure_hidden_workspace_runtime_window(&app_handle)`
+2. 旧实现里，这个函数无论当前 `workspace` 是否正在显示，都会直接：
+   - `window.hide()`
+   - `window.set_skip_taskbar(true)`
+3. 因此只要提醒触发，已经打开的工作台会被错误地隐藏。
+
+### 修复
+1. `ensure_hidden_workspace_runtime_window()` 改为：
+   - 如果 `workspace` 已存在且当前可见：直接返回，不做任何隐藏操作；
+   - 只有在 `workspace` 不存在时，才创建一个隐藏 runtime 窗口；
+   - 如果 `workspace` 已存在但本来就是隐藏状态，仅保持 `skip_taskbar=true`。
+
+### 结果
+1. watchdog 仍能保证后台 runtime 存在。
+2. 但不会再误伤用户当前已经打开的 `workspace` 面板。
+3. 休息提醒结束后，原本打开的窗口状态保持不变。
+
+## 2026-03-28 补充：overlay 结束链路不再二次改写 panel shell state
+
+### 判定
+- 类型：`Bug/回归`
+- 现象：即使已经修正 watchdog 不再隐藏可见 `workspace`，休息 overlay 结束后仍偶发出现“所有窗口消失，只剩菜单栏”的问题。
+
+### 根因
+1. overlay 关闭链路里，`/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
+   的 `closeBreakOverlayEverywhere()` 之前会连续执行：
+   - `closeBreakOverlayWindowsByLabels(labels)`
+   - `closeBreakOverlayWindows()`
+2. 这意味着前端会连续两次调用：
+   - `set_break_overlay_presentation(active: false)`
+3. Rust 侧 `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/lib.rs`
+   中 `set_break_overlay_presentation(false)` 第一次会正确消费 `BreakOverlayPresentationState` 快照；
+   第二次因为快照已被消费，会落入旧的 `sync_panel_window_shell_state(&app)` 兜底。
+4. 这条兜底本质上又把 overlay 生命周期重新耦合回 panel 生命周期，属于越权恢复；在 macOS 全屏 / Space / activation policy 的时序下，会把主窗口壳状态再次推偏，最终表现为“窗口都没了，只剩菜单栏”。
+
+### 修复
+1. 前端 overlay 关闭链路收敛为一次性 teardown：
+   - 仍先给已知 overlay labels 发 `{ close: true }`，让页面自关闭；
+   - 真正的窗口清理只保留一次 `closeBreakOverlayWindows()`
+2. Rust 侧 `set_break_overlay_presentation(false)` 在“没有可恢复快照”时改为 `no-op`：
+   - 不再回退执行 `sync_panel_window_shell_state(&app)`
+   - overlay presentation 生命周期只恢复自己捕获的状态，不再推断 panel 可见性
+
+### 影响文件
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/lib.rs`
+
+### 结果
+1. overlay 结束时只做一次 presentation 恢复。
+2. 即使关闭链路重复触发，也不会再因为“无快照兜底”改写 `workspace/main` 的窗口壳状态。
+3. 休息结束后，主窗口是否显示完全由用户原始状态决定，不再被 overlay 生命周期影响。
+
+## 2026-03-28 补充：到点强制休息改为 Rust 原生预建 overlay 窗口
+
+### 判定
+- 类型：`Bug/回归`
+- 现象：当用户正在其他 macOS 全屏 App 内工作时，休息提醒到点后不会立刻强占当前屏幕；通常需要三指切回应用所在 Space，overlay 才出现。
+
+### 根因
+1. 旧链路里，Rust watchdog 到点后只负责发出 `focus_break_due` 事件。
+2. 真正“创建/展示 break overlay 窗口”的动作仍依赖：
+   - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
+   - 隐藏 `workspace` 页里的 JS 监听器
+3. 在 macOS 场景下，如果当前焦点在别的全屏 App，隐藏 WebView 的 JS 事件链可能被后台节流。
+4. 结果不是“overlay 压不过去”，而是“overlay 窗口本身还没来得及创建”；等用户三指切回应用 Space 后，积压的事件才被处理，所以看起来像是“切回来才触发”。
+
+### 修复
+1. 在 Rust watchdog 命中到点时，macOS 先原生执行：
+   - `set_break_overlay_presentation(active: true)`
+   - 按监视器列表直接创建 / 复用 `focus-break-overlay-*` 窗口
+   - 立即应用 `apply_break_overlay_window_traits`
+2. 前端 `WorkspaceFocusHub.svelte` 继续保留：
+   - payload 同步
+   - 倒计时渲染
+   - 推迟 / 跳过动作
+3. 这样职责被重新切开：
+   - Rust 负责“到点必须把 overlay 窗口顶上来”
+   - 前端负责“overlay 里展示什么、按钮怎么交互”
+
+### 影响文件
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/lib.rs`
+
+### 结果
+1. break overlay 的出现不再依赖隐藏 `workspace` WebView 的前台调度时机。
+2. 即使当前焦点在其他全屏 App，到点后也会先把 overlay 原生建出来并压到当前 Space。
+3. 前端如果稍后才补到 payload，影响的只是文案同步时机，不再影响“强制占用屏幕提醒”本身。
+
+## 2026-03-28 补充：全屏 App 仍需手动切 Space 的原生根因修正
+
+### 判定
+- 类型：`Bug/回归`
+- 现象：即使 Rust 已在到点时原生预建 break overlay，当前如果正停留在其他 macOS 全屏 App，overlay 仍可能不直接占住当前屏幕；用户需要三指切回应用 Space 才看到提醒。
+
+### 根因
+1. 之前 break overlay 的 `collectionBehavior` 仍是：
+   - `MoveToActiveSpace`
+   - `FullScreenAuxiliary`
+2. 这更像“跟随当前激活切 Space”，而不是“让 overlay 直接加入所有 Space”；对于“别的 app 已经在全屏 Space 内”的场景并不稳。
+3. 同时，overlay 新窗口默认是先创建为可见窗口，再补：
+   - 原生 `collectionBehavior`
+   - 原生 `window level`
+   - `make key / order front`
+4. 对需要跨 Space 抢占的窗口来说，这个时序太晚了：窗口第一次出现时已经可能落在错误的 Space，后续再补 traits 不一定会被系统立刻带进当前全屏 Space。
+
+### 修复
+1. break overlay 原生 collection behavior 改为：
+   - `CanJoinAllSpaces`
+   - `FullScreenAuxiliary`
+   - `Stationary`
+   - `IgnoresCycle`
+2. overlay 新窗口改为：
+   - 先 `visible(false)` 创建
+   - 先应用原生 break overlay traits
+   - 再 `show + unminimize + focus`
+3. 原生窗口 fronting 再加强一层：
+   - `makeKeyAndOrderFront(None)`
+   - `orderFrontRegardless()`
+   - `NSRunningApplication::currentApplication().activateWithOptions(ActivateAllWindows)`
+
+### 影响文件
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/macos_windows.rs`
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/lib.rs`
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/workspace/focus/focus-break-overlay-windows.js`
+
+### 结果
+1. break overlay 的“第一次可见”就发生在正确的原生窗口 traits 已就位之后。
+2. 进入其他 app 全屏 Space 的能力不再依赖 `MoveToActiveSpace` 的激活时机，而是改用更符合 overlay 语义的 `CanJoinAllSpaces + FullScreenAuxiliary`。
+3. 降低“必须手动三指切回应用 Space 才出现”的概率。

@@ -81,9 +81,14 @@ async function applyOverlayWindowRuntimeState(window) {
   } catch (_) {
     // noop
   }
-  await window.show();
   try {
     await invoke("apply_break_overlay_window_traits", { label: window.label });
+  } catch (_) {
+    // noop
+  }
+  await window.show();
+  try {
+    await window.unminimize();
   } catch (_) {
     // noop
   }
@@ -138,6 +143,7 @@ async function ensureOverlayWindow(label, monitor) {
     transparent: false,
     alwaysOnTop: true,
     skipTaskbar: true,
+    visible: false,
     resizable: false,
     maximizable: false,
     minimizable: false,
