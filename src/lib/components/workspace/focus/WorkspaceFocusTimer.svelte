@@ -15,7 +15,7 @@
 
 </script>
 
-<div class="timer-card">
+<div class="timer-card" class:break-mode={showBreakPanel} class:focus-mode={!showBreakPanel}>
   <div class="timer-hero">
     <div class="timer-head">
       <div class="focus-tabs" role="tablist" aria-label={strings.pomodoro}>
@@ -92,10 +92,18 @@
       color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 92%, transparent);
     backdrop-filter: blur(8px);
     padding: 12px;
-    min-height: clamp(300px, 38vh, 520px);
     box-shadow:
       inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent),
       0 8px 22px color-mix(in srgb, #0f172a 12%, transparent);
+  }
+
+  .timer-card.focus-mode {
+    min-height: 0;
+    padding: 10px 12px;
+  }
+
+  .timer-card.break-mode {
+    min-height: clamp(300px, 38vh, 520px);
   }
 
   .timer-hero {
@@ -103,6 +111,10 @@
     border-radius: 12px;
     padding: 10px 10px 9px;
     background: color-mix(in srgb, var(--ws-card-bg, #fff) 86%, transparent);
+  }
+
+  .timer-card.focus-mode .timer-hero {
+    padding: 8px 8px 7px;
   }
 
   .timer-head {
@@ -188,6 +200,11 @@
     align-items: stretch;
   }
 
+  .timer-card.focus-mode .timer-meta {
+    margin-top: 6px;
+    gap: 6px;
+  }
+
   .timer-task-card,
   .timer-stat-chip {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
@@ -196,6 +213,11 @@
     padding: 6px 8px;
     display: grid;
     gap: 4px;
+  }
+
+  .timer-card.focus-mode .timer-task-card,
+  .timer-card.focus-mode .timer-stat-chip {
+    padding: 5px 8px;
   }
 
   .timer-task-card {
@@ -232,6 +254,10 @@
     border-radius: 999px;
     background: color-mix(in srgb, var(--ws-border-soft, #d6e0ee) 65%, transparent);
     overflow: hidden;
+  }
+
+  .timer-card.focus-mode .phase-progress {
+    margin-top: 6px;
   }
 
   .phase-progress-fill {
