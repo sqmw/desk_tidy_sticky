@@ -193,6 +193,11 @@ export async function ensureBreakOverlayWindows() {
     }
     return [];
   }
+  try {
+    await invoke("set_break_overlay_presentation", { active: true });
+  } catch (_) {
+    // noop
+  }
   const keepLabels = new Set();
   for (let index = 0; index < monitors.length; index += 1) {
     const label = overlayLabel(index);

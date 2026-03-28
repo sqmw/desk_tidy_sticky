@@ -34,6 +34,7 @@
   let totalSeconds = $state(1);
   let endAtTs = $state(0);
   let progress = $state(0);
+  let showPostpone = $state(true);
   let postponeText = $state(defaultCopy.postponeText);
   let skipText = $state(defaultCopy.skipText);
   let showSkip = $state(false);
@@ -143,6 +144,7 @@
     }
     selfClosing = false;
     closeRetryCount = 0;
+    showPostpone = safe.showPostpone !== false;
     postponeText = String(safe.postponeText || defaultCopy.postponeText);
     skipText = String(safe.skipText || defaultCopy.skipText);
     showSkip = safe.showSkip === true;
@@ -251,14 +253,16 @@
   </section>
 
   <section class="overlay-bottom" data-no-drag="true">
-    <button
-      type="button"
-      class="action-link"
-      disabled={postponeDisabled}
-      onclick={() => emitOverlayAction("postpone")}
-    >
-      {postponeText}
-    </button>
+    {#if showPostpone}
+      <button
+        type="button"
+        class="action-link"
+        disabled={postponeDisabled}
+        onclick={() => emitOverlayAction("postpone")}
+      >
+        {postponeText}
+      </button>
+    {/if}
     {#if showSkip}
       <button type="button" class="action-link" disabled={skipDisabled} onclick={() => emitOverlayAction("skip")}>
         {skipText}

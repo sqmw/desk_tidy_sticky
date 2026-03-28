@@ -109,6 +109,7 @@
 
   let phase = $state(PHASE_FOCUS);
   let remainingSec = $state(25 * 60);
+  let focusDeadlineTs = $state(0);
   let running = $state(false);
   let hasStarted = $state(false);
   let completedFocusCount = $state(0);
@@ -162,6 +163,7 @@
   /** @type {"mini" | "long" | ""} */
   let activeBreakKind = $state("");
   let breakRemainingSec = $state(0);
+  let breakDeadlineTs = $state(0);
   let skipUnlockedAfterPostpone = $state(false);
   let localBreakSession = $state({
     mode: BREAK_SESSION_NONE,
@@ -221,34 +223,76 @@
     return getPhaseDurationSec(PHASE_FOCUS, config);
   }
 
+  /** @param {number} deadlineTs */
+  function getRemainingFromDeadline(deadlineTs) {
+    if (!Number.isFinite(deadlineTs) || deadlineTs <= 0) return 0;
+    return Math.max(0, Math.ceil((deadlineTs - Date.now()) / 1000));
+  }
+
   function restoreTimerRuntimeFromCache() {
     const cached = loadFocusTimerRuntimeCache();
     if (!cached) return;
+    const cachedAgeSec = Math.max(0, Math.floor((Date.now() - Number(cached.savedAt || 0)) / 1000));
     const restored = cached.phase !== PHASE_FOCUS
       ? {
           ...cached,
           phase: PHASE_FOCUS,
           remainingSec: getFocusDurationSec(),
+          focusDeadlineTs: 0,
           running: false,
           hasStarted: false,
           activeBreakKind: "",
           breakRemainingSec: 0,
+          breakDeadlineTs: 0,
           skipUnlockedAfterPostpone: false,
         }
       : cached;
+    const restoredFocusRemaining = restored.running
+      ? (
+          restored.focusDeadlineTs > 0
+            ? getRemainingFromDeadline(restored.focusDeadlineTs)
+            : Math.max(0, Math.floor(Number(restored.remainingSec || 0)) - cachedAgeSec)
+        )
+      : Math.max(0, Math.floor(Number(restored.remainingSec || 0)));
+    const restoredBreakRemaining = restored.activeBreakKind
+      ? (
+          restored.breakDeadlineTs > 0
+            ? getRemainingFromDeadline(restored.breakDeadlineTs)
+            : Math.max(0, Math.floor(Number(restored.breakRemainingSec || 0)) - cachedAgeSec)
+        )
+      : Math.max(0, Math.floor(Number(restored.breakRemainingSec || 0)));
     phase = restored.phase;
-    remainingSec = restored.remainingSec;
-    running = restored.running;
-    hasStarted = restored.hasStarted;
+    remainingSec = restoredFocusRemaining;
+    focusDeadlineTs = restored.running && restoredFocusRemaining > 0
+      ? (
+          restored.focusDeadlineTs > 0
+            ? restored.focusDeadlineTs
+            : Date.now() + restoredFocusRemaining * 1000
+        )
+      : 0;
+    running = restored.running && restoredFocusRemaining > 0;
+    hasStarted = restored.hasStarted && restoredFocusRemaining > 0;
     completedFocusCount = restored.completedFocusCount;
-    focusSinceBreakSec = restored.focusSinceBreakSec;
+    focusSinceBreakSec = Math.max(
+      0,
+      Math.floor(Number(restored.focusSinceBreakSec || 0)) + (restored.activeBreakKind ? 0 : cachedAgeSec),
+    );
     nextMiniBreakAtSec = restored.nextMiniBreakAtSec;
     nextLongBreakAtSec = restored.nextLongBreakAtSec;
     nextMiniWarnAtSec = restored.nextMiniWarnAtSec;
     nextLongWarnAtSec = restored.nextLongWarnAtSec;
     lastBreakReminderAtSec = restored.lastBreakReminderAtSec;
-    activeBreakKind = /** @type {"" | "mini" | "long"} */ (restored.activeBreakKind);
-    breakRemainingSec = Math.max(0, Math.floor(Number(restored.breakRemainingSec || 0)));
+    activeBreakKind = restoredBreakRemaining > 0
+      ? /** @type {"" | "mini" | "long"} */ (restored.activeBreakKind)
+      : "";
+    breakRemainingSec = restoredBreakRemaining;
+    breakDeadlineTs = restoredBreakRemaining > 0
+      ? (
+          restored.breakDeadlineTs > 0
+            ? restored.breakDeadlineTs
+            : Date.now() + restoredBreakRemaining * 1000
+        )
+      : 0;
     skipUnlockedAfterPostpone = restored.skipUnlockedAfterPostpone;
   }
 
@@ -285,6 +329,7 @@
     saveFocusTimerRuntimeCache({
       phase,
       remainingSec,
+      focusDeadlineTs,
       running,
       hasStarted,
       completedFocusCount,
@@ -296,6 +341,7 @@
       lastBreakReminderAtSec,
       activeBreakKind,
       breakRemainingSec,
+      breakDeadlineTs,
       skipUnlockedAfterPostpone,
       savedAt: Date.now(),
     });
@@ -366,6 +412,7 @@
     completedFocusCount += 1;
     phase = PHASE_FOCUS;
     remainingSec = getFocusDurationSec();
+    focusDeadlineTs = 0;
     running = false;
     hasStarted = false;
   }
@@ -375,6 +422,7 @@
     activeBreakKind = kind;
     lastBreakReminderAtSec = -1;
     breakRemainingSec = kind === BREAK_KIND_LONG ? breakPlanSec.longDurationSec : breakPlanSec.miniDurationSec;
+    breakDeadlineTs = Date.now() + breakRemainingSec * 1000;
     if (kind === BREAK_KIND_LONG) {
       focusSinceBreakSec = 0;
       nextLongBreakAtSec = breakPlanSec.longEverySec;
@@ -385,7 +433,6 @@
     }
     nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
     nextLongWarnAtSec = Math.max(0, nextLongBreakAtSec - breakPlanSec.notifyBeforeSec);
-    skipUnlockedAfterPostpone = false;
   }
 
   function postponeBreak() {
@@ -401,6 +448,7 @@
     }
     activeBreakKind = "";
     breakRemainingSec = 0;
+    breakDeadlineTs = 0;
     skipUnlockedAfterPostpone = true;
   }
 
@@ -417,12 +465,14 @@
     }
     activeBreakKind = "";
     breakRemainingSec = 0;
+    breakDeadlineTs = 0;
     skipUnlockedAfterPostpone = false;
   }
 
-  function tickBreakReminderClock() {
+  /** @param {number} elapsedSec */
+  function tickBreakReminderClock(elapsedSec = 1) {
     if (!safeConfig.breakReminderEnabled) return;
-    focusSinceBreakSec += 1;
+    focusSinceBreakSec += Math.max(1, Math.floor(elapsedSec));
     if (
       breakPlanSec.notifyBeforeSec > 0 &&
       focusSinceBreakSec >= nextLongWarnAtSec &&
@@ -556,6 +606,8 @@
     }
     if (!nextEnabled) {
       activeBreakKind = "";
+      breakRemainingSec = 0;
+      breakDeadlineTs = 0;
     } else {
       focusSinceBreakSec = 0;
       lastBreakReminderAtSec = -1;
@@ -602,12 +654,21 @@
   function toggleRunning() {
     if (remainingSec <= 0) remainingSec = getFocusDurationSec();
     phase = PHASE_FOCUS;
-    running = !running;
-    if (running) hasStarted = true;
+    const nextRunning = !running;
+    if (nextRunning) {
+      focusDeadlineTs = Date.now() + Math.max(0, remainingSec) * 1000;
+      running = true;
+      hasStarted = true;
+      return;
+    }
+    remainingSec = focusDeadlineTs > 0 ? getRemainingFromDeadline(focusDeadlineTs) : remainingSec;
+    focusDeadlineTs = 0;
+    running = false;
   }
 
   function resetCurrentPhase() {
     phase = PHASE_FOCUS;
+    focusDeadlineTs = 0;
     running = false;
     hasStarted = false;
     remainingSec = getFocusDurationSec();
@@ -626,6 +687,7 @@
     );
     if (!running && phase === PHASE_FOCUS) {
       remainingSec = safeMinutes * 60;
+      focusDeadlineTs = 0;
     }
   }
 
@@ -634,6 +696,7 @@
     selectedTaskId = taskId;
     phase = PHASE_FOCUS;
     remainingSec = getFocusDurationSec();
+    focusDeadlineTs = Date.now() + remainingSec * 1000;
     running = true;
     hasStarted = true;
   }
@@ -768,6 +831,7 @@
     if (!running && !hasStarted) {
       phase = PHASE_FOCUS;
       remainingSec = getFocusDurationSec(next);
+      focusDeadlineTs = 0;
     }
     showConfig = false;
   }
@@ -845,11 +909,12 @@
       remainingText: `${strings.pomodoroBreakRemaining || "Remaining"} ${formatTimer(safeRemaining)}`,
       remainingSeconds: safeRemaining,
       totalSeconds: safeTotal,
-      endAtTs: Date.now() + safeRemaining * 1000,
+      endAtTs: breakDeadlineTs > 0 ? breakDeadlineTs : (Date.now() + safeRemaining * 1000),
       progress,
+      showPostpone: safeConfig.breakStrictMode !== true,
       postponeText: strings.pomodoroBreakPostponeTwoMinutes || "Postpone 2m",
       skipText: strings.pomodoroSkip || "Skip",
-      showSkip: skipUnlockedAfterPostpone === true,
+      showSkip: safeConfig.breakStrictMode !== true && skipUnlockedAfterPostpone === true,
       postponeDisabled: safeConfig.breakStrictMode === true,
       skipDisabled: safeConfig.breakStrictMode === true || !skipUnlockedAfterPostpone,
       strictMode: safeConfig.breakStrictMode === true,
@@ -901,6 +966,7 @@
         payload.taskText,
         payload.remainingSeconds,
         payload.progress,
+        payload.showPostpone ? 1 : 0,
         payload.showSkip ? 1 : 0,
         payload.postponeDisabled ? 1 : 0,
         payload.skipDisabled ? 1 : 0,
@@ -957,6 +1023,7 @@
     if (running || hasStarted) return;
     const target = getFocusDurationSec();
     if (remainingSec !== target) remainingSec = target;
+    if (focusDeadlineTs !== 0) focusDeadlineTs = 0;
     if (phase !== PHASE_FOCUS) phase = PHASE_FOCUS;
   });
 
@@ -1045,6 +1112,7 @@
     if (activeBreakKind) {
       activeBreakKind = "";
       breakRemainingSec = 0;
+      breakDeadlineTs = 0;
     }
   });
 
@@ -1072,6 +1140,7 @@
     if (breakRemainingSec > 0) return;
     activeBreakKind = "";
     breakRemainingSec = 0;
+    breakDeadlineTs = 0;
     skipUnlockedAfterPostpone = false;
     closeBreakOverlayEverywhere(true).catch((error) =>
       console.error("focus force close overlay at zero", error),
@@ -1106,12 +1175,17 @@
   });
 
   onMount(() => {
+    let lastClockTs = Date.now();
     const clockId = setInterval(() => {
       const now = Date.now();
+      const elapsedSec = Math.max(0, Math.floor((now - lastClockTs) / 1000));
+      if (elapsedSec > 0) {
+        lastClockTs += elapsedSec * 1000;
+      }
       nowTick = now;
       tickTaskStartReminderClock(now);
-      if (shouldTickBreakReminderClock()) {
-        tickBreakReminderClock();
+      if (elapsedSec > 0 && shouldTickBreakReminderClock()) {
+        tickBreakReminderClock(elapsedSec);
       }
     }, 1000);
     return () => clearInterval(clockId);
@@ -1268,17 +1342,21 @@
     if (!breakTimerActive) return;
     const id = setInterval(() => {
       if (!activeBreakKind) return;
-      if (breakRemainingSec <= 1) {
+      const nextRemaining = breakDeadlineTs > 0 ? getRemainingFromDeadline(breakDeadlineTs) : breakRemainingSec;
+      if (nextRemaining <= 0) {
         activeBreakKind = "";
         breakRemainingSec = 0;
+        breakDeadlineTs = 0;
         skipUnlockedAfterPostpone = false;
         closeBreakOverlayEverywhere(true).catch((error) =>
           console.error("focus close break overlay windows on independent break complete", error),
         );
         return;
       }
-      breakRemainingSec -= 1;
-    }, 1000);
+      if (breakRemainingSec !== nextRemaining) {
+        breakRemainingSec = nextRemaining;
+      }
+    }, 250);
     return () => clearInterval(id);
   });
 
@@ -1286,13 +1364,18 @@
     if (!running) return;
     const id = setInterval(() => {
       if (!running) return;
-      if (remainingSec <= 1) {
+      const nextRemaining = focusDeadlineTs > 0 ? getRemainingFromDeadline(focusDeadlineTs) : remainingSec;
+      if (nextRemaining <= 0) {
+        remainingSec = 0;
+        focusDeadlineTs = 0;
         onFocusCompleted();
         completeFocusCycle();
         return;
       }
-      remainingSec -= 1;
-    }, 1000);
+      if (remainingSec !== nextRemaining) {
+        remainingSec = nextRemaining;
+      }
+    }, 250);
     return () => clearInterval(id);
   });
 </script>

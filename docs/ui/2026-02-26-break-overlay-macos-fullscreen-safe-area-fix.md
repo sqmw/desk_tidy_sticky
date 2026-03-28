@@ -119,3 +119,28 @@
 4. 预期：
    - 即使当前焦点在其他全屏 App，仍会触发休息 overlay。
    - 不是等切回本应用、点一下 DevTools、或重新回到工作台后才触发。
+
+## 2026-03-28 补充：已有全屏 App 时偶发需要手动切 Space 才出现
+
+### 判定
+- 类型：`Bug/回归`
+- 现象：当系统里已经存在一个其他全屏 App 时，休息 overlay 偶发不会立即压上来；手动三指左右切一下 Space 后，overlay 才出现。
+
+### 根因
+1. overlay 创建链路里，窗口是先创建/展示，再调用 `set_break_overlay_presentation(active: true)`。
+2. 对 `MoveToActiveSpace + FullScreenAuxiliary` 这类原生窗口来说，这个顺序不够稳：
+   - 窗口可能先在错误的 Space 完成创建
+   - 后续再切 presentation 时，系统不会总是立刻把它带进当前全屏 Space
+3. 所以问题表现为“不是完全失败，而是偶发需要用户手动切一次 Space 才刷新出来”。
+
+### 修复
+- 文件：
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/workspace/focus/focus-break-overlay-windows.js`
+- 激活时序改为：
+  1. 先 `set_break_overlay_presentation(active: true)`
+  2. 再创建 / 复用并展示各个 overlay 窗口
+  3. 创建完成后再补一次 `set_break_overlay_presentation(active: true)` 做兜底
+
+### 结果
+1. overlay 在已有其他全屏 App 的前提下，更容易一次性进入当前活跃 Space。
+2. 降低“必须三指切一下 Space 才出现”的偶发概率。

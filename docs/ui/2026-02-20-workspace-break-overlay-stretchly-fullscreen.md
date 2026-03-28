@@ -15,9 +15,10 @@
    - 任务标题（如有）
    - 进度条与剩余时间
 3. 覆盖层底部动作：
-   - `延后 2 分钟`（固定值）
-   - `跳过`（仅延后后可见/可用）
-4. `strict` 模式下动作禁用，保留状态提示。
+   - 首次提醒：仅 `延后 2 分钟`（固定值）
+   - 同一轮提醒链里，只要已经延后过一次：显示 `延后 2 分钟 + 跳过`
+   - `跳过` 不在首次提醒直接出现，避免用户形成“默认跳过”习惯
+4. `strict` 模式下隐藏动作，只保留状态提示。
 
 ## 多屏实现要点
 - `ensureBreakOverlayWindows()` 按显示器枚举创建/复用 overlay 窗口。
@@ -29,7 +30,7 @@
 - 番茄工作阶段计时中：短休/长休按独立间隔推进。
 - 到点：直接进入对应休息阶段（短休或长休，长休优先）。
 - `延后 2 分钟`：返回专注阶段并重排下一次同类型休息触发点。
-- `跳过`：仅在“先延后过”条件满足时可执行，执行后回到专注并恢复常规间隔。
+- `跳过`：仅在“当前这轮提醒已经先延后过一次”后才可见/可执行，执行后回到专注并恢复常规间隔。
 
 ## 代码位置
 - `src/lib/components/workspace/WorkspaceFocusHub.svelte`
@@ -80,7 +81,21 @@
   2) overlay 同步改为单飞模型（in-flight + queued），禁止并发风暴；
   3) payload 去重发送（关键字段未变化时不重复 emit）；
   4) 关闭路径统一 `force` 收敛，避免残留窗口；
-  5) strict 模式下强制禁止延后/跳过（包含 overlay 入口）。
+  5) strict 模式下强制隐藏延后/跳过入口，仅保留 strict 状态提示。
+
+## 2026-03-28 补充：首次仅推迟，二次才显示跳过
+- 判定：`设计收敛`
+- 文件：
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/break-overlay/+page.svelte`
+- 调整：
+  1) `skipUnlockedAfterPostpone` 不再在第二次 overlay 弹出时被 `applyBreakNow()` 重置；
+  2) 因此同一轮提醒链中，只要已经延后过一次，下一次弹出就会稳定显示 `跳过`；
+  3) `strict` 模式下 overlay 不再显示动作按钮，只保留 strict 文案提示。
+- 结果：
+  1) 首次到点：只有 `延后 2 分钟`
+  2) 第二次及之后：显示 `延后 2 分钟 + 跳过`
+  3) 严格模式：不显示动作按钮
 - 结果：显著降低 event emit 频率，避免消息队列打满。
 
 ## 2026-02-20 修复补充（五）：overlay 本地倒计时自收敛
