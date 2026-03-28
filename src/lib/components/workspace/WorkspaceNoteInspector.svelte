@@ -1,6 +1,6 @@
 <script>
-  import BlockEditor from "$lib/components/note/BlockEditor.svelte";
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
+  import SourceEditorPane from "$lib/components/note/SourceEditorPane.svelte";
 
   let {
     strings,
@@ -31,10 +31,6 @@
     }
   }
 
-  /** @param {string} nextText */
-  function onBlockTextChange(nextText) {
-    draftText = nextText;
-  }
 </script>
 
 {#if note}
@@ -68,7 +64,7 @@
       <div class="content markdown">{@html note.renderedHtml}</div>
     {:else}
       <div class="content editor-content">
-        <BlockEditor bind:text={draftText} noteId={String(note.id)} onTextChange={onBlockTextChange} />
+        <SourceEditorPane bind:text={draftText} compact placeholder={strings.noteEditorPlaceholder} />
         <div class="hint">Ctrl/Cmd + Enter · Esc</div>
       </div>
     {/if}

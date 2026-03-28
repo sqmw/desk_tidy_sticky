@@ -2,7 +2,6 @@
   let {
     strings,
     isEditing = false,
-    isBlockEditor = false,
     note = null,
     showPalette = false,
     showTextColorPalette = false,
@@ -19,8 +18,6 @@
     noteColors = [],
     noteTextColors = [],
     onToggleEdit = () => {},
-    onToggleEditorLayoutMode = () => {},
-    editorModeHint = () => "",
     onToggleTopmost = () => {},
     onToggleMouseInteraction = () => {},
     onTogglePalette = () => {},
@@ -44,142 +41,139 @@
   } = $props();
 </script>
 
-<div class="toolbar-mask" aria-hidden="true"></div>
+<div class="toolbar-mask" class:editing={isEditing} aria-hidden="true"></div>
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="toolbar">
+<div class="toolbar" class:editing={isEditing}>
   <div class="toolbar-drag-pad"></div>
-  <button class="tool-btn" onclick={() => onToggleEdit()} title={isEditing ? strings.saveNote : strings.edit}>
-    {#if isEditing}
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 00-2 2v14l4-4h10a2 2 0 002-2V5a2 2 0 00-2-2zm-1 8H8V9h8v2z"/></svg>
-    {:else}
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42L18.37 3.29a1.003 1.003 0 00-1.42 0L15.13 5.1l3.75 3.75 1.83-1.81z"/></svg>
-    {/if}
-  </button>
+  <div class="tool-group tool-group-primary">
+    <button
+      class="tool-btn tool-btn-pill"
+      onclick={() => onToggleEdit()}
+      title={isEditing ? strings.saveNote : strings.edit}
+    >
+      {#if isEditing}
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 00-2 2v14l4-4h10a2 2 0 002-2V5a2 2 0 00-2-2zm-1 8H8V9h8v2z"/></svg>
+        <span>{strings.saveNote}</span>
+      {:else}
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42L18.37 3.29a1.003 1.003 0 00-1.42 0L15.13 5.1l3.75 3.75 1.83-1.81z"/></svg>
+        <span>{strings.edit}</span>
+      {/if}
+    </button>
+  </div>
 
-  {#if isEditing}
-    <button class="tool-btn" onclick={() => onToggleEditorLayoutMode()} title={editorModeHint()}>
-      {#if isBlockEditor}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="5" y="6" width="14" height="12" rx="2"></rect>
-          <path d="M8 10h8"></path>
-          <path d="M8 13h6"></path>
+  <div class="tool-group">
+    <button
+      class="tool-btn"
+      class:active={!!note?.isAlwaysOnTop}
+      onclick={() => onToggleTopmost()}
+      title={note?.isAlwaysOnTop ? strings.pinToBottom : strings.pinToTop}
+    >
+      {#if note?.isAlwaysOnTop}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="14.5" width="14" height="4.5" rx="1.6"></rect>
+          <path d="M12 4.5v8"></path>
+          <path d="M8.8 9.6 12 12.8l3.2-3.2"></path>
         </svg>
       {:else}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="4" y="5" width="16" height="14" rx="2"></rect>
-          <path d="M7.5 9h9"></path>
-          <path d="M7.5 12h9"></path>
-          <path d="M7.5 15h6"></path>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="5" y="4.8" width="14" height="4.5" rx="1.6"></rect>
+          <path d="M12 19.5v-8"></path>
+          <path d="M8.8 14.4 12 11.2l3.2 3.2"></path>
         </svg>
       {/if}
     </button>
-  {/if}
 
-  <button
-    class="tool-btn"
-    class:active={!!note?.isAlwaysOnTop}
-    onclick={() => onToggleTopmost()}
-    title={note?.isAlwaysOnTop ? strings.pinToBottom : strings.pinToTop}
-  >
-    {#if note?.isAlwaysOnTop}
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="5" y="14.5" width="14" height="4.5" rx="1.6"></rect>
-        <path d="M12 4.5v8"></path>
-        <path d="M8.8 9.6 12 12.8l3.2-3.2"></path>
-      </svg>
-    {:else}
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="5" y="4.8" width="14" height="4.5" rx="1.6"></rect>
-        <path d="M12 19.5v-8"></path>
-        <path d="M8.8 14.4 12 11.2l3.2 3.2"></path>
-      </svg>
-    {/if}
-  </button>
-
-  <button class="tool-btn" onclick={() => onToggleMouseInteraction()} title={strings.overlayClickThrough}>
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zM7 9c0-2.76 2.24-5 5-5s5 2.24 5 5H7z"/></svg>
-  </button>
-
-  <button class="tool-btn color-trigger" onclick={() => onTogglePalette()} title="Change color">🎨</button>
-  <button class="tool-btn text-color-trigger" onclick={() => onToggleTextColorPalette()} title={strings.textColor}>A</button>
-
-  <div class="tool-popover-anchor">
-    <button
-      class="tool-btn opacity-trigger"
-      onclick={() => onToggleOpacityPanel()}
-      onwheel={(event) => onOpacityIconWheel(event)}
-      title={strings.glassAdjust}
-    >◐</button>
-    {#if showOpacityPanel}
-      <div class="opacity-popover">
-        <input
-          class="opacity-slider"
-          type="range"
-          min="0.35"
-          max="1"
-          step="0.01"
-          value={opacityDraft}
-          oninput={(event) => onOpacityInput(event)}
-          onwheel={(event) => onOpacityWheel(event)}
-        />
-        {#if showOpacityValue}
-          <div class="opacity-value">{Math.round(opacityDraft * 100)}%</div>
-        {/if}
-      </div>
-    {/if}
+    <button class="tool-btn" onclick={() => onToggleMouseInteraction()} title={strings.overlayClickThrough}>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zM7 9c0-2.76 2.24-5 5-5s5 2.24 5 5H7z"/></svg>
+    </button>
   </div>
 
-  <div class="tool-popover-anchor">
-    <button
-      class="tool-btn frost-trigger"
-      onclick={() => onToggleFrostPanel()}
-      onwheel={(event) => onFrostIconWheel(event)}
-      title={strings.frost}
-    >❆</button>
-    {#if showFrostPanel}
-      <div class="frost-popover">
-        <input
-          class="frost-slider"
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={frostDraft}
-          oninput={(event) => onFrostInput(event)}
-          onwheel={(event) => onFrostWheel(event)}
-        />
-        {#if showFrostValue}
-          <div class="frost-value">{Math.round(frostDraft * 100)}%</div>
-        {/if}
-      </div>
-    {/if}
+  <div class="tool-group">
+    <button class="tool-btn color-trigger" onclick={() => onTogglePalette()} title="Change color">🎨</button>
+    <button class="tool-btn text-color-trigger" onclick={() => onToggleTextColorPalette()} title={strings.textColor}>A</button>
+
+    <div class="tool-popover-anchor">
+      <button
+        class="tool-btn opacity-trigger"
+        onclick={() => onToggleOpacityPanel()}
+        onwheel={(event) => onOpacityIconWheel(event)}
+        title={strings.glassAdjust}
+      >◐</button>
+      {#if showOpacityPanel}
+        <div class="opacity-popover">
+          <input
+            class="opacity-slider"
+            type="range"
+            min="0.35"
+            max="1"
+            step="0.01"
+            value={opacityDraft}
+            oninput={(event) => onOpacityInput(event)}
+            onwheel={(event) => onOpacityWheel(event)}
+          />
+          {#if showOpacityValue}
+            <div class="opacity-value">{Math.round(opacityDraft * 100)}%</div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+
+    <div class="tool-popover-anchor">
+      <button
+        class="tool-btn frost-trigger"
+        onclick={() => onToggleFrostPanel()}
+        onwheel={(event) => onFrostIconWheel(event)}
+        title={strings.frost}
+      >❆</button>
+      {#if showFrostPanel}
+        <div class="frost-popover">
+          <input
+            class="frost-slider"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={frostDraft}
+            oninput={(event) => onFrostInput(event)}
+            onwheel={(event) => onFrostWheel(event)}
+          />
+          {#if showFrostValue}
+            <div class="frost-value">{Math.round(frostDraft * 100)}%</div>
+          {/if}
+        </div>
+      {/if}
+    </div>
   </div>
 
-  <button class="tool-btn" onclick={() => onToggleDone()} title={note?.isDone ? strings.markUndone : strings.markDone}>
-    {#if note?.isDone}
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2l-3.5-3.5 1.4-1.4 2.1 2.1 4.6-4.6 1.4 1.4-6 6z" />
-      </svg>
-    {:else}
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path
-          d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"
-        />
-      </svg>
-    {/if}
-  </button>
+  <div class="tool-group">
+    <button class="tool-btn" onclick={() => onToggleDone()} title={note?.isDone ? strings.markUndone : strings.markDone}>
+      {#if note?.isDone}
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2l-3.5-3.5 1.4-1.4 2.1 2.1 4.6-4.6 1.4 1.4-6 6z" />
+        </svg>
+      {:else}
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"
+          />
+        </svg>
+      {/if}
+    </button>
 
-  <button class="tool-btn" onclick={() => onToggleArchive()} title={note?.isArchived ? strings.unarchive : strings.archive}>
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/></svg>
-  </button>
+    <button class="tool-btn" onclick={() => onToggleArchive()} title={note?.isArchived ? strings.unarchive : strings.archive}>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"/></svg>
+    </button>
+  </div>
 
-  <button class="tool-btn" onclick={() => onUnpin()} title={strings.unpinNote}>
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zm-2-2h-4V4h4v6z"/></svg>
-  </button>
+  <div class="tool-group tool-group-danger">
+    <button class="tool-btn" onclick={() => onUnpin()} title={strings.unpinNote}>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zm-2-2h-4V4h4v6z"/></svg>
+    </button>
 
-  <button class="tool-btn danger" onclick={() => onMoveToTrash()} title={strings.delete}>
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-  </button>
+    <button class="tool-btn danger" onclick={() => onMoveToTrash()} title={strings.delete}>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+    </button>
+  </div>
 
   {#if showPalette}
     <div class="color-popover">
@@ -233,24 +227,24 @@
 <style>
   .toolbar {
     position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    min-height: 36px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    min-height: 40px;
     display: flex;
     align-items: center;
-    padding: 4px 8px;
+    padding: 6px 10px;
     opacity: 0;
     transition: opacity 0.2s;
-    gap: 2px;
+    gap: 4px;
     pointer-events: none;
     z-index: 2;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.86);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18);
+    border-radius: 12px;
+    background: color-mix(in srgb, white 78%, transparent);
+    border: 1px solid rgba(255, 255, 255, 0.52);
+    backdrop-filter: blur(10px) saturate(1.04);
+    -webkit-backdrop-filter: blur(10px) saturate(1.04);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
   }
 
   .toolbar-drag-pad {
@@ -258,13 +252,41 @@
     min-height: 28px;
   }
 
+  .tool-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding-left: 8px;
+    margin-left: 8px;
+    position: relative;
+  }
+
+  .tool-group::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 5px;
+    bottom: 5px;
+    width: 1px;
+    background: rgba(148, 163, 184, 0.28);
+  }
+
+  .tool-group-primary {
+    padding-left: 0;
+    margin-left: 0;
+  }
+
+  .tool-group-primary::before {
+    display: none;
+  }
+
   .toolbar-mask {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
-    height: 96px;
-    background: linear-gradient(to top, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.78) 45%, rgba(255, 255, 255, 0) 100%);
+    height: 108px;
+    background: linear-gradient(to top, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.68) 46%, rgba(255, 255, 255, 0) 100%);
     opacity: 0;
     transition: opacity 0.2s;
     pointer-events: none;
@@ -280,12 +302,21 @@
     opacity: 1;
   }
 
+  .toolbar.editing {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .toolbar-mask.editing {
+    opacity: 1;
+  }
+
   .tool-btn {
-    width: 24px;
-    height: 24px;
-    background: rgba(255, 255, 255, 0.52);
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.58);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 8px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -295,8 +326,25 @@
     font-size: 13px;
   }
 
+  .tool-btn-pill {
+    width: auto;
+    min-width: 76px;
+    padding: 0 10px;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f4c81;
+    background: color-mix(in srgb, #e0f2fe 74%, white);
+    border-color: color-mix(in srgb, #0f4c81 24%, rgba(15, 23, 42, 0.08));
+  }
+
+  .tool-btn-pill:hover {
+    background: color-mix(in srgb, #dbeafe 78%, white);
+    color: #0b3c67;
+  }
+
   .tool-btn:hover {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.9);
     color: #111827;
   }
 
@@ -305,13 +353,24 @@
   }
 
   .tool-btn svg {
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
     display: block;
+    flex: 0 0 auto;
   }
 
   .tool-btn.danger {
     color: #b91c1c;
+  }
+
+  .tool-group-danger .tool-btn {
+    background: rgba(255, 255, 255, 0.42);
+    color: #7c2d12;
+  }
+
+  .tool-group-danger .tool-btn:hover {
+    background: rgba(255, 255, 255, 0.82);
+    color: #991b1b;
   }
 
   .tool-popover-anchor {

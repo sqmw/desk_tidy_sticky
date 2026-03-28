@@ -6,7 +6,6 @@
   import { listen } from "@tauri-apps/api/event";
   import { page } from "$app/stores";
   import { getStrings } from "$lib/strings.js";
-  import BlockEditor from "$lib/components/note/BlockEditor.svelte";
   import NotePreview from "$lib/components/note/NotePreview.svelte";
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
   import NoteToolbar from "$lib/components/note/NoteToolbar.svelte";
@@ -24,12 +23,6 @@
     hexToRgba,
     toColorPickerHex,
   } from "$lib/note/note-theme.js";
-  import {
-    EDITOR_DISPLAY_MODE,
-    loadEditorDisplayMode,
-    nextEditorDisplayMode,
-    saveEditorDisplayMode,
-  } from "$lib/note/editor-display-mode.js";
   /** @type {any} */
   let note = $state(null);
   const noteId = $derived($page.params.id);
@@ -47,7 +40,6 @@
   let showCommandSuggestions = $state(false);
   let commandQuery = $state("");
   let commandActiveIndex = $state(0);
-  let editorDisplayMode = $state(EDITOR_DISPLAY_MODE.BLOCKS);
   let tagSuggestions = $state(/** @type {string[]} */ ([]));
   let opacityDraft = $state(DEFAULT_NOTE_OPACITY);
   let frostDraft = $state(DEFAULT_NOTE_FROST);
@@ -83,7 +75,6 @@
   const commandSuggestionItems = $derived(
     commandSuggestions.map((cmd) => ({ ...cmd, preview: getNoteCommandPreview(cmd) })),
   );
-  const isBlockEditor = $derived(editorDisplayMode === EDITOR_DISPLAY_MODE.BLOCKS);
 
   async function loadNote() {
     try {
@@ -220,14 +211,6 @@
     updateCommandSuggestions(target);
   }
 
-  /** @param {string} _nextText */
-  function handleBlockEditorChange(_nextText) {
-    clearTimeout(timeout);
-    timeout = setTimeout(save, 500);
-    showCommandSuggestions = false;
-    commandQuery = "";
-  }
-
   /** @param {ClipboardEvent} event */
   async function onEditorPaste(event) {
     const items = event.clipboardData?.items;
@@ -281,19 +264,6 @@
     await save();
     isEditing = false;
     showCommandSuggestions = false;
-  }
-
-  function toggleEditorLayoutMode() {
-    const next = nextEditorDisplayMode(editorDisplayMode);
-    editorDisplayMode = next;
-    saveEditorDisplayMode(next);
-    showCommandSuggestions = false;
-  }
-
-  function editorModeHint() {
-    const next = nextEditorDisplayMode(editorDisplayMode);
-    if (next === EDITOR_DISPLAY_MODE.BLOCKS) return strings.editorBlockMode;
-    return strings.editorSourceMode;
   }
 
   async function toggleMouseInteraction() {
@@ -825,8 +795,6 @@
       }),
     );
 
-    editorDisplayMode = loadEditorDisplayMode();
-
     loadLocale()
       .then(loadOverlayInteractionState)
       .then(loadNote)
@@ -873,21 +841,18 @@
     />
 
     {#if isEditing}
-      {#if isBlockEditor}
-        <BlockEditor bind:text noteId={note?.id || noteId} onTextChange={handleBlockEditorChange} />
-      {:else}
-        <SourceEditorPane
-          bind:text
-          bind:editorEl
-          {showCommandSuggestions}
-          {commandSuggestionItems}
-          {commandActiveIndex}
-          onInput={handleInput}
-          onPaste={onEditorPaste}
-          onKeydown={onEditorKeydown}
-          onApplyCommandSuggestion={applyCommandSuggestion}
-        />
-      {/if}
+      <SourceEditorPane
+        bind:text
+        bind:editorEl
+        placeholder={strings.noteEditorPlaceholder}
+        {showCommandSuggestions}
+        {commandSuggestionItems}
+        {commandActiveIndex}
+        onInput={handleInput}
+        onPaste={onEditorPaste}
+        onKeydown={onEditorKeydown}
+        onApplyCommandSuggestion={applyCommandSuggestion}
+      />
     {:else}
       <NotePreview html={renderedMarkdown} />
     {/if}
@@ -895,7 +860,6 @@
     <NoteToolbar
       {strings}
       {isEditing}
-      {isBlockEditor}
       note={note}
       showPalette={showPalette}
       showTextColorPalette={showTextColorPalette}
@@ -912,8 +876,6 @@
       noteColors={NOTE_COLORS}
       noteTextColors={NOTE_TEXT_COLORS}
       onToggleEdit={() => (isEditing ? exitEditMode() : enterEditMode())}
-      onToggleEditorLayoutMode={toggleEditorLayoutMode}
-      {editorModeHint}
       onToggleTopmost={toggleTopmost}
       onToggleMouseInteraction={toggleMouseInteraction}
       onTogglePalette={() => (showPalette = !showPalette)}
