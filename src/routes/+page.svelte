@@ -12,6 +12,7 @@
   import { getStrings } from "$lib/strings.js";
   import { matchNote } from "$lib/note-search.js";
   import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
+  import { hasQuadrantPriority } from "$lib/panel/note-priority.js";
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
   import { createDragReorder } from "$lib/panel/use-drag-reorder.js";
@@ -90,7 +91,9 @@
           return String(b.updatedAt).localeCompare(String(a.updatedAt));
         });
     } else if (viewMode === "quadrant") {
-      base = base.filter((n) => !n.isArchived && !n.isDeleted);
+      base = base.filter(
+        (n) => !n.isArchived && !n.isDeleted && hasQuadrantPriority(n.priority),
+      );
     } else if (viewMode === "archived") {
       base = base.filter((n) => n.isArchived && !n.isDeleted);
     } else {

@@ -18,6 +18,14 @@ export function normalizePriority(p) {
 
 /**
  * @param {number | undefined | null} p
+ * @returns {boolean}
+ */
+export function hasQuadrantPriority(p) {
+  return normalizePriority(p) != null;
+}
+
+/**
+ * @param {number | undefined | null} p
  * @returns {number | null}
  */
 export function nextPriority(p) {

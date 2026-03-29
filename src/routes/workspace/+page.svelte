@@ -7,6 +7,7 @@
   import { getStrings } from "$lib/strings.js";
   import { matchNote } from "$lib/note-search.js";
   import { renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
+  import { hasQuadrantPriority } from "$lib/panel/note-priority.js";
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
   import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
@@ -211,8 +212,13 @@
    * @param {string} mode
    */
   function notesByView(source, mode) {
-    if (mode === "active" || mode === "quadrant") {
+    if (mode === "active") {
       return source.filter((n) => !n.isArchived && !n.isDeleted);
+    }
+    if (mode === "quadrant") {
+      return source.filter(
+        (n) => !n.isArchived && !n.isDeleted && hasQuadrantPriority(n.priority),
+      );
     }
     if (mode === "todo") {
       return source.filter((n) => !n.isArchived && !n.isDeleted && !n.isDone);
@@ -313,10 +319,11 @@
 
   const noteViewCounts = $derived.by(() => {
     const activeNotes = notes.filter((n) => !n.isArchived && !n.isDeleted);
+    const quadrantNotes = activeNotes.filter((n) => hasQuadrantPriority(n.priority));
     return {
       [WORKSPACE_NOTE_VIEW_ACTIVE]: activeNotes.length,
       [WORKSPACE_NOTE_VIEW_TODO]: activeNotes.filter((n) => !n.isDone).length,
-      [WORKSPACE_NOTE_VIEW_QUADRANT]: activeNotes.length,
+      [WORKSPACE_NOTE_VIEW_QUADRANT]: quadrantNotes.length,
       [WORKSPACE_NOTE_VIEW_ARCHIVED]: notes.filter((n) => n.isArchived && !n.isDeleted).length,
       [WORKSPACE_NOTE_VIEW_TRASH]: notes.filter((n) => n.isDeleted).length,
     };

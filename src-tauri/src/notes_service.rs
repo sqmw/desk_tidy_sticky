@@ -1,8 +1,9 @@
+use crate::note_compat::flutter_legacy;
 use crate::notes::Note;
 use base64::Engine;
 use serde_json;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -96,23 +97,101 @@ fn notes_file() -> Result<PathBuf, String> {
     Ok(dir.join("notes.json"))
 }
 
+fn read_notes_from_path(path: &Path) -> Result<Vec<Note>, String> {
+    flutter_legacy::load_notes_best_effort(path)
+}
+
+fn write_notes_to_path(path: &Path, notes: &[Note]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let content = serde_json::to_string_pretty(notes).map_err(|e| e.to_string())?;
+    let temp_path = path.with_extension("json.tmp");
+    fs::write(&temp_path, content).map_err(|e| e.to_string())?;
+    if let Err(rename_err) = fs::rename(&temp_path, path) {
+        if path.exists() {
+            fs::remove_file(path).map_err(|remove_err| {
+                format!(
+                    "failed to replace notes file after rename error (rename: {}, remove: {})",
+                    rename_err, remove_err
+                )
+            })?;
+            fs::rename(&temp_path, path).map_err(|retry_err| {
+                format!(
+                    "failed to replace notes file after removing target (initial rename: {}, retry: {})",
+                    rename_err, retry_err
+                )
+            })?;
+        } else {
+            let _ = fs::remove_file(&temp_path);
+            return Err(rename_err.to_string());
+        }
+    }
+    Ok(())
+}
+
 fn load_notes_from_file() -> Result<Vec<Note>, String> {
     let path = notes_file()?;
-    if !path.exists() {
-        return Ok(vec![]);
+    let current_notes = if path.exists() {
+        match read_notes_from_path(&path) {
+            Ok(notes) => notes,
+            Err(err) => {
+                eprintln!(
+                    "[note_compat] failed to read current notes from {}: {}",
+                    path.display(),
+                    err
+                );
+                vec![]
+            }
+        }
+    } else {
+        vec![]
+    };
+
+    let legacy_paths = flutter_legacy::existing_legacy_notes_files(&path);
+    let mut merged_notes = current_notes.clone();
+    let mut touched = false;
+
+    for legacy_path in legacy_paths {
+        match flutter_legacy::load_legacy_notes(&legacy_path) {
+            Ok(legacy_notes) => {
+                let next = flutter_legacy::merge_with_current(&merged_notes, &legacy_notes);
+                if next.len() != merged_notes.len() {
+                    touched = true;
+                }
+                merged_notes = next;
+            }
+            Err(err) => {
+                eprintln!(
+                    "[note_compat] failed to load legacy notes from {}: {}",
+                    legacy_path.display(),
+                    err
+                );
+            }
+        }
     }
-    let content = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let notes: Vec<Note> = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-    Ok(notes)
+
+    let (deduped_notes, removed) = flutter_legacy::dedupe_notes(merged_notes);
+    if removed > 0 {
+        touched = true;
+    }
+
+    if touched {
+        if let Err(err) = write_notes_to_path(&path, &deduped_notes) {
+            eprintln!(
+                "[note_compat] failed to persist merged/deduped notes to {}: {}",
+                path.display(),
+                err
+            );
+        }
+    }
+
+    Ok(deduped_notes)
 }
 
 fn save_notes_to_file(notes: &[Note]) -> Result<(), String> {
     let path = notes_file()?;
-    let content = serde_json::to_string_pretty(notes).map_err(|e| e.to_string())?;
-    let temp_path = path.with_extension("json.tmp");
-    fs::write(&temp_path, content).map_err(|e| e.to_string())?;
-    fs::rename(&temp_path, &path).map_err(|e| e.to_string())?;
-    Ok(())
+    write_notes_to_path(&path, notes)
 }
 
 fn sort_notes(notes: &mut [Note], mode: NoteSortMode) {

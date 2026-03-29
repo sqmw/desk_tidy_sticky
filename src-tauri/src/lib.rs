@@ -1,5 +1,6 @@
 #[cfg(target_os = "macos")]
 mod macos_windows;
+mod note_compat;
 mod notes;
 mod notes_service;
 mod preferences;

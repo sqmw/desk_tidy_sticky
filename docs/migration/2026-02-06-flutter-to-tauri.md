@@ -5,6 +5,18 @@
 - 将 Flutter Windows Desktop 版本的“桌面贴纸 / 置顶置底 / 鼠标穿透(交互开关) / 托盘入口 / 快捷键”等关键能力，在当前 Tauri 版本中对齐。
 - 保留现有 Tauri 的数据结构与本地 `notes.json` 存储方式，并兼容旧 Dart 版本的数据迁移路径（见 `README.md`）。
 
+## 2026-03-29 更新
+
+- 笔记迁移不再只依赖手工复制。
+- 当前版本已增加 Flutter 旧版 `notes.json` 的自动导入兼容层：
+  - 读取当前 Tauri 笔记时，会额外扫描 Windows Flutter 旧路径
+  - 命中的旧版笔记会按 `id` 与当前笔记合并，当前 Tauri 笔记优先
+  - 旧路径读取失败只记日志，不影响当前 Tauri 笔记加载
+  - 合并后会回写到当前路径，后续读写仍只使用当前 Tauri 路径
+- 详细实现见：
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/migration/2026-03-29-flutter-notes-auto-import-compat.md`
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/migration/2026-03-29-flutter-notes-history-audit.md`
+
 ## 已完成对齐点（本次改动）
 
 ### 0) Logo / App Icon / Tray Icon 资源迁移

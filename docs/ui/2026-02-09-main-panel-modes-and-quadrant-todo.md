@@ -39,11 +39,14 @@
   - `src-tauri/src/lib.rs`
     - 新增命令 `update_note_priority`
 - 前端交互：
+ - 前端交互：
   - `src/lib/panel/use-note-commands.js`
     - 新增 `updatePriority(note, priority)`
   - `src/lib/components/panel/NotesSection.svelte`
     - 列表卡片新增 `Q1~Q4` 优先级按钮（点击循环）
     - 新增 `quadrant` 视图：四宫格按优先级分组展示
+  - `src/routes/+page.svelte`
+    - `quadrant` 视图仅展示已标记 Q1~Q4（priority 1..4）的便笺
 
 ### 4) 待办模式
 - 文件：`src/routes/+page.svelte`
