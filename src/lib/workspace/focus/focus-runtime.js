@@ -1,4 +1,11 @@
-import { ensureDayStats, normalizeFocusTask, timeToMinutes } from "$lib/workspace/focus/focus-model.js";
+import {
+  ensureDayStats,
+  FOCUS_TASK_MODE_TIME_WINDOW,
+  getDateKey,
+  getTaskTargetSeconds,
+  normalizeFocusTask,
+  timeToMinutes,
+} from "$lib/workspace/focus/focus-model.js";
 import { normalizeBreakReminderMode } from "$lib/workspace/focus/focus-break-reminder-mode.js";
 
 export const PHASE_FOCUS = "focus";
@@ -7,6 +14,14 @@ export const PHASE_LONG_BREAK = "longBreak";
 export const FOCUS_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7];
 export const BREAK_KIND_MINI = "mini";
 export const BREAK_KIND_LONG = "long";
+
+/**
+ * @param {number} effectiveSeconds
+ * @param {number} targetSeconds
+ */
+export function isTaskEffectiveTargetMet(effectiveSeconds, targetSeconds) {
+  return Math.max(0, Math.floor(Number(effectiveSeconds || 0))) >= Math.max(1, Math.floor(Number(targetSeconds || 0)));
+}
 
 /**
  * @param {unknown} config
@@ -123,6 +138,9 @@ export function removeTaskFromState(tasks, stats, taskId) {
       taskPomodoros: Object.fromEntries(
         Object.entries(day.taskPomodoros).filter(([id]) => id !== taskId),
       ),
+      taskEffectiveSeconds: Object.fromEntries(
+        Object.entries(day.taskEffectiveSeconds || {}).filter(([id]) => id !== taskId),
+      ),
     };
   }
   return { nextTasks, nextStats };
@@ -133,6 +151,8 @@ export function removeTaskFromState(tasks, stats, taskId) {
  * @param {string} taskId
  * @param {{
  * title?: string;
+ * taskMode?: "duration" | "timeWindow";
+ * targetSeconds?: number;
  * startTime?: string;
  * endTime?: string;
  * recurrence?: string;
@@ -159,11 +179,51 @@ export function updateTaskInState(tasks, taskId, patch) {
 
 /**
  * @param {Record<string, any>} stats
+ * @param {string} selectedTaskId
+ * @param {number} startTs
+ * @param {number} endTs
+ */
+export function applyFocusElapsedRange(stats, selectedTaskId, startTs, endTs) {
+  const safeStart = Math.max(0, Math.floor(Number(startTs || 0)));
+  const safeEnd = Math.max(0, Math.floor(Number(endTs || 0)));
+  if (safeEnd <= safeStart) return stats;
+  /** @type {Record<string, any>} */
+  let nextStats = { ...(stats && typeof stats === "object" ? stats : {}) };
+  let cursor = safeStart;
+  while (cursor < safeEnd) {
+    const cursorDate = new Date(cursor);
+    const dayStart = new Date(cursorDate.getFullYear(), cursorDate.getMonth(), cursorDate.getDate());
+    const nextDayStart = new Date(dayStart);
+    nextDayStart.setDate(dayStart.getDate() + 1);
+    const sliceEnd = Math.min(safeEnd, nextDayStart.getTime());
+    const elapsedSec = Math.max(0, Math.floor((sliceEnd - cursor) / 1000));
+    if (elapsedSec > 0) {
+      const dateKey = getDateKey(cursorDate);
+      const day = ensureDayStats(nextStats, dateKey);
+      const taskEffectiveSeconds = { ...(day.taskEffectiveSeconds || {}) };
+      if (selectedTaskId) {
+        taskEffectiveSeconds[selectedTaskId] = Number(taskEffectiveSeconds[selectedTaskId] || 0) + elapsedSec;
+      }
+      nextStats = {
+        ...nextStats,
+        [dateKey]: {
+          ...day,
+          focusSeconds: Number(day.focusSeconds || 0) + elapsedSec,
+          taskEffectiveSeconds,
+        },
+      };
+    }
+    cursor = sliceEnd;
+  }
+  return nextStats;
+}
+
+/**
+ * @param {Record<string, any>} stats
  * @param {string} todayKey
  * @param {string} selectedTaskId
- * @param {number} focusMinutes
  */
-export function applyFocusCompleted(stats, todayKey, selectedTaskId, focusMinutes) {
+export function applyFocusCompleted(stats, todayKey, selectedTaskId) {
   const day = ensureDayStats(stats, todayKey);
   const taskPomodoros = { ...day.taskPomodoros };
   if (selectedTaskId) {
@@ -173,7 +233,6 @@ export function applyFocusCompleted(stats, todayKey, selectedTaskId, focusMinute
     ...stats,
     [todayKey]: {
       ...day,
-      focusSeconds: Number(day.focusSeconds || 0) + focusMinutes * 60,
       pomodoros: Number(day.pomodoros || 0) + 1,
       taskPomodoros,
     },
@@ -184,6 +243,8 @@ export function applyFocusCompleted(stats, todayKey, selectedTaskId, focusMinute
  * @param {{
  * id?: string;
  * title: string;
+ * taskMode?: "duration" | "timeWindow";
+ * targetSeconds?: number;
  * startTime: string;
  * endTime: string;
  * recurrence: string;
@@ -194,6 +255,8 @@ export function buildFocusTaskFromDraft(draft) {
   return normalizeFocusTask({
     id: draft.id || `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     title: draft.title,
+    taskMode: draft.taskMode || "timeWindow",
+    targetSeconds: draft.targetSeconds,
     startTime: draft.startTime,
     endTime: draft.endTime,
     recurrence: draft.recurrence,
@@ -212,7 +275,18 @@ export function buildTodaySummary(todayTasks, todayStats) {
     (sum, task) => sum + Number(todayStats.taskPomodoros?.[task.id] || 0),
     0,
   );
-  const taskDistribution = todayTasks
+  const normalizedTasks = todayTasks.map((task) => {
+    const targetSeconds = getTaskTargetSeconds(task);
+    const effectiveSeconds = Number(todayStats.taskEffectiveSeconds?.[task.id] || 0);
+    return {
+      ...task,
+      targetSeconds,
+      effectiveSeconds,
+      completed: isTaskEffectiveTargetMet(effectiveSeconds, targetSeconds),
+    };
+  });
+  const taskDistribution = normalizedTasks
+    .filter((task) => String(task.taskMode || FOCUS_TASK_MODE_TIME_WINDOW) === FOCUS_TASK_MODE_TIME_WINDOW)
     .map((task) => ({
       id: task.id,
       title: task.title,
@@ -220,11 +294,16 @@ export function buildTodaySummary(todayTasks, todayStats) {
       endTime: task.endTime,
       startMinutes: timeToMinutes(task.startTime || "00:00"),
       endMinutes: timeToMinutes(task.endTime || "23:59"),
+      targetSeconds: task.targetSeconds,
+      effectiveSeconds: task.effectiveSeconds,
+      completed: task.completed,
+      progressPercent: Math.max(0, Math.min(100, Math.round((task.effectiveSeconds / Math.max(task.targetSeconds, 1)) * 100))),
       pomodoros: Number(todayStats.taskPomodoros?.[task.id] || 0),
     }))
     .sort((a, b) => a.startMinutes - b.startMinutes);
   return {
     taskCount: todayTasks.length,
+    completedCount: normalizedTasks.filter((task) => task.completed).length,
     donePomodoros,
     taskDistribution,
   };

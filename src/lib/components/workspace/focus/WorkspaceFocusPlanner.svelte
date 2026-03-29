@@ -3,9 +3,13 @@
 
   let {
     strings,
+    taskModeDuration = "duration",
+    taskModeTimeWindow = "timeWindow",
     recurrence,
     weekdays,
     draftTitle = $bindable(""),
+    draftTaskMode = $bindable("timeWindow"),
+    draftTargetMinutes = $bindable(120),
     draftStartTime = $bindable("09:00"),
     draftEndTime = $bindable("10:00"),
     draftRecurrence = $bindable("none"),
@@ -43,7 +47,7 @@
       {:else}
         <span>
           {strings.pomodoroTask || "Tasks"}: {todayStats.taskCount ?? tasks.length}
-          · 🍅 {todayStats.donePomodoros || 0}
+          · {strings.pomodoroTasksCompleted || "Tasks reached target"} {todayStats.completedCount || 0}
         </span>
       {/if}
       <button type="button" class="btn planner-settings-btn" onclick={() => onToggleSettings()}>
@@ -55,8 +59,25 @@
   </div>
   <div class="planner-form">
     <input class="field-title" type="text" placeholder={strings.pomodoroTaskTitle} bind:value={draftTitle} />
-    <input class="field-start" type="time" bind:value={draftStartTime} />
-    <input class="field-end" type="time" bind:value={draftEndTime} />
+    <select class="field-mode" bind:value={draftTaskMode}>
+      <option value={taskModeTimeWindow}>{strings.pomodoroTaskModeTimeWindow || "Time window"}</option>
+      <option value={taskModeDuration}>{strings.pomodoroTaskModeDuration || "Duration"}</option>
+    </select>
+    {#if draftTaskMode === taskModeDuration}
+      <input
+        class="field-target"
+        type="number"
+        min="1"
+        max="1440"
+        step="1"
+        placeholder={strings.pomodoroTaskTargetMinutes || "Target minutes"}
+        bind:value={draftTargetMinutes}
+      />
+      <div class="field-duration-hint">{strings.pomodoroTaskFlexibleSchedule || "Flexible schedule"}</div>
+    {:else}
+      <input class="field-start" type="time" bind:value={draftStartTime} />
+      <input class="field-end" type="time" bind:value={draftEndTime} />
+    {/if}
     <select class="field-recur" bind:value={draftRecurrence}>
       <option value={recurrence.NONE}>{strings.recurrenceNone}</option>
       <option value={recurrence.DAILY}>{strings.recurrenceDaily}</option>
@@ -91,6 +112,8 @@
       {#each tasks as task (task.id)}
         <WorkspaceFocusPlannerTaskItem
           {strings}
+          {taskModeDuration}
+          {taskModeTimeWindow}
           {recurrence}
           {weekdays}
           {task}
@@ -98,6 +121,8 @@
           runningTask={activeTaskRunning && selectedTaskId === task.id}
           activeProgress={activeTaskStarted && selectedTaskId === task.id ? activeTaskProgress : 0}
           donePomodoros={todayStats.taskPomodoros?.[task.id] || 0}
+          effectiveSeconds={todayStats.taskEffectiveSeconds?.[task.id] || 0}
+          targetSeconds={task.targetSeconds || 0}
           onStartTask={onStartTask}
           onToggleTask={onToggleTask}
           onRemoveTask={onRemoveTask}
@@ -156,9 +181,10 @@
   .planner-form {
     display: grid;
     grid-template-columns:
-      minmax(160px, 1.8fr)
-      minmax(88px, 0.95fr)
-      minmax(88px, 0.95fr)
+      minmax(160px, 1.7fr)
+      minmax(118px, 1fr)
+      minmax(96px, 0.92fr)
+      minmax(96px, 0.92fr)
       minmax(112px, 1fr)
       minmax(96px, max-content);
     gap: 6px;
@@ -194,6 +220,20 @@
 
   .field-add {
     min-width: 92px;
+  }
+
+  .field-duration-hint {
+    height: clamp(34px, 2.3vw, 40px);
+    border: 1px dashed var(--ws-border-soft, #d6e0ee);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--ws-card-bg, #fff) 88%, transparent);
+    color: var(--ws-muted, #64748b);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    white-space: nowrap;
   }
 
   .planner-settings-btn {

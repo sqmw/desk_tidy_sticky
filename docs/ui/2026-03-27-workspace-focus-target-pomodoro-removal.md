@@ -62,6 +62,11 @@
 2. `taskPomodoros` 保留，用于展示已经完成了多少次专注。
 3. 旧文档里关于“目标番茄数”“自动完成”的内容均已退役，不应再作为现行实现依据。
 
+## 后续演进入口
+1. 目标番茄数能力下线后，任务完成语义将进一步收敛到“有效时长模型”。
+2. 现行设计草案见：
+   - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/ui/2026-03-28-workspace-focus-effective-time-model.md`
+
 ## 回归验证
 1. 打开工作台 -> 专注 -> 专注任务规划。
 2. 确认新建任务表单不再出现目标番茄数字输入。

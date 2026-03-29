@@ -6,6 +6,8 @@
  * @typedef {Object} FocusTask
  * @property {string} id
  * @property {string} title
+ * @property {"duration" | "timeWindow"} taskMode
+ * @property {number} targetSeconds
  * @property {string} startTime
  * @property {string} endTime
  * @property {FocusRecurrence} recurrence
@@ -20,6 +22,7 @@
  * @property {number} pomodoros
  * @property {string[]} completedTaskIds
  * @property {Record<string, number>} taskPomodoros
+ * @property {Record<string, number>} taskEffectiveSeconds
  */
 
 /**
@@ -33,6 +36,9 @@ const RECURRENCE = {
   WORKDAY: "workday",
   CUSTOM: "custom",
 };
+
+export const FOCUS_TASK_MODE_DURATION = "duration";
+export const FOCUS_TASK_MODE_TIME_WINDOW = "timeWindow";
 
 /**
  * @param {number} n
@@ -95,6 +101,49 @@ export function timeToMinutes(timeText) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {"duration" | "timeWindow"}
+ */
+export function normalizeTaskMode(value) {
+  return value === FOCUS_TASK_MODE_DURATION ? FOCUS_TASK_MODE_DURATION : FOCUS_TASK_MODE_TIME_WINDOW;
+}
+
+/**
+ * @param {string} startTime
+ * @param {string} endTime
+ */
+export function getTimeWindowTargetSeconds(startTime, endTime) {
+  const startMinutes = timeToMinutes(startTime || "09:00");
+  const endMinutes = timeToMinutes(endTime || "10:00");
+  const safeMinutes = endMinutes > startMinutes ? (endMinutes - startMinutes) : 60;
+  return safeMinutes * 60;
+}
+
+/**
+ * @param {any} raw
+ * @param {"duration" | "timeWindow"} taskMode
+ * @param {string} startTime
+ * @param {string} endTime
+ */
+function normalizeTargetSeconds(raw, taskMode, startTime, endTime) {
+  if (taskMode === FOCUS_TASK_MODE_TIME_WINDOW) {
+    return getTimeWindowTargetSeconds(startTime, endTime);
+  }
+  return clampInt(raw?.targetSeconds, 2 * 60 * 60, 60, 24 * 60 * 60);
+}
+
+/**
+ * @param {FocusTask | any} task
+ */
+export function getTaskTargetSeconds(task) {
+  const taskMode = normalizeTaskMode(task?.taskMode);
+  if (taskMode === FOCUS_TASK_MODE_DURATION) {
+    return clampInt(task?.targetSeconds, 2 * 60 * 60, 60, 24 * 60 * 60);
+  }
+  return getTimeWindowTargetSeconds(task?.startTime || "09:00", task?.endTime || "10:00");
+}
+
+/**
  * @param {unknown} rec
  * @returns {FocusRecurrence}
  */
@@ -124,11 +173,16 @@ function normalizeWeekdays(days) {
  */
 export function normalizeFocusTask(raw) {
   const title = String(raw?.title ?? "").trim();
+  const taskMode = normalizeTaskMode(raw?.taskMode);
+  const startTime = normalizeTime(raw?.startTime, "09:00");
+  const endTime = normalizeTime(raw?.endTime, "10:00");
   return {
     id: String(raw?.id || `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
     title: title || "Untitled",
-    startTime: normalizeTime(raw?.startTime, "09:00"),
-    endTime: normalizeTime(raw?.endTime, "10:00"),
+    taskMode,
+    targetSeconds: normalizeTargetSeconds(raw, taskMode, startTime, endTime),
+    startTime,
+    endTime,
     recurrence: normalizeRecurrence(raw?.recurrence),
     weekdays: normalizeWeekdays(raw?.weekdays),
     enabled: raw?.enabled !== false,
@@ -158,11 +212,20 @@ function normalizeDayStats(raw) {
         Object.entries(raw.taskPomodoros).map(([k, v]) => [String(k), clampInt(v, 0, 0, 9999)]),
       )
     : {};
+  const taskEffectiveSeconds = typeof raw?.taskEffectiveSeconds === "object" && raw?.taskEffectiveSeconds
+    ? Object.fromEntries(
+        Object.entries(raw.taskEffectiveSeconds).map(([k, v]) => [
+          String(k),
+          clampInt(v, 0, 0, 86400 * 31),
+        ]),
+      )
+    : {};
   return {
     focusSeconds: clampInt(raw?.focusSeconds, 0, 0, 86400 * 31),
     pomodoros: clampInt(raw?.pomodoros, 0, 0, 9999),
     completedTaskIds: Array.from(new Set(completedTaskIds)),
     taskPomodoros,
+    taskEffectiveSeconds,
   };
 }
 
@@ -194,6 +257,7 @@ export function ensureDayStats(stats, dateKey) {
     pomodoros: 0,
     completedTaskIds: [],
     taskPomodoros: {},
+    taskEffectiveSeconds: {},
   };
 }
 

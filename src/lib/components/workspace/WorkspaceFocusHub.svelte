@@ -3,6 +3,8 @@
   import { listen } from "@tauri-apps/api/event";
   import { invoke } from "@tauri-apps/api/core";
   import {
+    FOCUS_TASK_MODE_DURATION,
+    FOCUS_TASK_MODE_TIME_WINDOW,
     RECURRENCE,
     clampInt,
     ensureDayStats,
@@ -41,6 +43,7 @@
     BREAK_KIND_LONG,
     BREAK_KIND_MINI,
     applyFocusCompleted,
+    applyFocusElapsedRange,
     buildFocusTaskFromDraft,
     buildTimerTaskOptions,
     buildTodaySummary,
@@ -111,6 +114,7 @@
   let focusDeadlineTs = $state(0);
   let running = $state(false);
   let hasStarted = $state(false);
+  let taskTimingActive = $state(false);
   let completedFocusCount = $state(0);
   let selectedTaskId = $state("");
   let lastSyncedSelectedTaskId = $state("");
@@ -119,8 +123,11 @@
   let showBreakPanel = $state(false);
   let showStats = $state(false);
   let nowTick = $state(Date.now());
+  let taskSessionStartedAtTs = $state(0);
 
   let draftTitle = $state("");
+  let draftTaskMode = $state(FOCUS_TASK_MODE_TIME_WINDOW);
+  let draftTargetMinutes = $state(120);
   let draftStartTime = $state("09:00");
   let draftEndTime = $state("10:00");
   let draftRecurrence = $state(RECURRENCE.NONE);
@@ -207,7 +214,32 @@
   const selectedTaskDonePomodoros = $derived(
     selectedTaskId ? Number(todayStats.taskPomodoros?.[selectedTaskId] || 0) : 0,
   );
-  const todayTaskDistribution = $derived(todaySummary.taskDistribution);
+  const liveTaskEffectiveSeconds = $derived.by(() => ({
+    ...(todayStats.taskEffectiveSeconds || {}),
+    ...(selectedTaskId && taskSessionStartedAtTs
+      ? {
+          [selectedTaskId]: Number(todayStats.taskEffectiveSeconds?.[selectedTaskId] || 0) +
+            getCurrentTaskLiveTodaySeconds(nowTick),
+        }
+      : {}),
+  }));
+  const liveCompletedTaskCount = $derived.by(() =>
+    plannerTasks.filter((task) =>
+      Number(liveTaskEffectiveSeconds?.[task.id] || 0) >= Math.max(1, Number(task.targetSeconds || 0))
+    ).length
+  );
+  const todayTaskDistribution = $derived.by(() =>
+    todaySummary.taskDistribution.map((task) => {
+      const effectiveSeconds = Number(liveTaskEffectiveSeconds?.[task.id] || task.effectiveSeconds || 0);
+      const targetSeconds = Math.max(1, Number(task.targetSeconds || 0));
+      return {
+        ...task,
+        effectiveSeconds,
+        completed: effectiveSeconds >= targetSeconds,
+        progressPercent: Math.max(0, Math.min(100, Math.round((effectiveSeconds / targetSeconds) * 100))),
+      };
+    })
+  );
   const currentMinutes = $derived.by(() => {
     const now = new Date(nowTick);
     return now.getHours() * 60 + now.getMinutes();
@@ -269,8 +301,14 @@
             : Date.now() + restoredFocusRemaining * 1000
         )
       : 0;
+    const restoredTaskTimingActive = Boolean(
+      restored.selectedTaskId &&
+      restored.taskSessionStartedAtTs > 0 &&
+      (restored.taskTimingActive || (restored.running && restoredFocusRemaining > 0)),
+    );
     running = restored.running && restoredFocusRemaining > 0;
-    hasStarted = restored.hasStarted && restoredFocusRemaining > 0;
+    hasStarted = Boolean(restored.selectedTaskId) && (restored.hasStarted || restoredTaskTimingActive);
+    taskTimingActive = restoredTaskTimingActive;
     completedFocusCount = restored.completedFocusCount;
     focusSinceBreakSec = Math.max(
       0,
@@ -293,6 +331,10 @@
         )
       : 0;
     skipUnlockedAfterPostpone = restored.skipUnlockedAfterPostpone;
+    selectedTaskId = String(restored.selectedTaskId || selectedTaskId || "");
+    taskSessionStartedAtTs = restoredTaskTimingActive
+      ? Math.max(0, Math.floor(Number(restored.taskSessionStartedAtTs || 0)))
+      : 0;
   }
 
   function shouldTickBreakReminderClock() {
@@ -321,16 +363,19 @@
   }
 
   function persistTimerRuntimeToCache() {
-    if (!hasStarted && !running) {
+    if (!hasStarted && !running && !taskTimingActive && !breakTimerActive) {
       clearFocusTimerRuntimeCache();
       return;
     }
     saveFocusTimerRuntimeCache({
       phase,
+      selectedTaskId,
       remainingSec,
       focusDeadlineTs,
       running,
       hasStarted,
+      taskTimingActive,
+      taskSessionStartedAtTs,
       completedFocusCount,
       focusSinceBreakSec,
       nextMiniBreakAtSec,
@@ -413,11 +458,98 @@
     remainingSec = getFocusDurationSec();
     focusDeadlineTs = 0;
     running = false;
-    hasStarted = false;
+    hasStarted = Boolean(selectedTaskId);
+    taskTimingActive = false;
+    taskSessionStartedAtTs = 0;
+  }
+
+  /**
+   * @param {number} [nowTs]
+   */
+  function getCurrentSessionSettleTs(nowTs = Date.now()) {
+    if (!taskSessionStartedAtTs) return 0;
+    if (running && focusDeadlineTs > 0) {
+      return Math.min(Math.max(0, Math.floor(nowTs)), focusDeadlineTs);
+    }
+    return Math.max(0, Math.floor(nowTs));
+  }
+
+  /**
+   * @param {Record<string, any>} [baseStats]
+   * @param {number} [settleUntilTs]
+   * @param {string} [taskId]
+   * @param {number} [sessionStartedAt]
+   */
+  function buildStatsWithCurrentTaskSession(
+    baseStats = stats,
+    settleUntilTs = Date.now(),
+    taskId = selectedTaskId,
+    sessionStartedAt = taskSessionStartedAtTs,
+  ) {
+    const safeStart = Math.max(0, Math.floor(Number(sessionStartedAt || 0)));
+    const safeEnd = Math.max(0, Math.floor(Number(settleUntilTs || 0)));
+    if (!safeStart || safeEnd <= safeStart) return baseStats;
+    return applyFocusElapsedRange(baseStats, taskId, safeStart, safeEnd);
+  }
+
+  /**
+   * @param {number} [settleUntilTs]
+   */
+  function flushCurrentTaskSession(settleUntilTs = Date.now()) {
+    const nextStats = buildStatsWithCurrentTaskSession(stats, settleUntilTs);
+    if (nextStats !== stats) {
+      emitStats(nextStats);
+    }
+    taskTimingActive = false;
+    taskSessionStartedAtTs = 0;
+    return nextStats;
+  }
+
+  /**
+   * @param {number} [settleUntilTs]
+   * @param {{ keepStarted?: boolean; clearSelection?: boolean; pauseFocusTimer?: boolean }} [options]
+   */
+  function pauseActiveTaskSession(
+    settleUntilTs = getCurrentSessionSettleTs(),
+    { keepStarted = Boolean(selectedTaskId), clearSelection = false, pauseFocusTimer = true } = {},
+  ) {
+    const nextStats = flushCurrentTaskSession(settleUntilTs);
+    if (pauseFocusTimer) {
+      remainingSec = focusDeadlineTs > 0 ? getRemainingFromDeadline(focusDeadlineTs) : remainingSec;
+      focusDeadlineTs = 0;
+      running = false;
+    }
+    hasStarted = keepStarted;
+    if (clearSelection) selectedTaskId = "";
+    return nextStats;
+  }
+
+  /**
+   * @param {number} [nowTs]
+   */
+  function getCurrentTaskLiveTodaySeconds(nowTs = nowTick) {
+    if (!selectedTaskId || !taskSessionStartedAtTs) return 0;
+    const settleTs = getCurrentSessionSettleTs(nowTs);
+    if (!settleTs || settleTs <= taskSessionStartedAtTs) return 0;
+    const nowDate = new Date(nowTs);
+    const todayStartTs = new Date(
+      nowDate.getFullYear(),
+      nowDate.getMonth(),
+      nowDate.getDate(),
+    ).getTime();
+    const effectiveStartTs = Math.max(todayStartTs, taskSessionStartedAtTs);
+    if (settleTs <= effectiveStartTs) return 0;
+    return Math.max(0, Math.floor((settleTs - effectiveStartTs) / 1000));
   }
 
   /** @param {"mini" | "long"} kind */
   function applyBreakNow(kind) {
+    if (taskTimingActive || running || taskSessionStartedAtTs > 0) {
+      pauseActiveTaskSession(getCurrentSessionSettleTs(), {
+        keepStarted: Boolean(selectedTaskId),
+        pauseFocusTimer: true,
+      });
+    }
     activeBreakKind = kind;
     lastBreakReminderAtSec = -1;
     breakRemainingSec = kind === BREAK_KIND_LONG ? breakPlanSec.longDurationSec : breakPlanSec.miniDurationSec;
@@ -658,19 +790,27 @@
       focusDeadlineTs = Date.now() + Math.max(0, remainingSec) * 1000;
       running = true;
       hasStarted = true;
+      if (selectedTaskId && !taskSessionStartedAtTs) {
+        taskSessionStartedAtTs = Date.now();
+        taskTimingActive = true;
+      }
       return;
     }
-    remainingSec = focusDeadlineTs > 0 ? getRemainingFromDeadline(focusDeadlineTs) : remainingSec;
-    focusDeadlineTs = 0;
-    running = false;
+    pauseActiveTaskSession(getCurrentSessionSettleTs(), {
+      keepStarted: Boolean(selectedTaskId),
+      pauseFocusTimer: true,
+    });
   }
 
   function resetCurrentPhase() {
+    flushCurrentTaskSession(getCurrentSessionSettleTs());
     phase = PHASE_FOCUS;
     focusDeadlineTs = 0;
     running = false;
     hasStarted = false;
+    taskTimingActive = false;
     remainingSec = getFocusDurationSec();
+    taskSessionStartedAtTs = 0;
   }
 
   /** @param {number} minutes */
@@ -692,22 +832,49 @@
 
   /** @param {string} taskId */
   function startTaskFocus(taskId) {
+    if (taskTimingActive || running || taskSessionStartedAtTs > 0) {
+      pauseActiveTaskSession(getCurrentSessionSettleTs(), {
+        keepStarted: false,
+        pauseFocusTimer: true,
+      });
+    }
     selectedTaskId = taskId;
     phase = PHASE_FOCUS;
     remainingSec = getFocusDurationSec();
     focusDeadlineTs = Date.now() + remainingSec * 1000;
     running = true;
     hasStarted = true;
+    taskTimingActive = true;
+    taskSessionStartedAtTs = Date.now();
   }
 
   /** @param {string} taskId */
   function selectTask(taskId) {
+    if (selectedTaskId === (taskId || "")) return;
+    if (taskTimingActive || running || taskSessionStartedAtTs > 0) {
+      pauseActiveTaskSession(getCurrentSessionSettleTs(), {
+        keepStarted: false,
+        pauseFocusTimer: true,
+      });
+    }
     selectedTaskId = taskId || "";
   }
 
   /** @param {string} taskId */
   function removeTask(taskId) {
-    const { nextTasks, nextStats } = removeTaskFromState(tasks, stats, taskId);
+    const statsBeforeRemove = selectedTaskId === taskId
+      ? pauseActiveTaskSession(getCurrentSessionSettleTs(), {
+          keepStarted: false,
+          clearSelection: true,
+          pauseFocusTimer: true,
+        })
+      : stats;
+    if (selectedTaskId === taskId) {
+      taskTimingActive = false;
+      hasStarted = false;
+      taskSessionStartedAtTs = 0;
+    }
+    const { nextTasks, nextStats } = removeTaskFromState(tasks, statsBeforeRemove, taskId);
     if (selectedTaskId === taskId) selectedTaskId = "";
     emitTasks(nextTasks);
     emitStats(nextStats);
@@ -730,8 +897,13 @@
   function addTask() {
     const title = draftTitle.trim();
     if (!title) return;
+    const safeTaskMode = draftTaskMode === FOCUS_TASK_MODE_DURATION
+      ? FOCUS_TASK_MODE_DURATION
+      : FOCUS_TASK_MODE_TIME_WINDOW;
     const next = buildFocusTaskFromDraft({
       title,
+      taskMode: safeTaskMode,
+      targetSeconds: clampInt(draftTargetMinutes, 120, 1, 24 * 60) * 60,
       startTime: draftStartTime,
       endTime: draftEndTime,
       recurrence: draftRecurrence,
@@ -739,6 +911,8 @@
     });
     emitTasks([...tasks, next]);
     draftTitle = "";
+    draftTaskMode = FOCUS_TASK_MODE_TIME_WINDOW;
+    draftTargetMinutes = 120;
     if (!selectedTaskId) selectedTaskId = next.id;
   }
 
@@ -1014,7 +1188,12 @@
   }
 
   function onFocusCompleted() {
-    emitStats(applyFocusCompleted(stats, todayKey, selectedTaskId, safeConfig.focusMinutes));
+    const settledAtTs = focusDeadlineTs > 0 ? focusDeadlineTs : Date.now();
+    let nextStats = buildStatsWithCurrentTaskSession(stats, settledAtTs);
+    nextStats = applyFocusCompleted(nextStats, getDateKey(new Date(settledAtTs)), selectedTaskId);
+    emitStats(nextStats);
+    taskTimingActive = false;
+    taskSessionStartedAtTs = 0;
   }
 
   $effect(() => {
@@ -1306,9 +1485,12 @@
   $effect(() => {
     if (!timerRuntimeRestored) return;
     const _phase = phase;
+    const _selectedTaskId = selectedTaskId;
     const _remaining = remainingSec;
     const _running = running;
     const _started = hasStarted;
+    const _taskTimingActive = taskTimingActive;
+    const _taskSessionStartedAtTs = taskSessionStartedAtTs;
     const _count = completedFocusCount;
     const _focusSinceBreak = focusSinceBreakSec;
     const _miniAt = nextMiniBreakAtSec;
@@ -1320,9 +1502,12 @@
     const _breakRemaining = breakRemainingSec;
     const _skipUnlocked = skipUnlockedAfterPostpone;
     void _phase;
+    void _selectedTaskId;
     void _remaining;
     void _running;
     void _started;
+    void _taskTimingActive;
+    void _taskSessionStartedAtTs;
     void _count;
     void _focusSinceBreak;
     void _miniAt;
@@ -1364,9 +1549,9 @@
       if (!running) return;
       const nextRemaining = focusDeadlineTs > 0 ? getRemainingFromDeadline(focusDeadlineTs) : remainingSec;
       if (nextRemaining <= 0) {
+        onFocusCompleted();
         remainingSec = 0;
         focusDeadlineTs = 0;
-        onFocusCompleted();
         completeFocusCycle();
         return;
       }
@@ -1424,9 +1609,13 @@
     <div class="focus-slot planner-slot">
       <WorkspaceFocusPlanner
         {strings}
+        taskModeDuration={FOCUS_TASK_MODE_DURATION}
+        taskModeTimeWindow={FOCUS_TASK_MODE_TIME_WINDOW}
         recurrence={RECURRENCE}
         weekdays={FOCUS_WEEKDAYS}
         bind:draftTitle
+        bind:draftTaskMode
+        bind:draftTargetMinutes
         bind:draftStartTime
         bind:draftEndTime
         bind:draftRecurrence
@@ -1435,7 +1624,7 @@
         showSettings={showConfig}
         selectedTaskId={selectedTaskId}
         activeTaskStarted={hasStarted}
-        activeTaskRunning={running}
+        activeTaskRunning={taskTimingActive}
         activeTaskProgress={Math.round(
           ((getFocusDurationSec() - remainingSec) / Math.max(getFocusDurationSec(), 1)) * 100,
         )}
@@ -1443,8 +1632,10 @@
         todayTaskCount={todayTasks.length}
         todayStats={{
           taskCount: plannerTasks.length,
+          completedCount: liveCompletedTaskCount,
           donePomodoros: plannerDonePomodoros,
           taskPomodoros: todayStats.taskPomodoros,
+          taskEffectiveSeconds: liveTaskEffectiveSeconds,
         }}
         onAddTask={addTask}
         onToggleSettings={() => (showConfig ? (showConfig = false) : openTimerSettings())}
@@ -1492,6 +1683,7 @@
         todayFocusMinutes={Math.round((todayStats.focusSeconds || 0) / 60)}
         todayPomodoros={todayStats.pomodoros || 0}
         todayTaskCount={todaySummary.taskCount}
+        todayCompletedTaskCount={liveCompletedTaskCount}
         {weekFocusMinutes}
         {weekPomodoros}
         {weekAverageMinutes}

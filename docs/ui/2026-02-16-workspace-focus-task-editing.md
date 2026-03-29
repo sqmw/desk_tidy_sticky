@@ -16,14 +16,17 @@
 
 ## 2026-03-27 状态更新
 - `目标番茄数` 已从专注任务模型中移除。
-- 当前编辑态只保留：
+- 当前编辑态已扩展为：
   - 标题
-  - 开始时间
-  - 结束时间
+  - 任务类型（`时长型 / 时间窗`）
+  - 目标分钟数（仅 `时长型`）
+  - 开始时间（仅 `时间窗`）
+  - 结束时间（仅 `时间窗`）
   - 重复规则
   - 自定义星期
 - 现行实现说明请参考：
   - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/ui/2026-03-27-workspace-focus-target-pomodoro-removal.md`
+  - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/ui/2026-03-28-workspace-focus-effective-time-model.md`
 
 ## 2026-03-27 状态更新（二）：已开始任务显式高亮
 - 判定：`设计收敛`
@@ -32,22 +35,27 @@
   - 旧版 `WorkspaceFocusPlannerTaskItem` 没有消费这些运行态，所以用户只能从顶部计时器判断哪条任务正在运行。
 
 ### 行为调整
-1. 任务点击 `开始` 后，该任务行会进入 `已开始` 状态。
-2. `已开始` 状态会在任务标题后展示状态胶囊。
+1. 任务点击 `开始` 后，该任务行会进入运行态高亮。
+2. 不再额外显示 `已开始` 状态胶囊，避免与行内进度底纹形成重复表达。
 3. 任务行背景加入横向进度底纹，直接映射当前番茄倒计时进度。
 4. 当前任务的主按钮改为运行态按钮：
    - 运行中：`暂停`
    - 已暂停：`继续`
    - 未开始：`开始`
 5. 顶部计时卡不再提供 `暂停/重置`，任务行成为唯一运行控制入口。
+6. 任务行新增 `已累计 xx:xx / 目标 xx:xx`，承接“任务有效时长模型”，直接显示当天已经投入了多少有效时间。
+7. 当 `已累计 >= 目标` 时，任务行会进入 `已达标` 状态；这个状态以有效时长为准，不再以 `🍅` 次数为准。
+8. 开始某个任务前，如果已经有其他任务处于运行态，旧任务会先被结算并暂停，不允许并行累计。
+9. 休息控制到点后，当前任务会先结算本次 session，再进入暂停态；休息结束不会自动恢复。
 
 ### 代码落点
 - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
-  - 将 `selectedTaskId / hasStarted / running / 当前进度百分比` 传递到 Planner。
+  - 将 `selectedTaskId / hasStarted / taskTimingActive / 当前进度百分比` 传递到 Planner。
+  - 任务有效时长的暂停/切换/休息打断，都统一在 Hub 内结算并落入 `taskEffectiveSeconds`。
 - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusPlanner.svelte`
   - 将“当前运行任务”状态映射到对应任务行。
 - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusPlannerTaskItem.svelte`
-  - 渲染 `已开始` 状态标签与进度底纹。
+  - 渲染运行态进度底纹，并移除重复的 `已开始` 状态标签。
 
 ## 代码变更
 - `src/lib/components/workspace/focus/WorkspaceFocusPlannerTaskItem.svelte`

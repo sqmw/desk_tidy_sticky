@@ -217,15 +217,26 @@
     clearManualResizeState();
   });
 
-  /** @param {{ isOverdue: boolean; minutesLeft: number; started?: boolean; minutesUntilStart?: number }} item */
+  /**
+   * @param {number} totalSeconds
+   */
+  function formatMinutesSummary(totalSeconds) {
+    return `${Math.max(0, Math.round(Number(totalSeconds || 0) / 60))}m`;
+  }
+
+  /** @param {{ completed?: boolean; isOverdue: boolean; minutesLeft: number; started?: boolean; minutesUntilStart?: number; effectiveSeconds?: number; targetSeconds?: number }} item */
   function deadlineLabel(item) {
+    if (item.completed) {
+      return `${strings.pomodoroTaskElapsed || "Elapsed"} ${formatMinutesSummary(Number(item.effectiveSeconds || 0))} / ${formatMinutesSummary(Number(item.targetSeconds || 0))}`;
+    }
     if (item.isOverdue) return `${strings.workspaceDeadlineOverdue} ${Math.abs(item.minutesLeft)}m`;
     if (!item.started) return `${strings.workspaceDeadlineStartsIn} ${Math.max(0, item.minutesUntilStart ?? 0)}m`;
     return `${strings.workspaceDeadlineDueIn} ${Math.max(0, item.minutesLeft)}m`;
   }
 
-  /** @param {{ isOverdue: boolean; started?: boolean }} item */
+  /** @param {{ completed?: boolean; isOverdue: boolean; started?: boolean }} item */
   function deadlineStateLabel(item) {
+    if (item.completed) return strings.workspaceDeadlineStateCompleted || strings.pomodoroTaskCompleted || "Completed";
     if (item.isOverdue) return strings.workspaceDeadlineStateOverdue || strings.workspaceDeadlineOverdue;
     if (!item.started) return strings.workspaceDeadlineStateUpcoming || strings.workspaceDeadlineStartsIn;
     return strings.workspaceDeadlineStateRunning || strings.workspaceDeadlineDueIn;
@@ -433,6 +444,7 @@
                   tabindex="0"
                   class="deadline-item"
                   class:overdue={item.isOverdue}
+                  class:completed={item.completed}
                   onclick={() => onDeadlineAction(item.id)}
                   onkeydown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
@@ -443,7 +455,7 @@
                 >
                   <div class="deadline-head">
                     <div class="deadline-title">{item.title}</div>
-                    <span class="deadline-state" class:overdue={item.isOverdue}>
+                    <span class="deadline-state" class:overdue={item.isOverdue} class:completed={item.completed}>
                       {#if item.isOverdue}
                         <span class="deadline-alert-dot" aria-hidden="true"></span>
                       {/if}
@@ -455,6 +467,7 @@
                     <span>{deadlineLabel(item)}</span>
                   </div>
                   <div class="deadline-progress-row">
+                    <span>{strings.pomodoroTaskElapsed || "Elapsed"} {formatMinutesSummary(item.effectiveSeconds)} / {formatMinutesSummary(item.targetSeconds)}</span>
                     <span>🍅 {item.donePomodoros}</span>
                   </div>
                   <div class="deadline-actions">
@@ -1094,6 +1107,12 @@
     box-shadow: inset 0 0 0 1px color-mix(in srgb, #ef4444 24%, transparent);
   }
 
+  .deadline-item.completed {
+    border-color: color-mix(in srgb, #22c55e 40%, var(--ws-border-soft, #d9e2ef));
+    background: color-mix(in srgb, #22c55e 9%, var(--ws-btn-bg, #fbfdff));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, #22c55e 18%, transparent);
+  }
+
   .deadline-title {
     font-size: 12px;
     font-weight: 700;
@@ -1128,6 +1147,12 @@
     color: #b91c1c;
     border-color: color-mix(in srgb, #ef4444 55%, var(--ws-border-soft, #d9e2ef));
     background: color-mix(in srgb, #ef4444 12%, var(--ws-card-bg, #fdfefe));
+  }
+
+  .deadline-state.completed {
+    color: #166534;
+    border-color: color-mix(in srgb, #22c55e 52%, var(--ws-border-soft, #d9e2ef));
+    background: color-mix(in srgb, #dcfce7 84%, var(--ws-card-bg, #fdfefe));
   }
 
   .deadline-alert-dot {

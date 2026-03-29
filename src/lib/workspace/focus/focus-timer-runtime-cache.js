@@ -28,9 +28,12 @@ function normalizeRuntime(raw) {
   const activeBreakKind = String(obj.activeBreakKind || "");
   return {
     phase,
+    selectedTaskId: String(obj.selectedTaskId || ""),
     remainingSec: Math.max(0, Math.floor(safeNumber(obj.remainingSec, 25 * 60))),
     running: safeBool(obj.running, false),
     hasStarted: safeBool(obj.hasStarted, false),
+    taskTimingActive: safeBool(obj.taskTimingActive, false),
+    taskSessionStartedAtTs: Math.max(0, Math.floor(safeNumber(obj.taskSessionStartedAtTs, 0))),
     completedFocusCount: Math.max(0, Math.floor(safeNumber(obj.completedFocusCount, 0))),
     focusSinceBreakSec: Math.max(0, Math.floor(safeNumber(obj.focusSinceBreakSec, 0))),
     nextMiniBreakAtSec: Math.max(0, Math.floor(safeNumber(obj.nextMiniBreakAtSec, 10 * 60))),

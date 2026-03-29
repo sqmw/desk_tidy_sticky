@@ -6,6 +6,7 @@
     todayFocusMinutes = 0,
     todayPomodoros = 0,
     todayTaskCount = 0,
+    todayCompletedTaskCount = 0,
     weekFocusMinutes = 0,
     weekPomodoros = 0,
     weekAverageMinutes = 0,
@@ -37,8 +38,8 @@
     <strong>{weekPomodoros}</strong>
   </div>
   <div class="stat">
-    <span>{strings.pomodoroTask || "Tasks"}</span>
-    <strong>{todayTaskCount}</strong>
+    <span>{strings.pomodoroTasksCompleted || "Tasks reached target"}</span>
+    <strong>{todayCompletedTaskCount} / {todayTaskCount}</strong>
   </div>
   <div class="stat">
     <span>{strings.pomodoroStreakDays}</span>
