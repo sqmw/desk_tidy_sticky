@@ -1,6 +1,6 @@
 # Desk Tidy Sticky
 
-> 📝 **Minimal sticky notes for Windows** — capture ideas fast, never lose inspiration
+> 📝 **Cross-platform minimal multifunction sticky notes** — capture ideas fast, never lose inspiration
 
 [🇨🇳 中文](README.md) | **🇬🇧 English**
 
