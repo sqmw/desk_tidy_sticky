@@ -23,6 +23,7 @@
     openEdit,
     togglePin,
     toggleZOrder,
+    toggleWallpaperLayer,
     toggleDone,
     updatePriority,
     createVerticalDragStartHandler,
@@ -195,6 +196,15 @@
                         {@render iconLayerBottom()}
                       {/if}
                     </button>
+                    <button
+                      type="button"
+                      class="action-btn wallpaper-toggle"
+                      class:active={note.isWallpaper}
+                      title={note.isWallpaper ? strings.pinToDesktopLayer : strings.pinToWallpaper}
+                      onclick={() => toggleWallpaperLayer(note)}
+                    >
+                      {@render iconWallpaperLayer()}
+                    </button>
                   {/if}
                 {/if}
                 <button
@@ -351,6 +361,14 @@
     <rect x="5" y="5" width="14" height="4" rx="1.3"></rect>
     <path d="M12 19v-7"></path>
     <path d="M9 14.2 12 11.2l3 3"></path>
+  </svg>
+{/snippet}
+
+{#snippet iconWallpaperLayer()}
+  <svg class="zorder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+    <rect x="4.5" y="5" width="15" height="10" rx="2"></rect>
+    <path d="M7 13l2.8-2.8 2.8 2.8 2.6-2.6 2.1 2.1"></path>
+    <path d="M6 19h12"></path>
   </svg>
 {/snippet}
 
@@ -580,6 +598,12 @@
 
   .action-btn.zorder-toggle.active {
     color: #0f4c81;
+  }
+
+  .action-btn.wallpaper-toggle.active {
+    color: #0f4c81;
+    background: #eef6ff;
+    border-color: #c8dbf3;
   }
 
   .action-btn.priority-btn {

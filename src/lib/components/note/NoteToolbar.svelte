@@ -19,6 +19,7 @@
     noteTextColors = [],
     onToggleEdit = () => {},
     onToggleTopmost = () => {},
+    onToggleWallpaper = () => {},
     onToggleMouseInteraction = () => {},
     onTogglePalette = () => {},
     onToggleTextColorPalette = () => {},
@@ -82,6 +83,21 @@
         </svg>
       {/if}
     </button>
+
+    {#if note?.isPinned}
+      <button
+        class="tool-btn"
+        class:active={!!note?.isWallpaper}
+        onclick={() => onToggleWallpaper()}
+        title={note?.isWallpaper ? strings.pinToDesktopLayer : strings.pinToWallpaper}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4.5" y="5" width="15" height="10" rx="2"></rect>
+          <path d="M7 13l2.8-2.8 2.8 2.8 2.6-2.6 2.1 2.1"></path>
+          <path d="M6 19h12"></path>
+        </svg>
+      </button>
+    {/if}
 
     <button class="tool-btn" onclick={() => onToggleMouseInteraction()} title={strings.overlayClickThrough}>
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zM7 9c0-2.76 2.24-5 5-5s5 2.24 5 5H7z"/></svg>

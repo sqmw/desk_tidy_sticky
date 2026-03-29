@@ -19,7 +19,6 @@
     selectedTaskId = "",
     activeTaskStarted = false,
     activeTaskRunning = false,
-    activeTaskProgress = 0,
     showingAllTasks = false,
     todayTaskCount = 0,
     todayStats,
@@ -119,7 +118,6 @@
           {task}
           startedTask={activeTaskStarted && selectedTaskId === task.id}
           runningTask={activeTaskRunning && selectedTaskId === task.id}
-          activeProgress={activeTaskStarted && selectedTaskId === task.id ? activeTaskProgress : 0}
           donePomodoros={todayStats.taskPomodoros?.[task.id] || 0}
           effectiveSeconds={todayStats.taskEffectiveSeconds?.[task.id] || 0}
           targetSeconds={task.targetSeconds || 0}

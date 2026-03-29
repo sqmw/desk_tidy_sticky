@@ -29,19 +29,22 @@
   - Windows 端优先使用 `.ico`（`src-tauri/icons/icon.ico`）作为 Tray icon，避免 PNG 在托盘缩放/alpha 处理异常
   - `src-tauri/Cargo.toml` 启用 `tauri` 的 `image-ico` feature 用于从 ico bytes 加载 Image
 
-### 1) “置顶 vs 桌面底层”与窗口行为对齐
+### 1) “置顶 vs 桌面层”与窗口行为对齐
 
 - 每个置顶便笺使用独立窗口（label：`note-{id}`）。
 - `note.isAlwaysOnTop = true`：
   - 窗口 `AlwaysOnTop=true`
   - 从桌面底层分离（`unpin_window_from_desktop`）
-- `note.isAlwaysOnTop = false`：
+- `note.isAlwaysOnTop = false` 且 `note.isWallpaper = false`：
   - 窗口 `AlwaysOnTop=false`
-  - 自动附着到 WorkerW（`pin_window_to_desktop`），达到“桌面底层”贴纸效果
+  - 附着到桌面层（图标上层）以保持可见性
+- `note.isWallpaper = true`（Windows）：
+  - 附着到 WorkerW 背后（壁纸层），位于桌面图标下层
+  - 默认强制鼠标穿透（壁纸层不可交互）
 
 对应实现：
 - 前端：`src/routes/note/[id]/+page.svelte`
-- 后端：`src-tauri/src/windows.rs`（WorkerW attach/detach）
+- 后端：`src-tauri/src/windows.rs`（WorkerW attach/detach + wallpaper WorkerW）
 
 ### 2) 鼠标交互开关（Click-through / 输入穿透）
 

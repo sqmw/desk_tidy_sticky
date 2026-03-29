@@ -37,7 +37,7 @@
 ### 行为调整
 1. 任务点击 `开始` 后，该任务行会进入运行态高亮。
 2. 不再额外显示 `已开始` 状态胶囊，避免与行内进度底纹形成重复表达。
-3. 任务行背景加入横向进度底纹，直接映射当前番茄倒计时进度。
+3. 任务行背景加入横向进度底纹，直接映射 `已累计 / 目标` 的完成进度。
 4. 当前任务的主按钮改为运行态按钮：
    - 运行中：`暂停`
    - 已暂停：`继续`
@@ -50,7 +50,7 @@
 
 ### 代码落点
 - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
-  - 将 `selectedTaskId / hasStarted / taskTimingActive / 当前进度百分比` 传递到 Planner。
+  - 将 `selectedTaskId / hasStarted / taskTimingActive` 传递到 Planner。
   - 任务有效时长的暂停/切换/休息打断，都统一在 Hub 内结算并落入 `taskEffectiveSeconds`。
 - `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusPlanner.svelte`
   - 将“当前运行任务”状态映射到对应任务行。

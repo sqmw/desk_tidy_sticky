@@ -12,6 +12,42 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 static mut WORKER_W: HWND = HWND(0 as *mut c_void);
+static mut WALLPAPER_WORKER_W: HWND = HWND(0 as *mut c_void);
+
+fn spawn_worker_w() -> Result<(), String> {
+    unsafe {
+        let progman =
+            FindWindowW(windows::core::w!("Progman"), PCWSTR::null()).map_err(|e| e.to_string())?;
+
+        if progman.0.is_null() {
+            return Err("Progman not found".to_string());
+        }
+
+        // Ask Progman to spawn WorkerW.
+        let mut result: usize = 0;
+        let _ = SendMessageTimeoutW(
+            progman,
+            0x052C,
+            WPARAM(0),
+            LPARAM(0),
+            SMTO_NORMAL,
+            1000,
+            Some(&mut result as *mut _ as *mut usize),
+        );
+
+        // Some systems only spawn the sibling WorkerW with lParam=1.
+        let _ = SendMessageTimeoutW(
+            progman,
+            0x052C,
+            WPARAM(0),
+            LPARAM(1),
+            SMTO_NORMAL,
+            1000,
+            Some(&mut result as *mut _ as *mut usize),
+        );
+    }
+    Ok(())
+}
 
 fn set_parent_checked(hwnd: HWND, expected_parent: HWND, phase: &str) -> Result<(), String> {
     unsafe {
@@ -45,37 +81,8 @@ fn force_bottom_immediately(hwnd: HWND) {
 }
 
 pub fn init_worker_w() -> Result<(), String> {
+    spawn_worker_w()?;
     unsafe {
-        let progman =
-            FindWindowW(windows::core::w!("Progman"), PCWSTR::null()).map_err(|e| e.to_string())?;
-
-        if progman.0.is_null() {
-            return Err("Progman not found".to_string());
-        }
-
-        // Ask Progman to spawn WorkerW.
-        let mut result: usize = 0;
-        let _ = SendMessageTimeoutW(
-            progman,
-            0x052C,
-            WPARAM(0),
-            LPARAM(0),
-            SMTO_NORMAL,
-            1000,
-            Some(&mut result as *mut _ as *mut usize),
-        );
-
-        // Some systems only spawn the sibling WorkerW with lParam=1.
-        let _ = SendMessageTimeoutW(
-            progman,
-            0x052C,
-            WPARAM(0),
-            LPARAM(1),
-            SMTO_NORMAL,
-            1000,
-            Some(&mut result as *mut _ as *mut usize),
-        );
-
         let mut worker_w_candidate = HWND(0 as *mut c_void);
 
         unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -144,6 +151,148 @@ pub fn init_worker_w() -> Result<(), String> {
         WORKER_W = worker_w_candidate;
         Ok(())
     }
+}
+
+fn find_wallpaper_worker_w() -> HWND {
+    let mut worker_w_candidate = HWND(0 as *mut c_void);
+
+    unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let shell_dll = match FindWindowExW(
+            hwnd,
+            HWND(0 as *mut c_void),
+            windows::core::w!("SHELLDLL_DefView"),
+            PCWSTR::null(),
+        ) {
+            Ok(v) => v,
+            Err(_) => return BOOL(1),
+        };
+
+        if shell_dll.0.is_null() {
+            return BOOL(1);
+        }
+
+        if let Ok(next_worker) = FindWindowExW(
+            HWND(0 as *mut c_void),
+            hwnd,
+            windows::core::w!("WorkerW"),
+            PCWSTR::null(),
+        ) {
+            if !next_worker.0.is_null() {
+                *(lparam.0 as *mut HWND) = next_worker;
+                return BOOL(0);
+            }
+        }
+
+        BOOL(1)
+    }
+
+    unsafe {
+        let _ = EnumWindows(
+            Some(enum_windows_proc),
+            LPARAM(&mut worker_w_candidate as *mut _ as isize),
+        );
+    }
+
+    if !worker_w_candidate.0.is_null() {
+        return worker_w_candidate;
+    }
+
+    let mut fallback = HWND(0 as *mut c_void);
+
+    unsafe extern "system" fn enum_workerw_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
+        let mut class_name = [0u16; 32];
+        let len = windows::Win32::UI::WindowsAndMessaging::GetClassNameW(hwnd, &mut class_name);
+        if len == 0 {
+            return BOOL(1);
+        }
+        let class_name = String::from_utf16_lossy(&class_name[..len as usize]);
+        if class_name != "WorkerW" {
+            return BOOL(1);
+        }
+
+        let shell_dll = match FindWindowExW(
+            hwnd,
+            HWND(0 as *mut c_void),
+            windows::core::w!("SHELLDLL_DefView"),
+            PCWSTR::null(),
+        ) {
+            Ok(v) => v,
+            Err(_) => return BOOL(1),
+        };
+
+        if !shell_dll.0.is_null() {
+            return BOOL(1);
+        }
+
+        *(lparam.0 as *mut HWND) = hwnd;
+        BOOL(0)
+    }
+
+    unsafe {
+        let _ = EnumWindows(
+            Some(enum_workerw_proc),
+            LPARAM(&mut fallback as *mut _ as isize),
+        );
+    }
+
+    fallback
+}
+
+pub fn init_wallpaper_worker_w() -> Result<(), String> {
+    spawn_worker_w()?;
+    let worker_w_candidate = find_wallpaper_worker_w();
+    if worker_w_candidate.0.is_null() {
+        return Err("Wallpaper WorkerW behind icons not found".to_string());
+    }
+    unsafe {
+        WALLPAPER_WORKER_W = worker_w_candidate;
+    }
+    Ok(())
+}
+
+pub fn attach_to_wallpaper_worker_w(hwnd_isize: isize) -> Result<(), String> {
+    let hwnd = HWND(hwnd_isize as *mut c_void);
+    unsafe {
+        if hwnd.0.is_null() || !IsWindow(hwnd).as_bool() {
+            return Err("attach_to_wallpaper_worker_w target hwnd invalid".to_string());
+        }
+
+        if WALLPAPER_WORKER_W.0.is_null() || !IsWindow(WALLPAPER_WORKER_W).as_bool() {
+            if let Err(err) = init_wallpaper_worker_w() {
+                eprintln!("init_wallpaper_worker_w failed: {}", err);
+                return attach_to_worker_w(hwnd_isize);
+            }
+        }
+
+        let attached = match set_parent_checked(hwnd, WALLPAPER_WORKER_W, "attach_wallpaper") {
+            Ok(_) => true,
+            Err(first_err) => {
+                init_wallpaper_worker_w()?;
+                if WALLPAPER_WORKER_W.0.is_null()
+                    || !IsWindow(WALLPAPER_WORKER_W).as_bool()
+                {
+                    false
+                } else if let Err(second_err) =
+                    set_parent_checked(hwnd, WALLPAPER_WORKER_W, "attach_wallpaper_retry")
+                {
+                    eprintln!(
+                        "attach_to_wallpaper_worker_w failed after retry: first={}, second={}",
+                        first_err, second_err
+                    );
+                    false
+                } else {
+                    true
+                }
+            }
+        };
+
+        if !attached {
+            return attach_to_worker_w(hwnd_isize);
+        }
+    }
+
+    force_bottom_immediately(hwnd);
+    Ok(())
 }
 
 pub fn attach_to_worker_w(hwnd_isize: isize) -> Result<(), String> {

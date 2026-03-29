@@ -99,6 +99,21 @@ export function createNoteCommands(deps) {
   }
 
   /** @param {any} note */
+  async function toggleWallpaperLayer(note) {
+    try {
+      deps.suppressNotesReload?.(300);
+      const next = await deps.invoke("toggle_wallpaper_layer_and_apply", {
+        id: note.id,
+        sortMode: deps.getSortMode(),
+      });
+      deps.setNotes(next);
+      await deps.syncWindows();
+    } catch (e) {
+      console.error("toggleWallpaperLayer", e);
+    }
+  }
+
+  /** @param {any} note */
   async function toggleDone(note) {
     try {
       await deps.invoke("toggle_done", { id: note.id, sortMode: deps.getSortMode() });
@@ -234,6 +249,7 @@ export function createNoteCommands(deps) {
     saveNote,
     togglePin,
     toggleZOrder,
+    toggleWallpaperLayer,
     toggleDone,
     updatePriority,
     updateTags,

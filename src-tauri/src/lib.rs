@@ -183,12 +183,14 @@ fn apply_overlay_input_state(app: &tauri::AppHandle, click_through: bool) {
         if label.starts_with("note-") {
             let note_id = label.trim_start_matches("note-");
             if let Some(n) = notes.iter().find(|x| x.id == note_id) {
-                let _ = w.set_ignore_cursor_events(click_through);
+                let ignore_cursor = if n.is_wallpaper { true } else { click_through };
+                let _ = w.set_ignore_cursor_events(ignore_cursor);
                 let _ = apply_note_window_layer_with_interaction_by_label(
                     app,
                     &label,
                     n.is_always_on_top,
-                    click_through,
+                    ignore_cursor,
+                    n.is_wallpaper,
                 );
             } else {
                 let _ = w.set_ignore_cursor_events(click_through);
@@ -503,6 +505,7 @@ fn apply_note_window_layer_with_interaction_by_label(
     label: &str,
     is_always_on_top: bool,
     click_through: bool,
+    is_wallpaper: bool,
 ) -> Result<(), String> {
     let Some(w) = app.get_webview_window(label) else {
         return Ok(());
@@ -519,6 +522,12 @@ fn apply_note_window_layer_with_interaction_by_label(
         let Some(hwnd_isize) = window_hwnd_isize(&w)? else {
             return Ok(());
         };
+        if is_wallpaper {
+            let _ = w.set_always_on_top(false);
+            windows::set_topmost_no_activate(hwnd_isize, false)?;
+            windows::attach_to_wallpaper_worker_w(hwnd_isize)?;
+            return Ok(());
+        }
         if should_be_top {
             let _ = w.set_always_on_top(true);
             windows::detach_from_worker_w(hwnd_isize)?;
@@ -535,6 +544,7 @@ fn apply_note_window_layer_with_interaction_by_label(
     {
         // Keep macOS behavior aligned with Windows:
         // interaction ON => all stickies temporarily go to topmost interactive layer.
+        let _ = is_wallpaper;
         let should_be_top = !click_through || is_always_on_top;
         if should_be_top {
             run_macos_window_op(
@@ -562,6 +572,7 @@ fn apply_note_window_layer_with_interaction_by_label(
 
     #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
     {
+        let _ = is_wallpaper;
         let _ = w.set_always_on_top(should_be_top);
         Ok(())
     }
@@ -904,12 +915,14 @@ fn apply_note_window_layer(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
     is_always_on_top: bool,
+    is_wallpaper: bool,
 ) -> Result<(), String> {
     apply_note_window_layer_with_interaction_by_label(
         &app,
         window.label(),
         is_always_on_top,
         get_overlay_click_through(&app),
+        is_wallpaper,
     )
 }
 
@@ -927,6 +940,7 @@ fn sync_all_note_window_layers(app: tauri::AppHandle) -> Result<(), String> {
             &label,
             n.is_always_on_top,
             click_through,
+            n.is_wallpaper,
         );
     }
     Ok(())
@@ -988,9 +1002,36 @@ fn toggle_z_order_and_apply(
             &label,
             updated.is_always_on_top,
             get_overlay_click_through(&app),
+            updated.is_wallpaper,
         ) {
             eprintln!(
                 "toggle_z_order_and_apply layer switch failed for {}: {}",
+                label, e
+            );
+        }
+    }
+    emit_notes_changed(&app);
+    Ok(notes)
+}
+
+#[tauri::command]
+fn toggle_wallpaper_layer_and_apply(
+    app: tauri::AppHandle,
+    id: String,
+    sort_mode: String,
+) -> Result<Vec<notes::Note>, String> {
+    let notes = notes_service::toggle_wallpaper_layer(&id, parse_sort_mode(sort_mode.as_str()))?;
+    if let Some(updated) = notes.iter().find(|n| n.id == id) {
+        let label = format!("note-{}", updated.id);
+        if let Err(e) = apply_note_window_layer_with_interaction_by_label(
+            &app,
+            &label,
+            updated.is_always_on_top,
+            get_overlay_click_through(&app),
+            updated.is_wallpaper,
+        ) {
+            eprintln!(
+                "toggle_wallpaper_layer_and_apply layer switch failed for {}: {}",
                 label, e
             );
         }
@@ -1326,6 +1367,7 @@ pub fn run() {
             update_note_tags,
             toggle_pin,
             toggle_z_order_and_apply,
+            toggle_wallpaper_layer_and_apply,
             toggle_done,
             toggle_archive,
             delete_note,

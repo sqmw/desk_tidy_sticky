@@ -171,6 +171,8 @@
   let breakRemainingSec = $state(0);
   let breakDeadlineTs = $state(0);
   let skipUnlockedAfterPostpone = $state(false);
+  let resumeFocusAfterBreak = $state(false);
+  let resumeTaskIdAfterBreak = $state("");
   let localBreakSession = $state({
     mode: BREAK_SESSION_NONE,
     untilTs: 0,
@@ -223,6 +225,9 @@
         }
       : {}),
   }));
+  const selectedTaskEffectiveSeconds = $derived(
+    selectedTaskId ? Number(liveTaskEffectiveSeconds?.[selectedTaskId] || 0) : 0,
+  );
   const liveCompletedTaskCount = $derived.by(() =>
     plannerTasks.filter((task) =>
       Number(liveTaskEffectiveSeconds?.[task.id] || 0) >= Math.max(1, Number(task.targetSeconds || 0))
@@ -249,6 +254,23 @@
   const breakSessionActive = $derived(isBreakSessionActive(localBreakSession, nowTick));
   const breakSessionRemainingText = $derived(getBreakSessionRemainingText(localBreakSession, nowTick));
   const breakTimerActive = $derived(Boolean(activeBreakKind) && breakRemainingSec > 0);
+  const focusProgressPercent = $derived.by(() => {
+    if (!selectedTaskId) return 0;
+    const target = Math.max(1, Number(selectedTask?.targetSeconds || 0));
+    if (!Number.isFinite(target) || target <= 0) return 0;
+    const effective = Math.max(0, Math.floor(selectedTaskEffectiveSeconds));
+    return Math.max(0, Math.min(100, Math.round((effective / target) * 100)));
+  });
+  const breakProgressPercent = $derived.by(() => {
+    if (!safeConfig.breakReminderEnabled) return 0;
+    const miniRemaining = Math.max(0, Number(nextMiniBreakCountdown || 0));
+    const longRemaining = Math.max(0, Number(nextLongBreakCountdown || 0));
+    const useMini = miniRemaining <= longRemaining;
+    const total = Math.max(1, Number(useMini ? breakPlanSec.miniEverySec : breakPlanSec.longEverySec));
+    const remaining = Math.min(total, Math.max(0, Number(useMini ? miniRemaining : longRemaining)));
+    const ratio = (total - remaining) / total;
+    return Math.max(0, Math.min(100, Math.round(ratio * 100)));
+  });
 
   function getFocusDurationSec(config = safeConfig) {
     return getPhaseDurationSec(PHASE_FOCUS, config);
@@ -542,8 +564,54 @@
     return Math.max(0, Math.floor((settleTs - effectiveStartTs) / 1000));
   }
 
+  function markResumeAfterBreak() {
+    const shouldResume = running === true;
+    resumeFocusAfterBreak = shouldResume;
+    resumeTaskIdAfterBreak = shouldResume ? (selectedTaskId || "") : "";
+  }
+
+  function clearResumeAfterBreak() {
+    resumeFocusAfterBreak = false;
+    resumeTaskIdAfterBreak = "";
+  }
+
+  function resumeFocusAfterBreakIfNeeded() {
+    if (!resumeFocusAfterBreak) return;
+    if (resumeTaskIdAfterBreak && resumeTaskIdAfterBreak !== (selectedTaskId || "")) {
+      clearResumeAfterBreak();
+      return;
+    }
+    if (running || breakTimerActive) {
+      clearResumeAfterBreak();
+      return;
+    }
+    toggleRunning();
+    clearResumeAfterBreak();
+  }
+
+  /**
+   * @param {{ resetSkipUnlock?: boolean; closeOverlay?: boolean; resume?: boolean }} [options]
+   */
+  function endBreakSession({ resetSkipUnlock = true, closeOverlay = true, resume = true } = {}) {
+    activeBreakKind = "";
+    breakRemainingSec = 0;
+    breakDeadlineTs = 0;
+    if (resetSkipUnlock) {
+      skipUnlockedAfterPostpone = false;
+    }
+    if (closeOverlay) {
+      closeBreakOverlayEverywhere(true).catch((error) =>
+        console.error("focus close break overlay windows", error),
+      );
+    }
+    if (resume) {
+      resumeFocusAfterBreakIfNeeded();
+    }
+  }
+
   /** @param {"mini" | "long"} kind */
   function applyBreakNow(kind) {
+    markResumeAfterBreak();
     if (taskTimingActive || running || taskSessionStartedAtTs > 0) {
       pauseActiveTaskSession(getCurrentSessionSettleTs(), {
         keepStarted: Boolean(selectedTaskId),
@@ -577,10 +645,8 @@
       nextMiniBreakAtSec = focusSinceBreakSec + deltaSec;
       nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
     }
-    activeBreakKind = "";
-    breakRemainingSec = 0;
-    breakDeadlineTs = 0;
     skipUnlockedAfterPostpone = true;
+    endBreakSession({ resetSkipUnlock: false, resume: true });
   }
 
   function skipBreak() {
@@ -594,10 +660,7 @@
       nextMiniBreakAtSec = focusSinceBreakSec + breakPlanSec.miniEverySec;
       nextMiniWarnAtSec = Math.max(0, nextMiniBreakAtSec - breakPlanSec.notifyBeforeSec);
     }
-    activeBreakKind = "";
-    breakRemainingSec = 0;
-    breakDeadlineTs = 0;
-    skipUnlockedAfterPostpone = false;
+    endBreakSession({ resetSkipUnlock: true, resume: true });
   }
 
   /** @param {number} elapsedSec */
@@ -1286,10 +1349,8 @@
 
   $effect(() => {
     if (safeConfig.breakReminderEnabled) return;
-    if (activeBreakKind) {
-      activeBreakKind = "";
-      breakRemainingSec = 0;
-      breakDeadlineTs = 0;
+    if (activeBreakKind || breakRemainingSec > 0 || breakDeadlineTs > 0) {
+      endBreakSession({ resetSkipUnlock: false, resume: true });
     }
   });
 
@@ -1527,13 +1588,7 @@
       if (!activeBreakKind) return;
       const nextRemaining = breakDeadlineTs > 0 ? getRemainingFromDeadline(breakDeadlineTs) : breakRemainingSec;
       if (nextRemaining <= 0) {
-        activeBreakKind = "";
-        breakRemainingSec = 0;
-        breakDeadlineTs = 0;
-        skipUnlockedAfterPostpone = false;
-        closeBreakOverlayEverywhere(true).catch((error) =>
-          console.error("focus close break overlay windows on independent break complete", error),
-        );
+        endBreakSession({ resetSkipUnlock: true, resume: true });
         return;
       }
       if (breakRemainingSec !== nextRemaining) {
@@ -1572,9 +1627,7 @@
         breakMiniCountdownText={formatTimer(nextMiniBreakCountdown)}
         breakLongCountdownText={formatTimer(nextLongBreakCountdown)}
         taskText={selectedTask ? selectedTask.title : strings.pomodoroNoTaskSelected}
-        phaseProgress={Math.round(
-          ((getFocusDurationSec() - remainingSec) / Math.max(getFocusDurationSec(), 1)) * 100,
-        )}
+        phaseProgress={showBreakPanel ? breakProgressPercent : focusProgressPercent}
         {showBreakPanel}
         selectedTaskId={selectedTaskId}
         selectedTaskDonePomodoros={selectedTaskDonePomodoros}
@@ -1625,9 +1678,6 @@
         selectedTaskId={selectedTaskId}
         activeTaskStarted={hasStarted}
         activeTaskRunning={taskTimingActive}
-        activeTaskProgress={Math.round(
-          ((getFocusDurationSec() - remainingSec) / Math.max(getFocusDurationSec(), 1)) * 100,
-        )}
         showingAllTasks={plannerShowingAllTasks}
         todayTaskCount={todayTasks.length}
         todayStats={{

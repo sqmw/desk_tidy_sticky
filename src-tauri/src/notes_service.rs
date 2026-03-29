@@ -439,6 +439,21 @@ pub fn toggle_z_order(id: &str, _sort_mode: NoteSortMode) -> Result<Vec<Note>, S
     let mut notes = load_notes_from_file()?;
     if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
         n.is_always_on_top = !n.is_always_on_top;
+        if n.is_always_on_top {
+            n.is_wallpaper = false;
+        }
+    }
+    save_notes_to_file(&notes)?;
+    Ok(notes)
+}
+
+pub fn toggle_wallpaper_layer(id: &str, _sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
+    let mut notes = load_notes_from_file()?;
+    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+        n.is_wallpaper = !n.is_wallpaper;
+        if n.is_wallpaper {
+            n.is_always_on_top = false;
+        }
     }
     save_notes_to_file(&notes)?;
     Ok(notes)

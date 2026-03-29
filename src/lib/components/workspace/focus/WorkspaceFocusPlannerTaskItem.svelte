@@ -8,7 +8,6 @@
     task,
     startedTask = false,
     runningTask = false,
-    activeProgress = 0,
     donePomodoros = 0,
     effectiveSeconds = 0,
     targetSeconds = 0,
@@ -71,7 +70,6 @@
   }
   const isStartedTask = $derived(startedTask === true);
   const isRunningTask = $derived(runningTask === true);
-  const safeActiveProgress = $derived(Math.max(0, Math.min(100, Number(activeProgress || 0))));
   const primaryActionText = $derived.by(() => {
     if (isRunningTask) return strings.pomodoroPause || "Pause";
     if (isStartedTask) return strings.pomodoroResume || "Resume";
@@ -80,6 +78,11 @@
   const safeEffectiveSeconds = $derived(Math.max(0, Math.floor(Number(effectiveSeconds || 0))));
   const safeTargetSeconds = $derived(Math.max(0, Math.floor(Number(targetSeconds || 0))));
   const showEffectiveProgress = $derived(safeTargetSeconds > 0);
+  const progressPercent = $derived.by(() => {
+    if (!showEffectiveProgress) return 0;
+    const ratio = safeEffectiveSeconds / Math.max(1, safeTargetSeconds);
+    return Math.max(0, Math.min(100, Math.round(ratio * 100)));
+  });
   const isDurationTask = $derived(String(task?.taskMode || taskModeTimeWindow) === taskModeDuration);
   const isCompleted = $derived(showEffectiveProgress && safeEffectiveSeconds >= safeTargetSeconds);
 
@@ -104,7 +107,7 @@
   class:started={isStartedTask}
   class:running={isRunningTask}
   class:completed={isCompleted}
-  style={`--task-active-progress:${safeActiveProgress}%`}
+  style={`--task-active-progress:${progressPercent}%`}
 >
   {#if editing}
     <div class="task-edit-grid">

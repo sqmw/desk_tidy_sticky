@@ -17,6 +17,8 @@ pub struct Note {
     pub is_done: bool,
     pub is_deleted: bool,
     pub is_always_on_top: bool,
+    #[serde(default)]
+    pub is_wallpaper: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<u8>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -55,6 +57,7 @@ impl Note {
             is_deleted: false,
             // New notes start at desktop-bottom layer by default.
             is_always_on_top: false,
+            is_wallpaper: false,
             priority: None,
             tags: vec![],
             bg_color: None,

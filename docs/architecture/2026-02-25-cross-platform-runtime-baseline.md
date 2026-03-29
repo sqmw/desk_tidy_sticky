@@ -62,7 +62,8 @@
 
 ## Behavior Matrix
 - Windows:
-  - Keeps desktop-bottom attach, top-most switching, Aero-snap related logic.
+  - Keeps desktop-layer attach + top-most switching.
+  - Adds optional wallpaper layer (`isWallpaper`) that sits behind desktop icons.
 - macOS:
   - App compiles/runs without Win32 path.
   - Sticky notes can be pushed to desktop-level layer via CG window levels.

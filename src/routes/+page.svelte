@@ -152,6 +152,7 @@
     saveNote,
     togglePin,
     toggleZOrder,
+    toggleWallpaperLayer,
     toggleDone,
     updatePriority,
     toggleArchive,
@@ -521,6 +522,7 @@
       {openEdit}
       {togglePin}
       {toggleZOrder}
+      {toggleWallpaperLayer}
       {toggleDone}
       {updatePriority}
       {createVerticalDragStartHandler}

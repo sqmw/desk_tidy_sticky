@@ -345,6 +345,7 @@
     saveNote,
     togglePin,
     toggleZOrder,
+    toggleWallpaperLayer,
     toggleDone,
     updatePriority,
     updateTags,
@@ -1101,6 +1102,7 @@
             openView={openInspectorView}
             {togglePin}
             {toggleZOrder}
+            {toggleWallpaperLayer}
             {toggleDone}
             {updatePriority}
             {updateTags}

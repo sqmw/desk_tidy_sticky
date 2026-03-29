@@ -154,6 +154,7 @@
     try {
       await invoke("apply_note_window_layer", {
         isAlwaysOnTop: !!note.isAlwaysOnTop,
+        isWallpaper: !!note.isWallpaper,
       });
     } catch (e) {
       console.error("applyZOrderAndParent", e);
@@ -161,7 +162,7 @@
   }
 
   async function applyInteractionPolicy() {
-    const ignoreCursor = clickThrough;
+    const ignoreCursor = note?.isWallpaper ? true : clickThrough;
     try {
       await getCurrentWindow().setIgnoreCursorEvents(ignoreCursor);
     } catch (e) {
@@ -378,6 +379,26 @@
       await applyInteractionPolicy();
     } catch (e) {
       console.error("toggleTopmost", e);
+    }
+  }
+
+  async function toggleWallpaperLayer() {
+    if (!note) return;
+    try {
+      const all = await invoke("toggle_wallpaper_layer_and_apply", {
+        // @ts-ignore
+        id: note.id,
+        sortMode: "custom",
+      });
+      const updated = findUpdatedFromList(all);
+      if (updated) {
+        note = updated;
+        opacityDraft = updated.opacity ?? DEFAULT_NOTE_OPACITY;
+        frostDraft = updated.frost ?? DEFAULT_NOTE_FROST;
+      }
+      await applyInteractionPolicy();
+    } catch (e) {
+      console.error("toggleWallpaperLayer", e);
     }
   }
 
@@ -877,6 +898,7 @@
       noteTextColors={NOTE_TEXT_COLORS}
       onToggleEdit={() => (isEditing ? exitEditMode() : enterEditMode())}
       onToggleTopmost={toggleTopmost}
+      onToggleWallpaper={toggleWallpaperLayer}
       onToggleMouseInteraction={toggleMouseInteraction}
       onTogglePalette={() => (showPalette = !showPalette)}
       onToggleTextColorPalette={() => (showTextColorPalette = !showTextColorPalette)}

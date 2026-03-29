@@ -164,7 +164,7 @@ pub mod flutter_legacy {
 
     fn dedupe_key(note: &Note) -> String {
         format!(
-            "text={}|createdAt={}|updatedAt={}|pinned={}|archived={}|done={}|deleted={}|alwaysTop={}|priority={}|tags={}|bg={}|textColor={}|opacity={}|frost={}|customOrder={}|x={}|y={}|w={}|h={}",
+            "text={}|createdAt={}|updatedAt={}|pinned={}|archived={}|done={}|deleted={}|alwaysTop={}|wallpaper={}|priority={}|tags={}|bg={}|textColor={}|opacity={}|frost={}|customOrder={}|x={}|y={}|w={}|h={}",
             note.text,
             note.created_at,
             note.updated_at,
@@ -173,6 +173,7 @@ pub mod flutter_legacy {
             note.is_done,
             note.is_deleted,
             note.is_always_on_top,
+            note.is_wallpaper,
             fmt_opt_u8(note.priority),
             normalize_note_tags(&note.tags),
             fmt_opt_str(&note.bg_color),
@@ -218,7 +219,7 @@ pub mod flutter_legacy {
             .unwrap_or_default();
 
         format!(
-            "text={}|createdAt={}|updatedAt={}|x={}|y={}|w={}|h={}|order={}|pinned={}|archived={}|done={}|deleted={}|alwaysTop={}",
+            "text={}|createdAt={}|updatedAt={}|x={}|y={}|w={}|h={}|order={}|pinned={}|archived={}|done={}|deleted={}|alwaysTop={}|wallpaper={}",
             text,
             created_at.unwrap_or(""),
             updated_at.unwrap_or(""),
@@ -231,7 +232,8 @@ pub mod flutter_legacy {
             pick_bool(obj, &["isArchived", "is_archived"], false),
             pick_bool(obj, &["isDone", "is_done"], false),
             pick_bool(obj, &["isDeleted", "is_deleted"], false),
-            pick_bool(obj, &["isAlwaysOnTop", "is_always_on_top"], false)
+            pick_bool(obj, &["isAlwaysOnTop", "is_always_on_top"], false),
+            pick_bool(obj, &["isWallpaper", "is_wallpaper"], false)
         )
     }
 
@@ -291,6 +293,7 @@ pub mod flutter_legacy {
             is_done: pick_bool(obj, &["isDone", "is_done"], false),
             is_deleted: pick_bool(obj, &["isDeleted", "is_deleted"], false),
             is_always_on_top: pick_bool(obj, &["isAlwaysOnTop", "is_always_on_top"], false),
+            is_wallpaper: pick_bool(obj, &["isWallpaper", "is_wallpaper"], false),
             priority: pick_u8(obj, &["priority"]).map(|v| v.clamp(1, 4)),
             tags: normalize_tags(pick_value(obj, &["tags", "tagList", "tag_list"])),
             bg_color: pick_string(obj, &["bgColor", "bg_color"]),
