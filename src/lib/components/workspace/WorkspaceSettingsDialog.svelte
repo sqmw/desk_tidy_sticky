@@ -94,57 +94,64 @@
       </div>
 
       <div class="dialog-body">
-        <label class="setting-row" for="workspace-setting-language">
-          <span>{strings.language}</span>
-          <select
-            id="workspace-setting-language"
-            value={locale}
-            onchange={(e) => onChangeLanguage(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-          >
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-          </select>
-        </label>
+        <section class="settings-section compact-section">
+          <label class="setting-row" for="workspace-setting-language">
+            <span>{strings.language}</span>
+            <select
+              id="workspace-setting-language"
+              value={locale}
+              onchange={(e) => onChangeLanguage(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+            >
+              <option value="zh">中文</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+        </section>
 
-        <div class="setting-stack theme-preset-stack">
-          <div class="setting-stack-head">
-            <span>{strings.workspaceThemePreset || "Theme preset"}</span>
-          </div>
-          <div class="theme-preset-grid">
-            {#each themePresetOptions as option (option.value)}
-              <button
-                type="button"
-                class="theme-card"
-                class:active={themePreset === option.value}
-                onclick={() => handleThemePresetClick(option.value)}
-              >
-                <span class="theme-card-title">{option.label}</span>
-                <span
-                  class="theme-card-preview"
-                  style={`--theme-preview-bg:${option.previewBg || "#f8fafc"}; --theme-preview-text:${option.previewText || "#0f172a"}; --theme-preview-accent:${option.previewAccent || "#1d4ed8"};`}
+        <section class="settings-section">
+          <div class="setting-stack theme-preset-stack">
+            <div class="setting-stack-head">
+              <span>{strings.workspaceThemePreset || "Theme preset"}</span>
+            </div>
+            <div class="theme-preset-grid">
+              {#each themePresetOptions as option (option.value)}
+                <button
+                  type="button"
+                  class="theme-card"
+                  class:active={themePreset === option.value}
+                  onclick={() => handleThemePresetClick(option.value)}
                 >
-                  <span class="theme-card-line strong"></span>
-                  <span class="theme-card-line"></span>
-                  <span class="theme-card-chip"></span>
-                </span>
-              </button>
-            {/each}
+                  <span class="theme-card-title">{option.label}</span>
+                  <span
+                    class="theme-card-preview"
+                    style={`--theme-preview-bg:${option.previewBg || "#f8fafc"}; --theme-preview-text:${option.previewText || "#0f172a"}; --theme-preview-accent:${option.previewAccent || "#1d4ed8"};`}
+                  >
+                    <span class="theme-card-line strong"></span>
+                    <span class="theme-card-line"></span>
+                    <span class="theme-card-chip"></span>
+                  </span>
+                </button>
+              {/each}
+            </div>
           </div>
-          <div class="theme-custom-head">
-            <span>{strings.workspaceThemeCustomCss || "Custom theme"}</span>
+
+          <div class="setting-stack theme-custom-stack">
+            <div class="theme-custom-head">
+              <span>{strings.workspaceThemeCustomCss || "Custom theme"}</span>
+            </div>
             <div class="theme-actions">
               <button type="button" class="clear-btn" onclick={() => onExportThemeCss()}>
                 {strings.workspaceThemeExport || "Export theme"}
               </button>
-            <button type="button" class="clear-btn" onclick={openThemeImportPicker}>
-              {strings.workspaceThemeImport || "Import theme"}
-            </button>
-            <button type="button" class="clear-btn" onclick={handleCopyDefaultThemeTemplate}>
-              {strings.workspaceThemeCopyDefault || "Copy default template"}
-            </button>
-            <button type="button" class="clear-btn" onclick={() => onResetThemeCustomCss()}>
-              {strings.clear}
-            </button>
+              <button type="button" class="clear-btn" onclick={openThemeImportPicker}>
+                {strings.workspaceThemeImport || "Import theme"}
+              </button>
+              <button type="button" class="clear-btn" onclick={handleCopyDefaultThemeTemplate}>
+                {strings.workspaceThemeCopyDefault || "Copy default template"}
+              </button>
+              <button type="button" class="clear-btn" onclick={() => onResetThemeCustomCss()}>
+                {strings.clear}
+              </button>
               <input
                 bind:this={themeImportInputEl}
                 class="theme-import-input"
@@ -153,61 +160,64 @@
                 onchange={handleThemeImportChange}
               />
             </div>
+            <textarea
+              class="css-editor"
+              rows="6"
+              value={themeCustomCss}
+              oninput={(e) => onChangeThemeCustomCss(/** @type {HTMLTextAreaElement} */ (e.currentTarget).value)}
+              placeholder={strings.workspaceThemeCustomCssPlaceholder || ".workspace { --ws-accent: #4f46e5; }"}
+            ></textarea>
+            {#if themeImportStatus}
+              <small class:status-error={themeImportFailed}>{themeImportStatus}</small>
+            {/if}
+            <small>{strings.workspaceThemeCustomCssHint || "Applied immediately and saved automatically."}</small>
           </div>
-          <textarea
-            class="css-editor"
-            rows="6"
-            value={themeCustomCss}
-            oninput={(e) => onChangeThemeCustomCss(/** @type {HTMLTextAreaElement} */ (e.currentTarget).value)}
-            placeholder={strings.workspaceThemeCustomCssPlaceholder || ".workspace { --ws-accent: #4f46e5; }"}
-          ></textarea>
-          {#if themeImportStatus}
-            <small class:status-error={themeImportFailed}>{themeImportStatus}</small>
-          {/if}
-          <small>{strings.workspaceThemeCustomCssHint || "Applied immediately and saved automatically."}</small>
-        </div>
+        </section>
 
-        <label class="setting-row" for="workspace-setting-zoom">
-          <span>{strings.workspaceDisplayScale}</span>
-          <select
-            id="workspace-setting-zoom"
-            value={zoomOption}
-            onchange={(e) => onChangeZoomOption(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-          >
-            <option value="auto">{strings.workspaceDisplayScaleAuto}</option>
-            <option value="0.9">90%</option>
-            <option value="1">100%</option>
-            <option value="1.1">110%</option>
-            <option value="1.25">125%</option>
-            <option value="1.4">140%</option>
-          </select>
-        </label>
+        <section class="settings-section compact-section">
+          <div class="setting-grid">
+            <label class="setting-row" for="workspace-setting-zoom">
+              <span>{strings.workspaceDisplayScale}</span>
+              <select
+                id="workspace-setting-zoom"
+                value={zoomOption}
+                onchange={(e) => onChangeZoomOption(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+              >
+                <option value="auto">{strings.workspaceDisplayScaleAuto}</option>
+                <option value="0.9">90%</option>
+                <option value="1">100%</option>
+                <option value="1.1">110%</option>
+                <option value="1.25">125%</option>
+                <option value="1.4">140%</option>
+              </select>
+            </label>
 
-        <label class="setting-row" for="workspace-setting-font-size">
-          <span>{strings.workspaceFontSize}</span>
-          <select
-            id="workspace-setting-font-size"
-            value={fontSize}
-            onchange={(e) => onChangeFontSize(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-          >
-            <option value="small">{strings.workspaceFontSizeSmall}</option>
-            <option value="medium">{strings.workspaceFontSizeMedium}</option>
-            <option value="large">{strings.workspaceFontSizeLarge}</option>
-          </select>
-        </label>
+            <label class="setting-row" for="workspace-setting-font-size">
+              <span>{strings.workspaceFontSize}</span>
+              <select
+                id="workspace-setting-font-size"
+                value={fontSize}
+                onchange={(e) => onChangeFontSize(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+              >
+                <option value="small">{strings.workspaceFontSizeSmall}</option>
+                <option value="medium">{strings.workspaceFontSizeMedium}</option>
+                <option value="large">{strings.workspaceFontSizeLarge}</option>
+              </select>
+            </label>
 
-        <label class="setting-row" for="workspace-setting-sidebar-layout">
-          <span>{strings.workspaceSidebarLayoutMode || "Sidebar layout"}</span>
-          <select
-            id="workspace-setting-sidebar-layout"
-            value={sidebarLayoutMode}
-            onchange={(e) => onChangeSidebarLayoutMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-          >
-            <option value="auto">{strings.workspaceSidebarLayoutAuto || "Auto priority"}</option>
-            <option value="manual">{strings.workspaceSidebarLayoutManual || "Manual fixed"}</option>
-          </select>
-        </label>
-
+            <label class="setting-row" for="workspace-setting-sidebar-layout">
+              <span>{strings.workspaceSidebarLayoutMode || "Sidebar layout"}</span>
+              <select
+                id="workspace-setting-sidebar-layout"
+                value={sidebarLayoutMode}
+                onchange={(e) => onChangeSidebarLayoutMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
+              >
+                <option value="auto">{strings.workspaceSidebarLayoutAuto || "Auto priority"}</option>
+                <option value="manual">{strings.workspaceSidebarLayoutManual || "Manual fixed"}</option>
+              </select>
+            </label>
+          </div>
+        </section>
       </div>
     </div>
   </div>
@@ -225,7 +235,8 @@
   }
 
   .settings-dialog {
-    width: min(480px, 100%);
+    width: min(820px, 100%);
+    max-height: min(90vh, 960px);
     border: 1px solid var(--ws-border, #dce5f3);
     border-radius: 14px;
     background: var(--ws-panel-bg, rgba(255, 255, 255, 0.96));
@@ -261,14 +272,36 @@
   }
 
   .dialog-body {
-    padding: 14px 16px 16px;
+    padding: 16px 18px 18px;
+    display: grid;
+    gap: 14px;
+    max-height: calc(min(90vh, 960px) - 72px);
+    overflow: auto;
+  }
+
+  .settings-section {
     display: grid;
     gap: 10px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 80%, transparent);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.96)) 88%, var(--ws-btn-bg, #fbfdff));
+    padding: 14px;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent);
+  }
+
+  .compact-section {
+    padding: 12px 14px;
+  }
+
+  .setting-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
   }
 
   .setting-row {
     display: grid;
-    grid-template-columns: 1fr 160px;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
     gap: 10px;
     align-items: center;
     color: var(--ws-text, #334155);
@@ -295,9 +328,9 @@
   .setting-stack {
     border: 1px solid var(--ws-border-soft, #d9e2ef);
     border-radius: 12px;
-    padding: 10px;
+    padding: 12px;
     display: grid;
-    gap: 8px;
+    gap: 10px;
     background: color-mix(in srgb, var(--ws-btn-bg, #fbfdff) 70%, transparent);
   }
 
@@ -316,12 +349,9 @@
   }
 
   .theme-custom-head {
-    margin-top: 2px;
-    padding-top: 8px;
-    border-top: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 68%, transparent);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 8px;
     color: var(--ws-text, #334155);
     font-size: 13px;
@@ -332,7 +362,7 @@
   .theme-preset-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 10px;
   }
 
   .theme-card {
@@ -397,10 +427,9 @@
   }
 
   .theme-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 8px;
   }
 
   .theme-import-input {
@@ -412,8 +441,8 @@
     border-radius: 8px;
     background: var(--ws-btn-bg, #fbfdff);
     color: var(--ws-text, #334155);
-    min-height: 28px;
-    padding: 0 10px;
+    min-height: 34px;
+    padding: 0 12px;
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
@@ -425,7 +454,7 @@
     border-radius: 10px;
     background: var(--ws-btn-bg, #fbfdff);
     color: var(--ws-text, #334155);
-    min-height: 110px;
+    min-height: 170px;
     resize: vertical;
     padding: 10px;
     font-size: 12px;
@@ -451,7 +480,24 @@
   }
 
   @media (max-width: 540px) {
+    .settings-dialog {
+      width: min(100%, 560px);
+    }
+
+    .dialog-body {
+      padding: 14px;
+    }
+
+    .setting-grid,
     .theme-preset-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .setting-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .theme-actions {
       grid-template-columns: minmax(0, 1fr);
     }
   }
