@@ -5,7 +5,7 @@
     breakMiniCountdownText = "00:00",
     breakLongCountdownText = "00:00",
     selectedTaskId = "",
-    selectedTaskDonePomodoros = 0,
+    selectedTaskPomodoroScoreText = "0",
     taskText = "",
     phaseProgress = 0,
     showBreakPanel = false,
@@ -76,7 +76,7 @@
       {#if selectedTaskId}
         <div class="timer-stat-chip" aria-label={strings.pomodoroTodayPomodoros || "Today pomodoros"}>
           <span class="timer-meta-label">{strings.pomodoroTodayPomodoros || "Today pomodoros"}</span>
-          <strong>🍅 {selectedTaskDonePomodoros}</strong>
+          <strong>🍅 {selectedTaskPomodoroScoreText}</strong>
         </div>
       {/if}
     </div>

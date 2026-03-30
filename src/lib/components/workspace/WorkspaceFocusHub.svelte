@@ -19,6 +19,11 @@
     getFocusStreakDays,
     getWeekFocusAverageMinutes,
   } from "$lib/workspace/focus/focus-analytics.js";
+  import {
+    buildTaskTitleRollups,
+    formatPomodoroScore,
+    getEquivalentPomodoros,
+  } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
   import WorkspaceFocusTimer from "$lib/components/workspace/focus/WorkspaceFocusTimer.svelte";
   import WorkspaceBreakControlBar from "$lib/components/workspace/focus/WorkspaceBreakControlBar.svelte";
   import WorkspaceFocusPlanner from "$lib/components/workspace/focus/WorkspaceFocusPlanner.svelte";
@@ -186,19 +191,26 @@
   const weekKeys = $derived(getRecentDateKeys());
   const todayTasks = $derived(getTodayTasks(tasks));
   const todayStats = $derived(ensureDayStats(stats, todayKey));
+  const liveTodayFocusSeconds = $derived(
+    Math.max(0, Number(todayStats.focusSeconds || 0) + getCurrentTaskLiveTodaySeconds(nowTick)),
+  );
   const weekFocusMinutes = $derived(
     weekKeys.reduce((sum, key) => sum + Math.round((stats[key]?.focusSeconds || 0) / 60), 0),
   );
-  const weekPomodoros = $derived(
-    weekKeys.reduce((sum, key) => sum + Number(stats[key]?.pomodoros || 0), 0),
-  );
+  const weekEquivalentPomodoros = $derived.by(() => {
+    const totalWeekFocusSeconds = weekKeys.reduce((sum, key) => sum + Number(stats[key]?.focusSeconds || 0), 0);
+    return getEquivalentPomodoros(totalWeekFocusSeconds, safeConfig.focusMinutes);
+  });
   const weekAverageMinutes = $derived(getWeekFocusAverageMinutes(stats));
   const streakDays = $derived(getFocusStreakDays(stats));
   const bestFocusDay = $derived(getBestFocusDay(stats));
   const focusHeatmap = $derived(buildFocusHeatmap(stats));
   const fallbackToAllTasks = $derived(todayTasks.length === 0 && tasks.length > 0);
   const focusSelectableTasks = $derived.by(() => (fallbackToAllTasks ? tasks : todayTasks));
-  const selectedTask = $derived(focusSelectableTasks.find((task) => task.id === selectedTaskId) || null);
+  const allTasksById = $derived.by(() =>
+    new Map((Array.isArray(tasks) ? tasks : []).map((task) => [String(task?.id || ""), task]))
+  );
+  const selectedTask = $derived(allTasksById.get(String(selectedTaskId || "")) || null);
   const breakPlanSec = $derived(getBreakPlanSec({
     miniBreakEveryMinutes: safeConfig.independentMiniBreakEveryMinutes,
     miniBreakDurationSeconds: safeConfig.miniBreakDurationSeconds,
@@ -213,9 +225,6 @@
     plannerTasks.reduce((sum, task) => sum + Number(todayStats.taskPomodoros?.[task.id] || 0), 0),
   );
   const timerTaskOptions = $derived(buildTimerTaskOptions(focusSelectableTasks));
-  const selectedTaskDonePomodoros = $derived(
-    selectedTaskId ? Number(todayStats.taskPomodoros?.[selectedTaskId] || 0) : 0,
-  );
   const liveTaskEffectiveSeconds = $derived.by(() => ({
     ...(todayStats.taskEffectiveSeconds || {}),
     ...(selectedTaskId && taskSessionStartedAtTs
@@ -225,8 +234,32 @@
         }
       : {}),
   }));
+  const plannerTaskPomodoroScores = $derived.by(() =>
+    Object.fromEntries(
+      plannerTasks.map((task) => [
+        task.id,
+        getEquivalentPomodoros(Number(liveTaskEffectiveSeconds?.[task.id] || 0), safeConfig.focusMinutes),
+      ])
+    )
+  );
   const selectedTaskEffectiveSeconds = $derived(
     selectedTaskId ? Number(liveTaskEffectiveSeconds?.[selectedTaskId] || 0) : 0,
+  );
+  const selectedTaskRemainingSeconds = $derived.by(() => {
+    if (!selectedTaskId) return Math.max(0, Math.floor(Number(remainingSec || 0)));
+    const target = Math.max(0, Math.floor(Number(selectedTask?.targetSeconds || 0)));
+    const effective = Math.max(0, Math.floor(Number(selectedTaskEffectiveSeconds || 0)));
+    return Math.max(0, target - effective);
+  });
+  const pomodoroTimerText = $derived(formatTimer(selectedTaskRemainingSeconds));
+  const selectedTaskPomodoroScore = $derived(
+    getEquivalentPomodoros(selectedTaskEffectiveSeconds, safeConfig.focusMinutes),
+  );
+  const todayPomodoroScore = $derived(
+    getEquivalentPomodoros(liveTodayFocusSeconds, safeConfig.focusMinutes),
+  );
+  const taskTitleRollups = $derived(
+    buildTaskTitleRollups(stats, tasks, safeConfig.focusMinutes),
   );
   const liveCompletedTaskCount = $derived.by(() =>
     plannerTasks.filter((task) =>
@@ -511,7 +544,8 @@
     const safeStart = Math.max(0, Math.floor(Number(sessionStartedAt || 0)));
     const safeEnd = Math.max(0, Math.floor(Number(settleUntilTs || 0)));
     if (!safeStart || safeEnd <= safeStart) return baseStats;
-    return applyFocusElapsedRange(baseStats, taskId, safeStart, safeEnd);
+    const taskTitle = taskId ? String(allTasksById.get(String(taskId || ""))?.title || "") : "";
+    return applyFocusElapsedRange(baseStats, taskId, taskTitle, safeStart, safeEnd);
   }
 
   /**
@@ -1253,7 +1287,12 @@
   function onFocusCompleted() {
     const settledAtTs = focusDeadlineTs > 0 ? focusDeadlineTs : Date.now();
     let nextStats = buildStatsWithCurrentTaskSession(stats, settledAtTs);
-    nextStats = applyFocusCompleted(nextStats, getDateKey(new Date(settledAtTs)), selectedTaskId);
+    nextStats = applyFocusCompleted(
+      nextStats,
+      getDateKey(new Date(settledAtTs)),
+      selectedTaskId,
+      String(selectedTask?.title || ""),
+    );
     emitStats(nextStats);
     taskTimingActive = false;
     taskSessionStartedAtTs = 0;
@@ -1317,7 +1356,15 @@
 
   $effect(() => {
     if (focusSelectableTasks.length === 0) {
+      if (!timerRuntimeRestored) return;
+      if (running || hasStarted || taskTimingActive) return;
       if (selectedTaskId) selectedTaskId = "";
+      return;
+    }
+    if (selectedTaskId && allTasksById.has(String(selectedTaskId || ""))) {
+      return;
+    }
+    if (running || hasStarted || taskTimingActive) {
       return;
     }
     if (!focusSelectableTasks.some((task) => task.id === selectedTaskId)) {
@@ -1623,14 +1670,14 @@
     <div class="focus-slot timer-slot">
       <WorkspaceFocusTimer
         {strings}
-        timerText={formatTimer(remainingSec)}
+        timerText={pomodoroTimerText}
         breakMiniCountdownText={formatTimer(nextMiniBreakCountdown)}
         breakLongCountdownText={formatTimer(nextLongBreakCountdown)}
         taskText={selectedTask ? selectedTask.title : strings.pomodoroNoTaskSelected}
         phaseProgress={showBreakPanel ? breakProgressPercent : focusProgressPercent}
         {showBreakPanel}
         selectedTaskId={selectedTaskId}
-        selectedTaskDonePomodoros={selectedTaskDonePomodoros}
+        selectedTaskPomodoroScoreText={formatPomodoroScore(selectedTaskPomodoroScore)}
         onToggleBreakPanel={(next = !showBreakPanel) => {
           showBreakPanel = !!next;
           if (showBreakPanel && showConfig) showConfig = false;
@@ -1687,6 +1734,8 @@
           taskPomodoros: todayStats.taskPomodoros,
           taskEffectiveSeconds: liveTaskEffectiveSeconds,
         }}
+        taskPomodoroScores={plannerTaskPomodoroScores}
+        focusMinutesPerPomodoro={safeConfig.focusMinutes}
         onAddTask={addTask}
         onToggleSettings={() => (showConfig ? (showConfig = false) : openTimerSettings())}
         onToggleWeekday={toggleDraftWeekday}
@@ -1723,25 +1772,26 @@
     <button type="button" class="stats-toggle" onclick={() => (showStats = !showStats)}>
       {showStats ? "▾" : "▸"} {strings.pomodoroStats}
       <span class="stats-quick">
-        <span>{strings.pomodoroTodayFocusMinutes}: {Math.round((todayStats.focusSeconds || 0) / 60)}m</span>
+        <span>{strings.pomodoroTodayFocusMinutes}: {Math.round(liveTodayFocusSeconds / 60)}m</span>
         <span>{strings.pomodoroStreakDays}: {streakDays}d</span>
       </span>
     </button>
     {#if showStats}
       <WorkspaceFocusStats
         {strings}
-        todayFocusMinutes={Math.round((todayStats.focusSeconds || 0) / 60)}
-        todayPomodoros={todayStats.pomodoros || 0}
+        todayFocusMinutes={Math.round(liveTodayFocusSeconds / 60)}
+        todayPomodoroScoreText={formatPomodoroScore(todayPomodoroScore)}
         todayTaskCount={todaySummary.taskCount}
         todayCompletedTaskCount={liveCompletedTaskCount}
         {weekFocusMinutes}
-        {weekPomodoros}
+        weekPomodoroScoreText={formatPomodoroScore(weekEquivalentPomodoros)}
         {weekAverageMinutes}
         {streakDays}
         bestDayDateKey={bestFocusDay.dateKey}
         bestDayMinutes={bestFocusDay.minutes}
         heatmapCells={focusHeatmap}
         taskDistribution={todayTaskDistribution}
+        taskRollups={taskTitleRollups}
         {currentMinutes}
       />
     {/if}

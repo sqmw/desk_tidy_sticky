@@ -1,20 +1,25 @@
 <script>
   import WorkspaceTaskTimeline from "$lib/components/workspace/focus/WorkspaceTaskTimeline.svelte";
+  import {
+    formatFocusDuration,
+    formatPomodoroScore,
+  } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
 
   let {
     strings,
     todayFocusMinutes = 0,
-    todayPomodoros = 0,
+    todayPomodoroScoreText = "0",
     todayTaskCount = 0,
     todayCompletedTaskCount = 0,
     weekFocusMinutes = 0,
-    weekPomodoros = 0,
+    weekPomodoroScoreText = "0",
     weekAverageMinutes = 0,
     streakDays = 0,
     bestDayDateKey = "",
     bestDayMinutes = 0,
     heatmapCells = [],
     taskDistribution = [],
+    taskRollups = [],
     currentMinutes = 0,
   } = $props();
 </script>
@@ -27,7 +32,7 @@
   </div>
   <div class="stat">
     <span>{strings.pomodoroTodayPomodoros}</span>
-    <strong>{todayPomodoros}</strong>
+    <strong>🍅 {todayPomodoroScoreText}</strong>
   </div>
   <div class="stat">
     <span>{strings.pomodoroWeekFocusMinutes}</span>
@@ -35,7 +40,7 @@
   </div>
   <div class="stat">
     <span>{strings.pomodoroWeekPomodoros}</span>
-    <strong>{weekPomodoros}</strong>
+    <strong>🍅 {weekPomodoroScoreText}</strong>
   </div>
   <div class="stat">
     <span>{strings.pomodoroTasksCompleted || "Tasks reached target"}</span>
@@ -74,6 +79,24 @@
   <div class="dist-wrap">
     <div class="dist-title">{strings.pomodoroTaskDistributionToday}</div>
     <WorkspaceTaskTimeline {strings} tasks={taskDistribution} {currentMinutes} />
+  </div>
+
+  <div class="rollup-wrap">
+    <div class="rollup-title">{strings.pomodoroTaskRollup || "Task totals"}</div>
+    {#if taskRollups.length === 0}
+      <div class="rollup-empty">{strings.pomodoroNoTasksToday || "No focus tasks yet"}</div>
+    {:else}
+      <div class="rollup-list">
+        {#each taskRollups as item (item.title)}
+          <div class="rollup-item">
+            <strong>{item.title}</strong>
+            <span>{strings.pomodoroTodayFocusMinutes || "Focus"} {formatFocusDuration(item.focusSeconds)}</span>
+            <span>{strings.pomodoroWeekPomodoros || "Pomodoros"} 🍅 {formatPomodoroScore(item.equivalentPomodoros)}</span>
+            <span>{strings.pomodoroCompletedSessions || "Completed sessions"} {item.completedPomodoros}</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -177,7 +200,44 @@
     gap: 6px;
   }
 
-  .dist-title {
+  .dist-title,
+  .rollup-title {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
+  }
+
+  .rollup-wrap {
+    border: 1px solid var(--ws-border-soft, #dbe4ef);
+    border-radius: 10px;
+    background: var(--ws-card-bg, #fff);
+    padding: 8px;
+    display: grid;
+    gap: 6px;
+  }
+
+  .rollup-list {
+    display: grid;
+    gap: 6px;
+    max-height: 220px;
+    overflow: auto;
+  }
+
+  .rollup-item {
+    border: 1px solid var(--ws-border-soft, #dbe4ef);
+    border-radius: 9px;
+    padding: 8px 10px;
+    display: grid;
+    gap: 2px;
+    background: color-mix(in srgb, var(--ws-card-bg, #fff) 94%, transparent);
+  }
+
+  .rollup-item strong {
+    font-size: 12px;
+    color: var(--ws-text-strong, #0f172a);
+  }
+
+  .rollup-item span,
+  .rollup-empty {
     font-size: 11px;
     color: var(--ws-muted, #64748b);
   }

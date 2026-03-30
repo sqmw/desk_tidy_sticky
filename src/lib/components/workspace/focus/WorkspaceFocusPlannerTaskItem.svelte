@@ -1,4 +1,9 @@
 <script>
+  import {
+    formatPomodoroScore,
+    getEquivalentPomodoros,
+  } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
+
   let {
     strings,
     taskModeDuration = "duration",
@@ -9,8 +14,10 @@
     startedTask = false,
     runningTask = false,
     donePomodoros = 0,
+    pomodoroScore = 0,
     effectiveSeconds = 0,
     targetSeconds = 0,
+    focusMinutesPerPomodoro = 25,
     onStartTask = () => {},
     onToggleTask = () => {},
     onRemoveTask = () => {},
@@ -85,6 +92,11 @@
   });
   const isDurationTask = $derived(String(task?.taskMode || taskModeTimeWindow) === taskModeDuration);
   const isCompleted = $derived(showEffectiveProgress && safeEffectiveSeconds >= safeTargetSeconds);
+  const displayPomodoroScore = $derived.by(() => {
+    const explicit = Number(pomodoroScore || 0);
+    if (explicit > 0) return explicit;
+    return getEquivalentPomodoros(safeEffectiveSeconds, focusMinutesPerPomodoro);
+  });
 
   /**
    * @param {number} totalSeconds
@@ -175,7 +187,9 @@
       {#if isCompleted}
         <span class="task-completed">{strings.pomodoroTaskCompleted || "Completed"}</span>
       {/if}
-      <span class="task-progress">🍅 {donePomodoros}</span>
+      <span class="task-progress" title={`整番茄 ${donePomodoros}`}>
+        🍅 {formatPomodoroScore(displayPomodoroScore)}
+      </span>
     </div>
     <div class="task-actions">
       <button

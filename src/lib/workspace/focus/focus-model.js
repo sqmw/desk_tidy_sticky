@@ -23,6 +23,7 @@
  * @property {string[]} completedTaskIds
  * @property {Record<string, number>} taskPomodoros
  * @property {Record<string, number>} taskEffectiveSeconds
+ * @property {Record<string, string>} taskTitles
  */
 
 /**
@@ -220,12 +221,18 @@ function normalizeDayStats(raw) {
         ]),
       )
     : {};
+  const taskTitles = typeof raw?.taskTitles === "object" && raw?.taskTitles
+    ? Object.fromEntries(
+        Object.entries(raw.taskTitles).map(([k, v]) => [String(k), String(v ?? "").trim() || "Untitled"]),
+      )
+    : {};
   return {
     focusSeconds: clampInt(raw?.focusSeconds, 0, 0, 86400 * 31),
     pomodoros: clampInt(raw?.pomodoros, 0, 0, 9999),
     completedTaskIds: Array.from(new Set(completedTaskIds)),
     taskPomodoros,
     taskEffectiveSeconds,
+    taskTitles,
   };
 }
 
@@ -258,6 +265,7 @@ export function ensureDayStats(stats, dateKey) {
     completedTaskIds: [],
     taskPomodoros: {},
     taskEffectiveSeconds: {},
+    taskTitles: {},
   };
 }
 

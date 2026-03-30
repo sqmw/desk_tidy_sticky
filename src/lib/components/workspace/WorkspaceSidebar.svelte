@@ -471,16 +471,6 @@
                     <span>🍅 {item.donePomodoros}</span>
                   </div>
                   <div class="deadline-actions">
-                    <button type="button" class="deadline-action-btn" onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "select"); }}>
-                      {strings.workspaceDeadlineActionView || strings.details}
-                    </button>
-                    <button
-                      type="button"
-                      class="deadline-action-btn primary"
-                      onclick={(e) => { e.stopPropagation(); onDeadlineAction(item.id, "start"); }}
-                    >
-                      {strings.workspaceDeadlineActionStart || strings.pomodoroStart || strings.pomodoroResume}
-                    </button>
                     <button
                       type="button"
                       class="deadline-action-btn"
@@ -1205,12 +1195,6 @@
   .deadline-action-btn:hover {
     border-color: var(--ws-border-hover, #c6d5e8);
     background: var(--ws-btn-hover, #f4f8ff);
-  }
-
-  .deadline-action-btn.primary {
-    border-color: var(--ws-border-active, #94a3b8);
-    background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
-    color: var(--ws-text-strong, #0f172a);
   }
 
   @keyframes deadline-overdue-pulse {

@@ -141,6 +141,9 @@ export function removeTaskFromState(tasks, stats, taskId) {
       taskEffectiveSeconds: Object.fromEntries(
         Object.entries(day.taskEffectiveSeconds || {}).filter(([id]) => id !== taskId),
       ),
+      taskTitles: Object.fromEntries(
+        Object.entries(day.taskTitles || {}).filter(([id]) => id !== taskId),
+      ),
     };
   }
   return { nextTasks, nextStats };
@@ -180,10 +183,11 @@ export function updateTaskInState(tasks, taskId, patch) {
 /**
  * @param {Record<string, any>} stats
  * @param {string} selectedTaskId
+ * @param {string} selectedTaskTitle
  * @param {number} startTs
  * @param {number} endTs
  */
-export function applyFocusElapsedRange(stats, selectedTaskId, startTs, endTs) {
+export function applyFocusElapsedRange(stats, selectedTaskId, selectedTaskTitle, startTs, endTs) {
   const safeStart = Math.max(0, Math.floor(Number(startTs || 0)));
   const safeEnd = Math.max(0, Math.floor(Number(endTs || 0)));
   if (safeEnd <= safeStart) return stats;
@@ -201,8 +205,10 @@ export function applyFocusElapsedRange(stats, selectedTaskId, startTs, endTs) {
       const dateKey = getDateKey(cursorDate);
       const day = ensureDayStats(nextStats, dateKey);
       const taskEffectiveSeconds = { ...(day.taskEffectiveSeconds || {}) };
+      const taskTitles = { ...(day.taskTitles || {}) };
       if (selectedTaskId) {
         taskEffectiveSeconds[selectedTaskId] = Number(taskEffectiveSeconds[selectedTaskId] || 0) + elapsedSec;
+        taskTitles[selectedTaskId] = String(selectedTaskTitle || taskTitles[selectedTaskId] || "Untitled");
       }
       nextStats = {
         ...nextStats,
@@ -210,6 +216,7 @@ export function applyFocusElapsedRange(stats, selectedTaskId, startTs, endTs) {
           ...day,
           focusSeconds: Number(day.focusSeconds || 0) + elapsedSec,
           taskEffectiveSeconds,
+          taskTitles,
         },
       };
     }
@@ -222,12 +229,15 @@ export function applyFocusElapsedRange(stats, selectedTaskId, startTs, endTs) {
  * @param {Record<string, any>} stats
  * @param {string} todayKey
  * @param {string} selectedTaskId
+ * @param {string} selectedTaskTitle
  */
-export function applyFocusCompleted(stats, todayKey, selectedTaskId) {
+export function applyFocusCompleted(stats, todayKey, selectedTaskId, selectedTaskTitle) {
   const day = ensureDayStats(stats, todayKey);
   const taskPomodoros = { ...day.taskPomodoros };
+  const taskTitles = { ...(day.taskTitles || {}) };
   if (selectedTaskId) {
     taskPomodoros[selectedTaskId] = Number(taskPomodoros[selectedTaskId] || 0) + 1;
+    taskTitles[selectedTaskId] = String(selectedTaskTitle || taskTitles[selectedTaskId] || "Untitled");
   }
   return {
     ...stats,
@@ -235,6 +245,7 @@ export function applyFocusCompleted(stats, todayKey, selectedTaskId) {
       ...day,
       pomodoros: Number(day.pomodoros || 0) + 1,
       taskPomodoros,
+      taskTitles,
     },
   };
 }

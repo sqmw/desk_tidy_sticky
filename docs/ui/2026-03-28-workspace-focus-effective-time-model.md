@@ -218,6 +218,96 @@
 1. 开始任务 A，等待若干秒，刷新页面后 `已累计` 继续增长，不丢失 session。
 2. 开始任务 A 后再点任务 B，A 先停止累计，B 开始累计，不会并行。
 3. 休息控制到点后，当前任务立刻停止累计；休息结束后不会自动偷偷继续。
+
+## 2026-03-30 补充：按天重置与按任务名历史汇总
+
+### 判定
+- 类型：`设计收敛`
+
+### 本次口径调整
+1. 任务区与顶部 `今日番茄数` 明确只看当天统计。
+2. 次日进入工作台时，任务的 `已累计` 与 `🍅` 从当天 `YYYY-MM-DD` 对应统计重新开始，不沿用前一天累计值。
+3. `🍅` 展示口径从“仅整番茄完成次数”调整为“折算番茄”：
+   - `折算番茄 = 有效专注秒数 / 当前番茄时长秒数`
+   - 支持小数展示，便于看到未满一个完整番茄的投入
+4. 底部统计区新增“按任务名称汇总”：
+   - 总有效时长
+   - 总折算番茄
+   - 完成的整番茄次数
+
+### 数据模型补充
+- 文件：`/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/workspace/focus/focus-model.js`
+- `FocusDayStats` 新增：
+  - `taskTitles: Record<string, string>`
+
+用途：
+1. 每天记录 `taskId -> title` 的标题快照。
+2. 即使任务后续改名或被删除，历史统计仍能按当时的任务名称正确归档。
+
+### 代码落点
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/workspace/focus/focus-pomodoro-metrics.js`
+  - 新增折算番茄、时间格式化、按任务名称汇总工具
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/workspace/focus/focus-runtime.js`
+  - 写入每日统计时同步记录 `taskTitles`
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
+  - 顶部摘要与统计区改为基于“今日”与“折算番茄”派生
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusStats.svelte`
+  - 新增按任务名称历史汇总区
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/focus/WorkspaceFocusPlannerTaskItem.svelte`
+  - 任务行内 `🍅` 改为显示折算番茄
+
+### 回归验证
+1. 在当天启动任务，观察任务行 `🍅` 可显示小数番茄。
+2. 切到第二天后，同一任务的今日 `已累计` 和 `🍅` 从 0 开始。
+3. 底部统计区能按任务名称汇总历史总投入，不受当日切换影响。
+
+## 2026-03-30 补充：番茄页顶部倒计时主语修正
+
+### 判定
+- 类型：`Bug/语义回归`
+
+### 问题
+1. `番茄钟` 标签页右上角一度显示的是“当前专注 session 剩余时间”。
+2. 这会把 `番茄任务` 与 `休息控制` 的计时主语混在一起。
+3. 用户期望的语义是：
+   - `番茄钟`：显示当前任务剩余时长
+   - `休息控制`：显示休息相关倒计时
+
+### 修正后的口径
+1. 切到 `番茄钟` 时，顶部倒计时显示：
+   - `当前任务目标总时长 - 当前任务今日已累计有效时长`
+2. 若当前没有选中任务，则退回显示当前专注 session 剩余时间。
+3. `休息控制` 标签维持原有休息提醒倒计时逻辑，不再与任务剩余时长混用。
+
+### 代码位置
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/lib/components/workspace/WorkspaceFocusHub.svelte`
+
+## 2026-03-30 补充：刷新后运行中任务被第一条任务覆盖
+
+### 判定
+- 类型：`Bug/回归`
+
+### 现象
+1. 用户正在运行 `Java` 等非列表第一项任务。
+2. 刷新页面或窗口重建后，运行中任务会被自动切成顶部第一条任务。
+
+### 根因
+1. `WorkspaceFocusHub` 在 runtime cache 恢复 `selectedTaskId` 之后，
+2. 另一段“浏览态兜底逻辑”又会在任务列表尚未完全恢复时执行：
+   - 若当前 `selectedTaskId` 不在 `focusSelectableTasks` 中，就自动选第一条
+3. 启动恢复阶段这段逻辑与运行态恢复发生竞争，最终把真实运行中的任务覆盖掉。
+
+### 修复
+1. `selectedTask` 的查找改为基于全量 `tasks`，而不是仅基于 `focusSelectableTasks`。
+2. 自动选择第一条任务的兜底只允许在“纯浏览态”触发：
+   - 非恢复阶段
+   - 不在运行中
+   - 没有任务 session 在持续
+3. 若缓存中的 `selectedTaskId` 仍存在于全量任务中，则不允许 fallback 覆盖。
+
+### 结果
+1. 刷新后，当前正在运行的任务会按 runtime cache 正确恢复。
+2. 浏览态下仍保留默认选第一条的便利性，但不再误伤运行态。
 4. 任务行按钮状态：
    - 运行中：`暂停`
    - 已暂停：`继续`

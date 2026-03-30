@@ -22,6 +22,8 @@
     showingAllTasks = false,
     todayTaskCount = 0,
     todayStats,
+    taskPomodoroScores = {},
+    focusMinutesPerPomodoro = 25,
     onAddTask = () => {},
     onToggleSettings = () => {},
     onToggleWeekday = () => {},
@@ -119,8 +121,10 @@
           startedTask={activeTaskStarted && selectedTaskId === task.id}
           runningTask={activeTaskRunning && selectedTaskId === task.id}
           donePomodoros={todayStats.taskPomodoros?.[task.id] || 0}
+          pomodoroScore={taskPomodoroScores?.[task.id] || 0}
           effectiveSeconds={todayStats.taskEffectiveSeconds?.[task.id] || 0}
           targetSeconds={task.targetSeconds || 0}
+          focusMinutesPerPomodoro={focusMinutesPerPomodoro}
           onStartTask={onStartTask}
           onToggleTask={onToggleTask}
           onRemoveTask={onRemoveTask}
