@@ -3,11 +3,15 @@
     strings,
     show = $bindable(false),
     locale = "en",
+    isAutostartEnabled = false,
+    showPanelOnStartup = $bindable(false),
     zoomOption = "auto",
     fontSize = "medium",
     sidebarLayoutMode = "auto",
     themePreset = "light",
     themePresetOptions = [],
+    toggleAutostart = async () => {},
+    onSavePrefs = async () => {},
     themeCustomCss = "",
     onChangeLanguage = () => {},
     onChangeThemePreset = () => {},
@@ -106,6 +110,46 @@
               <option value="en">English</option>
             </select>
           </label>
+        </section>
+
+        <section class="settings-section compact-section">
+          <div class="setting-stack">
+            <div class="setting-stack-head">
+              <span>{strings.general}</span>
+            </div>
+
+            <label class="setting-toggle">
+              <span class="setting-toggle-copy">
+                <span class="setting-toggle-title">{strings.autoStart}</span>
+              </span>
+              <span class="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={isAutostartEnabled}
+                  onchange={(e) => toggleAutostart(/** @type {HTMLInputElement} */ (e.currentTarget).checked)}
+                />
+                <span class="toggle-slider"></span>
+              </span>
+            </label>
+
+            <label class="setting-toggle">
+              <span class="setting-toggle-copy">
+                <span class="setting-toggle-title">{strings.showPanelOnStartup}</span>
+              </span>
+              <span class="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={showPanelOnStartup}
+                  onchange={(e) => {
+                    const checked = /** @type {HTMLInputElement} */ (e.currentTarget).checked;
+                    showPanelOnStartup = checked;
+                    onSavePrefs({ showPanelOnStartup: checked });
+                  }}
+                />
+                <span class="toggle-slider"></span>
+              </span>
+            </label>
+          </div>
         </section>
 
         <section class="settings-section">
@@ -479,6 +523,78 @@
     font-weight: 700;
   }
 
+  .setting-toggle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 72%, transparent);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.96)) 55%, var(--ws-btn-bg, #fbfdff));
+  }
+
+  .setting-toggle-copy {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .setting-toggle-title {
+    color: var(--ws-text, #334155);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .toggle-switch {
+    position: relative;
+    display: inline-flex;
+    width: 46px;
+    height: 28px;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    margin: 0;
+  }
+
+  .toggle-slider {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 56%, #fff);
+    transition: background 0.18s ease, border-color 0.18s ease;
+  }
+
+  .toggle-slider::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.16);
+    transition: transform 0.18s ease;
+  }
+
+  .toggle-switch input:checked + .toggle-slider {
+    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 54%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 82%, #ffffff);
+  }
+
+  .toggle-switch input:checked + .toggle-slider::after {
+    transform: translateX(18px);
+  }
+
   @media (max-width: 540px) {
     .settings-dialog {
       width: min(100%, 560px);
@@ -494,6 +610,10 @@
     }
 
     .setting-row {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .setting-toggle {
       grid-template-columns: minmax(0, 1fr);
     }
 

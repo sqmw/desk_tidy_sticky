@@ -3,8 +3,14 @@
   import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { emit, listen } from "@tauri-apps/api/event";
+  import {
+    enable as autostartEnable,
+    disable as autostartDisable,
+    isEnabled as autostartIsEnabled,
+  } from "@tauri-apps/plugin-autostart";
 
   import { getStrings } from "$lib/strings.js";
+  import { broadcastPreferencesChanged, listenPreferencesChanged } from "$lib/preferences/preferences-sync.js";
   import { matchNote } from "$lib/note-search.js";
   import { renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
   import { hasQuadrantPriority } from "$lib/panel/note-priority.js";
@@ -107,6 +113,8 @@
   let workspaceSidebarLayoutMode = $state("auto");
   let workspaceSidebarManualSplitRatio = $state(0.42);
   let themeTransitionShape = $state("circle");
+  let isAutostartEnabled = $state(false);
+  let showPanelOnStartup = $state(false);
   /** @type {any[]} */
   let focusTasks = $state([]);
   /** @type {Record<string, any>} */
@@ -393,6 +401,7 @@
       locale = next.locale;
       mainTab = next.mainTab;
       stickiesVisible = next.overlayEnabled;
+      showPanelOnStartup = next.showPanelOnStartup ?? false;
       workspaceTheme = normalizeWorkspaceThemePreset(next.workspaceTheme);
       workspaceCustomCss = normalizeWorkspaceCustomCss(next.workspaceCustomCss);
       workspaceZoom = next.workspaceZoom;
@@ -416,6 +425,29 @@
       await saveWorkspacePreferences(invoke, updates);
     } catch (e) {
       console.error("savePrefs(workspace)", e);
+    }
+  }
+
+  async function initAutostart() {
+    try {
+      isAutostartEnabled = await autostartIsEnabled();
+    } catch (e) {
+      console.error("initAutostart(workspace)", e);
+    }
+  }
+
+  /** @param {boolean} enabled */
+  async function toggleAutostart(enabled) {
+    try {
+      if (enabled) {
+        await autostartEnable();
+      } else {
+        await autostartDisable();
+      }
+      isAutostartEnabled = await autostartIsEnabled();
+      await broadcastPreferencesChanged({ autostartEnabled: isAutostartEnabled });
+    } catch (e) {
+      console.error("toggleAutostart(workspace)", e);
     }
   }
 
@@ -930,14 +962,27 @@
     runtimeLifecycle.bootstrap();
     syncWindowPresentationState();
     runtimeLifecycle.syncOverlayInteractionState();
+    initAutostart();
     let cleanup = /** @type {(() => void) | null} */ (null);
+    let unlistenPrefs = /** @type {(() => void) | null} */ (null);
     runtimeLifecycle.mountRuntimeListeners().then((fn) => {
       cleanup = fn;
+    });
+    listenPreferencesChanged(async (updates) => {
+      if (typeof updates.showPanelOnStartup === "boolean") {
+        showPanelOnStartup = updates.showPanelOnStartup;
+      }
+      if (typeof updates.autostartEnabled === "boolean") {
+        isAutostartEnabled = updates.autostartEnabled;
+      }
+    }).then((fn) => {
+      unlistenPrefs = fn;
     });
     window.addEventListener("resize", onWindowResize);
     return () => {
       window.removeEventListener("resize", onWindowResize);
       clearWorkspaceCustomCssPersistTimer();
+      unlistenPrefs?.();
       cleanup?.();
     };
   });
@@ -1159,6 +1204,8 @@
   {strings}
   bind:show={showWorkspaceSettings}
   {locale}
+  {isAutostartEnabled}
+  bind:showPanelOnStartup
   themePreset={workspaceTheme}
   themePresetOptions={workspaceThemePresetOptions}
   themeCustomCss={workspaceCustomCss}
@@ -1166,6 +1213,8 @@
   fontSize={workspaceFontSize}
   sidebarLayoutMode={workspaceSidebarLayoutMode}
   onChangeLanguage={setLanguage}
+  {toggleAutostart}
+  onSavePrefs={savePrefs}
   onChangeThemePreset={handleWorkspaceThemePresetChange}
   onExportThemeCss={exportWorkspaceThemeCss}
   onImportThemeCss={importWorkspaceThemeCss}

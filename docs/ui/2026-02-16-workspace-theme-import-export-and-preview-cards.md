@@ -66,3 +66,61 @@
 ### 结果
 - 设置弹窗的阅读顺序更清楚，主题区不再显得拥挤。
 - 大屏下空间利用更充分，小屏下也能自然折叠。
+
+## 2026-03-30 补充：工作台设置补齐开机启动入口
+
+### 判定
+- 类型：`Bug/能力缺失`
+
+### 问题
+- 简洁模式设置面板已经提供：
+  - `开机自启`
+  - `启动时显示主窗口`
+- 工作台模式的 `WorkspaceSettingsDialog` 缺少同一组入口，导致两种模式能力不一致，用户只能切回简洁模式配置启动行为。
+
+### 调整
+- `src/routes/workspace/+page.svelte`
+  - 直接复用 `@tauri-apps/plugin-autostart`，新增：
+    - `initAutostart()`
+    - `toggleAutostart(enabled)`
+  - 工作台启动时同步读取当前自启状态。
+  - 将 `showPanelOnStartup` 从 `loadWorkspacePreferences` 返回值接回工作台路由状态。
+- `src/lib/workspace/preferences-service.js`
+  - `loadWorkspacePreferences` 补充返回 `showPanelOnStartup`，避免工作台路由绕过统一偏好加载层。
+- `src/lib/components/workspace/WorkspaceSettingsDialog.svelte`
+  - 新增“常规”区块下的两条启动行为开关：
+    - `开机自启`
+    - `启动时显示主窗口`
+  - 工作台设置与简洁模式共用同一份持久化和同一套平台实现。
+
+### 平台说明
+- Win 和 macOS 都走现有的 Tauri autostart 插件能力，不新增额外平台分叉逻辑。
+- `启动时显示主窗口` 继续使用已有偏好字段 `show_panel_on_startup`，由后端启动流程统一读取。
+
+### 验证
+- `pnpm check`：待本轮代码验证
+
+## 2026-03-30 补充：启动设置跨模式同步
+
+### 判定
+- 类型：`Bug/状态同步缺失`
+
+### 根因
+- 简洁模式与工作台模式虽然都能修改：
+  - `show_panel_on_startup`
+  - autostart 插件状态
+- 但两边此前只更新各自本地 `state`，没有在设置写入后广播“偏好已变化”，所以另一个窗口不会立即刷新开关状态。
+
+### 调整
+- 新增 `src/lib/preferences/preferences-sync.js`
+  - 统一封装 `preferences_changed` 事件的广播与监听。
+- `src/lib/preferences/preferences-store.js`
+  - 任意偏好落盘后自动广播本次更新字段。
+- `src/routes/+page.svelte`
+  - 监听偏好变更事件，同步刷新 `showPanelOnStartup` / `isAutostartEnabled`。
+  - 切换 autostart 后主动广播 `autostartEnabled`。
+- `src/routes/workspace/+page.svelte`
+  - 同步监听同一事件，保持工作台设置状态与简洁模式实时一致。
+
+### 结果
+- 简洁模式和工作台模式的启动设置现在共享同一份配置，并且切换任一窗口里的开关后，另一窗口会立即同步状态。

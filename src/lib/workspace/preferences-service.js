@@ -243,6 +243,7 @@ export async function loadWorkspacePreferences(invoke) {
     sortMode: prefs.sortMode || DEFAULT_SORT_MODE,
     locale: prefs.language || DEFAULT_LOCALE,
     overlayEnabled: prefs.overlayEnabled ?? true,
+    showPanelOnStartup: prefs.showPanelOnStartup ?? false,
     workspaceZoom: normalizeWorkspaceZoom(prefs.workspaceZoom),
     workspaceZoomMode: normalizeWorkspaceZoomMode(prefs.workspaceZoomMode),
     workspaceFontSize: normalizeWorkspaceFontSize(prefs.workspaceFontSize),

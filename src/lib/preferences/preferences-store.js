@@ -1,3 +1,5 @@
+import { broadcastPreferencesChanged } from "$lib/preferences/preferences-sync.js";
+
 /** @type {Record<string, any> | null} */
 let prefsCache = null;
 /** @type {Promise<void>} */
@@ -24,6 +26,7 @@ export async function updatePreferences(invoke, updates) {
     const next = { ...base, ...updates };
     await invoke("set_preferences", { prefs: next });
     prefsCache = next;
+    await broadcastPreferencesChanged({ ...updates });
   };
   writeQueue = writeQueue.then(
     () => task(),

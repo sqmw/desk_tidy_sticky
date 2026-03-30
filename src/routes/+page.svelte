@@ -10,6 +10,7 @@
   import { listen } from "@tauri-apps/api/event";
 
   import { getStrings } from "$lib/strings.js";
+  import { broadcastPreferencesChanged, listenPreferencesChanged } from "$lib/preferences/preferences-sync.js";
   import { matchNote } from "$lib/note-search.js";
   import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
   import { hasQuadrantPriority } from "$lib/panel/note-priority.js";
@@ -245,6 +246,7 @@
         await autostartDisable();
       }
       isAutostartEnabled = await autostartIsEnabled();
+      await broadcastPreferencesChanged({ autostartEnabled: isAutostartEnabled });
     } catch (e) {
       console.error("toggleAutostart", e);
     }
@@ -445,6 +447,17 @@
           }
           loadNotes();
         }, 80);
+      }),
+    );
+
+    unsubs.push(
+      listenPreferencesChanged(async (updates) => {
+        if (typeof updates.showPanelOnStartup === "boolean") {
+          showPanelOnStartup = updates.showPanelOnStartup;
+        }
+        if (typeof updates.autostartEnabled === "boolean") {
+          isAutostartEnabled = updates.autostartEnabled;
+        }
       }),
     );
 
