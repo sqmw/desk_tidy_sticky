@@ -22,8 +22,6 @@
     showingAllTasks = false,
     todayTaskCount = 0,
     todayStats,
-    taskPomodoroScores = {},
-    focusMinutesPerPomodoro = 25,
     onAddTask = () => {},
     onToggleSettings = () => {},
     onToggleWeekday = () => {},
@@ -48,7 +46,7 @@
       {:else}
         <span>
           {strings.pomodoroTask || "Tasks"}: {todayStats.taskCount ?? tasks.length}
-          · {strings.pomodoroTasksCompleted || "Tasks reached target"} {todayStats.completedCount || 0}
+          · {strings.pomodoroTaskRounds || "Task rounds"} x{todayStats.totalTaskCycles || 0}
         </span>
       {/if}
       <button type="button" class="btn planner-settings-btn" onclick={() => onToggleSettings()}>
@@ -121,10 +119,8 @@
           startedTask={activeTaskStarted && selectedTaskId === task.id}
           runningTask={activeTaskRunning && selectedTaskId === task.id}
           donePomodoros={todayStats.taskPomodoros?.[task.id] || 0}
-          pomodoroScore={taskPomodoroScores?.[task.id] || 0}
           effectiveSeconds={todayStats.taskEffectiveSeconds?.[task.id] || 0}
           targetSeconds={task.targetSeconds || 0}
-          focusMinutesPerPomodoro={focusMinutesPerPomodoro}
           onStartTask={onStartTask}
           onToggleTask={onToggleTask}
           onRemoveTask={onRemoveTask}

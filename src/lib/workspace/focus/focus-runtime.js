@@ -7,6 +7,7 @@ import {
   timeToMinutes,
 } from "$lib/workspace/focus/focus-model.js";
 import { normalizeBreakReminderMode } from "$lib/workspace/focus/focus-break-reminder-mode.js";
+import { getTaskCycleSnapshot } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
 
 export const PHASE_FOCUS = "focus";
 export const PHASE_SHORT_BREAK = "shortBreak";
@@ -286,14 +287,17 @@ export function buildTodaySummary(todayTasks, todayStats) {
     (sum, task) => sum + Number(todayStats.taskPomodoros?.[task.id] || 0),
     0,
   );
+  let totalTaskCycles = 0;
   const normalizedTasks = todayTasks.map((task) => {
     const targetSeconds = getTaskTargetSeconds(task);
     const effectiveSeconds = Number(todayStats.taskEffectiveSeconds?.[task.id] || 0);
+    const cycleSnapshot = getTaskCycleSnapshot(effectiveSeconds, targetSeconds);
+    totalTaskCycles += cycleSnapshot.completedCycles;
     return {
       ...task,
       targetSeconds,
       effectiveSeconds,
-      completed: isTaskEffectiveTargetMet(effectiveSeconds, targetSeconds),
+      ...cycleSnapshot,
     };
   });
   const taskDistribution = normalizedTasks
@@ -307,14 +311,15 @@ export function buildTodaySummary(todayTasks, todayStats) {
       endMinutes: timeToMinutes(task.endTime || "23:59"),
       targetSeconds: task.targetSeconds,
       effectiveSeconds: task.effectiveSeconds,
-      completed: task.completed,
-      progressPercent: Math.max(0, Math.min(100, Math.round((task.effectiveSeconds / Math.max(task.targetSeconds, 1)) * 100))),
+      completedCycles: task.completedCycles,
+      currentCycleSeconds: task.currentCycleSeconds,
+      progressPercent: task.currentCycleProgressPercent,
       pomodoros: Number(todayStats.taskPomodoros?.[task.id] || 0),
     }))
     .sort((a, b) => a.startMinutes - b.startMinutes);
   return {
     taskCount: todayTasks.length,
-    completedCount: normalizedTasks.filter((task) => task.completed).length,
+    totalTaskCycles,
     donePomodoros,
     taskDistribution,
   };

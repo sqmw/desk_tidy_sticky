@@ -9,6 +9,33 @@ export function getEquivalentPomodoros(effectiveSeconds, focusMinutes) {
 }
 
 /**
+ * @param {number} effectiveSeconds
+ * @param {number} targetSeconds
+ */
+export function getTaskCycleSnapshot(effectiveSeconds, targetSeconds) {
+  const safeEffectiveSeconds = Math.max(0, Math.floor(Number(effectiveSeconds || 0)));
+  const safeTargetSeconds = Math.max(1, Math.floor(Number(targetSeconds || 0)));
+  const completedCycles = Math.floor(safeEffectiveSeconds / safeTargetSeconds);
+  const cycleRemainderSeconds = safeEffectiveSeconds % safeTargetSeconds;
+  const currentCycleSeconds = cycleRemainderSeconds === 0 && safeEffectiveSeconds > 0
+    ? safeTargetSeconds
+    : cycleRemainderSeconds;
+  const currentCycleRemainingSeconds = currentCycleSeconds >= safeTargetSeconds
+    ? 0
+    : (safeTargetSeconds - currentCycleSeconds);
+  const currentCycleProgressPercent = Math.max(
+    0,
+    Math.min(100, Math.round((currentCycleSeconds / safeTargetSeconds) * 100)),
+  );
+  return {
+    completedCycles,
+    currentCycleSeconds,
+    currentCycleRemainingSeconds,
+    currentCycleProgressPercent,
+  };
+}
+
+/**
  * @param {number} value
  * @param {number} [digits]
  */

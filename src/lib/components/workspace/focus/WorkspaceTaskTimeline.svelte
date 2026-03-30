@@ -37,7 +37,7 @@
       widthPercent: Math.max(2.5, ((safeEndMinutes - startMinutes) / (24 * 60)) * 100),
       leftPercent: (startMinutes / (24 * 60)) * 100,
       progressPercent: Math.max(0, Math.min(100, Number(task?.progressPercent || 0))),
-      completed: task?.completed === true,
+      completedCycles: Math.max(0, Number(task?.completedCycles || 0)),
       isActive: currentMinutes >= startMinutes && currentMinutes < safeEndMinutes,
       isPast: currentMinutes >= safeEndMinutes,
       isUpcoming: currentMinutes < startMinutes,
@@ -102,13 +102,12 @@
                 class:active={task.isActive}
                 class:past={task.isPast}
                 class:upcoming={task.isUpcoming}
-                class:completed={task.completed}
                 style={`left:${task.leftPercent}%;width:${task.widthPercent}%`}
-                title={`${task.title} · ${task.startTime}-${task.endTime} · ${strings.pomodoroTaskElapsed || "Elapsed"} ${Math.round(Number(task.effectiveSeconds || 0) / 60)}m / ${Math.round(Number(task.targetSeconds || 0) / 60)}m`}
+                title={`${task.title} · ${task.startTime}-${task.endTime} · ${strings.pomodoroTaskElapsed || "Elapsed"} ${Math.round(Number(task.effectiveSeconds || 0) / 60)}m · ${(strings.pomodoroTaskRounds || "Task rounds")} x${task.completedCycles || 0}`}
               >
                 <span class="timeline-task-title">{task.title}</span>
                 <span class="timeline-task-meta">
-                  {task.startTime}-{task.endTime} · {strings.pomodoroTaskElapsed || "Elapsed"} {Math.round(Number(task.effectiveSeconds || 0) / 60)}m / {Math.round(Number(task.targetSeconds || 0) / 60)}m
+                  {task.startTime}-{task.endTime} · {strings.pomodoroTaskElapsed || "Elapsed"} {Math.round(Number(task.effectiveSeconds || 0) / 60)}m · {strings.pomodoroTaskRounds || "Task rounds"} x{task.completedCycles || 0}
                 </span>
               </div>
             {/each}
@@ -225,14 +224,6 @@
   .timeline-task.active {
     border-color: color-mix(in srgb, #22c55e 55%, var(--ws-accent, #1d4ed8));
     background: linear-gradient(135deg, color-mix(in srgb, #22c55e 14%, #ffffff) 0%, color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent) 100%);
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 82%, transparent),
-      0 0 0 1px color-mix(in srgb, #22c55e 18%, transparent);
-  }
-
-  .timeline-task.completed {
-    border-color: color-mix(in srgb, #16a34a 52%, var(--ws-border-soft, #dbe4ef));
-    background: linear-gradient(135deg, color-mix(in srgb, #22c55e 16%, #ffffff) 0%, color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent) 100%);
     box-shadow:
       inset 0 1px 0 color-mix(in srgb, #fff 82%, transparent),
       0 0 0 1px color-mix(in srgb, #22c55e 18%, transparent);

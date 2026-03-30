@@ -1,5 +1,5 @@
 import { ensureDayStats, getDateKey, getTaskTargetSeconds, getTodayTasks, timeToMinutes } from "$lib/workspace/focus/focus-model.js";
-import { isTaskEffectiveTargetMet } from "$lib/workspace/focus/focus-runtime.js";
+import { getTaskCycleSnapshot } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
 
 /**
  * @param {any[]} tasks
@@ -21,7 +21,7 @@ export function getFocusDeadlinesForToday(tasks, stats, now = new Date(), limit 
       const started = nowMinutes >= startMinutes;
       const targetSeconds = getTaskTargetSeconds(task);
       const effectiveSeconds = Number(day.taskEffectiveSeconds?.[task.id] || 0);
-      const completed = isTaskEffectiveTargetMet(effectiveSeconds, targetSeconds);
+      const cycleSnapshot = getTaskCycleSnapshot(effectiveSeconds, targetSeconds);
       return {
         id: task.id,
         title: task.title,
@@ -29,21 +29,22 @@ export function getFocusDeadlinesForToday(tasks, stats, now = new Date(), limit 
         startTime: task.startTime,
         endTime: task.endTime,
         started,
-        completed,
-        isOverdue: minutesLeft < 0 && !completed,
+        taskCycles: cycleSnapshot.completedCycles,
+        currentCycleSeconds: cycleSnapshot.currentCycleSeconds,
+        isOverdue: minutesLeft < 0,
         minutesUntilStart,
         minutesLeft,
         startMinutes,
         targetSeconds,
         effectiveSeconds,
-        progressPercent: Math.max(0, Math.min(100, Math.round((effectiveSeconds / Math.max(targetSeconds, 1)) * 100))),
+        progressPercent: cycleSnapshot.currentCycleProgressPercent,
         donePomodoros: Number(day.taskPomodoros?.[task.id] || 0),
       };
     })
     .sort((a, b) => {
-      // Overdue first, then running, then upcoming, then completed.
-      /** @param {{ isOverdue: boolean; started: boolean; completed?: boolean }} item */
-      const rank = (item) => (item.isOverdue ? 0 : item.started ? 1 : item.completed ? 3 : 2);
+      // Overdue first, then running, then upcoming.
+      /** @param {{ isOverdue: boolean; started: boolean }} item */
+      const rank = (item) => (item.isOverdue ? 0 : item.started ? 1 : 2);
       const rankDiff = rank(a) - rank(b);
       if (rankDiff !== 0) return rankDiff;
 

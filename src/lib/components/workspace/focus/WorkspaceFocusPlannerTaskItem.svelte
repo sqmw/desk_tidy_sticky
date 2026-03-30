@@ -1,7 +1,6 @@
 <script>
   import {
-    formatPomodoroScore,
-    getEquivalentPomodoros,
+    getTaskCycleSnapshot,
   } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
 
   let {
@@ -14,10 +13,8 @@
     startedTask = false,
     runningTask = false,
     donePomodoros = 0,
-    pomodoroScore = 0,
     effectiveSeconds = 0,
     targetSeconds = 0,
-    focusMinutesPerPomodoro = 25,
     onStartTask = () => {},
     onToggleTask = () => {},
     onRemoveTask = () => {},
@@ -85,18 +82,9 @@
   const safeEffectiveSeconds = $derived(Math.max(0, Math.floor(Number(effectiveSeconds || 0))));
   const safeTargetSeconds = $derived(Math.max(0, Math.floor(Number(targetSeconds || 0))));
   const showEffectiveProgress = $derived(safeTargetSeconds > 0);
-  const progressPercent = $derived.by(() => {
-    if (!showEffectiveProgress) return 0;
-    const ratio = safeEffectiveSeconds / Math.max(1, safeTargetSeconds);
-    return Math.max(0, Math.min(100, Math.round(ratio * 100)));
-  });
+  const cycleSnapshot = $derived(getTaskCycleSnapshot(safeEffectiveSeconds, safeTargetSeconds));
+  const progressPercent = $derived(showEffectiveProgress ? cycleSnapshot.currentCycleProgressPercent : 0);
   const isDurationTask = $derived(String(task?.taskMode || taskModeTimeWindow) === taskModeDuration);
-  const isCompleted = $derived(showEffectiveProgress && safeEffectiveSeconds >= safeTargetSeconds);
-  const displayPomodoroScore = $derived.by(() => {
-    const explicit = Number(pomodoroScore || 0);
-    if (explicit > 0) return explicit;
-    return getEquivalentPomodoros(safeEffectiveSeconds, focusMinutesPerPomodoro);
-  });
 
   /**
    * @param {number} totalSeconds
@@ -118,7 +106,6 @@
   class:editing={editing}
   class:started={isStartedTask}
   class:running={isRunningTask}
-  class:completed={isCompleted}
   style={`--task-active-progress:${progressPercent}%`}
 >
   {#if editing}
@@ -181,14 +168,17 @@
       </span>
       {#if showEffectiveProgress}
         <span class="task-elapsed">
-          {(strings.pomodoroTaskElapsed || "Elapsed")} {formatDuration(safeEffectiveSeconds)} / {formatDuration(safeTargetSeconds)}
+          {(strings.pomodoroTaskElapsed || "Elapsed")} {formatDuration(safeEffectiveSeconds)}
+        </span>
+        <span class="task-cycle">
+          {strings.pomodoroTaskRounds || "Task rounds"} x{cycleSnapshot.completedCycles}
+        </span>
+        <span class="task-round-progress">
+          {strings.pomodoroTaskCurrentRound || "Current round"} {formatDuration(cycleSnapshot.currentCycleSeconds)} / {formatDuration(safeTargetSeconds)}
         </span>
       {/if}
-      {#if isCompleted}
-        <span class="task-completed">{strings.pomodoroTaskCompleted || "Completed"}</span>
-      {/if}
-      <span class="task-progress" title={`整番茄 ${donePomodoros}`}>
-        🍅 {formatPomodoroScore(displayPomodoroScore)}
+      <span class="task-progress" title={`${strings.pomodoroCompletedSessions || "Completed sessions"} ${donePomodoros}`}>
+        🍅 x{donePomodoros}
       </span>
     </div>
     <div class="task-actions">
@@ -268,13 +258,6 @@
     align-items: stretch;
   }
 
-  .task-item.completed {
-    border-color: color-mix(in srgb, #22c55e 38%, var(--ws-border-soft, #dbe4ef));
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent),
-      0 0 0 1px color-mix(in srgb, #22c55e 12%, transparent);
-  }
-
   .task-main {
     display: flex;
     align-items: center;
@@ -296,6 +279,13 @@
     color: var(--ws-muted, #64748b);
   }
 
+  .task-cycle,
+  .task-round-progress {
+    font-size: 11px;
+    color: var(--ws-muted, #64748b);
+    white-space: nowrap;
+  }
+
   .task-progress {
     font-size: 11px;
     color: var(--ws-accent, #1d4ed8);
@@ -313,17 +303,6 @@
     padding: 2px 6px;
     background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, #f8fafc);
     white-space: nowrap;
-  }
-
-  .task-completed {
-    font-size: 11px;
-    color: #166534;
-    border: 1px solid color-mix(in srgb, #22c55e 42%, #bbf7d0);
-    border-radius: 999px;
-    padding: 2px 6px;
-    background: color-mix(in srgb, #dcfce7 86%, #ffffff);
-    white-space: nowrap;
-    font-weight: 700;
   }
 
   .task-edit-grid {

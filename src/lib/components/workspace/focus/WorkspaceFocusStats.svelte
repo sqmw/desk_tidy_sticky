@@ -2,17 +2,16 @@
   import WorkspaceTaskTimeline from "$lib/components/workspace/focus/WorkspaceTaskTimeline.svelte";
   import {
     formatFocusDuration,
-    formatPomodoroScore,
   } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
 
   let {
     strings,
     todayFocusMinutes = 0,
-    todayPomodoroScoreText = "0",
+    todayPomodoros = 0,
     todayTaskCount = 0,
-    todayCompletedTaskCount = 0,
+    todayTaskCycles = 0,
     weekFocusMinutes = 0,
-    weekPomodoroScoreText = "0",
+    weekPomodoros = 0,
     weekAverageMinutes = 0,
     streakDays = 0,
     bestDayDateKey = "",
@@ -32,7 +31,7 @@
   </div>
   <div class="stat">
     <span>{strings.pomodoroTodayPomodoros}</span>
-    <strong>🍅 {todayPomodoroScoreText}</strong>
+    <strong>🍅 x{todayPomodoros}</strong>
   </div>
   <div class="stat">
     <span>{strings.pomodoroWeekFocusMinutes}</span>
@@ -40,11 +39,11 @@
   </div>
   <div class="stat">
     <span>{strings.pomodoroWeekPomodoros}</span>
-    <strong>🍅 {weekPomodoroScoreText}</strong>
+    <strong>🍅 x{weekPomodoros}</strong>
   </div>
   <div class="stat">
-    <span>{strings.pomodoroTasksCompleted || "Tasks reached target"}</span>
-    <strong>{todayCompletedTaskCount} / {todayTaskCount}</strong>
+    <span>{strings.pomodoroTaskRounds || "Task rounds"}</span>
+    <strong>x{todayTaskCycles} / {todayTaskCount}</strong>
   </div>
   <div class="stat">
     <span>{strings.pomodoroStreakDays}</span>
@@ -91,8 +90,7 @@
           <div class="rollup-item">
             <strong>{item.title}</strong>
             <span>{strings.pomodoroTodayFocusMinutes || "Focus"} {formatFocusDuration(item.focusSeconds)}</span>
-            <span>{strings.pomodoroWeekPomodoros || "Pomodoros"} 🍅 {formatPomodoroScore(item.equivalentPomodoros)}</span>
-            <span>{strings.pomodoroCompletedSessions || "Completed sessions"} {item.completedPomodoros}</span>
+            <span>{strings.pomodoroWeekPomodoros || "Pomodoros"} 🍅 x{item.completedPomodoros}</span>
           </div>
         {/each}
       </div>

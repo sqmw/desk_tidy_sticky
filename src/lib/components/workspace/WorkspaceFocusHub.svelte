@@ -21,8 +21,7 @@
   } from "$lib/workspace/focus/focus-analytics.js";
   import {
     buildTaskTitleRollups,
-    formatPomodoroScore,
-    getEquivalentPomodoros,
+    getTaskCycleSnapshot,
   } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
   import WorkspaceFocusTimer from "$lib/components/workspace/focus/WorkspaceFocusTimer.svelte";
   import WorkspaceBreakControlBar from "$lib/components/workspace/focus/WorkspaceBreakControlBar.svelte";
@@ -138,17 +137,8 @@
   let draftRecurrence = $state(RECURRENCE.NONE);
   let draftWeekdays = $state([1, 2, 3, 4, 5]);
   let draftFocusMinutes = $state(25);
-  let draftMiniBreakEveryMinutes = $state(10);
-  let draftMiniBreakDurationSeconds = $state(20);
-  let draftLongBreakEveryMinutes = $state(30);
-  let draftLongBreakDurationMinutes = $state(5);
-  let draftBreakNotifyBeforeSeconds = $state(10);
   let draftTaskStartReminderEnabled = $state(false);
   let draftTaskStartReminderLeadMinutes = $state(10);
-  let draftMiniBreakPostponeMinutes = $state(5);
-  let draftLongBreakPostponeMinutes = $state(10);
-  let draftBreakPostponeLimit = $state(3);
-  let draftBreakStrictMode = $state(false);
   let focusSinceBreakSec = $state(0);
   let nextMiniBreakAtSec = $state(10 * 60);
   let nextLongBreakAtSec = $state(30 * 60);
@@ -197,10 +187,9 @@
   const weekFocusMinutes = $derived(
     weekKeys.reduce((sum, key) => sum + Math.round((stats[key]?.focusSeconds || 0) / 60), 0),
   );
-  const weekEquivalentPomodoros = $derived.by(() => {
-    const totalWeekFocusSeconds = weekKeys.reduce((sum, key) => sum + Number(stats[key]?.focusSeconds || 0), 0);
-    return getEquivalentPomodoros(totalWeekFocusSeconds, safeConfig.focusMinutes);
-  });
+  const weekPomodoros = $derived(
+    weekKeys.reduce((sum, key) => sum + Number(stats[key]?.pomodoros || 0), 0),
+  );
   const weekAverageMinutes = $derived(getWeekFocusAverageMinutes(stats));
   const streakDays = $derived(getFocusStreakDays(stats));
   const bestFocusDay = $derived(getBestFocusDay(stats));
@@ -234,47 +223,40 @@
         }
       : {}),
   }));
-  const plannerTaskPomodoroScores = $derived.by(() =>
-    Object.fromEntries(
-      plannerTasks.map((task) => [
-        task.id,
-        getEquivalentPomodoros(Number(liveTaskEffectiveSeconds?.[task.id] || 0), safeConfig.focusMinutes),
-      ])
-    )
-  );
   const selectedTaskEffectiveSeconds = $derived(
     selectedTaskId ? Number(liveTaskEffectiveSeconds?.[selectedTaskId] || 0) : 0,
   );
+  const selectedTaskCycleSnapshot = $derived(
+    getTaskCycleSnapshot(selectedTaskEffectiveSeconds, Number(selectedTask?.targetSeconds || 0)),
+  );
   const selectedTaskRemainingSeconds = $derived.by(() => {
     if (!selectedTaskId) return Math.max(0, Math.floor(Number(remainingSec || 0)));
-    const target = Math.max(0, Math.floor(Number(selectedTask?.targetSeconds || 0)));
-    const effective = Math.max(0, Math.floor(Number(selectedTaskEffectiveSeconds || 0)));
-    return Math.max(0, target - effective);
+    return Math.max(0, Number(selectedTaskCycleSnapshot.currentCycleRemainingSeconds || 0));
   });
   const pomodoroTimerText = $derived(formatTimer(selectedTaskRemainingSeconds));
-  const selectedTaskPomodoroScore = $derived(
-    getEquivalentPomodoros(selectedTaskEffectiveSeconds, safeConfig.focusMinutes),
-  );
-  const todayPomodoroScore = $derived(
-    getEquivalentPomodoros(liveTodayFocusSeconds, safeConfig.focusMinutes),
+  const selectedTaskDonePomodoros = $derived(
+    selectedTaskId ? Number(todayStats.taskPomodoros?.[selectedTaskId] || 0) : 0,
   );
   const taskTitleRollups = $derived(
     buildTaskTitleRollups(stats, tasks, safeConfig.focusMinutes),
   );
-  const liveCompletedTaskCount = $derived.by(() =>
-    plannerTasks.filter((task) =>
-      Number(liveTaskEffectiveSeconds?.[task.id] || 0) >= Math.max(1, Number(task.targetSeconds || 0))
-    ).length
+  const liveTaskCycleCount = $derived.by(() =>
+    plannerTasks.reduce((sum, task) =>
+      sum + getTaskCycleSnapshot(
+        Number(liveTaskEffectiveSeconds?.[task.id] || 0),
+        Number(task.targetSeconds || 0),
+      ).completedCycles, 0)
   );
   const todayTaskDistribution = $derived.by(() =>
     todaySummary.taskDistribution.map((task) => {
       const effectiveSeconds = Number(liveTaskEffectiveSeconds?.[task.id] || task.effectiveSeconds || 0);
-      const targetSeconds = Math.max(1, Number(task.targetSeconds || 0));
+      const cycleSnapshot = getTaskCycleSnapshot(effectiveSeconds, Number(task.targetSeconds || 0));
       return {
         ...task,
         effectiveSeconds,
-        completed: effectiveSeconds >= targetSeconds,
-        progressPercent: Math.max(0, Math.min(100, Math.round((effectiveSeconds / targetSeconds) * 100))),
+        completedCycles: cycleSnapshot.completedCycles,
+        currentCycleSeconds: cycleSnapshot.currentCycleSeconds,
+        progressPercent: cycleSnapshot.currentCycleProgressPercent,
       };
     })
   );
@@ -289,10 +271,7 @@
   const breakTimerActive = $derived(Boolean(activeBreakKind) && breakRemainingSec > 0);
   const focusProgressPercent = $derived.by(() => {
     if (!selectedTaskId) return 0;
-    const target = Math.max(1, Number(selectedTask?.targetSeconds || 0));
-    if (!Number.isFinite(target) || target <= 0) return 0;
-    const effective = Math.max(0, Math.floor(selectedTaskEffectiveSeconds));
-    return Math.max(0, Math.min(100, Math.round((effective / target) * 100)));
+    return Math.max(0, Number(selectedTaskCycleSnapshot.currentCycleProgressPercent || 0));
   });
   const breakProgressPercent = $derived.by(() => {
     if (!safeConfig.breakReminderEnabled) return 0;
@@ -1030,36 +1009,11 @@
       shortBreakMinutes: safeConfig.shortBreakMinutes,
       longBreakMinutes: safeConfig.longBreakMinutes,
       longBreakEvery: safeConfig.longBreakEvery,
-      miniBreakEveryMinutes: clampInt(
-        draftMiniBreakEveryMinutes,
-        safeConfig.miniBreakEveryMinutes,
-        1,
-        60,
-      ),
-      miniBreakDurationSeconds: clampInt(
-        draftMiniBreakDurationSeconds,
-        safeConfig.miniBreakDurationSeconds,
-        10,
-        300,
-      ),
-      longBreakEveryMinutes: clampInt(
-        draftLongBreakEveryMinutes,
-        safeConfig.longBreakEveryMinutes,
-        1,
-        180,
-      ),
-      longBreakDurationMinutes: clampInt(
-        draftLongBreakDurationMinutes,
-        safeConfig.longBreakDurationMinutes,
-        1,
-        30,
-      ),
-      breakNotifyBeforeSeconds: clampInt(
-        draftBreakNotifyBeforeSeconds,
-        safeConfig.breakNotifyBeforeSeconds,
-        0,
-        120,
-      ),
+      miniBreakEveryMinutes: safeConfig.miniBreakEveryMinutes,
+      miniBreakDurationSeconds: safeConfig.miniBreakDurationSeconds,
+      longBreakEveryMinutes: safeConfig.longBreakEveryMinutes,
+      longBreakDurationMinutes: safeConfig.longBreakDurationMinutes,
+      breakNotifyBeforeSeconds: safeConfig.breakNotifyBeforeSeconds,
       taskStartReminderEnabled: draftTaskStartReminderEnabled,
       taskStartReminderLeadMinutes: clampInt(
         draftTaskStartReminderLeadMinutes,
@@ -1067,25 +1021,10 @@
         1,
         60,
       ),
-      miniBreakPostponeMinutes: clampInt(
-        draftMiniBreakPostponeMinutes,
-        safeConfig.miniBreakPostponeMinutes,
-        1,
-        30,
-      ),
-      longBreakPostponeMinutes: clampInt(
-        draftLongBreakPostponeMinutes,
-        safeConfig.longBreakPostponeMinutes,
-        1,
-        60,
-      ),
-      breakPostponeLimit: clampInt(
-        draftBreakPostponeLimit,
-        safeConfig.breakPostponeLimit,
-        0,
-        10,
-      ),
-      breakStrictMode: draftBreakStrictMode,
+      miniBreakPostponeMinutes: safeConfig.miniBreakPostponeMinutes,
+      longBreakPostponeMinutes: safeConfig.longBreakPostponeMinutes,
+      breakPostponeLimit: safeConfig.breakPostponeLimit,
+      breakStrictMode: safeConfig.breakStrictMode,
       breakReminderMode: safeConfig.breakReminderMode,
       independentMiniBreakEveryMinutes: safeConfig.independentMiniBreakEveryMinutes,
       independentLongBreakEveryMinutes: safeConfig.independentLongBreakEveryMinutes,
@@ -1108,17 +1047,8 @@
 
   function openTimerSettings() {
     draftFocusMinutes = safeConfig.focusMinutes;
-    draftMiniBreakEveryMinutes = safeConfig.miniBreakEveryMinutes;
-    draftMiniBreakDurationSeconds = safeConfig.miniBreakDurationSeconds;
-    draftLongBreakEveryMinutes = safeConfig.longBreakEveryMinutes;
-    draftLongBreakDurationMinutes = safeConfig.longBreakDurationMinutes;
-    draftBreakNotifyBeforeSeconds = safeConfig.breakNotifyBeforeSeconds;
     draftTaskStartReminderEnabled = safeConfig.taskStartReminderEnabled;
     draftTaskStartReminderLeadMinutes = safeConfig.taskStartReminderLeadMinutes;
-    draftMiniBreakPostponeMinutes = safeConfig.miniBreakPostponeMinutes;
-    draftLongBreakPostponeMinutes = safeConfig.longBreakPostponeMinutes;
-    draftBreakPostponeLimit = safeConfig.breakPostponeLimit;
-    draftBreakStrictMode = safeConfig.breakStrictMode;
     showConfig = true;
   }
 
@@ -1677,7 +1607,7 @@
         phaseProgress={showBreakPanel ? breakProgressPercent : focusProgressPercent}
         {showBreakPanel}
         selectedTaskId={selectedTaskId}
-        selectedTaskPomodoroScoreText={formatPomodoroScore(selectedTaskPomodoroScore)}
+        selectedTaskPomodoroScoreText={`x${selectedTaskDonePomodoros}`}
         onToggleBreakPanel={(next = !showBreakPanel) => {
           showBreakPanel = !!next;
           if (showBreakPanel && showConfig) showConfig = false;
@@ -1729,13 +1659,11 @@
         todayTaskCount={todayTasks.length}
         todayStats={{
           taskCount: plannerTasks.length,
-          completedCount: liveCompletedTaskCount,
+          totalTaskCycles: liveTaskCycleCount,
           donePomodoros: plannerDonePomodoros,
           taskPomodoros: todayStats.taskPomodoros,
           taskEffectiveSeconds: liveTaskEffectiveSeconds,
         }}
-        taskPomodoroScores={plannerTaskPomodoroScores}
-        focusMinutesPerPomodoro={safeConfig.focusMinutes}
         onAddTask={addTask}
         onToggleSettings={() => (showConfig ? (showConfig = false) : openTimerSettings())}
         onToggleWeekday={toggleDraftWeekday}
@@ -1749,17 +1677,8 @@
           <WorkspaceFocusSettingsPanel
             {strings}
             bind:draftFocusMinutes
-            bind:draftMiniBreakEveryMinutes
-            bind:draftMiniBreakDurationSeconds
-            bind:draftLongBreakEveryMinutes
-            bind:draftLongBreakDurationMinutes
-            bind:draftBreakNotifyBeforeSeconds
             bind:draftTaskStartReminderEnabled
             bind:draftTaskStartReminderLeadMinutes
-            bind:draftMiniBreakPostponeMinutes
-            bind:draftLongBreakPostponeMinutes
-            bind:draftBreakPostponeLimit
-            bind:draftBreakStrictMode
             onSaveSettings={saveTimerConfig}
             onCancelSettings={() => (showConfig = false)}
           />
@@ -1780,11 +1699,11 @@
       <WorkspaceFocusStats
         {strings}
         todayFocusMinutes={Math.round(liveTodayFocusSeconds / 60)}
-        todayPomodoroScoreText={formatPomodoroScore(todayPomodoroScore)}
+        todayPomodoros={todayStats.pomodoros || 0}
         todayTaskCount={todaySummary.taskCount}
-        todayCompletedTaskCount={liveCompletedTaskCount}
+        todayTaskCycles={liveTaskCycleCount}
         {weekFocusMinutes}
-        weekPomodoroScoreText={formatPomodoroScore(weekEquivalentPomodoros)}
+        {weekPomodoros}
         {weekAverageMinutes}
         {streakDays}
         bestDayDateKey={bestFocusDay.dateKey}
