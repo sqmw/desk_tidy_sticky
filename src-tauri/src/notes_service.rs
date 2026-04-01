@@ -6,6 +6,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
+const LEGACY_MIGRATION_BATCH_SIZE: usize = 12;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum NoteSortMode {
@@ -131,36 +133,61 @@ fn write_notes_to_path(path: &Path, notes: &[Note]) -> Result<(), String> {
 }
 
 fn load_notes_from_file() -> Result<Vec<Note>, String> {
-    let path = notes_file()?;
-    let current_notes = if path.exists() {
-        match read_notes_from_path(&path) {
-            Ok(notes) => notes,
-            Err(err) => {
-                eprintln!(
-                    "[note_compat] failed to read current notes from {}: {}",
-                    path.display(),
-                    err
-                );
-                vec![]
-            }
-        }
-    } else {
-        vec![]
-    };
+    let mut context = load_notes_context()?;
+    let merged_notes = merged_notes_from_context(&context);
+    if let Err(err) = migrate_legacy_batch(&mut context, LEGACY_MIGRATION_BATCH_SIZE) {
+        eprintln!("[note_compat] incremental legacy migration failed: {}", err);
+    }
+    Ok(merged_notes)
+}
 
-    let legacy_paths = flutter_legacy::existing_legacy_notes_files(&path);
-    let mut merged_notes = current_notes.clone();
-    let mut touched = false;
+fn save_notes_to_file(notes: &[Note]) -> Result<(), String> {
+    let path = notes_file()?;
+    write_notes_to_path(&path, notes)
+}
+
+#[derive(Debug, Clone)]
+struct LegacyNotesFile {
+    path: PathBuf,
+    notes: Vec<Note>,
+}
+
+#[derive(Debug, Clone)]
+struct NotesContext {
+    current_path: PathBuf,
+    current_notes: Vec<Note>,
+    legacy_files: Vec<LegacyNotesFile>,
+}
+
+fn load_current_notes(path: &Path) -> Vec<Note> {
+    if !path.exists() {
+        return vec![];
+    }
+    match read_notes_from_path(path) {
+        Ok(notes) => notes,
+        Err(err) => {
+            eprintln!(
+                "[note_compat] failed to read current notes from {}: {}",
+                path.display(),
+                err
+            );
+            vec![]
+        }
+    }
+}
+
+fn load_notes_context() -> Result<NotesContext, String> {
+    let current_path = notes_file()?;
+    let current_notes = load_current_notes(&current_path);
+    let legacy_paths = flutter_legacy::existing_legacy_notes_files(&current_path);
+    let mut legacy_files = Vec::new();
 
     for legacy_path in legacy_paths {
         match flutter_legacy::load_legacy_notes(&legacy_path) {
-            Ok(legacy_notes) => {
-                let next = flutter_legacy::merge_with_current(&merged_notes, &legacy_notes);
-                if next.len() != merged_notes.len() {
-                    touched = true;
-                }
-                merged_notes = next;
-            }
+            Ok(notes) => legacy_files.push(LegacyNotesFile {
+                path: legacy_path,
+                notes,
+            }),
             Err(err) => {
                 eprintln!(
                     "[note_compat] failed to load legacy notes from {}: {}",
@@ -171,27 +198,136 @@ fn load_notes_from_file() -> Result<Vec<Note>, String> {
         }
     }
 
-    let (deduped_notes, removed) = flutter_legacy::dedupe_notes(merged_notes);
-    if removed > 0 {
-        touched = true;
+    Ok(NotesContext {
+        current_path,
+        current_notes,
+        legacy_files,
+    })
+}
+
+fn merged_notes_from_context(context: &NotesContext) -> Vec<Note> {
+    let mut merged_notes = context.current_notes.clone();
+    for legacy_file in &context.legacy_files {
+        merged_notes = flutter_legacy::merge_with_current(&merged_notes, &legacy_file.notes);
+    }
+    let (deduped_notes, _) = flutter_legacy::dedupe_notes(merged_notes);
+    deduped_notes
+}
+
+fn persist_current_and_verify(context: &NotesContext) -> Result<(), String> {
+    write_notes_to_path(&context.current_path, &context.current_notes)?;
+    let reloaded = read_notes_from_path(&context.current_path)?;
+    let expected_ids: std::collections::HashSet<&str> =
+        context.current_notes.iter().map(|note| note.id.as_str()).collect();
+    let reloaded_ids: std::collections::HashSet<&str> =
+        reloaded.iter().map(|note| note.id.as_str()).collect();
+    if expected_ids != reloaded_ids {
+        return Err("reloaded tauri notes mismatch after migration".to_string());
+    }
+    Ok(())
+}
+
+fn persist_legacy_file(legacy: &LegacyNotesFile) -> Result<(), String> {
+    if legacy.notes.is_empty() {
+        if legacy.path.exists() {
+            fs::remove_file(&legacy.path).map_err(|e| e.to_string())?;
+        }
+        return Ok(());
+    }
+    flutter_legacy::save_legacy_notes(&legacy.path, &legacy.notes)
+}
+
+fn migrate_legacy_note_to_current(
+    context: &mut NotesContext,
+    legacy_file_index: usize,
+    legacy_note_index: usize,
+) -> Result<(), String> {
+    let note = context.legacy_files[legacy_file_index]
+        .notes
+        .get(legacy_note_index)
+        .cloned()
+        .ok_or_else(|| "legacy note not found during migration".to_string())?;
+
+    if !context.current_notes.iter().any(|current| current.id == note.id) {
+        context.current_notes.push(note);
+        let (deduped, _) = flutter_legacy::dedupe_notes(context.current_notes.clone());
+        context.current_notes = deduped;
+        persist_current_and_verify(context)?;
     }
 
-    if touched {
-        if let Err(err) = write_notes_to_path(&path, &deduped_notes) {
-            eprintln!(
-                "[note_compat] failed to persist merged/deduped notes to {}: {}",
-                path.display(),
-                err
-            );
+    context.legacy_files[legacy_file_index]
+        .notes
+        .remove(legacy_note_index);
+    persist_legacy_file(&context.legacy_files[legacy_file_index])?;
+    Ok(())
+}
+
+fn migrate_legacy_batch(context: &mut NotesContext, limit: usize) -> Result<(), String> {
+    if limit == 0 {
+        return Ok(());
+    }
+    let mut remaining = limit;
+    let mut file_index = 0;
+    while file_index < context.legacy_files.len() && remaining > 0 {
+        while !context.legacy_files[file_index].notes.is_empty() && remaining > 0 {
+            migrate_legacy_note_to_current(context, file_index, 0)?;
+            remaining -= 1;
+        }
+        file_index += 1;
+    }
+    Ok(())
+}
+
+fn upsert_current_note(context: &mut NotesContext, note: Note) {
+    if let Some(existing) = context.current_notes.iter_mut().find(|current| current.id == note.id) {
+        *existing = note;
+        return;
+    }
+    context.current_notes.push(note);
+}
+
+fn mutate_note<F>(
+    id: &str,
+    sort_mode: Option<NoteSortMode>,
+    mutate: F,
+) -> Result<Vec<Note>, String>
+where
+    F: FnOnce(&mut Note),
+{
+    let mut context = load_notes_context()?;
+
+    if let Some(note) = context.current_notes.iter_mut().find(|note| note.id == id) {
+        mutate(note);
+    } else {
+        let mut migrated_note = None;
+        let mut legacy_hit = None;
+        'outer: for (file_index, legacy_file) in context.legacy_files.iter().enumerate() {
+            for (note_index, note) in legacy_file.notes.iter().enumerate() {
+                if note.id == id {
+                    migrated_note = Some(note.clone());
+                    legacy_hit = Some((file_index, note_index));
+                    break 'outer;
+                }
+            }
+        }
+
+        if let Some((file_index, note_index)) = legacy_hit {
+            let mut note = migrated_note.ok_or_else(|| "legacy note lookup failed".to_string())?;
+            mutate(&mut note);
+            upsert_current_note(&mut context, note);
+            let (deduped, _) = flutter_legacy::dedupe_notes(context.current_notes.clone());
+            context.current_notes = deduped;
+            persist_current_and_verify(&context)?;
+            context.legacy_files[file_index].notes.remove(note_index);
+            persist_legacy_file(&context.legacy_files[file_index])?;
         }
     }
 
-    Ok(deduped_notes)
-}
-
-fn save_notes_to_file(notes: &[Note]) -> Result<(), String> {
-    let path = notes_file()?;
-    write_notes_to_path(&path, notes)
+    if let Some(mode) = sort_mode {
+        sort_notes(&mut context.current_notes, mode);
+    }
+    save_notes_to_file(&context.current_notes)?;
+    Ok(merged_notes_from_context(&context))
 }
 
 fn sort_notes(notes: &mut [Note], mode: NoteSortMode) {
@@ -285,26 +421,19 @@ pub fn update_note_tags(
     tags: Vec<String>,
     sort_mode: NoteSortMode,
 ) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
     let safe = normalize_tags(tags);
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.tags = safe;
         n.updated_at = chrono_now();
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn update_note(mut updated: Note, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
     updated.updated_at = crate::notes::chrono_now();
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == updated.id) {
+    let id = updated.id.clone();
+    mutate_note(&id, Some(sort_mode), |n| {
         *n = updated;
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 fn chrono_now() -> String {
@@ -312,12 +441,10 @@ fn chrono_now() -> String {
 }
 
 pub fn update_note_position(id: &str, x: f64, y: f64) -> Result<(), String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    let _ = mutate_note(id, None, |n| {
         n.x = Some(x);
         n.y = Some(y);
-    }
-    save_notes_to_file(&notes)?;
+    })?;
     Ok(())
 }
 
@@ -326,14 +453,10 @@ pub fn update_note_text(
     text: String,
     sort_mode: NoteSortMode,
 ) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.text = text;
         n.updated_at = chrono_now();
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn update_note_color(
@@ -341,14 +464,10 @@ pub fn update_note_color(
     color: String,
     sort_mode: NoteSortMode,
 ) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.bg_color = Some(color);
         n.updated_at = chrono_now();
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn update_note_text_color(
@@ -356,14 +475,10 @@ pub fn update_note_text_color(
     color: String,
     sort_mode: NoteSortMode,
 ) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.text_color = Some(color);
         n.updated_at = chrono_now();
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn update_note_opacity(
@@ -371,15 +486,11 @@ pub fn update_note_opacity(
     opacity: f64,
     sort_mode: NoteSortMode,
 ) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
     let clamped = opacity.clamp(0.35, 1.0);
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.opacity = Some(clamped);
         n.updated_at = chrono_now();
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn update_note_frost(
@@ -387,15 +498,11 @@ pub fn update_note_frost(
     frost: f64,
     sort_mode: NoteSortMode,
 ) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
     let clamped = frost.clamp(0.0, 1.0);
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.frost = Some(clamped);
         n.updated_at = chrono_now();
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn update_note_priority(
@@ -403,125 +510,99 @@ pub fn update_note_priority(
     priority: u8,
     sort_mode: NoteSortMode,
 ) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
     let safe = priority.clamp(1, 4);
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.priority = Some(safe);
         n.updated_at = chrono_now();
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn clear_note_priority(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.priority = None;
         n.updated_at = chrono_now();
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn toggle_pin(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.is_pinned = !n.is_pinned;
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn toggle_z_order(id: &str, _sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, None, |n| {
         n.is_always_on_top = !n.is_always_on_top;
         if n.is_always_on_top {
             n.is_wallpaper = false;
         }
-    }
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn toggle_wallpaper_layer(id: &str, _sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, None, |n| {
         n.is_wallpaper = !n.is_wallpaper;
         if n.is_wallpaper {
             n.is_always_on_top = false;
         }
-    }
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn toggle_done(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.is_done = !n.is_done;
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn toggle_archive(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.is_archived = !n.is_archived;
         if n.is_archived {
             n.is_pinned = false;
         }
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn delete_note(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.is_deleted = true;
         n.is_pinned = false;
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn restore_note(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
-    let mut notes = load_notes_from_file()?;
-    if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+    mutate_note(id, Some(sort_mode), |n| {
         n.is_deleted = false;
         n.is_pinned = false;
-    }
-    sort_notes(&mut notes, sort_mode);
-    save_notes_to_file(&notes)?;
-    Ok(notes)
+    })
 }
 
 pub fn permanently_delete_note(id: &str) -> Result<(), String> {
-    let mut notes = load_notes_from_file()?;
-    notes.retain(|n| n.id != id);
-    save_notes_to_file(&notes)?;
+    let mut context = load_notes_context()?;
+    context.current_notes.retain(|note| note.id != id);
+    save_notes_to_file(&context.current_notes)?;
+    for legacy_file in &mut context.legacy_files {
+        legacy_file.notes.retain(|note| note.id != id);
+        persist_legacy_file(legacy_file)?;
+    }
     Ok(())
 }
 
 pub fn empty_trash() -> Result<(), String> {
-    let mut notes = load_notes_from_file()?;
-    notes.retain(|n| !n.is_deleted);
-    save_notes_to_file(&notes)?;
+    let mut context = load_notes_context()?;
+    context.current_notes.retain(|note| !note.is_deleted);
+    save_notes_to_file(&context.current_notes)?;
+    for legacy_file in &mut context.legacy_files {
+        legacy_file.notes.retain(|note| !note.is_deleted);
+        persist_legacy_file(legacy_file)?;
+    }
     Ok(())
 }
 
 pub fn reorder_notes(reordered: Vec<(String, i32)>, is_archived_view: bool) -> Result<(), String> {
-    let mut notes = load_notes_from_file()?;
+    let mut context = load_notes_context()?;
     for (id, order) in reordered {
-        if let Some(n) = notes.iter_mut().find(|x| x.id == id) {
+        if let Some(n) = context.current_notes.iter_mut().find(|x| x.id == id) {
             let in_view = if is_archived_view {
                 n.is_archived && !n.is_deleted
             } else {
@@ -530,8 +611,38 @@ pub fn reorder_notes(reordered: Vec<(String, i32)>, is_archived_view: bool) -> R
             if in_view {
                 n.custom_order = Some(order);
             }
+            continue;
+        }
+        if let Some((file_index, note_index)) = context
+            .legacy_files
+            .iter()
+            .enumerate()
+            .find_map(|(file_index, legacy_file)| {
+                legacy_file
+                    .notes
+                    .iter()
+                    .enumerate()
+                    .find(|(_, note)| note.id == id)
+                    .map(|(note_index, _)| (file_index, note_index))
+            })
+        {
+            let mut note = context.legacy_files[file_index].notes[note_index].clone();
+            let in_view = if is_archived_view {
+                note.is_archived && !note.is_deleted
+            } else {
+                !note.is_archived && !note.is_deleted
+            };
+            if in_view {
+                note.custom_order = Some(order);
+                upsert_current_note(&mut context, note);
+                let (deduped, _) = flutter_legacy::dedupe_notes(context.current_notes.clone());
+                context.current_notes = deduped;
+                persist_current_and_verify(&context)?;
+                context.legacy_files[file_index].notes.remove(note_index);
+                persist_legacy_file(&context.legacy_files[file_index])?;
+            }
         }
     }
-    save_notes_to_file(&notes)?;
+    save_notes_to_file(&context.current_notes)?;
     Ok(())
 }

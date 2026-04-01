@@ -413,6 +413,14 @@ pub mod flutter_legacy {
         load_notes_best_effort(path)
     }
 
+    pub fn save_legacy_notes(path: &Path, notes: &[Note]) -> Result<(), String> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let content = serde_json::to_string_pretty(notes).map_err(|e| e.to_string())?;
+        fs::write(path, content).map_err(|e| e.to_string())
+    }
+
     pub fn merge_with_current(current_notes: &[Note], legacy_notes: &[Note]) -> Vec<Note> {
         let mut merged = current_notes.to_vec();
         for legacy in legacy_notes {
