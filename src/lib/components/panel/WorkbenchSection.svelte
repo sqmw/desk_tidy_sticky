@@ -1,5 +1,7 @@
 <script>
   import { tick } from "svelte";
+  import { normalizeTagKey, normalizeTagText } from "$lib/note/tags.js";
+  import { buildQuadrants, filterNotesByQuadrant, normalizePriority, priorityBadge } from "$lib/panel/note-priority.js";
 
   let {
     strings,
@@ -21,26 +23,7 @@
     updateTags = async () => {},
   } = $props();
 
-  const QUADRANTS = [
-    { key: 1, title: () => strings.quadrantQ1, subtitle: () => strings.quadrantQ1Desc },
-    { key: 2, title: () => strings.quadrantQ2, subtitle: () => strings.quadrantQ2Desc },
-    { key: 3, title: () => strings.quadrantQ3, subtitle: () => strings.quadrantQ3Desc },
-    { key: 4, title: () => strings.quadrantQ4, subtitle: () => strings.quadrantQ4Desc },
-  ];
-
-  /** @param {number | undefined | null} p */
-  function normalizePriority(p) {
-    if (p == null) return null;
-    const v = Number(p);
-    if (!Number.isFinite(v)) return null;
-    return Math.max(1, Math.min(4, v));
-  }
-
-  /** @param {number | undefined | null} p */
-  function priorityBadge(p) {
-    const normalized = normalizePriority(p);
-    return normalized == null ? "" : `Q${normalized}`;
-  }
+  const QUADRANTS = $derived.by(() => buildQuadrants(strings));
 
   /** @param {number | undefined | null} p */
   function priorityActionLabel(p) {
@@ -48,19 +31,14 @@
     return normalized == null ? strings.priorityUnassigned : `Q${normalized}`;
   }
 
-  /** @param {unknown} raw */
-  function normalizeTagText(raw) {
-    return String(raw || "").trim().replace(/^#+/, "");
-  }
-
   /**
    * @param {string[]} current
    * @param {string} target
    */
   function hasTagText(current, target) {
-    const needle = normalizeTagText(target).toLocaleLowerCase();
+    const needle = normalizeTagKey(target);
     if (!needle) return false;
-    return current.some((t) => normalizeTagText(t).toLocaleLowerCase() === needle);
+    return current.some((t) => normalizeTagKey(t) === needle);
   }
 
   /**
@@ -69,21 +47,20 @@
    */
   function noteTags(note) {
     if (!Array.isArray(note?.tags)) return [];
-    const raw = /** @type {any[]} */ (note.tags);
-    return raw
-      .map((/** @type {any} */ t) => String(t || "").trim())
-      .filter(
-        (/** @type {string} */ t, /** @type {number} */ idx, /** @type {string[]} */ arr) =>
-          !!t && arr.indexOf(t) === idx,
-      );
+    /** @type {Map<string, string>} */
+    const unique = new Map();
+    for (const raw of /** @type {any[]} */ (note.tags)) {
+      const text = normalizeTagText(raw);
+      const key = normalizeTagKey(text);
+      if (!key || unique.has(key)) continue;
+      unique.set(key, text);
+    }
+    return [...unique.values()];
   }
 
   /** @param {number} q */
   function quadrantNotes(q) {
-    const safe = Math.max(1, Math.min(4, Number(q) || 4));
-    const scoped = renderedNotes.filter(
-      (/** @type {{ id?: string | number; priority?: number }} */ n) => normalizePriority(n.priority) === safe,
-    );
+    const scoped = filterNotesByQuadrant(renderedNotes, q);
     const seen = new Set();
     return scoped.filter((/** @type {{ id?: string | number }} */ n) => {
       const id = String(n.id ?? "");
@@ -101,7 +78,7 @@
     for (const note of renderedNotes) {
       for (const rawTag of noteTags(note)) {
         const text = normalizeTagText(rawTag);
-        const key = text.toLocaleLowerCase();
+        const key = normalizeTagKey(text);
         if (!key) continue;
         const prev = buckets.get(key);
         if (prev) {
@@ -307,6 +284,7 @@
    */
   function quadrantRenderItems(quadrantKey) {
     const notes = quadrantNotes(quadrantKey);
+    /** @type {Array<{ kind: "note"; note: any; key: string } | { kind: "placeholder"; key: string }>} */
     const base = notes
       .filter((/** @type {any} */ n) => String(n.id) !== draggingNoteId)
       .map((/** @type {any} */ note) => ({ kind: /** @type {"note"} */ ("note"), note, key: `note-${note.id}` }));
@@ -583,10 +561,10 @@
         >
           <header class="quadrant-head">
             <div class="quadrant-head-top">
-              <h4>{q.title()}</h4>
+              <h4>{q.title}</h4>
               <span class="quadrant-count">{quadrantNotes(q.key).length}</span>
             </div>
-            <p>{q.subtitle()}</p>
+            <p>{q.subtitle}</p>
           </header>
           <div class="quadrant-list">
             {#if quadrantRenderItems(q.key).length === 0}

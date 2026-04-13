@@ -1,4 +1,6 @@
 <script>
+  import { normalizeTagKey, normalizeTagText } from "$lib/note/tags.js";
+
   let {
     strings,
     tags = $bindable(/** @type {string[]} */ ([])),
@@ -13,16 +15,14 @@
   let inputValue = $state("");
   let focused = $state(false);
 
-  /** @param {string} raw */
+  /** @param {unknown} raw */
   function normalizeTag(raw) {
-    const trimmed = String(raw || "").trim().replace(/^#+/, "").trim();
-    if (!trimmed) return "";
-    return trimmed.slice(0, 32);
+    return normalizeTagText(raw);
   }
 
-  /** @param {string} raw */
+  /** @param {unknown} raw */
   function normalizedKey(raw) {
-    return normalizeTag(raw).toLocaleLowerCase();
+    return normalizeTagKey(raw);
   }
 
   /** @param {string} raw */

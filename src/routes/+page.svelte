@@ -11,9 +11,13 @@
 
   import { getStrings } from "$lib/strings.js";
   import { broadcastPreferencesChanged, listenPreferencesChanged } from "$lib/preferences/preferences-sync.js";
-  import { matchNote } from "$lib/note-search.js";
+  import { formatNoteDate } from "$lib/note/note-date-format.js";
   import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
-  import { hasQuadrantPriority } from "$lib/panel/note-priority.js";
+  import {
+    PANEL_NOTE_VIEW_MODES,
+    getPanelNoteTagOptions,
+    getVisiblePanelNotes,
+  } from "$lib/panel/panel-note-selectors.js";
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
   import { createDragReorder } from "$lib/panel/use-drag-reorder.js";
@@ -24,7 +28,7 @@
   import EditDialog from "$lib/components/panel/EditDialog.svelte";
   import SettingsDialog from "$lib/components/panel/SettingsDialog.svelte";
 
-  const NOTE_VIEW_MODES = ["active", "todo", "quadrant", "archived", "trash"];
+  const NOTE_VIEW_MODES = PANEL_NOTE_VIEW_MODES;
 
   /** @type {any[]} */
   let notes = $state([]);
@@ -69,46 +73,9 @@
   });
 
   const strings = $derived(getStrings(locale));
+  const formatDate = formatNoteDate;
 
-  /** @param {string} isoStr */
-  function formatDate(isoStr) {
-    const d = new Date(isoStr);
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const h = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    return `${m}-${day} ${h}:${min}`;
-  }
-
-  const visibleNotes = $derived.by(() => {
-    let base = notes;
-    if (viewMode === "active") {
-      base = base.filter((n) => !n.isArchived && !n.isDeleted);
-    } else if (viewMode === "todo") {
-      base = base
-        .filter((n) => !n.isArchived && !n.isDeleted)
-        .sort((a, b) => {
-          if (!!a.isDone !== !!b.isDone) return a.isDone ? 1 : -1;
-          return String(b.updatedAt).localeCompare(String(a.updatedAt));
-        });
-    } else if (viewMode === "quadrant") {
-      base = base.filter(
-        (n) => !n.isArchived && !n.isDeleted && hasQuadrantPriority(n.priority),
-      );
-    } else if (viewMode === "archived") {
-      base = base.filter((n) => n.isArchived && !n.isDeleted);
-    } else {
-      base = base.filter((n) => n.isDeleted);
-    }
-
-    if (!searchQuery.trim()) return base;
-    const q = searchQuery.trim();
-    return base
-      .map((n) => ({ note: n, ...matchNote(q, n.text) }))
-      .filter((x) => x.matched)
-      .sort((a, b) => b.score - a.score)
-      .map((x) => x.note);
-  });
+  const visibleNotes = $derived.by(() => getVisiblePanelNotes({ notes, viewMode, searchQuery }));
 
   const canReorder = $derived(
     sortMode === "custom" && viewMode === "active" && !searchQuery.trim(),
@@ -125,22 +92,7 @@
     return renderedNotes.find((n) => n.id === drag.draggedNoteId) ?? null;
   });
 
-  const noteTagOptions = $derived.by(() => {
-    /** @type {Map<string, string>} */
-    const bucket = new Map();
-    for (const note of notes) {
-      if (!Array.isArray(note?.tags)) continue;
-      for (const rawTag of note.tags) {
-        const text = String(rawTag || "").trim().replace(/^#+/, "").trim();
-        if (!text) continue;
-        const key = text.toLocaleLowerCase();
-        if (!bucket.has(key)) {
-          bucket.set(key, text);
-        }
-      }
-    }
-    return [...bucket.values()].sort((a, b) => a.localeCompare(b)).slice(0, 80);
-  });
+  const noteTagOptions = $derived.by(() => getPanelNoteTagOptions(notes));
 
   const windowSync = createWindowSync({
     getNotes: () => notes,
@@ -561,20 +513,6 @@
 />
 
 <style>
-  :global(html, body) {
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    height: 100%;
-    width: 100%;
-  }
-
-  :global(*),
-  :global(*::before),
-  :global(*::after) {
-    box-sizing: border-box;
-  }
-
   :global(:root) {
     --primary: #546e7a;
     --accent: #f6c344;
