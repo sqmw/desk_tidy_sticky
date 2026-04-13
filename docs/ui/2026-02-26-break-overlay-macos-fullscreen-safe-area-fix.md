@@ -311,3 +311,37 @@
 1. break overlay 的“第一次可见”就发生在正确的原生窗口 traits 已就位之后。
 2. 进入其他 app 全屏 Space 的能力不再依赖 `MoveToActiveSpace` 的激活时机，而是改用更符合 overlay 语义的 `CanJoinAllSpaces + FullScreenAuxiliary`。
 3. 降低“必须手动三指切回应用 Space 才出现”的概率。
+
+## 2026-04-13 补充：macOS 后台休眠后到点不提醒修复
+
+### 判定
+- 类型：`Bug/回归`
+- 现象：
+  1. 独立休息提醒偶发到点不触发，看起来像应用进入了 sleep / App Nap。
+  2. 点击一次 Dock 图标后，休息会立刻开始，说明“到点时间”其实已经过去，但触发链路没有及时跑起来。
+
+### 根因
+1. 旧实现虽然已经把“到点判定”放到了 Rust watchdog 线程，但 macOS 后台场景下进程仍可能被 App Nap 压制，导致 watchdog 线程不能稳定按预期执行。
+2. 同时，应用重新被 Dock 激活或从挂起状态恢复时，没有立刻补做一次“是否已经到点”的墙钟对账。
+3. 结果就是：
+   - 到点时没有立即发出 `focus_break_due`
+   - 用户点击 Dock 让应用恢复活跃后，前端/进程重新跑起来，才把积压的到点状态消化掉
+
+### 修复
+1. macOS 启动阶段新增 `prevent_app_nap_for_runtime_timers()`：
+   - 使用 `NSProcessInfo.beginActivityWithOptions(...)`
+   - 让独立休息提醒 watchdog 在后台保持响应
+2. Rust 侧抽出统一的 `process_break_reminder_due(...)`：
+   - watchdog 线程命中时复用它
+   - macOS `RunEvent::Reopen` / `RunEvent::Resumed` 也复用它
+3. 因此无论是正常运行、从挂起恢复，还是点击 Dock 重新激活，都会立即补做一次“是否已到点”的判定。
+
+### 影响文件
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/lib.rs`
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/macos_windows.rs`
+
+### 回归步骤
+1. 在 macOS 上开启独立休息提醒。
+2. 将应用切到后台并等待到点，期间不要主动切回应用。
+3. 确认到点后仍能直接进入休息，不需要先点击 Dock 图标唤醒。
+4. 再测试应用从挂起/恢复后的场景，确认若恢复时已超时，也会立即补触发休息。

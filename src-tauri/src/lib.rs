@@ -434,6 +434,29 @@ fn hide_panel_window(app: tauri::AppHandle, label: String) -> Result<(), String>
     Ok(())
 }
 
+#[tauri::command]
+fn minimize_panel_window(app: tauri::AppHandle, label: String) -> Result<(), String> {
+    let target = if label == "workspace" {
+        "workspace"
+    } else {
+        "main"
+    };
+    let Some(window) = app.get_webview_window(target) else {
+        return Ok(());
+    };
+    let _ = window.set_skip_taskbar(false);
+    #[cfg(target_os = "macos")]
+    {
+        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+        apply_macos_runtime_dock_icon(&app);
+    }
+    let _ = window.show();
+    let _ = window.unminimize();
+    window.minimize().map_err(|error| error.to_string())?;
+    sync_panel_window_shell_state(&app);
+    Ok(())
+}
+
 fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
     match sort_mode {
         "newest" => NoteSortMode::Newest,
@@ -1141,6 +1164,47 @@ fn sync_break_reminder_watchdog(
     state.update(snapshot)
 }
 
+fn now_unix_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+fn process_break_reminder_due(
+    app_handle: &tauri::AppHandle,
+    state: &BreakReminderWatchState,
+) -> Result<bool, String> {
+    let snapshot = state.snapshot()?;
+    if !snapshot.enabled || !snapshot.active_break_kind.is_empty() {
+        return Ok(false);
+    }
+    let now_ms = now_unix_ms();
+    let due = if snapshot.long_due_at_ms > 0 && now_ms >= snapshot.long_due_at_ms {
+        Some(("long".to_string(), snapshot.long_due_at_ms))
+    } else if snapshot.mini_due_at_ms > 0 && now_ms >= snapshot.mini_due_at_ms {
+        Some(("mini".to_string(), snapshot.mini_due_at_ms))
+    } else {
+        None
+    };
+    let Some((kind, due_at_ms)) = due else {
+        return Ok(false);
+    };
+    if !state.mark_emitted(due_at_ms)? {
+        return Ok(false);
+    }
+    ensure_hidden_workspace_runtime_window(app_handle);
+    #[cfg(target_os = "macos")]
+    if let Err(error) = ensure_break_overlay_windows_native(app_handle) {
+        eprintln!("ensure native break overlay windows failed: {}", error);
+    }
+    let payload = BreakReminderDuePayload { kind, due_at_ms };
+    app_handle
+        .emit("focus_break_due", payload)
+        .map_err(|error| error.to_string())?;
+    Ok(true)
+}
+
 fn start_break_reminder_watchdog(app: &tauri::AppHandle) {
     let Some(state) = app.try_state::<BreakReminderWatchState>() else {
         return;
@@ -1149,44 +1213,8 @@ fn start_break_reminder_watchdog(app: &tauri::AppHandle) {
     let app_handle = app.clone();
     std::thread::spawn(move || loop {
         std::thread::sleep(std::time::Duration::from_millis(250));
-        let snapshot = match state.snapshot() {
-            Ok(snapshot) => snapshot,
-            Err(error) => {
-                eprintln!("break reminder watchdog snapshot failed: {}", error);
-                continue;
-            }
-        };
-        if !snapshot.enabled || !snapshot.active_break_kind.is_empty() {
-            continue;
-        }
-        let now_ms = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_millis() as i64)
-            .unwrap_or(0);
-        let due = if snapshot.long_due_at_ms > 0 && now_ms >= snapshot.long_due_at_ms {
-            Some(("long".to_string(), snapshot.long_due_at_ms))
-        } else if snapshot.mini_due_at_ms > 0 && now_ms >= snapshot.mini_due_at_ms {
-            Some(("mini".to_string(), snapshot.mini_due_at_ms))
-        } else {
-            None
-        };
-        let Some((kind, due_at_ms)) = due else {
-            continue;
-        };
-        match state.mark_emitted(due_at_ms) {
-            Ok(true) => {
-                ensure_hidden_workspace_runtime_window(&app_handle);
-                #[cfg(target_os = "macos")]
-                if let Err(error) = ensure_break_overlay_windows_native(&app_handle) {
-                    eprintln!("ensure native break overlay windows failed: {}", error);
-                }
-                let payload = BreakReminderDuePayload { kind, due_at_ms };
-                if let Err(error) = app_handle.emit("focus_break_due", payload) {
-                    eprintln!("break reminder watchdog emit failed: {}", error);
-                }
-            }
-            Ok(false) => {}
-            Err(error) => eprintln!("break reminder watchdog mark failed: {}", error),
+        if let Err(error) = process_break_reminder_due(&app_handle, &state) {
+            eprintln!("break reminder watchdog process failed: {}", error);
         }
     });
 }
@@ -1297,7 +1325,10 @@ pub fn run() {
                 let _tray = tray_builder.build(app)?;
 
                 #[cfg(target_os = "macos")]
-                apply_macos_runtime_dock_icon(&app.handle());
+                {
+                    macos_windows::prevent_app_nap_for_runtime_timers();
+                    apply_macos_runtime_dock_icon(&app.handle());
+                }
 
                 ensure_hidden_workspace_runtime_window(&app.handle());
                 start_break_reminder_watchdog(&app.handle());
@@ -1389,15 +1420,27 @@ pub fn run() {
             set_break_overlay_presentation,
             sync_break_reminder_watchdog,
             hide_panel_window,
+            minimize_panel_window,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
     app.run(|app_handle, event| {
         #[cfg(target_os = "macos")]
-        if let tauri::RunEvent::Reopen { .. } = event {
-            show_preferred_panel_window(app_handle);
-            return;
+        match event {
+            tauri::RunEvent::Reopen { .. } => {
+                if let Some(state) = app_handle.try_state::<BreakReminderWatchState>() {
+                    let _ = process_break_reminder_due(app_handle, state.inner());
+                }
+                show_preferred_panel_window(app_handle);
+                return;
+            }
+            tauri::RunEvent::Resumed => {
+                if let Some(state) = app_handle.try_state::<BreakReminderWatchState>() {
+                    let _ = process_break_reminder_due(app_handle, state.inner());
+                }
+            }
+            _ => {}
         }
 
         #[cfg(not(target_os = "macos"))]

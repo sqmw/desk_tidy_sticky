@@ -4,7 +4,7 @@ use objc2_app_kit::{
     NSRunningApplication, NSWindow, NSWindowAnimationBehavior, NSWindowCollectionBehavior,
 };
 use objc2_core_graphics::{CGWindowLevelForKey, CGWindowLevelKey};
-use objc2_foundation::NSData;
+use objc2_foundation::{NSData, NSProcessInfo, NSActivityOptions, NSString};
 use std::ffi::c_void;
 
 fn cast_ns_window_ptr(ptr: *mut c_void) -> Result<&'static NSWindow, String> {
@@ -217,6 +217,16 @@ pub fn set_break_overlay_presentation(active: bool) -> Result<(), String> {
         app.activateIgnoringOtherApps(true);
     }
     Ok(())
+}
+
+pub fn prevent_app_nap_for_runtime_timers() {
+    let reason = NSString::from_str("Keep break reminder watchdog responsive while app runs in background");
+    let process_info = NSProcessInfo::processInfo();
+    let activity = process_info.beginActivityWithOptions_reason(
+        NSActivityOptions::UserInitiatedAllowingIdleSystemSleep,
+        &reason,
+    );
+    std::mem::forget(activity);
 }
 
 pub fn disable_aero_snap(_ns_window_ptr: *mut c_void) -> Result<(), String> {

@@ -74,3 +74,37 @@
    - macOS Dock icon disappears (menu bar tray remains).
    - Windows taskbar icon disappears (tray remains).
 7. Trigger tray “Show main window” and verify Dock/taskbar icon is restored.
+
+## 2026-04-13 Addendum: intermittent minimize no-op fix
+
+### Classification
+- Type: `Bug/Regression`
+- Symptom: sometimes clicking the minimize button on either the compact panel or workspace window had no visible effect.
+
+### Root Cause
+1. The old implementation called `getCurrentWindow().minimize()` directly from the frontend.
+2. In this app, panel shell state is centrally managed by Rust:
+   - Dock/taskbar visibility
+   - activation policy
+   - close-as-hide behavior
+3. Direct frontend minimize bypassed that shell-state reconciliation path, so after hide/reopen or Dock visibility transitions, minimize could occasionally become out of sync with the actual window shell state.
+
+### Fix
+1. Added backend command `minimize_panel_window`:
+   - resolves the target panel (`main` / `workspace`)
+   - forces `skip_taskbar=false`
+   - on macOS restores `ActivationPolicy::Regular`
+   - executes `show -> unminimize -> minimize`
+   - then runs `sync_panel_window_shell_state(&app)`
+2. Both compact and workspace minimize buttons now call the backend command instead of invoking frontend `minimize()` directly.
+
+### Impacted Files
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src-tauri/src/lib.rs`
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/+page.svelte`
+- `/Users/sunqin/study/language/rust/code/desk_tidy_sticky/src/routes/workspace/+page.svelte`
+
+### Regression Checklist
+1. Open both compact panel and workspace windows.
+2. Repeatedly run the sequence: show -> hide -> reopen -> minimize.
+3. Confirm the minimize button always sends the window into the system minimized state.
+4. Restore from Dock/taskbar and minimize again to confirm the behavior remains stable.

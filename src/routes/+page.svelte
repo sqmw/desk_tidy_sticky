@@ -387,7 +387,11 @@
   }
 
   async function minimizeWindow() {
-    await getCurrentWindow().minimize();
+    try {
+      await invoke("minimize_panel_window", { label: getCurrentWindow().label });
+    } catch (e) {
+      console.error("minimizeWindow", e);
+    }
   }
 
   async function switchToWorkspace() {

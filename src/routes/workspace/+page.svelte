@@ -888,7 +888,7 @@
 
   async function minimizeWindow() {
     try {
-      await getCurrentWindow().minimize();
+      await invoke("minimize_panel_window", { label: getCurrentWindow().label });
     } catch (e) {
       console.error("minimizeWindow(workspace)", e);
     }
