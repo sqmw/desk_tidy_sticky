@@ -1,12 +1,12 @@
 import { getPreferences, updatePreferences } from "$lib/preferences/preferences-store.js";
-import { normalizeFocusStats, normalizeFocusTasks } from "$lib/workspace/focus/focus-model.js";
-import { normalizeBreakSession } from "$lib/workspace/focus/focus-break-session.js";
+import { normalizeFocusStats, normalizeFocusTasks } from "$lib/workspace/pomodoro/focus-model.js";
+import { normalizeBreakSession } from "$lib/workspace/break-control/focus-break-session.js";
 import { normalizeWorkspaceThemePreset } from "$lib/workspace/theme/theme-presets.js";
 import { normalizeWorkspaceCustomCss } from "$lib/workspace/theme/theme-custom-css.js";
 import {
   BREAK_REMINDER_MODE_PANEL,
   normalizeBreakReminderMode,
-} from "$lib/workspace/focus/focus-break-reminder-mode.js";
+} from "$lib/workspace/break-control/focus-break-reminder-mode.js";
 import {
   DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO,
   normalizeSidebarManualSplitRatio,

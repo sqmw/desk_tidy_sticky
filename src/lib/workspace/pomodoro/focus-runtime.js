@@ -5,9 +5,9 @@ import {
   getTaskTargetSeconds,
   normalizeFocusTask,
   timeToMinutes,
-} from "$lib/workspace/focus/focus-model.js";
-import { normalizeBreakReminderMode } from "$lib/workspace/focus/focus-break-reminder-mode.js";
-import { getTaskCycleSnapshot } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
+} from "$lib/workspace/pomodoro/focus-model.js";
+import { normalizeBreakReminderMode } from "$lib/workspace/break-control/focus-break-reminder-mode.js";
+import { getTaskCycleSnapshot } from "$lib/workspace/pomodoro/focus-pomodoro-metrics.js";
 
 export const PHASE_FOCUS = "focus";
 export const PHASE_SHORT_BREAK = "shortBreak";

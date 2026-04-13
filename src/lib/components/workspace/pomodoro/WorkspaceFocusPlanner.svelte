@@ -1,5 +1,5 @@
 <script>
-  import WorkspaceFocusPlannerTaskItem from "$lib/components/workspace/focus/WorkspaceFocusPlannerTaskItem.svelte";
+  import WorkspaceFocusPlannerTaskItem from "$lib/components/workspace/pomodoro/WorkspaceFocusPlannerTaskItem.svelte";
 
   let {
     strings,

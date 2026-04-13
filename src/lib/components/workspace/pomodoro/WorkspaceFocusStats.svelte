@@ -1,8 +1,8 @@
 <script>
-  import WorkspaceTaskTimeline from "$lib/components/workspace/focus/WorkspaceTaskTimeline.svelte";
+  import WorkspaceTaskTimeline from "$lib/components/workspace/pomodoro/WorkspaceTaskTimeline.svelte";
   import {
     formatFocusDuration,
-  } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
+  } from "$lib/workspace/pomodoro/focus-pomodoro-metrics.js";
 
   let {
     strings,

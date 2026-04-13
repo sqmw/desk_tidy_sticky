@@ -1,5 +1,5 @@
 <script>
-  import TargetPomodoroInput from "$lib/components/workspace/focus/TargetPomodoroInput.svelte";
+  import TargetPomodoroInput from "$lib/components/workspace/pomodoro/TargetPomodoroInput.svelte";
 
   let {
     strings,

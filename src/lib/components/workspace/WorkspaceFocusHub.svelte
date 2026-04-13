@@ -1,6 +1,5 @@
 <script>
   import { onMount } from "svelte";
-  import { listen } from "@tauri-apps/api/event";
   import { invoke } from "@tauri-apps/api/core";
   import {
     FOCUS_TASK_MODE_DURATION,
@@ -12,28 +11,28 @@
     getRecentDateKeys,
     getTodayTasks,
     timeToMinutes,
-  } from "$lib/workspace/focus/focus-model.js";
+  } from "$lib/workspace/pomodoro/focus-model.js";
   import {
     buildFocusHeatmap,
     getBestFocusDay,
     getFocusStreakDays,
     getWeekFocusAverageMinutes,
-  } from "$lib/workspace/focus/focus-analytics.js";
+  } from "$lib/workspace/pomodoro/focus-analytics.js";
   import {
     buildTaskTitleRollups,
     getTaskCycleSnapshot,
-  } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
-  import WorkspaceFocusTimer from "$lib/components/workspace/focus/WorkspaceFocusTimer.svelte";
-  import WorkspaceBreakControlBar from "$lib/components/workspace/focus/WorkspaceBreakControlBar.svelte";
-  import WorkspaceFocusPlanner from "$lib/components/workspace/focus/WorkspaceFocusPlanner.svelte";
-  import WorkspaceFocusSettingsPanel from "$lib/components/workspace/focus/WorkspaceFocusSettingsPanel.svelte";
-  import WorkspaceFocusStats from "$lib/components/workspace/focus/WorkspaceFocusStats.svelte";
+  } from "$lib/workspace/pomodoro/focus-pomodoro-metrics.js";
+  import WorkspaceFocusTimer from "$lib/components/workspace/pomodoro/WorkspaceFocusTimer.svelte";
+  import WorkspaceBreakControlBar from "$lib/components/workspace/break-control/WorkspaceBreakControlBar.svelte";
+  import WorkspaceFocusPlanner from "$lib/components/workspace/pomodoro/WorkspaceFocusPlanner.svelte";
+  import WorkspaceFocusSettingsPanel from "$lib/components/workspace/pomodoro/WorkspaceFocusSettingsPanel.svelte";
+  import WorkspaceFocusStats from "$lib/components/workspace/pomodoro/WorkspaceFocusStats.svelte";
   import {
     BREAK_REMINDER_MODE_FULLSCREEN,
     BREAK_REMINDER_MODE_OPTIONS,
     BREAK_REMINDER_MODE_PANEL,
     normalizeBreakReminderMode,
-  } from "$lib/workspace/focus/focus-break-reminder-mode.js";
+  } from "$lib/workspace/break-control/focus-break-reminder-mode.js";
   import {
     BREAK_SESSION_SCOPE_GLOBAL,
     BREAK_SESSION_NONE,
@@ -42,12 +41,10 @@
     getBreakSessionRemainingText,
     isBreakSessionActive,
     normalizeBreakSession,
-  } from "$lib/workspace/focus/focus-break-session.js";
+  } from "$lib/workspace/break-control/focus-break-session.js";
   import {
     BREAK_KIND_LONG,
     BREAK_KIND_MINI,
-    applyFocusCompleted,
-    applyFocusElapsedRange,
     buildFocusTaskFromDraft,
     buildTimerTaskOptions,
     buildTodaySummary,
@@ -58,22 +55,39 @@
     PHASE_FOCUS,
     removeTaskFromState,
     updateTaskInState,
-  } from "$lib/workspace/focus/focus-runtime.js";
-  import { formatSecondsBrief, sendDesktopNotification } from "$lib/workspace/focus/focus-break-notify.js";
+  } from "$lib/workspace/pomodoro/focus-runtime.js";
+  import { formatSecondsBrief, sendDesktopNotification } from "$lib/workspace/break-control/focus-break-notify.js";
   import {
-    BREAK_OVERLAY_EVENT_ACTION,
-    BREAK_OVERLAY_EVENT_READY,
+    buildBreakOverlayPayload as buildBreakOverlayPayloadFromState,
+    buildBreakOverlayPayloadKey,
+    buildBreakWatchdogSnapshot,
+    buildBreakNotification,
+    getBreakProgressPercent,
+  } from "$lib/workspace/break-control/break-control-controller.js";
+  import {
     closeBreakOverlayWindows,
     emitBreakOverlayState,
     ensureBreakOverlayWindows,
-  } from "$lib/workspace/focus/focus-break-overlay-windows.js";
+  } from "$lib/workspace/break-control/focus-break-overlay-windows.js";
+  import { mountBreakControlEventListeners } from "$lib/workspace/break-control/break-control-event-listeners.js";
   import {
     clearFocusTimerRuntimeCache,
     loadFocusTimerRuntimeCache,
     saveFocusTimerRuntimeCache,
-  } from "$lib/workspace/focus/focus-timer-runtime-cache.js";
-
-  const BREAK_DUE_EVENT = "focus_break_due";
+  } from "$lib/workspace/pomodoro/focus-timer-runtime-cache.js";
+  import {
+    buildRestoredTimerRuntime,
+    buildTimerRuntimeCacheSnapshot,
+    getRemainingFromDeadline,
+    shouldClearTimerRuntimeCache,
+  } from "$lib/workspace/pomodoro/focus-runtime-controller.js";
+  import {
+    buildFocusCompletedStats,
+    buildStatsWithTaskSession,
+    buildTaskStartNotification,
+    getCurrentTaskLiveTodaySeconds as getCurrentTaskLiveTodaySecondsFromState,
+    toggleDraftWeekdayValue,
+  } from "$lib/workspace/pomodoro/focus-task-controller.js";
 
   let {
     strings,
@@ -274,101 +288,46 @@
     return Math.max(0, Number(selectedTaskCycleSnapshot.currentCycleProgressPercent || 0));
   });
   const breakProgressPercent = $derived.by(() => {
-    if (!safeConfig.breakReminderEnabled) return 0;
-    const miniRemaining = Math.max(0, Number(nextMiniBreakCountdown || 0));
-    const longRemaining = Math.max(0, Number(nextLongBreakCountdown || 0));
-    const useMini = miniRemaining <= longRemaining;
-    const total = Math.max(1, Number(useMini ? breakPlanSec.miniEverySec : breakPlanSec.longEverySec));
-    const remaining = Math.min(total, Math.max(0, Number(useMini ? miniRemaining : longRemaining)));
-    const ratio = (total - remaining) / total;
-    return Math.max(0, Math.min(100, Math.round(ratio * 100)));
+    return getBreakProgressPercent({
+      breakReminderEnabled: safeConfig.breakReminderEnabled,
+      nextMiniBreakCountdown,
+      nextLongBreakCountdown,
+      miniEverySec: breakPlanSec.miniEverySec,
+      longEverySec: breakPlanSec.longEverySec,
+    });
   });
 
   function getFocusDurationSec(config = safeConfig) {
     return getPhaseDurationSec(PHASE_FOCUS, config);
   }
 
-  /** @param {number} deadlineTs */
-  function getRemainingFromDeadline(deadlineTs) {
-    if (!Number.isFinite(deadlineTs) || deadlineTs <= 0) return 0;
-    return Math.max(0, Math.ceil((deadlineTs - Date.now()) / 1000));
-  }
-
   function restoreTimerRuntimeFromCache() {
-    const cached = loadFocusTimerRuntimeCache();
-    if (!cached) return;
-    const cachedAgeSec = Math.max(0, Math.floor((Date.now() - Number(cached.savedAt || 0)) / 1000));
-    const restored = cached.phase !== PHASE_FOCUS
-      ? {
-          ...cached,
-          phase: PHASE_FOCUS,
-          remainingSec: getFocusDurationSec(),
-          focusDeadlineTs: 0,
-          running: false,
-          hasStarted: false,
-          activeBreakKind: "",
-          breakRemainingSec: 0,
-          breakDeadlineTs: 0,
-          skipUnlockedAfterPostpone: false,
-        }
-      : cached;
-    const restoredFocusRemaining = restored.running
-      ? (
-          restored.focusDeadlineTs > 0
-            ? getRemainingFromDeadline(restored.focusDeadlineTs)
-            : Math.max(0, Math.floor(Number(restored.remainingSec || 0)) - cachedAgeSec)
-        )
-      : Math.max(0, Math.floor(Number(restored.remainingSec || 0)));
-    const restoredBreakRemaining = restored.activeBreakKind
-      ? (
-          restored.breakDeadlineTs > 0
-            ? getRemainingFromDeadline(restored.breakDeadlineTs)
-            : Math.max(0, Math.floor(Number(restored.breakRemainingSec || 0)) - cachedAgeSec)
-        )
-      : Math.max(0, Math.floor(Number(restored.breakRemainingSec || 0)));
+    const restored = buildRestoredTimerRuntime({
+      cached: loadFocusTimerRuntimeCache(),
+      nowTs: Date.now(),
+      focusDurationSec: getFocusDurationSec(),
+      fallbackSelectedTaskId: selectedTaskId,
+    });
+    if (!restored) return;
     phase = restored.phase;
-    remainingSec = restoredFocusRemaining;
-    focusDeadlineTs = restored.running && restoredFocusRemaining > 0
-      ? (
-          restored.focusDeadlineTs > 0
-            ? restored.focusDeadlineTs
-            : Date.now() + restoredFocusRemaining * 1000
-        )
-      : 0;
-    const restoredTaskTimingActive = Boolean(
-      restored.selectedTaskId &&
-      restored.taskSessionStartedAtTs > 0 &&
-      (restored.taskTimingActive || (restored.running && restoredFocusRemaining > 0)),
-    );
-    running = restored.running && restoredFocusRemaining > 0;
-    hasStarted = Boolean(restored.selectedTaskId) && (restored.hasStarted || restoredTaskTimingActive);
-    taskTimingActive = restoredTaskTimingActive;
+    remainingSec = restored.remainingSec;
+    focusDeadlineTs = restored.focusDeadlineTs;
+    running = restored.running;
+    hasStarted = restored.hasStarted;
+    taskTimingActive = restored.taskTimingActive;
     completedFocusCount = restored.completedFocusCount;
-    focusSinceBreakSec = Math.max(
-      0,
-      Math.floor(Number(restored.focusSinceBreakSec || 0)) + (restored.activeBreakKind ? 0 : cachedAgeSec),
-    );
+    focusSinceBreakSec = restored.focusSinceBreakSec;
     nextMiniBreakAtSec = restored.nextMiniBreakAtSec;
     nextLongBreakAtSec = restored.nextLongBreakAtSec;
     nextMiniWarnAtSec = restored.nextMiniWarnAtSec;
     nextLongWarnAtSec = restored.nextLongWarnAtSec;
     lastBreakReminderAtSec = restored.lastBreakReminderAtSec;
-    activeBreakKind = restoredBreakRemaining > 0
-      ? /** @type {"" | "mini" | "long"} */ (restored.activeBreakKind)
-      : "";
-    breakRemainingSec = restoredBreakRemaining;
-    breakDeadlineTs = restoredBreakRemaining > 0
-      ? (
-          restored.breakDeadlineTs > 0
-            ? restored.breakDeadlineTs
-            : Date.now() + restoredBreakRemaining * 1000
-        )
-      : 0;
+    activeBreakKind = /** @type {"" | "mini" | "long"} */ (restored.activeBreakKind);
+    breakRemainingSec = restored.breakRemainingSec;
+    breakDeadlineTs = restored.breakDeadlineTs;
     skipUnlockedAfterPostpone = restored.skipUnlockedAfterPostpone;
-    selectedTaskId = String(restored.selectedTaskId || selectedTaskId || "");
-    taskSessionStartedAtTs = restoredTaskTimingActive
-      ? Math.max(0, Math.floor(Number(restored.taskSessionStartedAtTs || 0)))
-      : 0;
+    selectedTaskId = restored.selectedTaskId;
+    taskSessionStartedAtTs = restored.taskSessionStartedAtTs;
   }
 
   function shouldTickBreakReminderClock() {
@@ -378,30 +337,19 @@
   }
 
   async function syncBreakReminderWatchdogState() {
-    const enabled = safeConfig.breakReminderEnabled === true;
-    const activeKind = String(activeBreakKind || "");
-    const miniDueAtMs = enabled && !activeKind
-      ? Date.now() + Math.max(0, nextMiniBreakAtSec - focusSinceBreakSec) * 1000
-      : 0;
-    const longDueAtMs = enabled && !activeKind
-      ? Date.now() + Math.max(0, nextLongBreakAtSec - focusSinceBreakSec) * 1000
-      : 0;
     await invoke("sync_break_reminder_watchdog", {
-      snapshot: {
-        enabled,
-        activeBreakKind: activeKind,
-        miniDueAtMs,
-        longDueAtMs,
-      },
+      snapshot: buildBreakWatchdogSnapshot({
+        enabled: safeConfig.breakReminderEnabled,
+        activeBreakKind,
+        focusSinceBreakSec,
+        nextMiniBreakAtSec,
+        nextLongBreakAtSec,
+      }),
     });
   }
 
   function persistTimerRuntimeToCache() {
-    if (!hasStarted && !running && !taskTimingActive && !breakTimerActive) {
-      clearFocusTimerRuntimeCache();
-      return;
-    }
-    saveFocusTimerRuntimeCache({
+    const runtime = {
       phase,
       selectedTaskId,
       remainingSec,
@@ -421,8 +369,13 @@
       breakRemainingSec,
       breakDeadlineTs,
       skipUnlockedAfterPostpone,
-      savedAt: Date.now(),
-    });
+      breakTimerActive,
+    };
+    if (shouldClearTimerRuntimeCache(runtime)) {
+      clearFocusTimerRuntimeCache();
+      return;
+    }
+    saveFocusTimerRuntimeCache(buildTimerRuntimeCacheSnapshot(runtime));
   }
 
   /** @param {number} sec */
@@ -520,11 +473,13 @@
     taskId = selectedTaskId,
     sessionStartedAt = taskSessionStartedAtTs,
   ) {
-    const safeStart = Math.max(0, Math.floor(Number(sessionStartedAt || 0)));
-    const safeEnd = Math.max(0, Math.floor(Number(settleUntilTs || 0)));
-    if (!safeStart || safeEnd <= safeStart) return baseStats;
-    const taskTitle = taskId ? String(allTasksById.get(String(taskId || ""))?.title || "") : "";
-    return applyFocusElapsedRange(baseStats, taskId, taskTitle, safeStart, safeEnd);
+    return buildStatsWithTaskSession({
+      baseStats,
+      settleUntilTs,
+      taskId,
+      sessionStartedAt,
+      allTasksById,
+    });
   }
 
   /**
@@ -563,18 +518,12 @@
    * @param {number} [nowTs]
    */
   function getCurrentTaskLiveTodaySeconds(nowTs = nowTick) {
-    if (!selectedTaskId || !taskSessionStartedAtTs) return 0;
-    const settleTs = getCurrentSessionSettleTs(nowTs);
-    if (!settleTs || settleTs <= taskSessionStartedAtTs) return 0;
-    const nowDate = new Date(nowTs);
-    const todayStartTs = new Date(
-      nowDate.getFullYear(),
-      nowDate.getMonth(),
-      nowDate.getDate(),
-    ).getTime();
-    const effectiveStartTs = Math.max(todayStartTs, taskSessionStartedAtTs);
-    if (settleTs <= effectiveStartTs) return 0;
-    return Math.max(0, Math.floor((settleTs - effectiveStartTs) / 1000));
+    return getCurrentTaskLiveTodaySecondsFromState({
+      selectedTaskId,
+      taskSessionStartedAtTs,
+      settleTs: getCurrentSessionSettleTs(nowTs),
+      nowTs,
+    });
   }
 
   function markResumeAfterBreak() {
@@ -994,12 +943,7 @@
 
   /** @param {number} day */
   function toggleDraftWeekday(day) {
-    const has = draftWeekdays.includes(day);
-    if (has) {
-      draftWeekdays = draftWeekdays.filter((d) => d !== day);
-    } else {
-      draftWeekdays = [...draftWeekdays, day].sort((a, b) => a - b);
-    }
+    draftWeekdays = toggleDraftWeekdayValue(draftWeekdays, day);
   }
 
   function saveTimerConfig() {
@@ -1058,19 +1002,14 @@
    */
   async function notifyBreak(stage, kind) {
     if (!notifyEnabled) return;
-    const isMini = kind === BREAK_KIND_MINI;
-    const title = stage === "warn"
-      ? (isMini
-          ? (strings.pomodoroMiniBreakSoon || "Mini break soon")
-          : (strings.pomodoroLongBreakSoon || "Long break soon"))
-      : (isMini
-          ? (strings.pomodoroMiniBreakNow || "Take a mini break")
-          : (strings.pomodoroLongBreakNow || "Take a long break"));
-    const body = stage === "warn"
-      ? `${strings.pomodoroBreakIn || "Break in"} ${formatSecondsBrief(breakPlanSec.notifyBeforeSec)}`
-      : `${strings.pomodoroBreakDuration || "Duration"} ${
-          isMini ? formatSecondsBrief(breakPlanSec.miniDurationSec) : `${safeConfig.longBreakDurationMinutes}m`
-        }`;
+    const { title, body } = buildBreakNotification({
+      stage,
+      kind,
+      strings,
+      breakPlanSec,
+      longBreakDurationMinutes: safeConfig.longBreakDurationMinutes,
+      formatSecondsBrief,
+    });
     await sendDesktopNotification(title, body);
   }
 
@@ -1080,12 +1019,7 @@
    */
   async function notifyTaskStart(task, leadMinutes) {
     if (!notifyEnabled) return;
-    const title = strings.pomodoroTaskStartSoon || "Task starts soon";
-    const taskTitle = String(task?.title || strings.pomodoroNoTaskSelected || "Not selected");
-    const startTime = String(task?.startTime || "00:00");
-    const body = `${taskTitle} · ${strings.pomodoroTaskStartAt || "Starts at"} ${startTime} · ${
-      strings.pomodoroTaskStartLead || "In"
-    } ${leadMinutes}m`;
+    const { title, body } = buildTaskStartNotification({ task, leadMinutes, strings });
     await sendDesktopNotification(title, body);
   }
 
@@ -1093,33 +1027,16 @@
    * @returns {Record<string, any>}
    */
   function buildBreakOverlayPayload() {
-    const isLong = activeBreakKind === BREAK_KIND_LONG;
-    const safeTotal = Math.max(
-      1,
-      Math.floor(isLong ? breakPlanSec.longDurationSec : breakPlanSec.miniDurationSec),
-    );
-    const safeRemaining = Math.max(0, Math.floor(breakRemainingSec));
-    const progress = Math.max(0, Math.min(100, Math.round(((safeTotal - safeRemaining) / safeTotal) * 100)));
-    return {
-      title: isLong
-        ? (strings.pomodoroLongBreakNow || "Take a long break")
-        : (strings.pomodoroMiniBreakNow || "Take a mini break"),
-      taskText: "",
-      remainingPrefix: strings.pomodoroBreakRemaining || "Remaining",
-      remainingText: `${strings.pomodoroBreakRemaining || "Remaining"} ${formatTimer(safeRemaining)}`,
-      remainingSeconds: safeRemaining,
-      totalSeconds: safeTotal,
-      endAtTs: breakDeadlineTs > 0 ? breakDeadlineTs : (Date.now() + safeRemaining * 1000),
-      progress,
-      showPostpone: safeConfig.breakStrictMode !== true,
-      postponeText: strings.pomodoroBreakPostponeTwoMinutes || "Postpone 2m",
-      skipText: strings.pomodoroSkip || "Skip",
-      showSkip: safeConfig.breakStrictMode !== true && skipUnlockedAfterPostpone === true,
-      postponeDisabled: safeConfig.breakStrictMode === true,
-      skipDisabled: safeConfig.breakStrictMode === true || !skipUnlockedAfterPostpone,
-      strictMode: safeConfig.breakStrictMode === true,
-      strictModeText: strings.pomodoroBreakStrictMode || "Strict mode",
-    };
+    return buildBreakOverlayPayloadFromState({
+      activeBreakKind,
+      breakRemainingSec,
+      breakDeadlineTs,
+      breakPlanSec,
+      breakStrictMode: safeConfig.breakStrictMode,
+      skipUnlockedAfterPostpone,
+      strings,
+      formatTimer,
+    });
   }
 
   async function ensureBreakOverlayLabels() {
@@ -1160,18 +1077,7 @@
       const labels = await ensureBreakOverlayLabels();
       if (!Array.isArray(labels) || labels.length === 0) return;
       const payload = buildBreakOverlayPayload();
-      const payloadKey = [
-        labels.join(","),
-        payload.title,
-        payload.taskText,
-        payload.remainingSeconds,
-        payload.progress,
-        payload.showPostpone ? 1 : 0,
-        payload.showSkip ? 1 : 0,
-        payload.postponeDisabled ? 1 : 0,
-        payload.skipDisabled ? 1 : 0,
-        payload.strictMode ? 1 : 0,
-      ].join("|");
+      const payloadKey = buildBreakOverlayPayloadKey(labels, payload);
       if (payloadKey === lastOverlayPayloadKey) return;
       lastOverlayPayloadKey = payloadKey;
       const healthyLabels = await emitBreakOverlayState(labels, payload);
@@ -1216,13 +1122,14 @@
 
   function onFocusCompleted() {
     const settledAtTs = focusDeadlineTs > 0 ? focusDeadlineTs : Date.now();
-    let nextStats = buildStatsWithCurrentTaskSession(stats, settledAtTs);
-    nextStats = applyFocusCompleted(
-      nextStats,
-      getDateKey(new Date(settledAtTs)),
+    const nextStats = buildFocusCompletedStats({
+      stats,
+      settleUntilTs: settledAtTs,
       selectedTaskId,
-      String(selectedTask?.title || ""),
-    );
+      selectedTaskTitle: String(selectedTask?.title || ""),
+      allTasksById,
+      taskSessionStartedAtTs,
+    });
     emitStats(nextStats);
     taskTimingActive = false;
     taskSessionStartedAtTs = 0;
@@ -1406,103 +1313,42 @@
     return () => clearInterval(clockId);
   });
 
-  onMount(() => {
-    /** @type {null | (() => void)} */
-    let unlistenAction = null;
-    /** @type {null | (() => void)} */
-    let unlistenReady = null;
-    /** @type {null | (() => void)} */
-    let unlistenDue = null;
-    let disposed = false;
-
-    const bootstrap = async () => {
-      try {
-        unlistenAction = await listen(BREAK_OVERLAY_EVENT_ACTION, (event) => {
-          const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
-          const action = String(payload?.action || "");
-          if (!breakTimerActive) return;
-          if (action === "postpone") {
-            if (safeConfig.breakStrictMode) return;
-            postponeBreak();
-            return;
-          }
-          if (action === "skip") {
-            if (safeConfig.breakStrictMode) return;
-            skipBreak();
-          }
-        });
-      } catch (error) {
-        console.error("focus listen break overlay action", error);
-      }
-
-      try {
-        unlistenReady = await listen(BREAK_OVERLAY_EVENT_READY, (event) => {
-          const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
-          const label = String(payload?.label || "");
-          if (!label) return;
-          if (!breakTimerActive) return;
-          if (!breakOverlayLabels.includes(label)) {
-            breakOverlayLabels = [...breakOverlayLabels, label];
-          }
-          emitBreakOverlayState([label], buildBreakOverlayPayload()).catch((error) =>
-            console.error("focus emit break overlay ready sync", error),
-          );
-        });
-      } catch (error) {
-        console.error("focus listen break overlay ready", error);
-      }
-
-      try {
-        unlistenDue = await listen(BREAK_DUE_EVENT, (event) => {
-          const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
-          const kind = String(payload?.kind || "");
-          if (!safeConfig.breakReminderEnabled) return;
-          if (activeBreakKind) return;
-          if (kind !== BREAK_KIND_MINI && kind !== BREAK_KIND_LONG) return;
-          notifyBreak("start", kind).catch((error) =>
-            console.error("focus notify native break due", error),
-          );
-          applyBreakNow(kind);
-        });
-      } catch (error) {
-        console.error("focus listen native break due", error);
-      }
-    };
-
-    bootstrap();
-
-    return () => {
-      disposed = true;
-      try {
-        unlistenAction?.();
-      } catch (error) {
-        console.error("focus unlisten break overlay action", error);
-      }
-      try {
-        unlistenReady?.();
-      } catch (error) {
-        console.error("focus unlisten break overlay ready", error);
-      }
-      try {
-        unlistenDue?.();
-      } catch (error) {
-        console.error("focus unlisten native break due", error);
-      }
-      if (disposed) {
-        closeBreakOverlayEverywhere(true).catch((error) =>
-          console.error("focus close break overlay windows on destroy", error),
+  onMount(() =>
+    mountBreakControlEventListeners({
+      onOverlayAction: (action) => {
+        if (!breakTimerActive) return;
+        if (action === "postpone") {
+          if (safeConfig.breakStrictMode) return;
+          postponeBreak();
+          return;
+        }
+        if (action === "skip") {
+          if (safeConfig.breakStrictMode) return;
+          skipBreak();
+        }
+      },
+      onOverlayReady: (label) => {
+        if (!label) return;
+        if (!breakTimerActive) return;
+        if (!breakOverlayLabels.includes(label)) {
+          breakOverlayLabels = [...breakOverlayLabels, label];
+        }
+        emitBreakOverlayState([label], buildBreakOverlayPayload()).catch((error) =>
+          console.error("focus emit break overlay ready sync", error),
         );
-        invoke("sync_break_reminder_watchdog", {
-          snapshot: {
-            enabled: false,
-            activeBreakKind: "",
-            miniDueAtMs: 0,
-            longDueAtMs: 0,
-          },
-        }).catch((error) => console.error("focus disable break reminder watchdog on destroy", error));
-      }
-    };
-  });
+      },
+      onBreakDue: (kind) => {
+        if (!safeConfig.breakReminderEnabled) return;
+        if (activeBreakKind) return;
+        if (kind !== BREAK_KIND_MINI && kind !== BREAK_KIND_LONG) return;
+        notifyBreak("start", kind).catch((error) =>
+          console.error("focus notify native break due", error),
+        );
+        applyBreakNow(kind);
+      },
+      onDestroy: () => closeBreakOverlayEverywhere(true),
+    })
+  );
 
   $effect(() => {
     const _enabled = safeConfig.breakReminderEnabled;

@@ -11,15 +11,16 @@
 
   import { getStrings } from "$lib/strings.js";
   import { broadcastPreferencesChanged, listenPreferencesChanged } from "$lib/preferences/preferences-sync.js";
-  import { matchNote } from "$lib/note-search.js";
-  import { renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
-  import { hasQuadrantPriority } from "$lib/panel/note-priority.js";
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
-  import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
   import { createWorkspaceInspectorActions } from "$lib/workspace/controllers/workspace-inspector-actions.js";
   import { createWorkspaceFocusActions } from "$lib/workspace/controllers/workspace-focus-actions.js";
+  import { createWorkspaceNoteViewActions } from "$lib/workspace/controllers/workspace-note-view-actions.js";
+  import { createWorkspacePreferenceSync } from "$lib/workspace/controllers/workspace-preference-sync.js";
   import { createWorkspaceRuntimeLifecycle } from "$lib/workspace/controllers/workspace-runtime-lifecycle.js";
+  import { createWorkspaceSettingsActions } from "$lib/workspace/controllers/workspace-settings-actions.js";
+  import { createWorkspaceStartupActions } from "$lib/workspace/controllers/workspace-startup-actions.js";
+  import { createWorkspaceWindowActions } from "$lib/workspace/controllers/workspace-window-actions.js";
 
   import WorkbenchSection from "$lib/components/panel/WorkbenchSection.svelte";
   import WorkspaceFocusHub from "$lib/components/workspace/WorkspaceFocusHub.svelte";
@@ -33,12 +34,8 @@
     loadWorkspacePreferences,
     normalizePomodoroConfig,
     normalizeWorkspaceCustomCss,
-    normalizeWorkspaceFontSize,
-    normalizeWorkspaceSidebarLayoutMode,
     normalizeWorkspaceSidebarManualSplitRatio,
     normalizeWorkspaceZoom,
-    normalizeWorkspaceZoomMode,
-    normalizeWorkspaceThemeTransitionShape,
     saveWorkspacePreferences,
   } from "$lib/workspace/preferences-service.js";
   import {
@@ -46,16 +43,23 @@
     getWorkspaceThemePresetOptions,
     isWorkspaceThemeDark,
     normalizeWorkspaceThemePreset,
-    resolveWorkspaceThemeToggleTarget,
   } from "$lib/workspace/theme/theme-presets.js";
-  import { buildWorkspaceDefaultThemeTemplate } from "$lib/workspace/theme/theme-default-template.js";
   import { tryStartWorkspaceWindowDrag } from "$lib/workspace/window-drag.js";
-  import { runWorkspaceThemeTransition } from "$lib/workspace/theme-transition.js";
   import { createWorkspaceResizeController } from "$lib/workspace/resize-controller.js";
   import { resolveSidebarLayout } from "$lib/workspace/sidebar/sidebar-layout.js";
   import { resolveWorkspaceStageLayout } from "$lib/workspace/layout/workspace-stage-layout.js";
-  import { getFocusDeadlinesForToday } from "$lib/workspace/focus/focus-deadlines.js";
-  import { minutesToTime, timeToMinutes } from "$lib/workspace/focus/focus-model.js";
+  import { getFocusDeadlinesForToday } from "$lib/workspace/pomodoro/focus-deadlines.js";
+  import { minutesToTime, timeToMinutes } from "$lib/workspace/pomodoro/focus-model.js";
+  import {
+    countTaggedWorkspaceNotes,
+    formatWorkspaceNoteDate,
+    getRenderedWorkspaceNotes,
+    getVisibleWorkspaceNotes,
+    getWorkspaceInspectorNote,
+    getWorkspaceNoteTagEntries,
+    getWorkspaceNoteViewCounts,
+    normalizeWorkspaceNoteTag,
+  } from "$lib/workspace/note/workspace-note-selectors.js";
   import {
     WORKSPACE_NOTE_VIEW_MODES,
     WORKSPACE_MAIN_TAB_FOCUS,
@@ -64,7 +68,6 @@
     WORKSPACE_NOTE_VIEW_ARCHIVED,
     WORKSPACE_NOTE_VIEW_QUADRANT,
     WORKSPACE_NOTE_VIEW_TODO,
-    WORKSPACE_NOTE_VIEW_TRASH,
     normalizeWorkspaceInitialViewMode,
     normalizeWorkspaceMainTab,
     normalizeWorkspaceViewMode,
@@ -158,8 +161,6 @@
     typeof navigator !== "undefined" &&
     /mac/i.test(String(navigator.userAgent || navigator.platform || ""));
   const showMacTrafficLights = $derived(isMac && !windowMaximized);
-  /** @type {ReturnType<typeof setTimeout> | null} */
-  let workspaceCustomCssSaveTimer = null;
   const workspaceZoomOption = $derived(workspaceZoomMode === "auto" ? "auto" : String(workspaceZoom));
   const workspaceAdaptiveScale = $derived.by(() => {
     const safeWidth = Math.max(320, viewportWidth);
@@ -215,132 +216,20 @@
     sortMode === "custom" && !searchQuery.trim() && viewMode === "quadrant",
   );
 
-  /**
-   * @param {any[]} source
-   * @param {string} mode
-   */
-  function notesByView(source, mode) {
-    if (mode === "active") {
-      return source.filter((n) => !n.isArchived && !n.isDeleted);
-    }
-    if (mode === "quadrant") {
-      return source.filter(
-        (n) => !n.isArchived && !n.isDeleted && hasQuadrantPriority(n.priority),
-      );
-    }
-    if (mode === "todo") {
-      return source.filter((n) => !n.isArchived && !n.isDeleted && !n.isDone);
-    }
-    if (mode === "archived") {
-      return source.filter((n) => n.isArchived && !n.isDeleted);
-    }
-    return source.filter((n) => n.isDeleted);
-  }
-
-  /** @param {unknown} raw */
-  function normalizeTag(raw) {
-    return String(raw || "").trim().toLocaleLowerCase();
-  }
-
-  /**
-   * @param {any} note
-   * @param {string} tag
-   */
-  function noteHasTag(note, tag) {
-    const needle = normalizeTag(tag);
-    if (!needle || !Array.isArray(note?.tags)) return false;
-    const tags = /** @type {any[]} */ (note.tags);
-    return tags.some((/** @type {any} */ t) => normalizeTag(t) === needle);
-  }
-
-  /** @param {string} isoStr */
-  function formatDate(isoStr) {
-    const d = new Date(isoStr);
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const h = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    return `${m}-${day} ${h}:${min}`;
-  }
-
-  const visibleNotes = $derived.by(() => {
-    let base = notesByView(notes, viewMode);
-
-    if (selectedTag) {
-      base = base.filter((n) => noteHasTag(n, selectedTag));
-    }
-
-    if (!searchQuery.trim()) return base;
-    const q = searchQuery.trim();
-    return base
-      .map((n) => {
-        const tagText = Array.isArray(n.tags) ? n.tags.join(" ") : "";
-        return { note: n, ...matchNote(q, `${n.text || ""}\n${tagText}`.trim()) };
-      })
-      .filter((x) => x.matched)
-      .sort((a, b) => b.score - a.score)
-      .map((x) => x.note);
-  });
-
-  const noteTagEntries = $derived.by(() => {
-    const scoped = notesByView(notes, viewMode);
-    /** @type {Map<string, { tag: string; count: number }>} */
-    const buckets = new Map();
-    for (const note of scoped) {
-      if (!Array.isArray(note?.tags)) continue;
-      const seenInNote = new Set();
-      for (const rawTag of note.tags) {
-        const text = String(rawTag || "").trim();
-        const key = normalizeTag(text);
-        if (!key || seenInNote.has(key)) continue;
-        seenInNote.add(key);
-        const prev = buckets.get(key);
-        if (prev) {
-          prev.count += 1;
-        } else {
-          buckets.set(key, { tag: text, count: 1 });
-        }
-      }
-    }
-    return [...buckets.values()]
-      .sort((a, b) => (b.count !== a.count ? b.count - a.count : a.tag.localeCompare(b.tag)))
-      .slice(0, 24);
-  });
-  const noteTagOptions = $derived(noteTagEntries.map((x) => x.tag));
-
-  const taggedNoteCount = $derived.by(() => {
-    const scoped = notesByView(notes, viewMode);
-    return scoped.filter((n) => {
-      if (!Array.isArray(n?.tags)) return false;
-      const tags = /** @type {any[]} */ (n.tags);
-      return tags.some((/** @type {any} */ t) => String(t || "").trim());
-    }).length;
-  });
-
-  const renderedNotes = $derived.by(() =>
-    visibleNotes.map((n) => ({
-      ...n,
-      renderedHtml: renderNoteMarkdown(n.text || ""),
-      priority: n.priority ?? null,
-    })),
+  const visibleNotes = $derived.by(() =>
+    getVisibleWorkspaceNotes({ notes, viewMode, selectedTag, searchQuery }),
   );
 
-  const noteViewCounts = $derived.by(() => {
-    const activeNotes = notes.filter((n) => !n.isArchived && !n.isDeleted);
-    const quadrantNotes = activeNotes.filter((n) => hasQuadrantPriority(n.priority));
-    return {
-      [WORKSPACE_NOTE_VIEW_ACTIVE]: activeNotes.length,
-      [WORKSPACE_NOTE_VIEW_TODO]: activeNotes.filter((n) => !n.isDone).length,
-      [WORKSPACE_NOTE_VIEW_QUADRANT]: quadrantNotes.length,
-      [WORKSPACE_NOTE_VIEW_ARCHIVED]: notes.filter((n) => n.isArchived && !n.isDeleted).length,
-      [WORKSPACE_NOTE_VIEW_TRASH]: notes.filter((n) => n.isDeleted).length,
-    };
-  });
+  const noteTagEntries = $derived.by(() => getWorkspaceNoteTagEntries(notes, viewMode));
+  const noteTagOptions = $derived(noteTagEntries.map((x) => x.tag));
 
-  const inspectorNote = $derived.by(() => {
-    if (!inspectorNoteId) return null;
-    return renderedNotes.find((n) => n.id === inspectorNoteId) ?? null;
-  });
+  const taggedNoteCount = $derived.by(() => countTaggedWorkspaceNotes(notes, viewMode));
+
+  const renderedNotes = $derived.by(() => getRenderedWorkspaceNotes(visibleNotes));
+
+  const noteViewCounts = $derived.by(() => getWorkspaceNoteViewCounts(notes));
+
+  const inspectorNote = $derived.by(() => getWorkspaceInspectorNote(renderedNotes, inspectorNoteId));
 
   const windowSync = createWindowSync({
     getNotes: () => notes,
@@ -425,29 +314,6 @@
       await saveWorkspacePreferences(invoke, updates);
     } catch (e) {
       console.error("savePrefs(workspace)", e);
-    }
-  }
-
-  async function initAutostart() {
-    try {
-      isAutostartEnabled = await autostartIsEnabled();
-    } catch (e) {
-      console.error("initAutostart(workspace)", e);
-    }
-  }
-
-  /** @param {boolean} enabled */
-  async function toggleAutostart(enabled) {
-    try {
-      if (enabled) {
-        await autostartEnable();
-      } else {
-        await autostartDisable();
-      }
-      isAutostartEnabled = await autostartIsEnabled();
-      await broadcastPreferencesChanged({ autostartEnabled: isAutostartEnabled });
-    } catch (e) {
-      console.error("toggleAutostart(workspace)", e);
     }
   }
 
@@ -570,31 +436,127 @@
     },
   });
 
-  /** @param {string} mode */
-  async function setViewMode(mode) {
-    const safeMode = normalizeWorkspaceViewMode(mode);
-    viewMode = safeMode;
-    if (safeMode === WORKSPACE_NOTE_VIEW_TRASH) {
-      selectedTag = "";
-    }
-    await savePrefs({ viewMode: safeMode });
-    await loadNotes();
-  }
+  const workspaceSettingsActions = createWorkspaceSettingsActions({
+    savePrefs,
+    getWorkspaceTheme: () => workspaceTheme,
+    setWorkspaceTheme: (next) => {
+      workspaceTheme = next;
+    },
+    getThemeTransitionShape: () => themeTransitionShape,
+    setThemeTransitionShape: (next) => {
+      themeTransitionShape = next;
+    },
+    getStrings: () => strings,
+    getWorkspaceCustomCss: () => workspaceCustomCss,
+    setWorkspaceCustomCssState: (next) => {
+      workspaceCustomCss = next;
+    },
+    getWorkspaceZoom: () => workspaceZoom,
+    setWorkspaceZoomState: (next) => {
+      workspaceZoom = next;
+    },
+    getWorkspaceZoomMode: () => workspaceZoomMode,
+    setWorkspaceZoomMode: (next) => {
+      workspaceZoomMode = next;
+    },
+    setWorkspaceFontSize: (next) => {
+      workspaceFontSize = next;
+    },
+    setWorkspaceSidebarLayoutModeState: (next) => {
+      workspaceSidebarLayoutMode = next;
+    },
+    setWorkspaceSidebarManualSplitRatioState: (next) => {
+      workspaceSidebarManualSplitRatio = next;
+    },
+  });
 
-  /** @param {string} tag */
-  function setSelectedTag(tag) {
-    selectedTag = String(tag || "").trim();
-  }
+  const {
+    clearWorkspaceCustomCssPersistTimer,
+    setWorkspaceCustomCss,
+    resetWorkspaceCustomCss,
+    handleWorkspaceThemePresetChange,
+    exportWorkspaceThemeCss,
+    copyWorkspaceDefaultThemeTemplate,
+    importWorkspaceThemeCss,
+    setWorkspaceZoomOption,
+    setWorkspaceFontSize,
+    setWorkspaceSidebarLayoutMode,
+    handleSidebarManualSplitRatioInput,
+    handleSidebarManualSplitRatioCommit,
+    changeThemeTransitionShape,
+  } = workspaceSettingsActions;
 
-  /** @param {string} mode */
-  async function setInitialViewMode(mode) {
-    const safeMode = normalizeWorkspaceInitialViewMode(mode);
-    initialViewMode = safeMode;
-    await savePrefs({ workspaceInitialViewMode: safeMode });
-    if (safeMode !== "last") {
-      await setViewMode(safeMode);
-    }
-  }
+  const startupActions = createWorkspaceStartupActions({
+    autostartEnable,
+    autostartDisable,
+    autostartIsEnabled,
+    setAutostartEnabled: (next) => {
+      isAutostartEnabled = next;
+    },
+    broadcastPreferencesChanged,
+  });
+
+  const { initAutostart, toggleAutostart } = startupActions;
+
+  const workspaceWindowActions = createWorkspaceWindowActions({
+    invoke,
+    getCurrentWindow,
+    getIsMac: () => isMac,
+    getStickiesVisible: () => stickiesVisible,
+    setStickiesVisible: (next) => {
+      stickiesVisible = next;
+    },
+    setInteractionDisabled: (next) => {
+      interactionDisabled = next;
+    },
+    setWindowMaximized: (next) => {
+      windowMaximized = next;
+    },
+    savePrefs,
+    loadNotes,
+    syncWindows: windowSync.syncWindows,
+    syncWindowMaximizedState: runtimeLifecycle.syncWindowMaximizedState,
+    setViewportMetrics: (next) => {
+      viewportWidth = next.width;
+      viewportHeight = next.height;
+      viewportDpr = next.dpr;
+    },
+  });
+
+  const {
+    switchToCompact,
+    refreshViewportMetrics,
+    onWindowResize,
+    toggleInteraction,
+    toggleStickiesVisibility,
+    toggleWindowMaximize,
+    syncWindowPresentationState,
+    minimizeWindow,
+    hideWindow,
+  } = workspaceWindowActions;
+
+  const workspaceNoteViewActions = createWorkspaceNoteViewActions({
+    savePrefs,
+    loadNotes,
+    setViewModeState: (next) => {
+      viewMode = next;
+    },
+    setInitialViewModeState: (next) => {
+      initialViewMode = next;
+    },
+    setSelectedTagState: (next) => {
+      selectedTag = next;
+    },
+    setSortModeState: (next) => {
+      sortMode = next;
+    },
+    setLocaleState: (next) => {
+      locale = next;
+    },
+  });
+
+  const { setViewMode, setSelectedTag, setInitialViewMode, setSortMode, setLanguage } =
+    workspaceNoteViewActions;
 
   /** @param {string} tab */
   async function setMainTab(tab) {
@@ -603,24 +565,6 @@
       closeInspector();
     }
     await savePrefs({ workspaceMainTab: mainTab });
-  }
-
-  /** @param {string} mode */
-  async function setSortMode(mode) {
-    sortMode = mode;
-    await savePrefs({ sortMode: mode });
-    await loadNotes();
-  }
-
-  /** @param {string} nextLocale */
-  async function setLanguage(nextLocale) {
-    const safe = nextLocale === "zh" ? "zh" : "en";
-    locale = safe;
-    await savePrefs({ language: safe });
-  }
-
-  async function switchToCompact() {
-    await switchPanelWindow("compact", invoke);
   }
 
   /** @param {PointerEvent} e */
@@ -632,274 +576,8 @@
     }
   }
 
-  /**
-   * @param {string} preset
-   * @param {{ persist?: boolean; animate?: boolean }} [options]
-   */
-  async function setWorkspaceThemePreset(preset, options = {}) {
-    const persist = options.persist ?? true;
-    const animate = options.animate ?? true;
-    const safePreset = normalizeWorkspaceThemePreset(preset);
-    if (safePreset === workspaceTheme) {
-      if (persist) {
-        await savePrefs({ workspaceTheme: safePreset });
-      }
-      return;
-    }
-    if (animate) {
-      await runWorkspaceThemeTransition({
-        doc: document,
-        shape: themeTransitionShape,
-        onApplyTheme: () => {
-          workspaceTheme = safePreset;
-        },
-      });
-    } else {
-      workspaceTheme = safePreset;
-    }
-    workspaceTheme = safePreset;
-    if (persist) {
-      await savePrefs({ workspaceTheme: safePreset });
-    }
-  }
-
   async function toggleTheme() {
-    const nextTheme = resolveWorkspaceThemeToggleTarget(workspaceTheme);
-    await setWorkspaceThemePreset(nextTheme, { persist: true, animate: true });
-  }
-
-  function clearWorkspaceCustomCssPersistTimer() {
-    if (workspaceCustomCssSaveTimer == null) return;
-    clearTimeout(workspaceCustomCssSaveTimer);
-    workspaceCustomCssSaveTimer = null;
-  }
-
-  /** @param {string} css */
-  function setWorkspaceCustomCss(css) {
-    const safeCss = normalizeWorkspaceCustomCss(css);
-    workspaceCustomCss = safeCss;
-    clearWorkspaceCustomCssPersistTimer();
-    workspaceCustomCssSaveTimer = setTimeout(() => {
-      savePrefs({ workspaceCustomCss: safeCss });
-      workspaceCustomCssSaveTimer = null;
-    }, 320);
-  }
-
-  async function resetWorkspaceCustomCss() {
-    clearWorkspaceCustomCssPersistTimer();
-    workspaceCustomCss = "";
-    await savePrefs({ workspaceCustomCss: "" });
-  }
-
-  /** @param {string} preset */
-  async function handleWorkspaceThemePresetChange(preset) {
-    await setWorkspaceThemePreset(preset, { persist: true, animate: true });
-  }
-
-  async function exportWorkspaceThemeCss() {
-    const css = normalizeWorkspaceCustomCss(workspaceCustomCss);
-    const text = css.trim()
-      ? `${css.trim()}\n`
-      : "/* Empty custom theme. Paste the full template and edit by module. */\n";
-    const blob = new Blob([text], { type: "text/css;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const now = new Date();
-    const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(
-      now.getDate(),
-    ).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `desk-tidy-workspace-theme-${workspaceTheme}-${stamp}.css`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  /**
-   * @param {string} text
-   */
-  async function copyTextToClipboard(text) {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
-      return;
-    }
-    const temp = document.createElement("textarea");
-    temp.value = text;
-    temp.setAttribute("readonly", "true");
-    temp.style.position = "fixed";
-    temp.style.left = "-9999px";
-    document.body.appendChild(temp);
-    temp.select();
-    document.execCommand("copy");
-    temp.remove();
-  }
-
-  async function copyWorkspaceDefaultThemeTemplate() {
-    try {
-      const template = buildWorkspaceDefaultThemeTemplate();
-      await copyTextToClipboard(template);
-      return { ok: true };
-    } catch (error) {
-      console.error("copyWorkspaceDefaultThemeTemplate", error);
-      return { ok: false, message: strings.workspaceThemeCopyDefaultFailed || "Copy failed" };
-    }
-  }
-
-  /**
-   * @param {string} rawText
-   */
-  async function importWorkspaceThemeCss(rawText) {
-    const importedCustomCss = normalizeWorkspaceCustomCss(rawText);
-    if (!importedCustomCss.trim()) {
-      return {
-        ok: false,
-        message: strings.workspaceThemeImportInvalid || strings.workspaceThemeImportFailed || "Invalid theme content",
-      };
-    }
-    clearWorkspaceCustomCssPersistTimer();
-    workspaceCustomCss = importedCustomCss;
-    await savePrefs({
-      workspaceCustomCss: importedCustomCss,
-    });
-    return { ok: true };
-  }
-
-  /**
-   * @param {unknown} zoom
-   * @param {{ persist?: boolean }} [options]
-   */
-  async function setWorkspaceZoom(zoom, options = {}) {
-    const persist = options.persist ?? true;
-    const nextZoom = normalizeWorkspaceZoom(zoom);
-    workspaceZoom = nextZoom;
-    workspaceZoomMode = "manual";
-    if (persist) {
-      await savePrefs({ workspaceZoom: nextZoom, workspaceZoomMode: "manual" });
-    }
-  }
-
-  /** @param {string} option */
-  async function setWorkspaceZoomOption(option) {
-    const safeMode = normalizeWorkspaceZoomMode(option);
-    if (option === "auto") {
-      workspaceZoomMode = safeMode;
-      await savePrefs({ workspaceZoomMode: "auto", workspaceZoom });
-      return;
-    }
-    await setWorkspaceZoom(Number(option), { persist: true });
-  }
-
-  /** @param {string} size */
-  async function setWorkspaceFontSize(size) {
-    const safeSize = normalizeWorkspaceFontSize(size);
-    workspaceFontSize = safeSize;
-    await savePrefs({ workspaceFontSize: safeSize });
-  }
-
-  /** @param {string} mode */
-  async function setWorkspaceSidebarLayoutMode(mode) {
-    const safe = normalizeWorkspaceSidebarLayoutMode(mode);
-    workspaceSidebarLayoutMode = safe;
-    await savePrefs({ workspaceSidebarLayoutMode: safe });
-  }
-
-  /** @param {number} ratio */
-  function setWorkspaceSidebarManualSplitRatioLocal(ratio) {
-    workspaceSidebarManualSplitRatio = normalizeWorkspaceSidebarManualSplitRatio(ratio);
-  }
-
-  /** @param {number} ratio */
-  function handleSidebarManualSplitRatioInput(ratio) {
-    setWorkspaceSidebarManualSplitRatioLocal(ratio);
-  }
-
-  /** @param {number} ratio */
-  async function handleSidebarManualSplitRatioCommit(ratio) {
-    const safe = normalizeWorkspaceSidebarManualSplitRatio(ratio);
-    workspaceSidebarManualSplitRatio = safe;
-    await savePrefs({ workspaceSidebarManualSplitRatio: safe });
-  }
-
-  function refreshViewportMetrics() {
-    viewportWidth = Math.max(1, window.innerWidth || 1);
-    viewportHeight = Math.max(1, window.innerHeight || 1);
-    viewportDpr = Math.max(1, window.devicePixelRatio || 1);
-  }
-
-  function onWindowResize() {
-    refreshViewportMetrics();
-    syncWindowPresentationState();
-  }
-
-  /** @param {string} shape */
-  async function changeThemeTransitionShape(shape) {
-    themeTransitionShape = normalizeWorkspaceThemeTransitionShape(shape);
-    await savePrefs({ workspaceThemeTransitionShape: themeTransitionShape });
-  }
-
-  async function toggleInteraction() {
-    try {
-      const newState = await invoke("toggle_overlay_interaction");
-      interactionDisabled = /** @type {boolean} */ (newState);
-    } catch (e) {
-      console.error("toggleInteraction(workspace)", e);
-    }
-  }
-
-  async function toggleStickiesVisibility() {
-    try {
-      stickiesVisible = !stickiesVisible;
-      await savePrefs({ overlayEnabled: stickiesVisible });
-      if (stickiesVisible) await loadNotes();
-      await windowSync.syncWindows();
-      if (stickiesVisible) {
-        await invoke("sync_all_note_window_layers");
-      }
-    } catch (e) {
-      console.error("toggleStickiesVisibility(workspace)", e);
-    }
-  }
-
-  async function toggleWindowMaximize() {
-    try {
-      const win = getCurrentWindow();
-      if (isMac) {
-        const current = await win.isFullscreen();
-        await win.setFullscreen(!current);
-        windowMaximized = !current;
-        return;
-      }
-      await win.toggleMaximize();
-      windowMaximized = await win.isMaximized();
-    } catch (e) {
-      console.error("toggleWindowMaximize(workspace)", e);
-    }
-  }
-
-  async function syncWindowPresentationState() {
-    await runtimeLifecycle.syncWindowMaximizedState(
-      (next) => {
-        windowMaximized = next;
-      },
-      { macFullscreen: isMac },
-    );
-  }
-
-  async function minimizeWindow() {
-    try {
-      await invoke("minimize_panel_window", { label: getCurrentWindow().label });
-    } catch (e) {
-      console.error("minimizeWindow(workspace)", e);
-    }
-  }
-
-  async function hideWindow() {
-    try {
-      await invoke("hide_panel_window", { label: getCurrentWindow().label });
-    } catch (e) {
-      console.error("hideWindow(workspace)", e);
-    }
+    await workspaceSettingsActions.toggleTheme();
   }
 
   /** @param {number | null} priority */
@@ -913,6 +591,16 @@
     if (!inspectorNote) return;
     await updateTags(inspectorNote, tags);
   }
+
+  const workspacePreferenceSync = createWorkspacePreferenceSync({
+    listenPreferencesChanged,
+    setShowPanelOnStartup: (next) => {
+      showPanelOnStartup = next;
+    },
+    setAutostartEnabled: (next) => {
+      isAutostartEnabled = next;
+    },
+  });
 
   const resizeController = createWorkspaceResizeController({
     getWorkbenchShellRect: () => workbenchShellEl?.getBoundingClientRect() ?? null,
@@ -968,14 +656,7 @@
     runtimeLifecycle.mountRuntimeListeners().then((fn) => {
       cleanup = fn;
     });
-    listenPreferencesChanged(async (updates) => {
-      if (typeof updates.showPanelOnStartup === "boolean") {
-        showPanelOnStartup = updates.showPanelOnStartup;
-      }
-      if (typeof updates.autostartEnabled === "boolean") {
-        isAutostartEnabled = updates.autostartEnabled;
-      }
-    }).then((fn) => {
+    workspacePreferenceSync.mountPreferenceSync().then((fn) => {
       unlistenPrefs = fn;
     });
     window.addEventListener("resize", onWindowResize);
@@ -1022,7 +703,7 @@
 
   $effect(() => {
     if (!selectedTag) return;
-    const exists = noteTagEntries.some((x) => normalizeTag(x.tag) === normalizeTag(selectedTag));
+    const exists = noteTagEntries.some((x) => normalizeWorkspaceNoteTag(x.tag) === normalizeWorkspaceNoteTag(selectedTag));
     if (!exists) {
       selectedTag = "";
     }
@@ -1139,7 +820,7 @@
             {viewMode}
             {renderedNotes}
             {canQuadrantReorder}
-            {formatDate}
+            formatDate={formatWorkspaceNoteDate}
             {restoreNote}
             {toggleArchive}
             {deleteNote}
@@ -1167,7 +848,7 @@
             mode={inspectorMode}
             bind:draftText={inspectorDraftText}
             tagSuggestions={noteTagOptions}
-            {formatDate}
+            formatDate={formatWorkspaceNoteDate}
             onClose={handleInspectorClose}
             onStartEdit={startInspectorEdit}
             onCancelEdit={cancelInspectorEdit}
@@ -1235,19 +916,6 @@
 />
 
 <style>
-  :global(html, body) {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-    background: transparent;
-  }
-
-  :global(*) {
-    box-sizing: border-box;
-  }
-
   .workspace-viewport {
     position: relative;
     width: 100vw;

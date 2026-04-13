@@ -1,4 +1,4 @@
-import { getDateKey } from "$lib/workspace/focus/focus-model.js";
+import { getDateKey } from "$lib/workspace/pomodoro/focus-model.js";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 

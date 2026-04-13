@@ -1,5 +1,5 @@
-import { ensureDayStats, getDateKey, getTaskTargetSeconds, getTodayTasks, timeToMinutes } from "$lib/workspace/focus/focus-model.js";
-import { getTaskCycleSnapshot } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
+import { ensureDayStats, getDateKey, getTaskTargetSeconds, getTodayTasks, timeToMinutes } from "$lib/workspace/pomodoro/focus-model.js";
+import { getTaskCycleSnapshot } from "$lib/workspace/pomodoro/focus-pomodoro-metrics.js";
 
 /**
  * @param {any[]} tasks

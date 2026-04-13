@@ -6,7 +6,7 @@
     BREAK_OVERLAY_EVENT_ACTION,
     BREAK_OVERLAY_EVENT_READY,
     BREAK_OVERLAY_EVENT_UPDATE,
-  } from "$lib/workspace/focus/focus-break-overlay-windows.js";
+  } from "$lib/workspace/break-control/focus-break-overlay-windows.js";
   const currentWindow = getCurrentWindow();
 
   const isZhLocale = typeof navigator !== "undefined" && String(navigator.language || "").toLowerCase().startsWith("zh");
@@ -276,17 +276,8 @@
 
 <style>
   :global(html, body) {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
     cursor: default;
     user-select: none;
-  }
-
-  :global(*) {
-    box-sizing: border-box;
   }
 
   .overlay-shell {

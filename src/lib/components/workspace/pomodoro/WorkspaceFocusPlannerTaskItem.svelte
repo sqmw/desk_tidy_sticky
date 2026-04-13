@@ -1,7 +1,7 @@
 <script>
   import {
     getTaskCycleSnapshot,
-  } from "$lib/workspace/focus/focus-pomodoro-metrics.js";
+  } from "$lib/workspace/pomodoro/focus-pomodoro-metrics.js";
 
   let {
     strings,
