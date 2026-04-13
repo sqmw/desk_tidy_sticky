@@ -1,15 +1,29 @@
+mod app_state;
+mod break_overlay;
+mod break_reminder;
 #[cfg(target_os = "macos")]
 mod macos_windows;
 mod note_compat;
 mod notes;
 mod notes_service;
+mod panel_windows;
 mod preferences;
 #[cfg(target_os = "windows")]
 mod windows;
 
+use app_state::{BreakOverlayPresentationState, BreakReminderWatchState, OverlayInputState};
+use break_overlay::{apply_break_overlay_window_traits, set_break_overlay_presentation};
+use break_reminder::{
+    process_break_reminder_due, start_break_reminder_watchdog, sync_break_reminder_watchdog,
+};
 use notes_service::NoteSortMode;
+#[cfg(target_os = "macos")]
+use panel_windows::apply_macos_runtime_dock_icon;
+use panel_windows::{
+    ensure_hidden_workspace_runtime_window, hide_panel_window, minimize_panel_window,
+    show_and_focus_window, show_preferred_panel_window, sync_panel_window_shell_state,
+};
 use preferences::PanelPreferences;
-use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 use tauri::Manager;
 
@@ -22,131 +36,6 @@ struct TrayMenuState {
     toggle_stickies: MenuItem<tauri::Wry>,
     toggle_interaction: MenuItem<tauri::Wry>,
     quit: MenuItem<tauri::Wry>,
-}
-
-#[derive(Clone)]
-struct OverlayInputState(Arc<Mutex<bool>>);
-
-impl OverlayInputState {
-    fn toggle(&self) -> bool {
-        let mut guard = self.0.lock().expect("overlay input mutex poisoned");
-        *guard = !*guard;
-        *guard
-    }
-}
-
-impl Default for OverlayInputState {
-    fn default() -> Self {
-        // Start in click-through mode so newly pinned notes follow their own z-order policy
-        // and default to desktop-bottom unless explicitly set always-on-top.
-        Self(Arc::new(Mutex::new(true)))
-    }
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct BreakReminderWatchSnapshot {
-    enabled: bool,
-    active_break_kind: String,
-    mini_due_at_ms: i64,
-    long_due_at_ms: i64,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct BreakReminderDuePayload {
-    kind: String,
-    due_at_ms: i64,
-}
-
-#[derive(Debug, Clone, Default)]
-struct BreakReminderWatchInner {
-    enabled: bool,
-    active_break_kind: String,
-    mini_due_at_ms: i64,
-    long_due_at_ms: i64,
-    last_emitted_due_at_ms: i64,
-}
-
-#[derive(Clone, Default)]
-struct BreakReminderWatchState(Arc<Mutex<BreakReminderWatchInner>>);
-
-impl BreakReminderWatchState {
-    fn update(&self, snapshot: BreakReminderWatchSnapshot) -> Result<(), String> {
-        let mut guard = self
-            .0
-            .lock()
-            .map_err(|_| "break reminder watchdog mutex poisoned".to_string())?;
-        guard.enabled = snapshot.enabled;
-        guard.active_break_kind = snapshot.active_break_kind;
-        guard.mini_due_at_ms = snapshot.mini_due_at_ms.max(0);
-        guard.long_due_at_ms = snapshot.long_due_at_ms.max(0);
-        if !guard.enabled
-            || !guard.active_break_kind.is_empty()
-            || (guard.mini_due_at_ms <= 0 && guard.long_due_at_ms <= 0)
-        {
-            guard.last_emitted_due_at_ms = 0;
-        }
-        Ok(())
-    }
-
-    fn snapshot(&self) -> Result<BreakReminderWatchInner, String> {
-        self.0
-            .lock()
-            .map_err(|_| "break reminder watchdog mutex poisoned".to_string())
-            .map(|guard| guard.clone())
-    }
-
-    fn mark_emitted(&self, due_at_ms: i64) -> Result<bool, String> {
-        let mut guard = self
-            .0
-            .lock()
-            .map_err(|_| "break reminder watchdog mutex poisoned".to_string())?;
-        if guard.last_emitted_due_at_ms == due_at_ms {
-            return Ok(false);
-        }
-        guard.last_emitted_due_at_ms = due_at_ms;
-        Ok(true)
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-struct BreakOverlayPresentationInner {
-    restore_regular_policy: bool,
-    captured: bool,
-}
-
-#[derive(Clone, Default)]
-struct BreakOverlayPresentationState(Arc<Mutex<BreakOverlayPresentationInner>>);
-
-impl BreakOverlayPresentationState {
-    fn capture_from_app(&self, app: &tauri::AppHandle) -> Result<(), String> {
-        let restore_regular_policy = PANEL_WINDOW_LABELS.iter().any(|label| {
-            app.get_webview_window(label)
-                .and_then(|window| window.is_visible().ok())
-                .unwrap_or(false)
-        });
-        let mut guard = self
-            .0
-            .lock()
-            .map_err(|_| "break overlay presentation mutex poisoned".to_string())?;
-        guard.restore_regular_policy = restore_regular_policy;
-        guard.captured = true;
-        Ok(())
-    }
-
-    fn take_restore_regular_policy(&self) -> Result<Option<bool>, String> {
-        let mut guard = self
-            .0
-            .lock()
-            .map_err(|_| "break overlay presentation mutex poisoned".to_string())?;
-        if !guard.captured {
-            return Ok(None);
-        }
-        let value = guard.restore_regular_policy;
-        guard.captured = false;
-        Ok(Some(value))
-    }
 }
 
 #[tauri::command]
@@ -201,260 +90,6 @@ fn apply_overlay_input_state(app: &tauri::AppHandle, click_through: bool) {
 
 fn emit_notes_changed(app: &tauri::AppHandle) {
     let _ = app.emit("notes_changed", ());
-}
-
-const PANEL_WINDOW_LABELS: [&str; 2] = ["main", "workspace"];
-const BREAK_OVERLAY_LABEL_PREFIX: &str = "focus-break-overlay-";
-
-#[cfg(target_os = "macos")]
-fn apply_macos_runtime_dock_icon(app: &tauri::AppHandle) {
-    let Some(window) = app
-        .get_webview_window("workspace")
-        .or_else(|| app.get_webview_window("main"))
-    else {
-        return;
-    };
-
-    if let Err(error) = window.run_on_main_thread(|| {
-        if let Err(error) =
-            macos_windows::set_application_icon_from_png(include_bytes!("../icons/dock-icon.png"))
-        {
-            eprintln!("set macOS app icon failed: {}", error);
-        }
-    }) {
-        eprintln!("schedule macOS app icon update failed: {}", error);
-    }
-}
-
-fn sync_panel_window_shell_state(app: &tauri::AppHandle) {
-    let mut any_visible_panel = false;
-    for label in PANEL_WINDOW_LABELS {
-        if let Some(window) = app.get_webview_window(label) {
-            let visible = window.is_visible().unwrap_or(false);
-            if visible {
-                any_visible_panel = true;
-            }
-            let _ = window.set_skip_taskbar(!visible);
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        let policy = if any_visible_panel {
-            tauri::ActivationPolicy::Regular
-        } else {
-            tauri::ActivationPolicy::Accessory
-        };
-        let _ = app.set_activation_policy(policy);
-        if any_visible_panel {
-            apply_macos_runtime_dock_icon(app);
-        }
-    }
-}
-
-fn show_and_focus_window(window: &tauri::WebviewWindow) {
-    let _ = window.set_skip_taskbar(false);
-    let _ = window.show();
-    let _ = window.unminimize();
-    let _ = window.set_focus();
-}
-
-fn ensure_hidden_workspace_runtime_window(app: &tauri::AppHandle) {
-    if let Some(existing) = app.get_webview_window("workspace") {
-        if !existing.is_visible().unwrap_or(false) {
-            let _ = existing.set_skip_taskbar(true);
-        }
-        return;
-    }
-    let Some(window) = ensure_workspace_panel_window(app) else {
-        return;
-    };
-    let _ = window.hide();
-    let _ = window.set_skip_taskbar(true);
-}
-
-#[cfg(target_os = "macos")]
-fn break_overlay_label(index: usize) -> String {
-    format!("{BREAK_OVERLAY_LABEL_PREFIX}{index}")
-}
-
-#[cfg(target_os = "macos")]
-fn monitor_to_logical_bounds(monitor: &tauri::Monitor) -> (f64, f64, f64, f64) {
-    let scale = {
-        let raw = monitor.scale_factor();
-        if raw.is_finite() && raw > 0.0 {
-            raw
-        } else {
-            1.0
-        }
-    };
-    let position = monitor.position();
-    let size = monitor.size();
-    let x = (position.x as f64 / scale).floor();
-    let y = (position.y as f64 / scale).floor();
-    let width = ((size.width as f64) / scale).ceil().max(320.0);
-    let height = ((size.height as f64) / scale).ceil().max(240.0);
-    (x, y, width, height)
-}
-
-#[cfg(target_os = "macos")]
-fn apply_break_overlay_window_runtime_state(window: &tauri::WebviewWindow) -> Result<(), String> {
-    let _ = window.set_always_on_top(true);
-    let _ = window.set_shadow(false);
-    let _ = window.set_ignore_cursor_events(false);
-    run_macos_window_op(
-        window,
-        "macos_apply_break_overlay_window_traits",
-        macos_windows::apply_break_overlay_window_traits,
-    )?;
-    let _ = window.show();
-    let _ = window.unminimize();
-    let _ = window.set_focus();
-    Ok(())
-}
-
-#[cfg(target_os = "macos")]
-fn ensure_break_overlay_windows_native(app: &tauri::AppHandle) -> Result<(), String> {
-    let anchor = app
-        .get_webview_window("workspace")
-        .or_else(|| app.get_webview_window("main"))
-        .or_else(|| app.webview_windows().values().next().cloned())
-        .ok_or_else(|| "no anchor window available for break overlay".to_string())?;
-    let monitors = anchor.available_monitors().map_err(|e| e.to_string())?;
-    if monitors.is_empty() {
-        return Ok(());
-    }
-
-    set_break_overlay_presentation(app.clone(), true)?;
-
-    for (index, monitor) in monitors.iter().enumerate() {
-        let label = break_overlay_label(index);
-        let (x, y, width, height) = monitor_to_logical_bounds(monitor);
-        let window = if let Some(existing) = app.get_webview_window(label.as_str()) {
-            let _ = existing.set_position(tauri::Position::Logical(tauri::LogicalPosition::new(
-                x, y,
-            )));
-            let _ = existing.set_size(tauri::Size::Logical(tauri::LogicalSize::new(
-                width, height,
-            )));
-            existing
-        } else {
-            tauri::WebviewWindowBuilder::new(
-                app,
-                label.as_str(),
-                tauri::WebviewUrl::App("/break-overlay".into()),
-            )
-            .title("Break reminder")
-            .position(x, y)
-            .inner_size(width, height)
-            .visible(false)
-            .decorations(false)
-            .transparent(false)
-            .always_on_top(true)
-            .skip_taskbar(true)
-            .resizable(false)
-            .maximizable(false)
-            .minimizable(false)
-            .focused(true)
-            .shadow(false)
-            .build()
-            .map_err(|e| e.to_string())?
-        };
-        apply_break_overlay_window_runtime_state(&window)?;
-    }
-
-    set_break_overlay_presentation(app.clone(), true)?;
-    Ok(())
-}
-
-fn ensure_workspace_panel_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
-    if let Some(existing) = app.get_webview_window("workspace") {
-        return Some(existing);
-    }
-    let builder = tauri::WebviewWindowBuilder::new(
-        app,
-        "workspace",
-        tauri::WebviewUrl::App("/workspace".into()),
-    )
-    .title("Desk Tidy Workspace")
-    .inner_size(1024.0, 720.0)
-    .center()
-    .transparent(true)
-    .visible(false)
-    .decorations(false)
-    .skip_taskbar(false)
-    .resizable(true)
-    .maximizable(true);
-    match builder.build() {
-        Ok(window) => Some(window),
-        Err(err) => {
-            eprintln!("ensure_workspace_panel_window build failed: {}", err);
-            None
-        }
-    }
-}
-
-fn show_preferred_panel_window(app: &tauri::AppHandle) {
-    let preferred = preferences::read_last_panel_window();
-    let mut shown_workspace = false;
-    if preferred == "workspace" {
-        if let Some(w) = ensure_workspace_panel_window(app) {
-            show_and_focus_window(&w);
-            shown_workspace = true;
-            if let Some(main) = app.get_webview_window("main") {
-                let _ = main.hide();
-            }
-        }
-    }
-
-    if !shown_workspace {
-        if let Some(ws) = app.get_webview_window("workspace") {
-            let _ = ws.hide();
-        }
-        if let Some(main) = app.get_webview_window("main") {
-            show_and_focus_window(&main);
-        }
-    }
-
-    sync_panel_window_shell_state(app);
-}
-
-#[tauri::command]
-fn hide_panel_window(app: tauri::AppHandle, label: String) -> Result<(), String> {
-    let target = if label == "workspace" {
-        "workspace"
-    } else {
-        "main"
-    };
-    if let Some(window) = app.get_webview_window(target) {
-        let _ = window.hide();
-        let _ = window.set_skip_taskbar(true);
-    }
-    sync_panel_window_shell_state(&app);
-    Ok(())
-}
-
-#[tauri::command]
-fn minimize_panel_window(app: tauri::AppHandle, label: String) -> Result<(), String> {
-    let target = if label == "workspace" {
-        "workspace"
-    } else {
-        "main"
-    };
-    let Some(window) = app.get_webview_window(target) else {
-        return Ok(());
-    };
-    let _ = window.set_skip_taskbar(false);
-    #[cfg(target_os = "macos")]
-    {
-        let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-        apply_macos_runtime_dock_icon(&app);
-    }
-    let _ = window.show();
-    let _ = window.unminimize();
-    window.minimize().map_err(|error| error.to_string())?;
-    sync_panel_window_shell_state(&app);
-    Ok(())
 }
 
 fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
@@ -582,13 +217,9 @@ fn apply_note_window_layer_with_interaction_by_label(
             run_macos_window_op(&w, "macos_set_topmost_false", |ptr| {
                 macos_windows::set_topmost_no_activate(ptr, false)
             })?;
-            run_macos_window_op(
-                &w,
-                "macos_attach_to_wallpaper_layer",
-                move |ptr| {
-                    macos_windows::attach_to_wallpaper_layer_with_interaction(ptr, click_through)
-                },
-            )?;
+            run_macos_window_op(&w, "macos_attach_to_wallpaper_layer", move |ptr| {
+                macos_windows::attach_to_wallpaper_layer_with_interaction(ptr, click_through)
+            })?;
         }
         return Ok(());
     }
@@ -871,7 +502,10 @@ fn set_preferences(prefs: PanelPreferences) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn pin_window_to_desktop(app: tauri::AppHandle, window: tauri::WebviewWindow) -> Result<(), String> {
+fn pin_window_to_desktop(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         let Some(hwnd_isize) = window_hwnd_isize(&window)? else {
@@ -884,13 +518,9 @@ fn pin_window_to_desktop(app: tauri::AppHandle, window: tauri::WebviewWindow) ->
     #[cfg(target_os = "macos")]
     {
         let click_through = get_overlay_click_through(&app);
-        run_macos_window_op(
-            &window,
-            "macos_pin_attach_to_wallpaper_layer",
-            move |ptr| {
-                macos_windows::attach_to_wallpaper_layer_with_interaction(ptr, click_through)
-            },
-        )?;
+        run_macos_window_op(&window, "macos_pin_attach_to_wallpaper_layer", move |ptr| {
+            macos_windows::attach_to_wallpaper_layer_with_interaction(ptr, click_through)
+        })?;
         Ok(())
     }
 
@@ -1083,140 +713,6 @@ fn get_overlay_interaction(app: tauri::AppHandle) -> Result<bool, String> {
     } else {
         Err("OverlayInputState not found".to_string())
     }
-}
-
-#[tauri::command]
-fn apply_break_overlay_window_traits(app: tauri::AppHandle, label: String) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        let Some(window) = app.get_webview_window(label.as_str()) else {
-            return Ok(());
-        };
-        return run_macos_window_op(
-            &window,
-            "macos_apply_break_overlay_window_traits",
-            macos_windows::apply_break_overlay_window_traits,
-        );
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (app, label);
-        Ok(())
-    }
-}
-
-#[tauri::command]
-fn set_break_overlay_presentation(app: tauri::AppHandle, active: bool) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
-    {
-        if active {
-            if let Some(state) = app.try_state::<BreakOverlayPresentationState>() {
-                let _ = state.capture_from_app(&app);
-            }
-            let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-        }
-        let Some(window) = app
-            .get_webview_window("workspace")
-            .or_else(|| app.get_webview_window("main"))
-            .or_else(|| app.webview_windows().values().next().cloned())
-        else {
-            return Ok(());
-        };
-        let result = window
-            .run_on_main_thread(move || {
-                if let Err(error) = macos_windows::set_break_overlay_presentation(active) {
-                    eprintln!("macos_set_break_overlay_presentation failed: {}", error);
-                }
-            })
-            .map_err(|e| e.to_string());
-        if result.is_ok() && !active {
-            let restore_regular_policy = app
-                .try_state::<BreakOverlayPresentationState>()
-                .and_then(|state| state.take_restore_regular_policy().ok())
-                .flatten();
-            match restore_regular_policy {
-                Some(true) => {
-                    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-                    apply_macos_runtime_dock_icon(&app);
-                }
-                Some(false) => {
-                    let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-                }
-                None => {}
-            }
-        }
-        return result;
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (app, active);
-        Ok(())
-    }
-}
-
-#[tauri::command]
-fn sync_break_reminder_watchdog(
-    state: tauri::State<'_, BreakReminderWatchState>,
-    snapshot: BreakReminderWatchSnapshot,
-) -> Result<(), String> {
-    state.update(snapshot)
-}
-
-fn now_unix_ms() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_millis() as i64)
-        .unwrap_or(0)
-}
-
-fn process_break_reminder_due(
-    app_handle: &tauri::AppHandle,
-    state: &BreakReminderWatchState,
-) -> Result<bool, String> {
-    let snapshot = state.snapshot()?;
-    if !snapshot.enabled || !snapshot.active_break_kind.is_empty() {
-        return Ok(false);
-    }
-    let now_ms = now_unix_ms();
-    let due = if snapshot.long_due_at_ms > 0 && now_ms >= snapshot.long_due_at_ms {
-        Some(("long".to_string(), snapshot.long_due_at_ms))
-    } else if snapshot.mini_due_at_ms > 0 && now_ms >= snapshot.mini_due_at_ms {
-        Some(("mini".to_string(), snapshot.mini_due_at_ms))
-    } else {
-        None
-    };
-    let Some((kind, due_at_ms)) = due else {
-        return Ok(false);
-    };
-    if !state.mark_emitted(due_at_ms)? {
-        return Ok(false);
-    }
-    ensure_hidden_workspace_runtime_window(app_handle);
-    #[cfg(target_os = "macos")]
-    if let Err(error) = ensure_break_overlay_windows_native(app_handle) {
-        eprintln!("ensure native break overlay windows failed: {}", error);
-    }
-    let payload = BreakReminderDuePayload { kind, due_at_ms };
-    app_handle
-        .emit("focus_break_due", payload)
-        .map_err(|error| error.to_string())?;
-    Ok(true)
-}
-
-fn start_break_reminder_watchdog(app: &tauri::AppHandle) {
-    let Some(state) = app.try_state::<BreakReminderWatchState>() else {
-        return;
-    };
-    let state = state.inner().clone();
-    let app_handle = app.clone();
-    std::thread::spawn(move || loop {
-        std::thread::sleep(std::time::Duration::from_millis(250));
-        if let Err(error) = process_break_reminder_due(&app_handle, &state) {
-            eprintln!("break reminder watchdog process failed: {}", error);
-        }
-    });
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
