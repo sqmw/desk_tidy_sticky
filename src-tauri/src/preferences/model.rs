@@ -1,30 +1,5 @@
-use crate::notes_service::{NoteSortMode, NoteViewMode};
+use crate::runtime::paths;
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum AppLocale {
-    #[serde(rename = "en")]
-    En,
-    #[serde(rename = "zh")]
-    Zh,
-}
-
-impl AppLocale {
-    pub fn from_str(s: &str) -> Self {
-        if s == "zh" {
-            AppLocale::Zh
-        } else {
-            AppLocale::En
-        }
-    }
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            AppLocale::En => "en",
-            AppLocale::Zh => "zh",
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -260,46 +235,7 @@ pub fn read_last_panel_window() -> String {
 }
 
 pub fn prefs_path() -> Result<std::path::PathBuf, String> {
-    let dir = directories::ProjectDirs::from("com", "desk_tidy", "desk_tidy_sticky")
-        .map(|d| d.data_dir().to_path_buf())
-        .ok_or_else(|| "Could not determine data directory".to_string())?;
+    let dir = paths::data_dir()?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir.join("preferences.json"))
-}
-
-impl PanelPreferences {
-    pub fn get_view_mode(&self) -> NoteViewMode {
-        match self.view_mode.as_str() {
-            "archived" => NoteViewMode::Archived,
-            "trash" => NoteViewMode::Trash,
-            _ => NoteViewMode::Active,
-        }
-    }
-    pub fn set_view_mode(&mut self, mode: NoteViewMode) {
-        self.view_mode = match mode {
-            NoteViewMode::Active => "active".to_string(),
-            NoteViewMode::Archived => "archived".to_string(),
-            NoteViewMode::Trash => "trash".to_string(),
-        };
-    }
-    pub fn get_sort_mode(&self) -> NoteSortMode {
-        match self.sort_mode.as_str() {
-            "newest" => NoteSortMode::Newest,
-            "oldest" => NoteSortMode::Oldest,
-            _ => NoteSortMode::Custom,
-        }
-    }
-    pub fn set_sort_mode(&mut self, mode: NoteSortMode) {
-        self.sort_mode = match mode {
-            NoteSortMode::Custom => "custom".to_string(),
-            NoteSortMode::Newest => "newest".to_string(),
-            NoteSortMode::Oldest => "oldest".to_string(),
-        };
-    }
-    pub fn get_locale(&self) -> AppLocale {
-        AppLocale::from_str(&self.language)
-    }
-    pub fn set_locale(&mut self, locale: AppLocale) {
-        self.language = locale.as_str().to_string();
-    }
 }

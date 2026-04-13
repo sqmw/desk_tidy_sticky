@@ -1,6 +1,8 @@
-use crate::app_state::BreakOverlayPresentationState;
 #[cfg(target_os = "macos")]
-use crate::panel_windows::PANEL_WINDOW_LABELS;
+use crate::desktop::{apply_macos_runtime_dock_icon, PANEL_WINDOW_LABELS};
+#[cfg(target_os = "macos")]
+use crate::platform::{macos, run_macos_window_op};
+use crate::runtime::BreakOverlayPresentationState;
 #[cfg(target_os = "macos")]
 use tauri::Manager;
 
@@ -35,10 +37,10 @@ fn apply_break_overlay_window_runtime_state(window: &tauri::WebviewWindow) -> Re
     let _ = window.set_always_on_top(true);
     let _ = window.set_shadow(false);
     let _ = window.set_ignore_cursor_events(false);
-    crate::run_macos_window_op(
+    run_macos_window_op(
         window,
         "macos_apply_break_overlay_window_traits",
-        crate::macos_windows::apply_break_overlay_window_traits,
+        macos::apply_break_overlay_window_traits,
     )?;
     let _ = window.show();
     let _ = window.unminimize();
@@ -107,10 +109,10 @@ pub fn apply_break_overlay_window_traits(
         let Some(window) = app.get_webview_window(label.as_str()) else {
             return Ok(());
         };
-        return crate::run_macos_window_op(
+        return run_macos_window_op(
             &window,
             "macos_apply_break_overlay_window_traits",
-            crate::macos_windows::apply_break_overlay_window_traits,
+            macos::apply_break_overlay_window_traits,
         );
     }
 
@@ -145,7 +147,7 @@ pub fn set_break_overlay_presentation(app: tauri::AppHandle, active: bool) -> Re
         };
         let result = window
             .run_on_main_thread(move || {
-                if let Err(error) = crate::macos_windows::set_break_overlay_presentation(active) {
+                if let Err(error) = macos::set_break_overlay_presentation(active) {
                     eprintln!("macos_set_break_overlay_presentation failed: {}", error);
                 }
             })
@@ -158,7 +160,7 @@ pub fn set_break_overlay_presentation(app: tauri::AppHandle, active: bool) -> Re
             match restore_regular_policy {
                 Some(true) => {
                     let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
-                    crate::panel_windows::apply_macos_runtime_dock_icon(&app);
+                    apply_macos_runtime_dock_icon(&app);
                 }
                 Some(false) => {
                     let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);

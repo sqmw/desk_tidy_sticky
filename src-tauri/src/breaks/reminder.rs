@@ -1,5 +1,5 @@
-use crate::app_state::{BreakReminderWatchSnapshot, BreakReminderWatchState};
-use crate::panel_windows::ensure_hidden_workspace_runtime_window;
+use crate::desktop::ensure_hidden_workspace_runtime_window;
+use crate::runtime::{BreakReminderWatchSnapshot, BreakReminderWatchState};
 use tauri::{Emitter, Manager};
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -48,7 +48,7 @@ pub fn process_break_reminder_due(
     }
     ensure_hidden_workspace_runtime_window(app_handle);
     #[cfg(target_os = "macos")]
-    if let Err(error) = crate::break_overlay::ensure_break_overlay_windows_native(app_handle) {
+    if let Err(error) = crate::breaks::ensure_break_overlay_windows_native(app_handle) {
         eprintln!("ensure native break overlay windows failed: {}", error);
     }
     let payload = BreakReminderDuePayload { kind, due_at_ms };

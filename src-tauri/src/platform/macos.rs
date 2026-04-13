@@ -4,7 +4,7 @@ use objc2_app_kit::{
     NSRunningApplication, NSWindow, NSWindowAnimationBehavior, NSWindowCollectionBehavior,
 };
 use objc2_core_graphics::{CGWindowLevelForKey, CGWindowLevelKey};
-use objc2_foundation::{NSData, NSProcessInfo, NSActivityOptions, NSString};
+use objc2_foundation::{NSActivityOptions, NSData, NSProcessInfo, NSString};
 use std::ffi::c_void;
 
 fn cast_ns_window_ptr(ptr: *mut c_void) -> Result<&'static NSWindow, String> {
@@ -109,9 +109,7 @@ pub fn attach_to_worker_w(ns_window_ptr: *mut c_void) -> Result<(), String> {
 }
 
 #[allow(dead_code)]
-pub fn attach_to_wallpaper_layer(
-    ns_window_ptr: *mut c_void,
-) -> Result<(), String> {
+pub fn attach_to_wallpaper_layer(ns_window_ptr: *mut c_void) -> Result<(), String> {
     let window = cast_ns_window_ptr(ns_window_ptr)?;
     apply_wallpaper_window_traits(window);
     // Match Plash desktop wallpaper behavior: place on desktop level and keep the window at back.
@@ -134,13 +132,19 @@ pub fn attach_to_wallpaper_layer_with_interaction(
         window.setIgnoresMouseEvents(true);
         window.setLevel(desktop_window_level());
         window.orderBack(None);
-        log_level("attach_to_wallpaper_layer_with_interaction(pass-through)", window);
+        log_level(
+            "attach_to_wallpaper_layer_with_interaction(pass-through)",
+            window,
+        );
     } else {
         window.setIgnoresMouseEvents(false);
         // Plash-like browsing mode: move above desktop icons for direct interaction.
         window.setLevel(desktop_icon_interactive_level());
         window.orderFrontRegardless();
-        log_level("attach_to_wallpaper_layer_with_interaction(interactive)", window);
+        log_level(
+            "attach_to_wallpaper_layer_with_interaction(interactive)",
+            window,
+        );
     }
     Ok(())
 }
@@ -220,7 +224,8 @@ pub fn set_break_overlay_presentation(active: bool) -> Result<(), String> {
 }
 
 pub fn prevent_app_nap_for_runtime_timers() {
-    let reason = NSString::from_str("Keep break reminder watchdog responsive while app runs in background");
+    let reason =
+        NSString::from_str("Keep break reminder watchdog responsive while app runs in background");
     let process_info = NSProcessInfo::processInfo();
     let activity = process_info.beginActivityWithOptions_reason(
         NSActivityOptions::UserInitiatedAllowingIdleSystemSleep,

@@ -13,8 +13,8 @@ pub fn apply_macos_runtime_dock_icon(app: &tauri::AppHandle) {
     };
 
     if let Err(error) = window.run_on_main_thread(|| {
-        if let Err(error) = crate::macos_windows::set_application_icon_from_png(include_bytes!(
-            "../icons/dock-icon.png"
+        if let Err(error) = crate::platform::macos::set_application_icon_from_png(include_bytes!(
+            "../../icons/dock-icon.png"
         )) {
             eprintln!("set macOS app icon failed: {}", error);
         }
