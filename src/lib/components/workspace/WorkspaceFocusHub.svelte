@@ -1173,6 +1173,7 @@
   nextLongBreakCountdownText={formatTimer(nextLongBreakCountdown)}
   selectedTaskTitle={selectedTask ? selectedTask.title : strings.pomodoroNoTaskSelected}
   phaseProgress={showBreakPanel ? breakProgressPercent : focusProgressPercent}
+  {selectedTaskId}
   todayPomodoroScoreText={`x${todayStats.pomodoros || 0}`}
   breakActive={Boolean(activeBreakKind)}
   canSkipBreak={skipUnlockedAfterPostpone}
