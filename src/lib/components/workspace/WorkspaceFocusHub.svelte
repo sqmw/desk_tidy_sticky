@@ -216,9 +216,6 @@
     return Math.max(0, Number(selectedTaskCycleSnapshot.currentCycleRemainingSeconds || 0));
   });
   const pomodoroTimerText = $derived(formatTimer(selectedTaskRemainingSeconds));
-  const selectedTaskDonePomodoros = $derived(
-    selectedTaskId ? Number(todayStats.taskPomodoros?.[selectedTaskId] || 0) : 0,
-  );
   const taskTitleRollups = $derived(
     buildTaskTitleRollups(stats, tasks, safeConfig.focusMinutes),
   );
@@ -1176,8 +1173,7 @@
   nextLongBreakCountdownText={formatTimer(nextLongBreakCountdown)}
   selectedTaskTitle={selectedTask ? selectedTask.title : strings.pomodoroNoTaskSelected}
   phaseProgress={showBreakPanel ? breakProgressPercent : focusProgressPercent}
-  {selectedTaskId}
-  selectedTaskPomodoroScoreText={`x${selectedTaskDonePomodoros}`}
+  todayPomodoroScoreText={`x${todayStats.pomodoros || 0}`}
   breakActive={Boolean(activeBreakKind)}
   canSkipBreak={skipUnlockedAfterPostpone}
   breakReminderEnabled={safeConfig.breakReminderEnabled}

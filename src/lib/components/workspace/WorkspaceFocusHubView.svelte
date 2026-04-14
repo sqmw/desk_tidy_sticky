@@ -26,7 +26,7 @@
     showBreakPanel = $bindable(false),
     showStats = $bindable(false),
     selectedTaskId = "",
-    selectedTaskPomodoroScoreText = "",
+    todayPomodoroScoreText = "",
     breakActive = false,
     canSkipBreak = false,
     breakReminderEnabled = false,
@@ -81,8 +81,7 @@
         taskText={selectedTaskTitle}
         {phaseProgress}
         {showBreakPanel}
-        {selectedTaskId}
-        {selectedTaskPomodoroScoreText}
+        {todayPomodoroScoreText}
         onToggleBreakPanel={(next = !showBreakPanel) => {
           showBreakPanel = !!next;
         }}
