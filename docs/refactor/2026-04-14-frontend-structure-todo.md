@@ -15,14 +15,14 @@
   - `workspace/focus` 拆为 `workspace/pomodoro` 与 `workspace/break-control`。
   - `routes/workspace/+page.svelte` 已抽出部分 controller 和 workspace note selectors。
   - `WorkbenchSection.svelte` 已拆出 `components/panel/workbench/*` 表现层组件。
-  - `WorkspaceFocusHub.svelte` 已拆出 `WorkspaceFocusHubView.svelte` 表现层。
+  - `WorkspaceFocusHub.svelte` 已拆出 `WorkspaceFocusHubView.svelte` 表现层、timer runtime controller、break overlay lifecycle、task draft/action controller。
   - 全局 reset 已集中到 `src/lib/styles/base.css` 和 `routes/+layout.svelte`。
   - panel/note 公共 tag、date、selector helper 已下沉到 `src/lib/note` 与 `src/lib/panel`。
-- 当前较大文件（2026-04-14 快照）：
-  - `src/lib/components/workspace/WorkspaceFocusHub.svelte`：约 1516 行。
+- 当前较大文件（2026-04-14 快照，P2 后更新）：
+  - `src/lib/components/workspace/WorkspaceFocusHub.svelte`：约 1250 行。
   - `src/routes/workspace/+page.svelte`：约 1349 行。
-  - `src/lib/components/workspace/WorkspaceSidebar.svelte`：约 1318 行。
-  - `src/routes/note/[id]/+page.svelte`：约 946 行。
+  - `src/lib/components/workspace/WorkspaceSidebar.svelte`：约 623 行。
+  - `src/routes/note/[id]/+page.svelte`：约 575 行。
   - `src/lib/workspace/theme/theme-default-template.js`：约 755 行。
   - `src/lib/components/panel/NotesSection.svelte`：约 713 行。
 
@@ -63,7 +63,7 @@
 - 手工回归关注：编辑保存、图片粘贴、命令建议、拖拽、pin/topmost/wallpaper、颜色/透明度/毛玻璃。
 
 ### P1：Workspace Sidebar 分层
-状态：进行中
+状态：代码拆分完成，待真实 Tauri UI 手工回归
 优先级：高  
 目标文件：`src/lib/components/workspace/WorkspaceSidebar.svelte`
 
@@ -92,7 +92,7 @@
 - 2026-04-14：完成 P1 第三轮主模块入口组件拆分，详情见 `docs/refactor/2026-04-14-workspace-sidebar-modules-pass3.md`。
 
 ### P2：Workspace FocusHub 运行时继续拆分
-状态：进行中
+状态：代码拆分完成，待真实 Tauri UI 手工回归
 优先级：中高  
 目标文件：`src/lib/components/workspace/WorkspaceFocusHub.svelte`
 
