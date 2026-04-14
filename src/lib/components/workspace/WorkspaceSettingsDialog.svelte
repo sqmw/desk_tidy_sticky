@@ -1,4 +1,8 @@
 <script>
+  import WorkspaceSettingsDisplaySection from "$lib/components/workspace/settings/WorkspaceSettingsDisplaySection.svelte";
+  import WorkspaceSettingsGeneralSection from "$lib/components/workspace/settings/WorkspaceSettingsGeneralSection.svelte";
+  import WorkspaceSettingsThemeSection from "$lib/components/workspace/settings/WorkspaceSettingsThemeSection.svelte";
+
   let {
     strings,
     show = $bindable(false),
@@ -98,170 +102,42 @@
       </div>
 
       <div class="dialog-body">
-        <section class="settings-section compact-section">
-          <label class="setting-row" for="workspace-setting-language">
-            <span>{strings.language}</span>
-            <select
-              id="workspace-setting-language"
-              value={locale}
-              onchange={(e) => onChangeLanguage(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-            >
-              <option value="zh">中文</option>
-              <option value="en">English</option>
-            </select>
-          </label>
-        </section>
+        <WorkspaceSettingsGeneralSection
+          {strings}
+          {locale}
+          {isAutostartEnabled}
+          {showPanelOnStartup}
+          {toggleAutostart}
+          {onSavePrefs}
+          {onChangeLanguage}
+        />
 
-        <section class="settings-section compact-section">
-          <div class="setting-stack">
-            <div class="setting-stack-head">
-              <span>{strings.general}</span>
-            </div>
+        <WorkspaceSettingsThemeSection
+          {strings}
+          {themePreset}
+          {themePresetOptions}
+          {themeCustomCss}
+          {themeImportStatus}
+          {themeImportFailed}
+          bind:themeImportInputEl
+          onThemePresetClick={handleThemePresetClick}
+          onOpenThemeImportPicker={openThemeImportPicker}
+          onCopyDefaultThemeTemplate={handleCopyDefaultThemeTemplate}
+          onResetThemeCustomCss={onResetThemeCustomCss}
+          onExportThemeCss={onExportThemeCss}
+          onChangeThemeCustomCss={onChangeThemeCustomCss}
+          onThemeImportChange={handleThemeImportChange}
+        />
 
-            <label class="setting-toggle">
-              <span class="setting-toggle-copy">
-                <span class="setting-toggle-title">{strings.autoStart}</span>
-              </span>
-              <span class="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={isAutostartEnabled}
-                  onchange={(e) => toggleAutostart(/** @type {HTMLInputElement} */ (e.currentTarget).checked)}
-                />
-                <span class="toggle-slider"></span>
-              </span>
-            </label>
-
-            <label class="setting-toggle">
-              <span class="setting-toggle-copy">
-                <span class="setting-toggle-title">{strings.showPanelOnStartup}</span>
-              </span>
-              <span class="toggle-switch">
-                <input
-                  type="checkbox"
-                  checked={showPanelOnStartup}
-                  onchange={(e) => {
-                    const checked = /** @type {HTMLInputElement} */ (e.currentTarget).checked;
-                    showPanelOnStartup = checked;
-                    onSavePrefs({ showPanelOnStartup: checked });
-                  }}
-                />
-                <span class="toggle-slider"></span>
-              </span>
-            </label>
-          </div>
-        </section>
-
-        <section class="settings-section">
-          <div class="setting-stack theme-preset-stack">
-            <div class="setting-stack-head">
-              <span>{strings.workspaceThemePreset || "Theme preset"}</span>
-            </div>
-            <div class="theme-preset-grid">
-              {#each themePresetOptions as option (option.value)}
-                <button
-                  type="button"
-                  class="theme-card"
-                  class:active={themePreset === option.value}
-                  onclick={() => handleThemePresetClick(option.value)}
-                >
-                  <span class="theme-card-title">{option.label}</span>
-                  <span
-                    class="theme-card-preview"
-                    style={`--theme-preview-bg:${option.previewBg || "#f8fafc"}; --theme-preview-text:${option.previewText || "#0f172a"}; --theme-preview-accent:${option.previewAccent || "#1d4ed8"};`}
-                  >
-                    <span class="theme-card-line strong"></span>
-                    <span class="theme-card-line"></span>
-                    <span class="theme-card-chip"></span>
-                  </span>
-                </button>
-              {/each}
-            </div>
-          </div>
-
-          <div class="setting-stack theme-custom-stack">
-            <div class="theme-custom-head">
-              <span>{strings.workspaceThemeCustomCss || "Custom theme"}</span>
-            </div>
-            <div class="theme-actions">
-              <button type="button" class="clear-btn" onclick={() => onExportThemeCss()}>
-                {strings.workspaceThemeExport || "Export theme"}
-              </button>
-              <button type="button" class="clear-btn" onclick={openThemeImportPicker}>
-                {strings.workspaceThemeImport || "Import theme"}
-              </button>
-              <button type="button" class="clear-btn" onclick={handleCopyDefaultThemeTemplate}>
-                {strings.workspaceThemeCopyDefault || "Copy default template"}
-              </button>
-              <button type="button" class="clear-btn" onclick={() => onResetThemeCustomCss()}>
-                {strings.clear}
-              </button>
-              <input
-                bind:this={themeImportInputEl}
-                class="theme-import-input"
-                type="file"
-                accept=".css,text/css,text/plain"
-                onchange={handleThemeImportChange}
-              />
-            </div>
-            <textarea
-              class="css-editor"
-              rows="6"
-              value={themeCustomCss}
-              oninput={(e) => onChangeThemeCustomCss(/** @type {HTMLTextAreaElement} */ (e.currentTarget).value)}
-              placeholder={strings.workspaceThemeCustomCssPlaceholder || ".workspace { --ws-accent: #4f46e5; }"}
-            ></textarea>
-            {#if themeImportStatus}
-              <small class:status-error={themeImportFailed}>{themeImportStatus}</small>
-            {/if}
-            <small>{strings.workspaceThemeCustomCssHint || "Applied immediately and saved automatically."}</small>
-          </div>
-        </section>
-
-        <section class="settings-section compact-section">
-          <div class="setting-grid">
-            <label class="setting-row" for="workspace-setting-zoom">
-              <span>{strings.workspaceDisplayScale}</span>
-              <select
-                id="workspace-setting-zoom"
-                value={zoomOption}
-                onchange={(e) => onChangeZoomOption(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-              >
-                <option value="auto">{strings.workspaceDisplayScaleAuto}</option>
-                <option value="0.9">90%</option>
-                <option value="1">100%</option>
-                <option value="1.1">110%</option>
-                <option value="1.25">125%</option>
-                <option value="1.4">140%</option>
-              </select>
-            </label>
-
-            <label class="setting-row" for="workspace-setting-font-size">
-              <span>{strings.workspaceFontSize}</span>
-              <select
-                id="workspace-setting-font-size"
-                value={fontSize}
-                onchange={(e) => onChangeFontSize(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-              >
-                <option value="small">{strings.workspaceFontSizeSmall}</option>
-                <option value="medium">{strings.workspaceFontSizeMedium}</option>
-                <option value="large">{strings.workspaceFontSizeLarge}</option>
-              </select>
-            </label>
-
-            <label class="setting-row" for="workspace-setting-sidebar-layout">
-              <span>{strings.workspaceSidebarLayoutMode || "Sidebar layout"}</span>
-              <select
-                id="workspace-setting-sidebar-layout"
-                value={sidebarLayoutMode}
-                onchange={(e) => onChangeSidebarLayoutMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-              >
-                <option value="auto">{strings.workspaceSidebarLayoutAuto || "Auto priority"}</option>
-                <option value="manual">{strings.workspaceSidebarLayoutManual || "Manual fixed"}</option>
-              </select>
-            </label>
-          </div>
-        </section>
+        <WorkspaceSettingsDisplaySection
+          {strings}
+          {zoomOption}
+          {fontSize}
+          {sidebarLayoutMode}
+          {onChangeZoomOption}
+          {onChangeFontSize}
+          onChangeSidebarLayoutMode={onChangeSidebarLayoutMode}
+        />
       </div>
     </div>
   </div>
@@ -323,278 +199,6 @@
     overflow: auto;
   }
 
-  .settings-section {
-    display: grid;
-    gap: 10px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 80%, transparent);
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.96)) 88%, var(--ws-btn-bg, #fbfdff));
-    padding: 14px;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent);
-  }
-
-  .compact-section {
-    padding: 12px 14px;
-  }
-
-  .setting-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 14px;
-  }
-
-  .setting-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
-    gap: 10px;
-    align-items: center;
-    color: var(--ws-text, #334155);
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .setting-row select {
-    width: 100%;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    min-height: 34px;
-    padding: 0 10px;
-    font-size: 12px;
-    outline: none;
-  }
-
-  .setting-row select:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-  }
-
-  .setting-stack {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 12px;
-    padding: 12px;
-    display: grid;
-    gap: 10px;
-    background: color-mix(in srgb, var(--ws-btn-bg, #fbfdff) 70%, transparent);
-  }
-
-  .setting-stack-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    color: var(--ws-text, #334155);
-    font-size: 13px;
-    font-weight: 700;
-  }
-
-  .theme-preset-stack {
-    gap: 10px;
-  }
-
-  .theme-custom-head {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-    color: var(--ws-text, #334155);
-    font-size: 13px;
-    font-weight: 700;
-    flex-wrap: wrap;
-  }
-
-  .theme-preset-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .theme-card {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    display: grid;
-    gap: 8px;
-    padding: 8px;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .theme-card:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
-  }
-
-  .theme-card.active {
-    border-color: var(--ws-border-active, #94a3b8);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ws-accent, #1d4ed8) 25%, transparent);
-  }
-
-  .theme-card-title {
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  .theme-card-preview {
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 70%, transparent);
-    border-radius: 8px;
-    background: var(--theme-preview-bg, #f8fafc);
-    min-height: 42px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
-    gap: 5px 8px;
-    padding: 6px;
-  }
-
-  .theme-card-line {
-    display: block;
-    grid-column: 1 / span 2;
-    height: 4px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--theme-preview-text, #0f172a) 35%, transparent);
-  }
-
-  .theme-card-line.strong {
-    width: 70%;
-    background: color-mix(in srgb, var(--theme-preview-text, #0f172a) 60%, transparent);
-  }
-
-  .theme-card-chip {
-    justify-self: end;
-    width: 16px;
-    height: 16px;
-    border-radius: 999px;
-    background: var(--theme-preview-accent, #1d4ed8);
-  }
-
-  .theme-actions {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
-    gap: 8px;
-  }
-
-  .theme-import-input {
-    display: none;
-  }
-
-  .clear-btn {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 8px;
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    min-height: 34px;
-    padding: 0 12px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-  }
-
-  .css-editor {
-    width: 100%;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    min-height: 170px;
-    resize: vertical;
-    padding: 10px;
-    font-size: 12px;
-    font-family: "Consolas", "SFMono-Regular", "Microsoft YaHei UI", monospace;
-    line-height: 1.45;
-    outline: none;
-  }
-
-  .css-editor:hover,
-  .css-editor:focus {
-    border-color: var(--ws-border-hover, #c6d5e8);
-  }
-
-  .setting-stack small {
-    color: var(--ws-muted, #64748b);
-    font-size: 11px;
-    line-height: 1.4;
-  }
-
-  .setting-stack small.status-error {
-    color: color-mix(in srgb, #dc2626 76%, var(--ws-text, #334155));
-    font-weight: 700;
-  }
-
-  .setting-toggle {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
-    align-items: center;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 72%, transparent);
-    border-radius: 10px;
-    padding: 10px 12px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.96)) 55%, var(--ws-btn-bg, #fbfdff));
-  }
-
-  .setting-toggle-copy {
-    display: grid;
-    gap: 4px;
-    min-width: 0;
-  }
-
-  .setting-toggle-title {
-    color: var(--ws-text, #334155);
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  .toggle-switch {
-    position: relative;
-    display: inline-flex;
-    width: 46px;
-    height: 28px;
-    flex-shrink: 0;
-  }
-
-  .toggle-switch input {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-    margin: 0;
-  }
-
-  .toggle-slider {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    border-radius: 999px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 56%, #fff);
-    transition: background 0.18s ease, border-color 0.18s ease;
-  }
-
-  .toggle-slider::after {
-    content: "";
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 20px;
-    height: 20px;
-    border-radius: 999px;
-    background: #fff;
-    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.16);
-    transition: transform 0.18s ease;
-  }
-
-  .toggle-switch input:checked + .toggle-slider {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 54%, transparent);
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 82%, #ffffff);
-  }
-
-  .toggle-switch input:checked + .toggle-slider::after {
-    transform: translateX(18px);
-  }
-
   @media (max-width: 540px) {
     .settings-dialog {
       width: min(100%, 560px);
@@ -602,23 +206,6 @@
 
     .dialog-body {
       padding: 14px;
-    }
-
-    .setting-grid,
-    .theme-preset-grid {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .setting-row {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .setting-toggle {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .theme-actions {
-      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>

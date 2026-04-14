@@ -205,11 +205,15 @@
 - `src/lib/components/panel/NotesSection.svelte`
   - 可按 list rendering、drag ghost、trash/archive action 分层。
 - `src/lib/components/workspace/WorkspaceSettingsDialog.svelte`
-  - 可按 theme/display/startup/break settings 分组组件。
+  - 可按 theme/display/startup/break settings 分组组件：已完成第一步。
+  - 已覆盖：general、theme、display 三段表现层组件拆分。
 - `src/lib/strings.js`
   - 可按领域拆为 `strings/note.js`、`strings/workspace.js` 等，再聚合导出；此项影响面大，后置。
 - `src/lib/Dismissible.svelte`、`src/lib/note/search.js`
   - 清理少量 `@ts-ignore`，优先以 JSDoc 或局部 helper 修正。
+
+当前进展：
+- 2026-04-14：完成 P4 第一轮 workspace settings dialog 表现层拆分，详情见 `docs/refactor/2026-04-14-workspace-settings-dialog-pass1.md`。
 
 ## 已有关联文档
 - `docs/refactor/2026-04-13-frontend-functional-split-pass1.md`
