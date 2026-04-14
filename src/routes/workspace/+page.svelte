@@ -18,6 +18,7 @@
   import { createWorkspaceNoteViewActions } from "$lib/workspace/controllers/workspace-note-view-actions.js";
   import { createWorkspacePreferenceSync } from "$lib/workspace/controllers/workspace-preference-sync.js";
   import { createWorkspaceRoutePreferences } from "$lib/workspace/controllers/workspace-route-preferences.js";
+  import { createWorkspaceRouteResizeBridge } from "$lib/workspace/controllers/workspace-route-resize-bridge.js";
   import { createWorkspaceRuntimeLifecycle } from "$lib/workspace/controllers/workspace-runtime-lifecycle.js";
   import { createWorkspaceSettingsActions } from "$lib/workspace/controllers/workspace-settings-actions.js";
   import { createWorkspaceStartupActions } from "$lib/workspace/controllers/workspace-startup-actions.js";
@@ -572,48 +573,25 @@
     },
   });
 
-  const resizeController = createWorkspaceResizeController({
+  const routeResizeBridge = createWorkspaceRouteResizeBridge({
     getWorkbenchShellRect: () => workbenchShellEl?.getBoundingClientRect() ?? null,
+    getWorkspaceViewportRect: () => workspaceViewportEl?.getBoundingClientRect() ?? null,
+    getWorkspaceLayoutScale: () => workspaceLayoutScale,
     getInspectorOpen: () => inspectorOpen,
     getInspectorListCollapsed: () => inspectorListCollapsed,
-    setInspectorLayout: (next) => {
+    setInspectorLayoutState: (next) => {
       inspectorListCollapsed = next.collapsed;
       inspectorWidth = next.width;
     },
     getInspectorWidth: () => inspectorWidth,
-    mapInspectorPointerClientX: (clientX) => {
-      const viewportRect = workspaceViewportEl?.getBoundingClientRect();
-      const left = viewportRect?.left ?? 0;
-      const scale = Number(workspaceLayoutScale || 1);
-      const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
-      return (clientX - left) / safeScale;
-    },
-    mapInspectorRect: (rect) => {
-      const viewportRect = workspaceViewportEl?.getBoundingClientRect();
-      const viewportLeft = viewportRect?.left ?? 0;
-      const scale = Number(workspaceLayoutScale || 1);
-      const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
-      const left = (rect.left - viewportLeft) / safeScale;
-      const right = (rect.right - viewportLeft) / safeScale;
-      return {
-        left,
-        right,
-        width: Math.max(0, right - left),
-      };
-    },
     getSidebarWidth: () => sidebarWidth,
     getSidebarMaxWidth: () => stageLayout.sidebarMaxWidth,
-    setSidebarWidth: (nextWidth) => {
+    setSidebarWidthState: (nextWidth) => {
       sidebarWidth = nextWidth;
     },
-    mapSidebarPointerClientX: (clientX) => {
-      const viewportRect = workspaceViewportEl?.getBoundingClientRect();
-      const left = viewportRect?.left ?? 0;
-      const scale = Number(workspaceLayoutScale || 1);
-      const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
-      return (clientX - left) / safeScale;
-    },
   });
+
+  const resizeController = createWorkspaceResizeController(routeResizeBridge);
 
   onMount(() => {
     refreshViewportMetrics();
