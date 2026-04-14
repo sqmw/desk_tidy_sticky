@@ -29,7 +29,7 @@
 ## 阶段计划
 
 ### P0：Sticky Note 详情页结构整理
-状态：进行中
+状态：代码拆分完成，待真实 Tauri UI 手工回归
 优先级：最高  
 目标文件：`src/routes/note/[id]/+page.svelte`
 
@@ -47,7 +47,7 @@
 - 抽出窗口拖拽能力：已完成第一步
   - 候选：`src/lib/note/note-window-drag.js`
   - 已覆盖：manual drag state、pointer down/move/up、Tauri window position 更新、cleanup。
-- 清理 `@ts-ignore`：进行中
+- 清理 `@ts-ignore`：已完成第一步
   - 先通过 JSDoc 标注 `invoke("load_notes")` 返回数组形态；
   - 不为了消除 warning 引入过重类型系统。
 
@@ -55,6 +55,7 @@
 - 2026-04-14：完成 P0 第一轮保守拆分，详情见 `docs/refactor/2026-04-14-note-detail-structure-pass1.md`。
 - 2026-04-14：完成 P0 第二轮样式动作拆分，详情见 `docs/refactor/2026-04-14-note-detail-style-actions-pass2.md`。
 - 2026-04-14：完成 P0 第三轮编辑器动作拆分，详情见 `docs/refactor/2026-04-14-note-detail-editor-actions-pass3.md`。
+- 2026-04-14：P0 代码拆分收口，详情页从约 946 行降到约 575 行；真实 Tauri UI 手工回归仍待执行。
 
 验收：
 - `pnpm check` 通过。
@@ -62,7 +63,7 @@
 - 手工回归关注：编辑保存、图片粘贴、命令建议、拖拽、pin/topmost/wallpaper、颜色/透明度/毛玻璃。
 
 ### P1：Workspace Sidebar 分层
-状态：待办  
+状态：进行中
 优先级：高  
 目标文件：`src/lib/components/workspace/WorkspaceSidebar.svelte`
 
@@ -70,9 +71,9 @@
 - 拆出主模块入口：
   - 候选：`components/workspace/sidebar/WorkspaceSidebarModules.svelte`
   - 覆盖：主 tab、开关类入口、compact 状态展示。
-- 拆出笔记筛选区：
+- 拆出笔记筛选区：已完成第一步
   - 候选：`components/workspace/sidebar/WorkspaceSidebarNoteFilters.svelte`
-  - 覆盖：view mode、sort mode、tag filter、count badge。
+  - 已覆盖：view mode、sort mode、tag filter、count badge、compact/collapsed 展示。
 - 拆出 deadline 区：
   - 候选：`components/workspace/sidebar/WorkspaceSidebarDeadlines.svelte`
   - 覆盖：deadline list、状态文案、deadline action。
@@ -84,6 +85,9 @@
 验收：
 - `pnpm check` 通过。
 - 手工回归关注：sidebar 手动分割、tag filter、deadline action、mac traffic lights 位置。
+
+当前进展：
+- 2026-04-14：完成 P1 第一轮笔记筛选区组件拆分，详情见 `docs/refactor/2026-04-14-workspace-sidebar-note-filters-pass1.md`。
 
 ### P2：Workspace FocusHub 运行时继续拆分
 状态：待办  

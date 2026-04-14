@@ -1,16 +1,9 @@
 <script>
   import {
-    WORKSPACE_INITIAL_VIEW_MODES,
     WORKSPACE_MAIN_TAB_NOTES,
-    WORKSPACE_NOTE_VIEW_ACTIVE,
-    WORKSPACE_NOTE_VIEW_ARCHIVED,
-    WORKSPACE_NOTE_VIEW_QUADRANT,
-    WORKSPACE_NOTE_VIEW_TODO,
-    WORKSPACE_NOTE_VIEW_TRASH,
-    getWorkspaceInitialViewModeLabel,
     getWorkspaceMainTabDefs,
-    getWorkspaceViewModeLabel,
   } from "$lib/workspace/workspace-tabs.js";
+  import WorkspaceSidebarNoteFilters from "$lib/components/workspace/sidebar/WorkspaceSidebarNoteFilters.svelte";
   import {
     calcSidebarManualSplitRatioFromPointer,
     DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
@@ -58,14 +51,6 @@
 
   const mainTabs = $derived(getWorkspaceMainTabDefs(strings));
 
-  const PRIMARY_VIEW_MODES = [WORKSPACE_NOTE_VIEW_ACTIVE, WORKSPACE_NOTE_VIEW_TODO, WORKSPACE_NOTE_VIEW_QUADRANT];
-  const SECONDARY_VIEW_MODES = [WORKSPACE_NOTE_VIEW_ARCHIVED, WORKSPACE_NOTE_VIEW_TRASH];
-  const primaryViewModes = $derived(
-    viewModes.filter((/** @type {string} */ mode) => PRIMARY_VIEW_MODES.includes(mode)),
-  );
-  const secondaryViewModes = $derived(
-    viewModes.filter((/** @type {string} */ mode) => SECONDARY_VIEW_MODES.includes(mode)),
-  );
   let noteFiltersCollapsed = $state(false);
   let deadlinesCollapsed = $state(false);
   let settingsCollapsed = $state(false);
@@ -238,13 +223,6 @@
     return `${strings.pomodoroTaskRounds || "Task rounds"} x${Math.max(0, Number(item.taskCycles || 0))}`;
   }
 
-  /** @param {string} mode */
-  function viewCount(mode) {
-    const value = Number(noteViewCounts?.[mode] ?? 0);
-    if (!Number.isFinite(value)) return 0;
-    return Math.max(0, Math.trunc(value));
-  }
-
   /** @param {boolean} value */
   function sectionToggleIcon(value) {
     return value ? "▸" : "▾";
@@ -306,112 +284,28 @@
     {/if}
 
     {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
-      <div class="sidebar-block note-filters-block" style={noteFiltersBlockStyle}>
-        <div class="sidebar-block-head">
-          <div class="block-title">{collapsed ? "•" : strings.workspaceNoteFilters}</div>
-          {#if compact && !collapsed}
-            <button
-              type="button"
-              class="section-toggle"
-              onclick={() => (noteFiltersCollapsed = !noteFiltersCollapsed)}
-              aria-label={strings.workspaceNoteFilters}
-            >
-              {sectionToggleIcon(noteFiltersCollapsed)}
-            </button>
-          {/if}
-        </div>
-        {#if !compact || !noteFiltersCollapsed || collapsed}
-          <div class="view-sections">
-            <div class="view-list">
-              {#each primaryViewModes as mode}
-                <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
-                  {#if collapsed}
-                    <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
-                  {:else}
-                    <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
-                    <span class="view-count">{viewCount(mode)}</span>
-                  {/if}
-                </button>
-              {/each}
-            </div>
-            <div class="view-separator"></div>
-            <div class="view-list view-list-secondary">
-              {#each secondaryViewModes as mode}
-                <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
-                  {#if collapsed}
-                    <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
-                  {:else}
-                    <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
-                    <span class="view-count">{viewCount(mode)}</span>
-                  {/if}
-                </button>
-              {/each}
-            </div>
-            {#if !collapsed}
-              <div class="view-separator"></div>
-              <div class="initial-view">
-                <label class="initial-view-label" for="workspace-initial-view">{strings.workspaceInitialView}</label>
-                <select
-                  id="workspace-initial-view"
-                  class="initial-view-select"
-                  value={initialViewMode}
-                  onchange={(e) => onSetInitialViewMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-                >
-                  {#each WORKSPACE_INITIAL_VIEW_MODES as mode (mode)}
-                    <option value={mode}>{getWorkspaceInitialViewModeLabel(strings, mode)}</option>
-                  {/each}
-                </select>
-              </div>
-              <div class="sort-control">
-                <label class="initial-view-label" for="workspace-sort-mode">{strings.sortMode}</label>
-                <select
-                  id="workspace-sort-mode"
-                  class="initial-view-select"
-                  value={sortMode}
-                  onchange={(e) => onSetSortMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-                >
-                  {#each sortModes as mode (mode)}
-                    <option value={mode}>
-                      {mode === "newest" ? strings.sortByNewest : mode === "oldest" ? strings.sortByOldest : strings.sortByCustom}
-                    </option>
-                  {/each}
-                </select>
-              </div>
-              <div class="view-separator"></div>
-              <div class="tag-filter">
-                <div class="initial-view-label">{strings.workspaceTagsFilter}</div>
-                {#if noteTags.length === 0}
-                  <div class="tag-empty">{strings.workspaceTagsEmpty}</div>
-                {:else}
-                  <div class="tag-list">
-                    <button
-                      type="button"
-                      class="tag-filter-btn"
-                      class:active={selectedTag === ""}
-                      onclick={() => onSetSelectedTag("")}
-                    >
-                      <span>{strings.workspaceTagsAll}</span>
-                      <span class="view-count">{taggedNoteCount}</span>
-                    </button>
-                    {#each noteTags as item (item.tag)}
-                      <button
-                        type="button"
-                        class="tag-filter-btn"
-                        class:active={selectedTag === item.tag}
-                        onclick={() => onSetSelectedTag(item.tag)}
-                        title={`#${item.tag}`}
-                      >
-                        <span class="tag-name">#{item.tag}</span>
-                        <span class="view-count">{item.count}</span>
-                      </button>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            {/if}
-          </div>
-        {/if}
-      </div>
+      <WorkspaceSidebarNoteFilters
+        {strings}
+        {collapsed}
+        {compact}
+        manualLayoutEnabled={manualLayoutEnabled}
+        blockStyle={noteFiltersBlockStyle}
+        sectionCollapsed={noteFiltersCollapsed}
+        {viewModes}
+        {viewMode}
+        {sortMode}
+        {sortModes}
+        {initialViewMode}
+        {noteViewCounts}
+        {noteTags}
+        {selectedTag}
+        {taggedNoteCount}
+        onToggleSectionCollapsed={() => (noteFiltersCollapsed = !noteFiltersCollapsed)}
+        {onSetViewMode}
+        {onSetSortMode}
+        {onSetSelectedTag}
+        {onSetInitialViewMode}
+      />
     {:else}
       <div class="sidebar-block deadline-block" style={deadlineBlockStyle}>
         <div class="sidebar-block-head">
@@ -700,7 +594,6 @@
   }
 
   .sidebar.manual-layout .modules-block,
-  .sidebar.manual-layout .note-filters-block,
   .sidebar.manual-layout .deadline-block {
     min-height: 0;
     height: var(--manual-block-height, auto);
@@ -712,7 +605,6 @@
     overflow: auto;
   }
 
-  .sidebar.manual-layout .note-filters-block,
   .sidebar.manual-layout .deadline-block {
     overflow: hidden;
   }
@@ -750,153 +642,6 @@
     letter-spacing: 0.04em;
   }
 
-  .view-list {
-    display: grid;
-    gap: 6px;
-  }
-
-  .view-sections {
-    display: grid;
-    gap: 8px;
-  }
-
-  .note-filters-block {
-    display: flex;
-    flex-direction: column;
-    flex: 0 0 auto;
-    min-height: 0;
-  }
-
-  .note-filters-block .view-sections {
-    min-height: 0;
-    max-height: var(--section-max-height, 240px);
-    overflow: auto;
-    padding-right: 2px;
-    scrollbar-width: thin;
-  }
-
-  .sidebar.manual-layout .note-filters-block .view-sections {
-    height: var(--section-max-height, 240px);
-  }
-
-  .view-separator {
-    height: 1px;
-    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 90%, transparent);
-  }
-
-  .view-list-secondary .view-btn {
-    opacity: 0.95;
-  }
-
-  .tag-filter {
-    display: grid;
-    gap: 6px;
-  }
-
-  .tag-empty {
-    border: 1px dashed var(--ws-border-soft, #d9e2ef);
-    border-radius: 9px;
-    color: var(--ws-muted, #64748b);
-    font-size: 11px;
-    line-height: 1.4;
-    padding: 8px;
-  }
-
-  .tag-list {
-    display: grid;
-    gap: 5px;
-    max-height: 160px;
-    overflow: auto;
-    padding-right: 3px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
-      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
-  }
-
-  .tag-list::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .tag-list::-webkit-scrollbar-track {
-    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 80%, transparent);
-    border-radius: 999px;
-  }
-
-  .tag-list::-webkit-scrollbar-thumb {
-    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
-    border-radius: 999px;
-  }
-
-  .tag-filter-btn {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 9px;
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    text-align: left;
-    padding: 8px 10px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    transition: all 0.16s ease;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-
-  .tag-filter-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
-  }
-
-  .tag-filter-btn.active {
-    border-color: var(--ws-border-active, #94a3b8);
-    color: var(--ws-text-strong, #0f172a);
-    background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
-  }
-
-  .tag-name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .initial-view {
-    display: grid;
-    gap: 6px;
-  }
-
-  .sort-control {
-    display: grid;
-    gap: 6px;
-  }
-
-  .initial-view-label {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-    font-weight: 600;
-  }
-
-  .initial-view-select {
-    width: 100%;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 9px;
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    min-height: 32px;
-    padding: 6px 10px;
-    font-size: 12px;
-    outline: none;
-    cursor: pointer;
-    transition: border-color 0.14s ease;
-  }
-
-  .initial-view-select:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-  }
-
   .main-tabs {
     display: grid;
     gap: 6px;
@@ -931,55 +676,6 @@
     text-align: center;
     padding: 8px 4px;
     font-size: 12px;
-  }
-
-  .view-btn {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    text-align: left;
-    padding: 10px 12px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    transition: all 0.16s ease;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-
-  .sidebar.collapsed .view-btn {
-    text-align: center;
-    padding: 8px 4px;
-    font-size: 12px;
-  }
-
-  .view-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
-    transform: translateX(2px);
-  }
-
-  .view-btn.active {
-    border-color: var(--ws-border-active, #94a3b8);
-    color: var(--ws-text-strong, #0f172a);
-    background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
-  }
-
-  .view-count {
-    display: inline-flex;
-    min-width: 22px;
-    padding: 2px 7px;
-    border-radius: 999px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: var(--ws-card-bg, #fdfefe);
-    color: var(--ws-muted, #64748b);
-    font-size: 11px;
-    font-weight: 700;
-    justify-content: center;
-    line-height: 1.1;
   }
 
   .deadline-empty {
@@ -1243,12 +939,6 @@
     font-size: 12px;
   }
 
-  .sidebar.compact .view-btn {
-    padding: 8px 10px;
-    font-size: 12px;
-    gap: 8px;
-  }
-
   @container (max-width: 230px) {
     .sidebar {
       padding: 10px 8px;
@@ -1265,7 +955,6 @@
     }
 
     .main-tab-btn,
-    .view-btn,
     .ghost-btn {
       font-size: 12px;
       padding: 7px 9px;
@@ -1284,12 +973,6 @@
       min-height: 24px;
       font-size: 10px;
     }
-  }
-
-  .sidebar.compact .initial-view-select {
-    min-height: 30px;
-    font-size: 11px;
-    padding: 4px 8px;
   }
 
   .sidebar.compact .deadline-item {
