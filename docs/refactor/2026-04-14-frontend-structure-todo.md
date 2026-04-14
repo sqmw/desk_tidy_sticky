@@ -10,6 +10,12 @@
 - 按功能域拆分表现层、运行时编排层和领域 helper。
 - 每轮结构调整都同步文档并执行最小必要验证。
 
+## 当前判断
+- 当前前端已经基本按功能域拆分完成，已形成 `note`、`workspace/pomodoro`、`workspace/break-control`、`workspace/controllers`、`workspace/layout`、`components/workspace`、`components/workspace/sidebar` 等稳定边界。
+- 继续拆分仍然有空间，但收益已经从“明显降低复杂度”逐步转向“进一步整洁化”，边际收益开始下降。
+- 当前建议从“持续大拆”切到“真实 Tauri UI 回归验证优先”，先验证结构整理后的行为稳定性，再决定是否继续做 `page state factory` 或 `FocusHub` 内部更深一层收口。
+- 若后续没有新的结构性痛点，P3 可以在完成一轮回归后进入收敛观察期，而不是继续无上限拆分。
+
 ## 当前基线
 - 已完成：
   - `workspace/focus` 拆为 `workspace/pomodoro` 与 `workspace/break-control`。
@@ -162,6 +168,32 @@
 - 2026-04-14：完成 P3 第三轮 resize bridge 拆分，详情见 `docs/refactor/2026-04-14-workspace-route-resize-bridge-pass3.md`。
 - 2026-04-14：完成 P3 第四轮 note / inspector bridge 拆分，详情见 `docs/refactor/2026-04-14-workspace-route-note-bridge-pass4.md`。
 - 2026-04-14：完成 P3 第五轮 workspace bridge 拆分，详情见 `docs/refactor/2026-04-14-workspace-route-workspace-bridge-pass5.md`。
+- 2026-04-14：当前判断为“结构已基本按功能域拆开”，下一优先级切为真实 UI 回归，而不是继续高强度拆分。
+
+## 当前建议
+- 建议暂停继续大规模拆分前端。
+- 建议先完成一轮真实 Tauri UI 回归。
+- 若回归稳定，再决定是否继续做：
+  - `src/routes/workspace/+page.svelte` 的 `page state factory / state group`
+  - `src/lib/components/workspace/WorkspaceFocusHub.svelte` 的 break 流程进一步收口
+
+## 最小回归清单
+- `P0 note/[id]`
+  - 编辑文本后保存是否正常。
+  - 图片粘贴、命令建议、窗口拖拽是否正常。
+  - `pin/topmost/wallpaper`、颜色/透明度/毛玻璃调整是否正常。
+- `P1 sidebar`
+  - main tab 切换、view mode、sort mode、tag filter 是否正常。
+  - deadline action 是否能驱动 focus 相关行为。
+  - sidebar 手动 resize 与 compact/collapsed 展示是否正常。
+- `P2 focus hub`
+  - 开始/暂停、任务切换、任务删除、番茄完成是否正常。
+  - break reminder、fullscreen overlay、postpone/skip、刷新恢复是否正常。
+  - settings 打开/保存、task start reminder 是否正常。
+- `P3 workspace route`
+  - workspace 启动后 preferences 恢复是否正常。
+  - auto zoom / manual zoom / 高 DPR 下布局与拖拽映射是否正常。
+  - inspector 打开/编辑/关闭、长文档草稿、新建 note 与 note view mode 持久化是否正常。
 
 ### P4：次级大文件与类型清理
 状态：待办  
