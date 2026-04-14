@@ -4,6 +4,7 @@
     min = 1,
     max = 24,
     title = "",
+    onCommit = () => {},
   } = $props();
 
   /**
@@ -20,6 +21,7 @@
    */
   function step(delta) {
     value = clamp(Number(value || min) + delta);
+    onCommit(value);
   }
 
   /** @param {WheelEvent} e */
@@ -32,6 +34,7 @@
   function onInput(e) {
     const target = /** @type {HTMLInputElement} */ (e.currentTarget);
     value = clamp(target.value);
+    onCommit(value);
   }
 
   /** @param {Event} e */
@@ -39,6 +42,7 @@
     const target = /** @type {HTMLInputElement} */ (e.currentTarget);
     value = clamp(target.value);
     target.value = String(value);
+    onCommit(value);
   }
 </script>
 

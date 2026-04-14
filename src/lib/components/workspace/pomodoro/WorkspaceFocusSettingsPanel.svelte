@@ -3,7 +3,6 @@
 
   let {
     strings,
-    draftFocusMinutes = $bindable(25),
     draftTaskStartReminderEnabled = $bindable(false),
     draftTaskStartReminderLeadMinutes = $bindable(10),
     onSaveSettings = () => {},
@@ -20,10 +19,6 @@
   </div>
 
   <div class="focus-settings-grid">
-    <label class="setting-row">
-      <span class="setting-copy">{strings.pomodoroFocusMinutes}</span>
-      <TargetPomodoroInput bind:value={draftFocusMinutes} min={5} max={90} title={strings.pomodoroFocusMinutes} />
-    </label>
     <label class="setting-row toggle-row">
       <span class="setting-copy">{strings.pomodoroTaskStartReminderToggle || "Task start reminder"}</span>
       <input type="checkbox" bind:checked={draftTaskStartReminderEnabled} />
@@ -69,7 +64,7 @@
 
   .focus-settings-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 8px;
   }
 

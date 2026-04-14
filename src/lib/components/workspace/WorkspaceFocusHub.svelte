@@ -1185,7 +1185,6 @@
   bind:draftEndTime
   bind:draftRecurrence
   bind:draftWeekdays
-  bind:draftFocusMinutes
   bind:draftTaskStartReminderEnabled
   bind:draftTaskStartReminderLeadMinutes
   bind:showBreakPanel
@@ -1195,6 +1194,7 @@
   nextMiniBreakCountdownText={formatTimer(nextMiniBreakCountdown)}
   nextLongBreakCountdownText={formatTimer(nextLongBreakCountdown)}
   selectedTaskTitle={selectedTask ? selectedTask.title : strings.pomodoroNoTaskSelected}
+  focusMinutes={safeConfig.focusMinutes}
   phaseProgress={showBreakPanel ? breakProgressPercent : focusProgressPercent}
   {selectedTaskId}
   selectedTaskPomodoroScoreText={`x${selectedTaskDonePomodoros}`}
@@ -1244,6 +1244,7 @@
   onToggleTask={focusTimerController.toggleRunning}
   onRemoveTask={taskDraftController.removeTask}
   onUpdateTask={taskDraftController.updateTask}
+  onApplyFocusMinutes={focusTimerController.applyFocusPreset}
   {weekdayLabel}
   onSaveSettings={taskDraftController.saveTimerConfig}
   onCancelSettings={() => (showConfig = false)}

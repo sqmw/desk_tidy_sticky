@@ -1,4 +1,6 @@
 <script>
+  import TargetPomodoroInput from "$lib/components/workspace/pomodoro/TargetPomodoroInput.svelte";
+
   let {
     strings,
     timerText = "00:00",
@@ -7,9 +9,11 @@
     selectedTaskId = "",
     selectedTaskPomodoroScoreText = "0",
     taskText = "",
+    focusMinutes = 25,
     phaseProgress = 0,
     showBreakPanel = false,
     onToggleBreakPanel = () => {},
+    onApplyFocusMinutes = () => {},
     breakPanel = undefined,
   } = $props();
 
@@ -72,6 +76,16 @@
       <div class="timer-task-card">
         <span class="timer-meta-label">{strings.pomodoroTask || "Task"}</span>
         <strong class="timer-task-value">{taskText}</strong>
+      </div>
+      <div class="timer-focus-chip" aria-label={strings.pomodoroFocusMinutes || "Pomodoro duration (min)"}>
+        <span class="timer-meta-label">{strings.pomodoroFocusMinutes || "Pomodoro duration (min)"}</span>
+        <TargetPomodoroInput
+          value={focusMinutes}
+          min={5}
+          max={90}
+          title={strings.pomodoroFocusMinutes || "Pomodoro duration (min)"}
+          onCommit={onApplyFocusMinutes}
+        />
       </div>
       {#if selectedTaskId}
         <div class="timer-stat-chip" aria-label={strings.pomodoroTodayPomodoros || "Today pomodoros"}>
@@ -206,6 +220,7 @@
   }
 
   .timer-task-card,
+  .timer-focus-chip,
   .timer-stat-chip {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 10px;
@@ -216,6 +231,7 @@
   }
 
   .timer-card.focus-mode .timer-task-card,
+  .timer-card.focus-mode .timer-focus-chip,
   .timer-card.focus-mode .timer-stat-chip {
     padding: 5px 8px;
   }
@@ -227,6 +243,17 @@
   .timer-stat-chip {
     min-width: 128px;
     align-content: center;
+  }
+
+  .timer-focus-chip {
+    min-width: 196px;
+    align-content: center;
+    gap: 6px;
+  }
+
+  .timer-focus-chip :global(.target-input) {
+    height: 32px;
+    box-shadow: none;
   }
 
   .timer-meta-label {
@@ -280,6 +307,10 @@
 
     .timer-meta {
       grid-template-columns: 1fr;
+    }
+
+    .timer-focus-chip {
+      min-width: 0;
     }
   }
 </style>

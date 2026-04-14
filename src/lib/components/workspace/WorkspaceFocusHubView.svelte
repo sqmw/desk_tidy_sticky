@@ -19,13 +19,13 @@
     draftEndTime = $bindable("10:00"),
     draftRecurrence = $bindable("none"),
     draftWeekdays = $bindable([1, 2, 3, 4, 5]),
-    draftFocusMinutes = $bindable(25),
     draftTaskStartReminderEnabled = $bindable(false),
     draftTaskStartReminderLeadMinutes = $bindable(10),
     pomodoroTimerText,
     nextMiniBreakCountdownText,
     nextLongBreakCountdownText,
     selectedTaskTitle,
+    focusMinutes = 25,
     phaseProgress,
     showBreakPanel = $bindable(false),
     showConfig = $bindable(false),
@@ -72,6 +72,7 @@
     onToggleTask = () => {},
     onRemoveTask = () => {},
     onUpdateTask = () => {},
+    onApplyFocusMinutes = () => {},
     weekdayLabel = () => "",
     onSaveSettings = () => {},
     onCancelSettings = () => {},
@@ -87,10 +88,12 @@
         breakMiniCountdownText={nextMiniBreakCountdownText}
         breakLongCountdownText={nextLongBreakCountdownText}
         taskText={selectedTaskTitle}
+        {focusMinutes}
         {phaseProgress}
         {showBreakPanel}
         {selectedTaskId}
         {selectedTaskPomodoroScoreText}
+        {onApplyFocusMinutes}
         onToggleBreakPanel={(next = !showBreakPanel) => {
           showBreakPanel = !!next;
           if (showBreakPanel && showConfig) showConfig = false;
@@ -153,7 +156,6 @@
         {#snippet settingsPanel()}
           <WorkspaceFocusSettingsPanel
             {strings}
-            bind:draftFocusMinutes
             bind:draftTaskStartReminderEnabled
             bind:draftTaskStartReminderLeadMinutes
             {onSaveSettings}
@@ -329,4 +331,3 @@
     }
   }
 </style>
-
