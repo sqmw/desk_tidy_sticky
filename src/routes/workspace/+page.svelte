@@ -20,6 +20,7 @@
   import { createWorkspaceRouteNoteBridge } from "$lib/workspace/controllers/workspace-route-note-bridge.js";
   import { createWorkspaceRoutePreferences } from "$lib/workspace/controllers/workspace-route-preferences.js";
   import { createWorkspaceRouteResizeBridge } from "$lib/workspace/controllers/workspace-route-resize-bridge.js";
+  import { createWorkspaceRouteWorkspaceBridge } from "$lib/workspace/controllers/workspace-route-workspace-bridge.js";
   import { createWorkspaceRuntimeLifecycle } from "$lib/workspace/controllers/workspace-runtime-lifecycle.js";
   import { createWorkspaceSettingsActions } from "$lib/workspace/controllers/workspace-settings-actions.js";
   import { createWorkspaceStartupActions } from "$lib/workspace/controllers/workspace-startup-actions.js";
@@ -345,9 +346,31 @@
     createLongDocument,
   } = inspectorActions;
 
-  const focusActions = createWorkspaceFocusActions({
+  const routeWorkspaceBridge = createWorkspaceRouteWorkspaceBridge({
     normalizePomodoroConfig,
-    savePrefs,
+    savePrefs: (updates) => savePrefs(updates),
+    invoke,
+    getCurrentWindow,
+    loadNotes: () => loadNotes(),
+    syncWindows: windowSync.syncWindows,
+    syncWindowMaximizedState: (setWindowMaximized, options) =>
+      runtimeLifecycle.syncWindowMaximizedState(setWindowMaximized, options),
+    getIsMac: () => isMac,
+    getStickiesVisible: () => stickiesVisible,
+    setStickiesVisible: (next) => {
+      stickiesVisible = next;
+    },
+    setInteractionDisabled: (next) => {
+      interactionDisabled = next;
+    },
+    setWindowMaximized: (next) => {
+      windowMaximized = next;
+    },
+    setViewportMetrics: (next) => {
+      viewportWidth = next.width;
+      viewportHeight = next.height;
+      viewportDpr = next.dpr;
+    },
     getFocusTasks: () => focusTasks,
     setFocusTasks: (next) => {
       focusTasks = next;
@@ -377,35 +400,6 @@
     focusTabKey: WORKSPACE_MAIN_TAB_FOCUS,
     timeToMinutes,
     minutesToTime,
-  });
-
-  const {
-    changePomodoroConfig,
-    changeFocusTasks,
-    changeFocusStats,
-    changeFocusBreakSession,
-    changeFocusSelectedTask,
-    handleDeadlineAction,
-  } = focusActions;
-
-  const runtimeLifecycle = createWorkspaceRuntimeLifecycle({
-    emit,
-    listen,
-    invoke,
-    loadPrefs,
-    loadNotes,
-    getCurrentWindow,
-    suppressNotesReloadUntilRef: () => suppressNotesReloadUntil,
-    setInteractionDisabled: (next) => {
-      interactionDisabled = next;
-    },
-    updateDeadlineTick: () => {
-      deadlineNowTick = Date.now();
-    },
-  });
-
-  const workspaceSettingsActions = createWorkspaceSettingsActions({
-    savePrefs,
     getWorkspaceTheme: () => workspaceTheme,
     setWorkspaceTheme: (next) => {
       workspaceTheme = next;
@@ -438,6 +432,37 @@
     },
   });
 
+  const focusActions = createWorkspaceFocusActions(routeWorkspaceBridge.createFocusActionsConfig());
+
+  const {
+    changePomodoroConfig,
+    changeFocusTasks,
+    changeFocusStats,
+    changeFocusBreakSession,
+    changeFocusSelectedTask,
+    handleDeadlineAction,
+  } = focusActions;
+
+  const runtimeLifecycle = createWorkspaceRuntimeLifecycle({
+    emit,
+    listen,
+    invoke,
+    loadPrefs,
+    loadNotes,
+    getCurrentWindow,
+    suppressNotesReloadUntilRef: () => suppressNotesReloadUntil,
+    setInteractionDisabled: (next) => {
+      interactionDisabled = next;
+    },
+    updateDeadlineTick: () => {
+      deadlineNowTick = Date.now();
+    },
+  });
+
+  const workspaceSettingsActions = createWorkspaceSettingsActions(
+    routeWorkspaceBridge.createSettingsActionsConfig(),
+  );
+
   const {
     clearWorkspaceCustomCssPersistTimer,
     setWorkspaceCustomCss,
@@ -466,30 +491,9 @@
 
   const { initAutostart, toggleAutostart } = startupActions;
 
-  const workspaceWindowActions = createWorkspaceWindowActions({
-    invoke,
-    getCurrentWindow,
-    getIsMac: () => isMac,
-    getStickiesVisible: () => stickiesVisible,
-    setStickiesVisible: (next) => {
-      stickiesVisible = next;
-    },
-    setInteractionDisabled: (next) => {
-      interactionDisabled = next;
-    },
-    setWindowMaximized: (next) => {
-      windowMaximized = next;
-    },
-    savePrefs,
-    loadNotes,
-    syncWindows: windowSync.syncWindows,
-    syncWindowMaximizedState: runtimeLifecycle.syncWindowMaximizedState,
-    setViewportMetrics: (next) => {
-      viewportWidth = next.width;
-      viewportHeight = next.height;
-      viewportDpr = next.dpr;
-    },
-  });
+  const workspaceWindowActions = createWorkspaceWindowActions(
+    routeWorkspaceBridge.createWindowActionsConfig(),
+  );
 
   const {
     switchToCompact,
