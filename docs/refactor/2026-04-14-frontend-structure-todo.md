@@ -123,13 +123,15 @@
 - 2026-04-14：完成 P2 第三轮 task draft/action controller 拆分，详情见 `docs/refactor/2026-04-14-workspace-focus-hub-task-draft-pass3.md`。
 
 ### P3：Workspace 页面装配层瘦身
-状态：待办  
+状态：进行中
 优先级：中  
 目标文件：`src/routes/workspace/+page.svelte`
 
 计划：
 - 抽出 workspace page state factory 或 state groups。
-- 抽出 viewport/scale 派生值。
+- 抽出 viewport/scale 派生值：已完成第一步。
+  - 候选：`src/lib/workspace/layout/workspace-viewport-layout.js`
+  - 已覆盖：adaptive scale、layout scale、text scale、stage layout、sidebar layout。
 - 抽出 inspector/sidebar resize 装配。
 - 保留 route 入口作为：
   - 状态初始化；
@@ -142,6 +144,9 @@
 验收：
 - `pnpm check` 通过。
 - 手工回归关注：workspace 启动偏好、主题、缩放、sidebar/inspector resize、main tab 切换。
+
+当前进展：
+- 2026-04-14：完成 P3 第一轮 viewport/layout 派生值拆分，详情见 `docs/refactor/2026-04-14-workspace-route-viewport-layout-pass1.md`。
 
 ### P4：次级大文件与类型清理
 状态：待办  

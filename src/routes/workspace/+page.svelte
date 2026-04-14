@@ -35,7 +35,6 @@
     normalizePomodoroConfig,
     normalizeWorkspaceCustomCss,
     normalizeWorkspaceSidebarManualSplitRatio,
-    normalizeWorkspaceZoom,
     saveWorkspacePreferences,
   } from "$lib/workspace/preferences-service.js";
   import {
@@ -46,8 +45,7 @@
   } from "$lib/workspace/theme/theme-presets.js";
   import { tryStartWorkspaceWindowDrag } from "$lib/workspace/window-drag.js";
   import { createWorkspaceResizeController } from "$lib/workspace/resize-controller.js";
-  import { resolveSidebarLayout } from "$lib/workspace/sidebar/sidebar-layout.js";
-  import { resolveWorkspaceStageLayout } from "$lib/workspace/layout/workspace-stage-layout.js";
+  import { resolveWorkspaceViewportLayout } from "$lib/workspace/layout/workspace-viewport-layout.js";
   import { getFocusDeadlinesForToday } from "$lib/workspace/pomodoro/focus-deadlines.js";
   import { minutesToTime, timeToMinutes } from "$lib/workspace/pomodoro/focus-model.js";
   import {
@@ -162,46 +160,23 @@
     /mac/i.test(String(navigator.userAgent || navigator.platform || ""));
   const showMacTrafficLights = $derived(isMac && !windowMaximized);
   const workspaceZoomOption = $derived(workspaceZoomMode === "auto" ? "auto" : String(workspaceZoom));
-  const workspaceAdaptiveScale = $derived.by(() => {
-    const safeWidth = Math.max(320, viewportWidth);
-    const safeHeight = Math.max(320, viewportHeight);
-    const sidebarReserved = Math.min(420, Math.max(180, sidebarWidth)) + 24;
-    const windowChromeReserved = 42;
-    const contentWidth = Math.max(640, safeWidth - sidebarReserved);
-    const contentHeight = Math.max(540, safeHeight - windowChromeReserved);
-    const widthRatio = contentWidth / 1180;
-    const heightRatio = contentHeight / 860;
-    const dprCompensation = viewportDpr >= 2 ? 1.07 : viewportDpr >= 1.5 ? 1.04 : viewportDpr >= 1.25 ? 1.02 : 1;
-    const sidebarCompensation = sidebarCollapsed ? 1.02 : 1;
-    const scale = Math.min(widthRatio, heightRatio) * dprCompensation * sidebarCompensation;
-    return Math.max(0.88, Math.min(1.22, Number(scale.toFixed(2))));
-  });
-  const workspaceLayoutScale = $derived.by(() =>
-    workspaceZoomMode === "auto" ? workspaceAdaptiveScale : normalizeWorkspaceZoom(workspaceZoom),
-  );
-  const workspaceFontPresetScale = $derived.by(() => {
-    if (workspaceFontSize === "small") return 0.94;
-    if (workspaceFontSize === "large") return 1.08;
-    return 1;
-  });
-  const workspaceTextScale = $derived.by(() => Number(workspaceFontPresetScale.toFixed(3)));
-  const stageLayout = $derived.by(() =>
-    resolveWorkspaceStageLayout({
+  const viewportLayout = $derived.by(() =>
+    resolveWorkspaceViewportLayout({
       viewportWidth,
       viewportHeight,
-      uiScale: workspaceLayoutScale,
+      viewportDpr,
       sidebarWidth,
+      sidebarCollapsed,
+      workspaceZoom,
+      workspaceZoomMode,
+      workspaceFontSize,
     }),
   );
-  const sidebarLayout = $derived.by(() =>
-    resolveSidebarLayout({
-      viewportWidth,
-      viewportHeight,
-      sidebarWidth,
-      uiScale: workspaceLayoutScale,
-    }),
-  );
-  const sidebarCompact = $derived(sidebarLayout.compact);
+  const workspaceLayoutScale = $derived(viewportLayout.layoutScale);
+  const workspaceTextScale = $derived(viewportLayout.textScale);
+  const stageLayout = $derived(viewportLayout.stageLayout);
+  const sidebarLayout = $derived(viewportLayout.sidebarLayout);
+  const sidebarCompact = $derived(viewportLayout.sidebarCompact);
   const workspaceThemeDark = $derived.by(() => isWorkspaceThemeDark(workspaceTheme));
   const workspaceThemeVarStyle = $derived.by(() => buildWorkspaceThemeVarStyle(workspaceTheme));
   const workspaceCustomCssStyle = $derived.by(() => String(workspaceCustomCss || ""));
