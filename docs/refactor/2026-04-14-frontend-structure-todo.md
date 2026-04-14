@@ -138,6 +138,9 @@
 - 抽出 inspector/sidebar resize 装配：已完成第一步。
   - 候选：`src/lib/workspace/controllers/workspace-route-resize-bridge.js`
   - 已覆盖：viewport/scale 坐标映射、inspector/sidebar layout 写回桥接。
+- 抽出 route note/inspector bridge：已完成第一步。
+  - 候选：`src/lib/workspace/controllers/workspace-route-note-bridge.js`
+  - 已覆盖：note commands config、inspector actions config、note view actions config。
 - 保留 route 入口作为：
   - 状态初始化；
   - controller 组装；
@@ -154,6 +157,7 @@
 - 2026-04-14：完成 P3 第一轮 viewport/layout 派生值拆分，详情见 `docs/refactor/2026-04-14-workspace-route-viewport-layout-pass1.md`。
 - 2026-04-14：完成 P3 第二轮 route preferences bridge 拆分，详情见 `docs/refactor/2026-04-14-workspace-route-preferences-pass2.md`。
 - 2026-04-14：完成 P3 第三轮 resize bridge 拆分，详情见 `docs/refactor/2026-04-14-workspace-route-resize-bridge-pass3.md`。
+- 2026-04-14：完成 P3 第四轮 note / inspector bridge 拆分，详情见 `docs/refactor/2026-04-14-workspace-route-note-bridge-pass4.md`。
 
 ### P4：次级大文件与类型清理
 状态：待办  

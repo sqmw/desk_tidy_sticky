@@ -17,6 +17,7 @@
   import { createWorkspaceFocusActions } from "$lib/workspace/controllers/workspace-focus-actions.js";
   import { createWorkspaceNoteViewActions } from "$lib/workspace/controllers/workspace-note-view-actions.js";
   import { createWorkspacePreferenceSync } from "$lib/workspace/controllers/workspace-preference-sync.js";
+  import { createWorkspaceRouteNoteBridge } from "$lib/workspace/controllers/workspace-route-note-bridge.js";
   import { createWorkspaceRoutePreferences } from "$lib/workspace/controllers/workspace-route-preferences.js";
   import { createWorkspaceRouteResizeBridge } from "$lib/workspace/controllers/workspace-route-resize-bridge.js";
   import { createWorkspaceRuntimeLifecycle } from "$lib/workspace/controllers/workspace-runtime-lifecycle.js";
@@ -209,6 +210,78 @@
     invoke,
   });
 
+  const routeNoteBridge = createWorkspaceRouteNoteBridge({
+    invoke,
+    getSortMode: () => sortMode,
+    getViewMode: () => viewMode,
+    getLocale: () => locale,
+    getMainTab: () => mainTab,
+    setMainTab,
+    notesTabKey: WORKSPACE_MAIN_TAB_NOTES,
+    getNewNoteText: () => newNoteText,
+    setNewNoteText: (text) => {
+      newNoteText = text;
+    },
+    getNewNotePriority: () => newNotePriority,
+    setNewNotePriority: (next) => {
+      newNotePriority = next;
+    },
+    getNewNoteTags: () => newNoteTags,
+    setNewNoteTags: (next) => {
+      newNoteTags = next;
+    },
+    getSelectedTag: () => selectedTag,
+    getNotes: () => notes,
+    setNotes: (next) => {
+      notes = next;
+    },
+    suppressNotesReload: (ms) => {
+      suppressNotesReloadUntil = Date.now() + ms;
+    },
+    syncWindows: windowSync.syncWindows,
+    openNoteWindow: windowSync.openNoteWindow,
+    closeNoteWindow: windowSync.closeNoteWindow,
+    getCurrentWindow,
+    getInspectorNote: () => inspectorNote,
+    getPendingLongDocDraft: () => pendingLongDocDraft,
+    setPendingLongDocDraft: (next) => {
+      pendingLongDocDraft = next;
+    },
+    setInspectorOpen: (open) => {
+      inspectorOpen = open;
+    },
+    setInspectorNoteId: (id) => {
+      inspectorNoteId = id;
+    },
+    setInspectorMode: (mode) => {
+      inspectorMode = mode;
+    },
+    getInspectorDraftText: () => inspectorDraftText,
+    setInspectorDraftText: (text) => {
+      inspectorDraftText = text;
+    },
+    setInspectorListCollapsed: (collapsed) => {
+      inspectorListCollapsed = collapsed;
+    },
+    loadNotes: () => loadNotes(),
+    savePrefs: (updates) => savePrefs(updates),
+    setViewModeState: (next) => {
+      viewMode = next;
+    },
+    setInitialViewModeState: (next) => {
+      initialViewMode = next;
+    },
+    setSelectedTagState: (next) => {
+      selectedTag = next;
+    },
+    setSortModeState: (next) => {
+      sortMode = next;
+    },
+    setLocaleState: (next) => {
+      locale = next;
+    },
+  });
+
   const {
     loadNotes,
     saveNote,
@@ -222,36 +295,7 @@
     deleteNote,
     restoreNote,
     persistReorderedVisible,
-  } = createNoteCommands({
-    invoke,
-    getSortMode: () => sortMode,
-    getViewMode: () => viewMode,
-    getHideAfterSave: () => false,
-    getNewNoteText: () => newNoteText,
-    setNewNoteText: (v) => {
-      newNoteText = v;
-    },
-    getNewNotePriority: () => newNotePriority,
-    setNewNotePriority: (v) => {
-      newNotePriority = v;
-    },
-    getNewNoteTags: () => newNoteTags,
-    setNewNoteTags: (v) => {
-      newNoteTags = v;
-    },
-    getSelectedTag: () => selectedTag,
-    getNotes: () => notes,
-    setNotes: (v) => {
-      notes = v;
-    },
-    suppressNotesReload: (ms) => {
-      suppressNotesReloadUntil = Date.now() + ms;
-    },
-    syncWindows: windowSync.syncWindows,
-    openNoteWindow: windowSync.openNoteWindow,
-    closeNoteWindow: windowSync.closeNoteWindow,
-    getCurrentWindow,
-  });
+  } = createNoteCommands(routeNoteBridge.createNoteCommandsConfig());
 
   /** @param {Record<string, any>} patch */
   function setWorkspaceRouteState(patch) {
@@ -288,54 +332,7 @@
   });
   const { loadPrefs, savePrefs } = routePreferences;
 
-  const inspectorActions = createWorkspaceInspectorActions({
-    invoke,
-    loadNotes,
-    syncWindows: windowSync.syncWindows,
-    getSortMode: () => sortMode,
-    getLocale: () => locale,
-    getMainTab: () => mainTab,
-    setMainTab,
-    notesTabKey: WORKSPACE_MAIN_TAB_NOTES,
-    getNotes: () => notes,
-    setNotes: (next) => {
-      notes = next;
-    },
-    getNewNoteText: () => newNoteText,
-    setNewNoteText: (text) => {
-      newNoteText = text;
-    },
-    getNewNotePriority: () => newNotePriority,
-    setNewNotePriority: (next) => {
-      newNotePriority = next;
-    },
-    getNewNoteTags: () => newNoteTags,
-    setNewNoteTags: (next) => {
-      newNoteTags = next;
-    },
-    getSelectedTag: () => selectedTag,
-    getInspectorNote: () => inspectorNote,
-    getPendingLongDocDraft: () => pendingLongDocDraft,
-    setPendingLongDocDraft: (next) => {
-      pendingLongDocDraft = next;
-    },
-    setInspectorOpen: (open) => {
-      inspectorOpen = open;
-    },
-    setInspectorNoteId: (id) => {
-      inspectorNoteId = id;
-    },
-    setInspectorMode: (mode) => {
-      inspectorMode = mode;
-    },
-    getInspectorDraftText: () => inspectorDraftText,
-    setInspectorDraftText: (text) => {
-      inspectorDraftText = text;
-    },
-    setInspectorListCollapsed: (collapsed) => {
-      inspectorListCollapsed = collapsed;
-    },
-  });
+  const inspectorActions = createWorkspaceInspectorActions(routeNoteBridge.createInspectorActionsConfig());
 
   const {
     openInspectorView,
@@ -506,25 +503,7 @@
     hideWindow,
   } = workspaceWindowActions;
 
-  const workspaceNoteViewActions = createWorkspaceNoteViewActions({
-    savePrefs,
-    loadNotes,
-    setViewModeState: (next) => {
-      viewMode = next;
-    },
-    setInitialViewModeState: (next) => {
-      initialViewMode = next;
-    },
-    setSelectedTagState: (next) => {
-      selectedTag = next;
-    },
-    setSortModeState: (next) => {
-      sortMode = next;
-    },
-    setLocaleState: (next) => {
-      locale = next;
-    },
-  });
+  const workspaceNoteViewActions = createWorkspaceNoteViewActions(routeNoteBridge.createNoteViewActionsConfig());
 
   const { setViewMode, setSelectedTag, setInitialViewMode, setSortMode, setLanguage } =
     workspaceNoteViewActions;
