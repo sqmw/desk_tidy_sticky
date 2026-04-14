@@ -74,9 +74,9 @@
 - 拆出笔记筛选区：已完成第一步
   - 候选：`components/workspace/sidebar/WorkspaceSidebarNoteFilters.svelte`
   - 已覆盖：view mode、sort mode、tag filter、count badge、compact/collapsed 展示。
-- 拆出 deadline 区：
+- 拆出 deadline 区：已完成第一步
   - 候选：`components/workspace/sidebar/WorkspaceSidebarDeadlines.svelte`
-  - 覆盖：deadline list、状态文案、deadline action。
+  - 已覆盖：deadline list、状态文案、deadline action、compact/collapsed 展示。
 - 保留壳层：
   - manual split resize；
   - ResizeObserver；
@@ -88,6 +88,7 @@
 
 当前进展：
 - 2026-04-14：完成 P1 第一轮笔记筛选区组件拆分，详情见 `docs/refactor/2026-04-14-workspace-sidebar-note-filters-pass1.md`。
+- 2026-04-14：完成 P1 第二轮 deadline 区组件拆分，详情见 `docs/refactor/2026-04-14-workspace-sidebar-deadlines-pass2.md`。
 
 ### P2：Workspace FocusHub 运行时继续拆分
 状态：待办  
