@@ -67,16 +67,9 @@
   } from "$lib/workspace/break-control/focus-break-overlay-windows.js";
   import { mountBreakControlEventListeners } from "$lib/workspace/break-control/break-control-event-listeners.js";
   import {
-    clearFocusTimerRuntimeCache,
-    loadFocusTimerRuntimeCache,
-    saveFocusTimerRuntimeCache,
-  } from "$lib/workspace/pomodoro/focus-timer-runtime-cache.js";
-  import {
-    buildRestoredTimerRuntime,
-    buildTimerRuntimeCacheSnapshot,
     getRemainingFromDeadline,
-    shouldClearTimerRuntimeCache,
   } from "$lib/workspace/pomodoro/focus-runtime-controller.js";
+  import { createFocusTimerController } from "$lib/workspace/pomodoro/focus-timer-controller.js";
   import {
     buildFocusCompletedStats,
     buildStatsWithTaskSession,
@@ -297,33 +290,27 @@
     return getPhaseDurationSec(PHASE_FOCUS, config);
   }
 
-  function restoreTimerRuntimeFromCache() {
-    const restored = buildRestoredTimerRuntime({
-      cached: loadFocusTimerRuntimeCache(),
-      nowTs: Date.now(),
-      focusDurationSec: getFocusDurationSec(),
-      fallbackSelectedTaskId: selectedTaskId,
-    });
-    if (!restored) return;
-    phase = restored.phase;
-    remainingSec = restored.remainingSec;
-    focusDeadlineTs = restored.focusDeadlineTs;
-    running = restored.running;
-    hasStarted = restored.hasStarted;
-    taskTimingActive = restored.taskTimingActive;
-    completedFocusCount = restored.completedFocusCount;
-    focusSinceBreakSec = restored.focusSinceBreakSec;
-    nextMiniBreakAtSec = restored.nextMiniBreakAtSec;
-    nextLongBreakAtSec = restored.nextLongBreakAtSec;
-    nextMiniWarnAtSec = restored.nextMiniWarnAtSec;
-    nextLongWarnAtSec = restored.nextLongWarnAtSec;
-    lastBreakReminderAtSec = restored.lastBreakReminderAtSec;
-    activeBreakKind = /** @type {"" | "mini" | "long"} */ (restored.activeBreakKind);
-    breakRemainingSec = restored.breakRemainingSec;
-    breakDeadlineTs = restored.breakDeadlineTs;
-    skipUnlockedAfterPostpone = restored.skipUnlockedAfterPostpone;
-    selectedTaskId = restored.selectedTaskId;
-    taskSessionStartedAtTs = restored.taskSessionStartedAtTs;
+  /** @param {Record<string, any>} patch */
+  function setTimerRuntime(patch) {
+    if ("phase" in patch) phase = patch.phase;
+    if ("remainingSec" in patch) remainingSec = patch.remainingSec;
+    if ("focusDeadlineTs" in patch) focusDeadlineTs = patch.focusDeadlineTs;
+    if ("running" in patch) running = patch.running;
+    if ("hasStarted" in patch) hasStarted = patch.hasStarted;
+    if ("taskTimingActive" in patch) taskTimingActive = patch.taskTimingActive;
+    if ("completedFocusCount" in patch) completedFocusCount = patch.completedFocusCount;
+    if ("focusSinceBreakSec" in patch) focusSinceBreakSec = patch.focusSinceBreakSec;
+    if ("nextMiniBreakAtSec" in patch) nextMiniBreakAtSec = patch.nextMiniBreakAtSec;
+    if ("nextLongBreakAtSec" in patch) nextLongBreakAtSec = patch.nextLongBreakAtSec;
+    if ("nextMiniWarnAtSec" in patch) nextMiniWarnAtSec = patch.nextMiniWarnAtSec;
+    if ("nextLongWarnAtSec" in patch) nextLongWarnAtSec = patch.nextLongWarnAtSec;
+    if ("lastBreakReminderAtSec" in patch) lastBreakReminderAtSec = patch.lastBreakReminderAtSec;
+    if ("activeBreakKind" in patch) activeBreakKind = /** @type {"" | "mini" | "long"} */ (patch.activeBreakKind);
+    if ("breakRemainingSec" in patch) breakRemainingSec = patch.breakRemainingSec;
+    if ("breakDeadlineTs" in patch) breakDeadlineTs = patch.breakDeadlineTs;
+    if ("skipUnlockedAfterPostpone" in patch) skipUnlockedAfterPostpone = patch.skipUnlockedAfterPostpone;
+    if ("selectedTaskId" in patch) selectedTaskId = patch.selectedTaskId;
+    if ("taskSessionStartedAtTs" in patch) taskSessionStartedAtTs = patch.taskSessionStartedAtTs;
   }
 
   function shouldTickBreakReminderClock() {
@@ -342,36 +329,6 @@
         nextLongBreakAtSec,
       }),
     });
-  }
-
-  function persistTimerRuntimeToCache() {
-    const runtime = {
-      phase,
-      selectedTaskId,
-      remainingSec,
-      focusDeadlineTs,
-      running,
-      hasStarted,
-      taskTimingActive,
-      taskSessionStartedAtTs,
-      completedFocusCount,
-      focusSinceBreakSec,
-      nextMiniBreakAtSec,
-      nextLongBreakAtSec,
-      nextMiniWarnAtSec,
-      nextLongWarnAtSec,
-      lastBreakReminderAtSec,
-      activeBreakKind,
-      breakRemainingSec,
-      breakDeadlineTs,
-      skipUnlockedAfterPostpone,
-      breakTimerActive,
-    };
-    if (shouldClearTimerRuntimeCache(runtime)) {
-      clearFocusTimerRuntimeCache();
-      return;
-    }
-    saveFocusTimerRuntimeCache(buildTimerRuntimeCacheSnapshot(runtime));
   }
 
   /** @param {number} sec */
@@ -510,6 +467,38 @@
     return nextStats;
   }
 
+  const focusTimerController = createFocusTimerController({
+    getFocusDurationSec,
+    getSafeConfig: () => safeConfig,
+    getPhase: () => phase,
+    getSelectedTaskId: () => selectedTaskId,
+    getRemainingSec: () => remainingSec,
+    getFocusDeadlineTs: () => focusDeadlineTs,
+    getRunning: () => running,
+    getHasStarted: () => hasStarted,
+    getTaskTimingActive: () => taskTimingActive,
+    getTaskSessionStartedAtTs: () => taskSessionStartedAtTs,
+    getCompletedFocusCount: () => completedFocusCount,
+    getFocusSinceBreakSec: () => focusSinceBreakSec,
+    getNextMiniBreakAtSec: () => nextMiniBreakAtSec,
+    getNextLongBreakAtSec: () => nextLongBreakAtSec,
+    getNextMiniWarnAtSec: () => nextMiniWarnAtSec,
+    getNextLongWarnAtSec: () => nextLongWarnAtSec,
+    getLastBreakReminderAtSec: () => lastBreakReminderAtSec,
+    getActiveBreakKind: () => activeBreakKind,
+    getBreakRemainingSec: () => breakRemainingSec,
+    getBreakDeadlineTs: () => breakDeadlineTs,
+    getSkipUnlockedAfterPostpone: () => skipUnlockedAfterPostpone,
+    getBreakTimerActive: () => breakTimerActive,
+    setTimerRuntime,
+    setDraftFocusMinutes: (minutes) => (draftFocusMinutes = minutes),
+    flushCurrentTaskSession,
+    pauseActiveTaskSession,
+    getCurrentSessionSettleTs,
+    onPomodoroConfigChange: (config) => onPomodoroConfigChange(config),
+    clampInt,
+  });
+
   /**
    * @param {number} [nowTs]
    */
@@ -543,7 +532,7 @@
       clearResumeAfterBreak();
       return;
     }
-    toggleRunning();
+    focusTimerController.toggleRunning();
     clearResumeAfterBreak();
   }
 
@@ -801,54 +790,6 @@
     Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
       console.error("change break reminder mode", e),
     );
-  }
-
-  function toggleRunning() {
-    if (remainingSec <= 0) remainingSec = getFocusDurationSec();
-    phase = PHASE_FOCUS;
-    const nextRunning = !running;
-    if (nextRunning) {
-      focusDeadlineTs = Date.now() + Math.max(0, remainingSec) * 1000;
-      running = true;
-      hasStarted = true;
-      if (selectedTaskId && !taskSessionStartedAtTs) {
-        taskSessionStartedAtTs = Date.now();
-        taskTimingActive = true;
-      }
-      return;
-    }
-    pauseActiveTaskSession(getCurrentSessionSettleTs(), {
-      keepStarted: Boolean(selectedTaskId),
-      pauseFocusTimer: true,
-    });
-  }
-
-  function resetCurrentPhase() {
-    flushCurrentTaskSession(getCurrentSessionSettleTs());
-    phase = PHASE_FOCUS;
-    focusDeadlineTs = 0;
-    running = false;
-    hasStarted = false;
-    taskTimingActive = false;
-    remainingSec = getFocusDurationSec();
-    taskSessionStartedAtTs = 0;
-  }
-
-  /** @param {number} minutes */
-  function applyFocusPreset(minutes) {
-    const safeMinutes = clampInt(minutes, safeConfig.focusMinutes, 5, 90);
-    draftFocusMinutes = safeMinutes;
-    const next = {
-      ...safeConfig,
-      focusMinutes: safeMinutes,
-    };
-    Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
-      console.error("apply focus preset", e),
-    );
-    if (!running && phase === PHASE_FOCUS) {
-      remainingSec = safeMinutes * 60;
-      focusDeadlineTs = 0;
-    }
   }
 
   /** @param {string} taskId */
@@ -1281,7 +1222,7 @@
   });
 
   onMount(async () => {
-    restoreTimerRuntimeFromCache();
+    focusTimerController.restoreTimerRuntimeFromCache();
     timerRuntimeRestored = true;
     try {
       if (typeof window === "undefined" || typeof Notification === "undefined") return;
@@ -1398,7 +1339,7 @@
     void _activeBreak;
     void _breakRemaining;
     void _skipUnlocked;
-    persistTimerRuntimeToCache();
+    focusTimerController.persistTimerRuntimeToCache();
   });
 
   $effect(() => {
@@ -1507,7 +1448,7 @@
   onToggleSettings={() => (showConfig ? (showConfig = false) : openTimerSettings())}
   onToggleWeekday={toggleDraftWeekday}
   onStartTask={startTaskFocus}
-  onToggleTask={toggleRunning}
+  onToggleTask={focusTimerController.toggleRunning}
   onRemoveTask={removeTask}
   onUpdateTask={updateTask}
   {weekdayLabel}

@@ -92,14 +92,15 @@
 - 2026-04-14：完成 P1 第三轮主模块入口组件拆分，详情见 `docs/refactor/2026-04-14-workspace-sidebar-modules-pass3.md`。
 
 ### P2：Workspace FocusHub 运行时继续拆分
-状态：待办  
+状态：进行中
 优先级：中高  
 目标文件：`src/lib/components/workspace/WorkspaceFocusHub.svelte`
 
 计划：
-- 第一小步：抽出 timer runtime facade。
+- 第一小步：抽出 timer runtime facade：已完成第一步。
   - 候选：`workspace/pomodoro/focus-timer-controller.js`
-  - 覆盖：restore/cache/persist、toggle/reset/preset、deadline remaining。
+  - 已覆盖：restore/cache/persist、toggle/reset/preset。
+  - 暂未下沉：focus interval tick 与 break interval tick，保留在组件层等待 break/task controller 边界继续收敛。
 - 第二小步：抽出 break overlay lifecycle facade。
   - 候选：`workspace/break-control/break-overlay-lifecycle.js`
   - 覆盖：ensure/sync/close overlay、payload key、queued sync 状态。
@@ -115,6 +116,9 @@
 验收：
 - `pnpm check` 通过。
 - 手工回归关注：开始/暂停、任务切换、番茄完成、休息提醒、fullscreen overlay、postpone/skip、刷新恢复。
+
+当前进展：
+- 2026-04-14：完成 P2 第一轮 timer runtime controller 拆分，详情见 `docs/refactor/2026-04-14-workspace-focus-hub-timer-runtime-pass1.md`。
 
 ### P3：Workspace 页面装配层瘦身
 状态：待办  
