@@ -2,7 +2,7 @@
 
 日期：2026-04-14  
 范围：`src/routes`、`src/lib/components`、`src/lib/workspace`、`src/lib/panel`  
-状态：进行中（已切换到真实 Tauri UI 回归阶段）
+状态：进行中（结构整理完成，第一轮真实 Tauri UI 回归通过）
 
 ## 目标
 - 降低前端大文件和路由入口的认知成本。
@@ -35,7 +35,7 @@
 ## 阶段计划
 
 ### P0：Sticky Note 详情页结构整理
-状态：代码拆分完成，待真实 Tauri UI 手工回归
+状态：代码拆分完成，第一轮真实 Tauri UI 回归通过
 优先级：最高  
 目标文件：`src/routes/note/[id]/+page.svelte`
 
@@ -69,7 +69,7 @@
 - 手工回归关注：编辑保存、图片粘贴、命令建议、拖拽、pin/topmost/wallpaper、颜色/透明度/毛玻璃。
 
 ### P1：Workspace Sidebar 分层
-状态：代码拆分完成，待真实 Tauri UI 手工回归
+状态：代码拆分完成，第一轮真实 Tauri UI 回归通过
 优先级：高  
 目标文件：`src/lib/components/workspace/WorkspaceSidebar.svelte`
 
@@ -98,7 +98,7 @@
 - 2026-04-14：完成 P1 第三轮主模块入口组件拆分，详情见 `docs/refactor/2026-04-14-workspace-sidebar-modules-pass3.md`。
 
 ### P2：Workspace FocusHub 运行时继续拆分
-状态：代码拆分完成，待真实 Tauri UI 手工回归
+状态：代码拆分完成，第一轮真实 Tauri UI 回归通过
 优先级：中高  
 目标文件：`src/lib/components/workspace/WorkspaceFocusHub.svelte`
 
@@ -129,7 +129,7 @@
 - 2026-04-14：完成 P2 第三轮 task draft/action controller 拆分，详情见 `docs/refactor/2026-04-14-workspace-focus-hub-task-draft-pass3.md`。
 
 ### P3：Workspace 页面装配层瘦身
-状态：进行中
+状态：代码拆分完成，第一轮真实 Tauri UI 回归通过
 优先级：中  
 目标文件：`src/routes/workspace/+page.svelte`
 
@@ -169,12 +169,12 @@
 - 2026-04-14：完成 P3 第四轮 note / inspector bridge 拆分，详情见 `docs/refactor/2026-04-14-workspace-route-note-bridge-pass4.md`。
 - 2026-04-14：完成 P3 第五轮 workspace bridge 拆分，详情见 `docs/refactor/2026-04-14-workspace-route-workspace-bridge-pass5.md`。
 - 2026-04-14：当前判断为“结构已基本按功能域拆开”，下一优先级切为真实 UI 回归，而不是继续高强度拆分。
+- 2026-04-14：用户已完成第一轮真实 Tauri UI 回归，当前反馈“测试了没问题”，P0-P4 本轮按通过记录。
 
 ## 当前建议
 - 建议暂停继续大规模拆分前端。
-- 建议先完成一轮真实 Tauri UI 回归。
-- 2026-04-14：已建立回归执行清单，详见 `docs/refactor/2026-04-14-frontend-structure-manual-regression-pass1.md`。
-- 若回归稳定，再决定是否继续做：
+- 2026-04-14：第一轮真实 Tauri UI 回归已完成并通过，详见 `docs/refactor/2026-04-14-frontend-structure-manual-regression-pass1.md`。
+- 当前建议进入收敛观察期；若后续再出现结构性痛点，再决定是否继续做：
   - `src/routes/workspace/+page.svelte` 的 `page state factory / state group`
   - `src/lib/components/workspace/WorkspaceFocusHub.svelte` 的 break 流程进一步收口
 
