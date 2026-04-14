@@ -96,15 +96,24 @@
   }
 
   .primary-btn {
-    border: 1px solid var(--ws-border-active, #2f4368);
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 22%, var(--ws-border-soft, #d6e0ee));
     border-radius: 12px;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--ws-accent, #1d4ed8) 26%, #334155) 0%, #273a57 100%);
-    color: #f8fbff;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--ws-accent, #1d4ed8) 12%, #ffffff) 0%,
+      color-mix(in srgb, var(--ws-accent, #1d4ed8) 18%, #f7faff) 100%
+    );
+    color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 68%, #1e293b);
     padding: 8px 14px;
     font-size: 13px;
     cursor: pointer;
     font-weight: 700;
-    transition: transform 0.15s ease;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
+    transition:
+      transform 0.15s ease,
+      border-color 0.16s ease,
+      background 0.16s ease,
+      box-shadow 0.16s ease;
     min-width: 94px;
     white-space: nowrap;
   }
@@ -117,6 +126,13 @@
 
   .primary-btn:hover {
     transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 32%, var(--ws-border-soft, #d6e0ee));
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--ws-accent, #1d4ed8) 16%, #ffffff) 0%,
+      color-mix(in srgb, var(--ws-accent, #1d4ed8) 24%, #f4f8ff) 100%
+    );
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
   }
 
   .ghost-btn {
