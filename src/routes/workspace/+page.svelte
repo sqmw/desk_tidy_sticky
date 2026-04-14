@@ -17,6 +17,7 @@
   import { createWorkspaceFocusActions } from "$lib/workspace/controllers/workspace-focus-actions.js";
   import { createWorkspaceNoteViewActions } from "$lib/workspace/controllers/workspace-note-view-actions.js";
   import { createWorkspacePreferenceSync } from "$lib/workspace/controllers/workspace-preference-sync.js";
+  import { createWorkspaceRoutePreferences } from "$lib/workspace/controllers/workspace-route-preferences.js";
   import { createWorkspaceRuntimeLifecycle } from "$lib/workspace/controllers/workspace-runtime-lifecycle.js";
   import { createWorkspaceSettingsActions } from "$lib/workspace/controllers/workspace-settings-actions.js";
   import { createWorkspaceStartupActions } from "$lib/workspace/controllers/workspace-startup-actions.js";
@@ -31,17 +32,12 @@
   import WorkspaceNoteInspector from "$lib/components/workspace/WorkspaceNoteInspector.svelte";
   import WorkspaceSettingsDialog from "$lib/components/workspace/WorkspaceSettingsDialog.svelte";
   import {
-    loadWorkspacePreferences,
     normalizePomodoroConfig,
-    normalizeWorkspaceCustomCss,
-    normalizeWorkspaceSidebarManualSplitRatio,
-    saveWorkspacePreferences,
   } from "$lib/workspace/preferences-service.js";
   import {
     buildWorkspaceThemeVarStyle,
     getWorkspaceThemePresetOptions,
     isWorkspaceThemeDark,
-    normalizeWorkspaceThemePreset,
   } from "$lib/workspace/theme/theme-presets.js";
   import { tryStartWorkspaceWindowDrag } from "$lib/workspace/window-drag.js";
   import { createWorkspaceResizeController } from "$lib/workspace/resize-controller.js";
@@ -256,41 +252,40 @@
     getCurrentWindow,
   });
 
-  async function loadPrefs() {
-    try {
-      const next = await loadWorkspacePreferences(invoke);
-      viewMode = normalizeWorkspaceViewMode(next.viewMode);
-      initialViewMode = normalizeWorkspaceInitialViewMode(next.initialViewMode);
-      sortMode = next.sortMode;
-      locale = next.locale;
-      mainTab = next.mainTab;
-      stickiesVisible = next.overlayEnabled;
-      showPanelOnStartup = next.showPanelOnStartup ?? false;
-      workspaceTheme = normalizeWorkspaceThemePreset(next.workspaceTheme);
-      workspaceCustomCss = normalizeWorkspaceCustomCss(next.workspaceCustomCss);
-      workspaceZoom = next.workspaceZoom;
-      workspaceZoomMode = next.workspaceZoomMode;
-      workspaceFontSize = next.workspaceFontSize;
-      workspaceSidebarLayoutMode = next.workspaceSidebarLayoutMode;
-      workspaceSidebarManualSplitRatio = normalizeWorkspaceSidebarManualSplitRatio(next.workspaceSidebarManualSplitRatio);
-      themeTransitionShape = next.themeTransitionShape;
-      focusTasks = next.focusTasks;
-      focusStats = next.focusStats;
-      focusBreakSession = next.focusBreakSession;
-      pomodoroConfig = next.pomodoroConfig;
-    } catch (e) {
-      console.error("loadPrefs(workspace)", e);
+  /** @param {Record<string, any>} patch */
+  function setWorkspaceRouteState(patch) {
+    if ("viewMode" in patch) viewMode = normalizeWorkspaceViewMode(patch.viewMode);
+    if ("initialViewMode" in patch) {
+      initialViewMode = normalizeWorkspaceInitialViewMode(patch.initialViewMode);
     }
+    if ("sortMode" in patch) sortMode = patch.sortMode;
+    if ("locale" in patch) locale = patch.locale;
+    if ("mainTab" in patch) mainTab = patch.mainTab;
+    if ("stickiesVisible" in patch) stickiesVisible = patch.stickiesVisible;
+    if ("showPanelOnStartup" in patch) showPanelOnStartup = patch.showPanelOnStartup;
+    if ("workspaceTheme" in patch) workspaceTheme = patch.workspaceTheme;
+    if ("workspaceCustomCss" in patch) workspaceCustomCss = patch.workspaceCustomCss;
+    if ("workspaceZoom" in patch) workspaceZoom = patch.workspaceZoom;
+    if ("workspaceZoomMode" in patch) workspaceZoomMode = patch.workspaceZoomMode;
+    if ("workspaceFontSize" in patch) workspaceFontSize = patch.workspaceFontSize;
+    if ("workspaceSidebarLayoutMode" in patch) {
+      workspaceSidebarLayoutMode = patch.workspaceSidebarLayoutMode;
+    }
+    if ("workspaceSidebarManualSplitRatio" in patch) {
+      workspaceSidebarManualSplitRatio = patch.workspaceSidebarManualSplitRatio;
+    }
+    if ("themeTransitionShape" in patch) themeTransitionShape = patch.themeTransitionShape;
+    if ("focusTasks" in patch) focusTasks = patch.focusTasks;
+    if ("focusStats" in patch) focusStats = patch.focusStats;
+    if ("focusBreakSession" in patch) focusBreakSession = patch.focusBreakSession;
+    if ("pomodoroConfig" in patch) pomodoroConfig = patch.pomodoroConfig;
   }
 
-  /** @param {any} updates */
-  async function savePrefs(updates) {
-    try {
-      await saveWorkspacePreferences(invoke, updates);
-    } catch (e) {
-      console.error("savePrefs(workspace)", e);
-    }
-  }
+  const routePreferences = createWorkspaceRoutePreferences({
+    invoke,
+    setState: setWorkspaceRouteState,
+  });
+  const { loadPrefs, savePrefs } = routePreferences;
 
   const inspectorActions = createWorkspaceInspectorActions({
     invoke,
