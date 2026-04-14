@@ -19,6 +19,7 @@
     resolveNoteId,
   } from "$lib/note/note-window-actions.js";
   import { createNoteWindowDragController } from "$lib/note/note-window-drag.js";
+  import { createNoteStyleActions } from "$lib/note/note-style-actions.js";
   import {
     DEFAULT_NOTE_COLOR,
     DEFAULT_NOTE_FROST,
@@ -49,14 +50,6 @@
   let tagSuggestions = $state(/** @type {string[]} */ ([]));
   let opacityDraft = $state(DEFAULT_NOTE_OPACITY);
   let frostDraft = $state(DEFAULT_NOTE_FROST);
-  /** @type {any} */
-  let opacitySaveTimer;
-  /** @type {any} */
-  let frostSaveTimer;
-  /** @type {any} */
-  let opacityValueHideTimer;
-  /** @type {any} */
-  let frostValueHideTimer;
   /** @type {HTMLTextAreaElement | null} */
   let editorEl = $state(null);
   const strings = $derived(getStrings(locale));
@@ -313,209 +306,6 @@
   }
 
   /**
-   * @param {string} color
-   * @param {{ closePopover?: boolean }} [options]
-   */
-  async function setBackgroundColor(color, options = {}) {
-    if (!note) return;
-    const closePopover = options.closePopover ?? true;
-    try {
-      const all = await invokeNoteCommand({
-        invoke,
-        command: "update_note_color",
-        note,
-        noteId,
-        payload: { color },
-      });
-      const updated = findUpdatedFromList(all);
-      if (updated) {
-        note = updated;
-      }
-      if (closePopover) {
-        showPalette = false;
-      }
-    } catch (e) {
-      console.error("setBackgroundColor", e);
-    }
-  }
-
-  /**
-   * @param {string} color
-   * @param {{ closePopover?: boolean }} [options]
-   */
-  async function setTextColor(color, options = {}) {
-    if (!note) return;
-    const closePopover = options.closePopover ?? true;
-    try {
-      const all = await invokeNoteCommand({
-        invoke,
-        command: "update_note_text_color",
-        note,
-        noteId,
-        payload: { color },
-      });
-      const updated = findUpdatedFromList(all);
-      if (updated) {
-        note = updated;
-      }
-      if (closePopover) {
-        showTextColorPalette = false;
-      }
-    } catch (e) {
-      console.error("setTextColor", e);
-    }
-  }
-
-  /** @param {Event} e */
-  function onBackgroundColorPickerChange(e) {
-    const target = /** @type {HTMLInputElement} */ (e.currentTarget);
-    setBackgroundColor(target.value, { closePopover: false });
-  }
-
-  /** @param {Event} e */
-  function onTextColorPickerChange(e) {
-    const target = /** @type {HTMLInputElement} */ (e.currentTarget);
-    setTextColor(target.value, { closePopover: false });
-  }
-
-  /**
-   * @param {number} opacity
-   * @param {boolean} emitEvent
-   */
-  async function setOpacity(opacity, emitEvent) {
-    if (!note) return;
-    try {
-      const all = await invokeNoteCommand({
-        invoke,
-        command: "update_note_opacity",
-        note,
-        noteId,
-        payload: { opacity, emitEvent },
-      });
-      const updated = findUpdatedFromList(all);
-      if (updated) {
-        note = updated;
-        opacityDraft = updated.opacity ?? DEFAULT_NOTE_OPACITY;
-        frostDraft = updated.frost ?? DEFAULT_NOTE_FROST;
-      }
-    } catch (e) {
-      console.error("setOpacity", e);
-    }
-  }
-
-  /**
-   * @param {number} frost
-   * @param {boolean} emitEvent
-   */
-  async function setFrost(frost, emitEvent) {
-    if (!note) return;
-    try {
-      const all = await invokeNoteCommand({
-        invoke,
-        command: "update_note_frost",
-        note,
-        noteId,
-        payload: { frost, emitEvent },
-      });
-      const updated = findUpdatedFromList(all);
-      if (updated) {
-        note = updated;
-        frostDraft = updated.frost ?? DEFAULT_NOTE_FROST;
-      }
-    } catch (e) {
-      console.error("setFrost", e);
-    }
-  }
-
-  /** @param {number} value */
-  function queueOpacitySave(value) {
-    clearTimeout(opacitySaveTimer);
-    opacitySaveTimer = setTimeout(() => {
-      setOpacity(value, false);
-    }, 60);
-  }
-
-  /** @param {number} value */
-  function queueFrostSave(value) {
-    clearTimeout(frostSaveTimer);
-    frostSaveTimer = setTimeout(() => {
-      setFrost(value, false);
-    }, 60);
-  }
-
-  /** @param {number} value */
-  function applyOpacityDraft(value) {
-    const next = Math.max(0.35, Math.min(1, Number(value) || 1));
-    opacityDraft = next;
-    if (note) {
-      note = { ...note, opacity: next };
-    }
-    queueOpacitySave(next);
-  }
-
-  /** @param {number} value */
-  function applyFrostDraft(value) {
-    const next = Math.max(0, Math.min(1, Number(value) || 0));
-    frostDraft = next;
-    if (note) {
-      note = { ...note, frost: next };
-    }
-    queueFrostSave(next);
-  }
-
-  /** @param {Event} e */
-  function onOpacityInput(e) {
-    const target = /** @type {HTMLInputElement} */ (e.currentTarget);
-    applyOpacityDraft(Number(target.value));
-  }
-
-  /** @param {Event} e */
-  function onFrostInput(e) {
-    const target = /** @type {HTMLInputElement} */ (e.currentTarget);
-    applyFrostDraft(Number(target.value));
-  }
-
-  /** @param {WheelEvent} e */
-  function onOpacityWheel(e) {
-    e.preventDefault();
-    const step = e.deltaY < 0 ? 0.02 : -0.02;
-    applyOpacityDraft(opacityDraft + step);
-    showOpacityValue = true;
-    clearTimeout(opacityValueHideTimer);
-    opacityValueHideTimer = setTimeout(() => {
-      showOpacityValue = false;
-    }, 800);
-  }
-
-  /** @param {WheelEvent} e */
-  function onFrostWheel(e) {
-    e.preventDefault();
-    const step = e.deltaY < 0 ? 0.02 : -0.02;
-    applyFrostDraft(frostDraft + step);
-    showFrostValue = true;
-    clearTimeout(frostValueHideTimer);
-    frostValueHideTimer = setTimeout(() => {
-      showFrostValue = false;
-    }, 800);
-  }
-
-  /** @param {WheelEvent} e */
-  function onOpacityIconWheel(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    showOpacityPanel = true;
-    onOpacityWheel(e);
-  }
-
-  /** @param {WheelEvent} e */
-  function onFrostIconWheel(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    showFrostPanel = true;
-    onFrostWheel(e);
-  }
-
-  /**
    * @param {HTMLTextAreaElement | null} target
    */
   function updateCommandSuggestions(target) {
@@ -619,6 +409,26 @@
     getClickThrough: () => clickThrough,
     getIsEditing: () => isEditing,
     dismissFloatingPanels: dismissFloatingPanelsOnPointerDown,
+  });
+
+  const noteStyleActions = createNoteStyleActions({
+    getNote: () => note,
+    getNoteId: () => noteId,
+    getOpacityDraft: () => opacityDraft,
+    getFrostDraft: () => frostDraft,
+    invokeNoteCommand: (input) => invokeNoteCommand({ invoke, ...input }),
+    findUpdatedFromList,
+    setNote: (next) => (note = next),
+    setOpacityDraft: (next) => (opacityDraft = next),
+    setFrostDraft: (next) => (frostDraft = next),
+    setShowPalette: (visible) => (showPalette = visible),
+    setShowTextColorPalette: (visible) => (showTextColorPalette = visible),
+    setShowOpacityPanel: (visible) => (showOpacityPanel = visible),
+    setShowFrostPanel: (visible) => (showFrostPanel = visible),
+    setShowOpacityValue: (visible) => (showOpacityValue = visible),
+    setShowFrostValue: (visible) => (showFrostValue = visible),
+    defaultOpacity: DEFAULT_NOTE_OPACITY,
+    defaultFrost: DEFAULT_NOTE_FROST,
   });
 
   async function toggleDone() {
@@ -763,10 +573,7 @@
         }
       }
       noteWindowDrag.endManualWindowDrag();
-      clearTimeout(opacitySaveTimer);
-      clearTimeout(frostSaveTimer);
-      clearTimeout(opacityValueHideTimer);
-      clearTimeout(frostValueHideTimer);
+      noteStyleActions.dispose();
     };
   });
 </script>
@@ -832,21 +639,21 @@
       onTogglePalette={() => (showPalette = !showPalette)}
       onToggleTextColorPalette={() => (showTextColorPalette = !showTextColorPalette)}
       onToggleOpacityPanel={() => (showOpacityPanel = !showOpacityPanel)}
-      onOpacityIconWheel={onOpacityIconWheel}
-      onOpacityInput={onOpacityInput}
-      onOpacityWheel={onOpacityWheel}
+      onOpacityIconWheel={noteStyleActions.onOpacityIconWheel}
+      onOpacityInput={noteStyleActions.onOpacityInput}
+      onOpacityWheel={noteStyleActions.onOpacityWheel}
       onToggleFrostPanel={() => (showFrostPanel = !showFrostPanel)}
-      onFrostIconWheel={onFrostIconWheel}
-      onFrostInput={onFrostInput}
-      onFrostWheel={onFrostWheel}
+      onFrostIconWheel={noteStyleActions.onFrostIconWheel}
+      onFrostInput={noteStyleActions.onFrostInput}
+      onFrostWheel={noteStyleActions.onFrostWheel}
       onToggleDone={toggleDone}
       onToggleArchive={toggleArchive}
       onUnpin={unpinNote}
       onMoveToTrash={moveToTrash}
-      onSetBackgroundColor={setBackgroundColor}
-      onSetTextColor={setTextColor}
-      onBackgroundColorPickerChange={onBackgroundColorPickerChange}
-      onTextColorPickerChange={onTextColorPickerChange}
+      onSetBackgroundColor={noteStyleActions.setBackgroundColor}
+      onSetTextColor={noteStyleActions.setTextColor}
+      onBackgroundColorPickerChange={noteStyleActions.onBackgroundColorPickerChange}
+      onTextColorPickerChange={noteStyleActions.onTextColorPickerChange}
     />
   {:else}
     <div class="loading">Loading...</div>

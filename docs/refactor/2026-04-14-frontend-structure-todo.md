@@ -38,9 +38,9 @@
   - 候选：`src/lib/note/note-window-actions.js`
   - 已覆盖：load snapshot、note id 解析、命令 invoke 参数统一、tag suggestions。
   - 后续覆盖：sync/save 的进一步状态边界收敛。
-- 抽出贴纸样式动作：
+- 抽出贴纸样式动作：已完成第一步
   - 候选：`src/lib/note/note-style-actions.js`
-  - 覆盖：background/text color、opacity、frost、延迟保存与 picker 输入。
+  - 已覆盖：background/text color、opacity、frost、延迟保存、wheel 调整、picker 输入、cleanup。
 - 抽出编辑器能力：
   - 候选：`src/lib/note/note-editor-actions.js`
   - 覆盖：图片粘贴、命令建议、命令插入、键盘事件。
@@ -53,6 +53,7 @@
 
 当前进展：
 - 2026-04-14：完成 P0 第一轮保守拆分，详情见 `docs/refactor/2026-04-14-note-detail-structure-pass1.md`。
+- 2026-04-14：完成 P0 第二轮样式动作拆分，详情见 `docs/refactor/2026-04-14-note-detail-style-actions-pass2.md`。
 
 验收：
 - `pnpm check` 通过。
