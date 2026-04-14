@@ -22,7 +22,6 @@
     nextMiniBreakCountdownText,
     nextLongBreakCountdownText,
     selectedTaskTitle,
-    focusMinutes = 25,
     phaseProgress,
     showBreakPanel = $bindable(false),
     showStats = $bindable(false),
@@ -67,7 +66,6 @@
     onToggleTask = () => {},
     onRemoveTask = () => {},
     onUpdateTask = () => {},
-    onApplyFocusMinutes = () => {},
     weekdayLabel = () => "",
   } = $props();
 </script>
@@ -81,12 +79,10 @@
         breakMiniCountdownText={nextMiniBreakCountdownText}
         breakLongCountdownText={nextLongBreakCountdownText}
         taskText={selectedTaskTitle}
-        {focusMinutes}
         {phaseProgress}
         {showBreakPanel}
         {selectedTaskId}
         {selectedTaskPomodoroScoreText}
-        {onApplyFocusMinutes}
         onToggleBreakPanel={(next = !showBreakPanel) => {
           showBreakPanel = !!next;
         }}
