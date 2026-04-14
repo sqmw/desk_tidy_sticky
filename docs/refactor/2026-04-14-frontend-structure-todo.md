@@ -29,26 +29,30 @@
 ## 阶段计划
 
 ### P0：Sticky Note 详情页结构整理
-状态：待办  
+状态：进行中
 优先级：最高  
 目标文件：`src/routes/note/[id]/+page.svelte`
 
 计划：
-- 抽出 note 数据与命令动作：
+- 抽出 note 数据与命令动作：已完成第一步
   - 候选：`src/lib/note/note-window-actions.js`
-  - 覆盖：load/sync/save/toggle done/archive/unpin/trash/priority/tags。
+  - 已覆盖：load snapshot、note id 解析、命令 invoke 参数统一、tag suggestions。
+  - 后续覆盖：sync/save 的进一步状态边界收敛。
 - 抽出贴纸样式动作：
   - 候选：`src/lib/note/note-style-actions.js`
   - 覆盖：background/text color、opacity、frost、延迟保存与 picker 输入。
 - 抽出编辑器能力：
   - 候选：`src/lib/note/note-editor-actions.js`
   - 覆盖：图片粘贴、命令建议、命令插入、键盘事件。
-- 抽出窗口拖拽能力：
+- 抽出窗口拖拽能力：已完成第一步
   - 候选：`src/lib/note/note-window-drag.js`
-  - 覆盖：manual drag state、pointer move/up、Tauri window position 更新。
-- 清理 `@ts-ignore`：
+  - 已覆盖：manual drag state、pointer down/move/up、Tauri window position 更新、cleanup。
+- 清理 `@ts-ignore`：进行中
   - 先通过 JSDoc 标注 `invoke("load_notes")` 返回数组形态；
   - 不为了消除 warning 引入过重类型系统。
+
+当前进展：
+- 2026-04-14：完成 P0 第一轮保守拆分，详情见 `docs/refactor/2026-04-14-note-detail-structure-pass1.md`。
 
 验收：
 - `pnpm check` 通过。
@@ -154,4 +158,3 @@
   - `pnpm check`
   - `git diff --check`
 - 若验证受限，必须在交付说明和对应文档中记录原因与剩余风险。
-

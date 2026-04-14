@@ -2,7 +2,6 @@
   import { onMount, tick } from "svelte";
   import { convertFileSrc, invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { LogicalPosition } from "@tauri-apps/api/dpi";
   import { listen } from "@tauri-apps/api/event";
   import { page } from "$app/stores";
   import { getStrings } from "$lib/strings.js";
@@ -13,7 +12,13 @@
   import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
   import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
   import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
-  import { collectTagSuggestionsFromNotes } from "$lib/note/tags.js";
+  import {
+    findNoteById,
+    invokeNoteCommand,
+    loadNoteWindowSnapshot,
+    resolveNoteId,
+  } from "$lib/note/note-window-actions.js";
+  import { createNoteWindowDragController } from "$lib/note/note-window-drag.js";
   import {
     DEFAULT_NOTE_COLOR,
     DEFAULT_NOTE_FROST,
@@ -26,7 +31,7 @@
   } from "$lib/note/note-theme.js";
   /** @type {any} */
   let note = $state(null);
-  const noteId = $derived($page.params.id);
+  const noteId = $derived(String($page.params.id || ""));
   let text = $state("");
   let clickThrough = $state(false);
   /** @type {string} */
@@ -54,12 +59,6 @@
   let frostValueHideTimer;
   /** @type {HTMLTextAreaElement | null} */
   let editorEl = $state(null);
-  let isDraggingWindow = $state(false);
-  let dragWindowX = 0;
-  let dragWindowY = 0;
-  let lastDragScreenX = 0;
-  let lastDragScreenY = 0;
-  let dragPointerId = -1;
   const strings = $derived(getStrings(locale));
   const noteBgColor = $derived(note?.bgColor || DEFAULT_NOTE_COLOR);
   const noteTextColor = $derived(note?.textColor || DEFAULT_NOTE_TEXT_COLOR);
@@ -79,15 +78,19 @@
 
   async function loadNote() {
     try {
-      const allNotes = await invoke("load_notes", { sortMode: "custom" });
-      tagSuggestions = collectTagSuggestionsFromNotes(allNotes || [], { limit: 60 });
-      // @ts-ignore
-      const n = allNotes.find((item) => item.id === noteId);
-      if (n) {
-        note = n;
-        text = n.text;
-        opacityDraft = n.opacity ?? DEFAULT_NOTE_OPACITY;
-        frostDraft = n.frost ?? DEFAULT_NOTE_FROST;
+      const snapshot = await loadNoteWindowSnapshot({
+        invoke,
+        noteId,
+        defaultOpacity: DEFAULT_NOTE_OPACITY,
+        defaultFrost: DEFAULT_NOTE_FROST,
+        tagSuggestionLimit: 60,
+      });
+      tagSuggestions = snapshot.tagSuggestions;
+      if (snapshot.note) {
+        note = snapshot.note;
+        text = snapshot.text;
+        opacityDraft = snapshot.opacityDraft;
+        frostDraft = snapshot.frostDraft;
       }
     } catch (e) {
       console.error("loadNote", e);
@@ -114,8 +117,7 @@
 
   /** @param {any[]} all */
   function findUpdatedFromList(all) {
-    // @ts-ignore
-    return all.find((n) => n.id === noteId) ?? null;
+    return findNoteById(all, noteId);
   }
 
   /**
@@ -166,8 +168,7 @@
     if (!note) return;
     try {
       await invoke("update_note_text", {
-        // @ts-ignore
-        id: note.id,
+        id: resolveNoteId(note, noteId),
         text,
         sortMode: "custom",
       });
@@ -219,7 +220,7 @@
     try {
       const dataBase64 = await blobToBase64(file);
       const savedPath = await invoke("save_clipboard_image", {
-        noteId: note?.id || noteId,
+        noteId: resolveNoteId(note, noteId),
         mimeType: file.type || "image/png",
         dataBase64,
       });
@@ -269,98 +270,14 @@
     }
   }
 
-  /**
-   * @param {PointerEvent} e
-   * @param {HTMLDivElement} dragSurface
-   */
-  async function startManualWindowDrag(e, dragSurface) {
-    const win = getCurrentWindow();
-    const [position, scaleFactor] = await Promise.all([win.outerPosition(), win.scaleFactor()]);
-    dragWindowX = position.x / scaleFactor;
-    dragWindowY = position.y / scaleFactor;
-    lastDragScreenX = e.screenX;
-    lastDragScreenY = e.screenY;
-    dragPointerId = e.pointerId;
-    isDraggingWindow = true;
-    dragSurface.setPointerCapture(e.pointerId);
-  }
-
-  /** @param {PointerEvent} e */
-  function applyManualWindowDragPosition(e) {
-    if (!isDraggingWindow) return;
-    if (e.pointerId !== dragPointerId) return;
-    if (e.buttons !== 1) {
-      endManualWindowDrag();
-      return;
-    }
-    const deltaX = e.screenX - lastDragScreenX;
-    const deltaY = e.screenY - lastDragScreenY;
-    lastDragScreenX = e.screenX;
-    lastDragScreenY = e.screenY;
-    dragWindowX += deltaX;
-    dragWindowY += deltaY;
-    getCurrentWindow()
-      .setPosition(new LogicalPosition(dragWindowX, dragWindowY))
-      .catch((err) => {
-        console.error("setPosition failed", err);
-        isDraggingWindow = false;
-      });
-  }
-
-  function endManualWindowDrag() {
-    isDraggingWindow = false;
-    dragPointerId = -1;
-  }
-
-  /** @param {PointerEvent} e */
-  function onDragPointerMove(e) {
-    applyManualWindowDragPosition(e);
-  }
-
-  /** @param {PointerEvent} e */
-  function onDragPointerUp(e) {
-    if (e.pointerId !== dragPointerId) return;
-    const surface = /** @type {HTMLDivElement | null} */ (e.currentTarget);
-    if (surface?.hasPointerCapture(e.pointerId)) {
-      surface.releasePointerCapture(e.pointerId);
-    }
-    endManualWindowDrag();
-  }
-
-  /** @param {PointerEvent} e */
-  async function handleDragPointerDown(e) {
-    if (e.button !== 0) return;
-    if (clickThrough) return;
-    const target = /** @type {HTMLElement | null} */ (e.target);
-    dismissFloatingPanelsOnPointerDown(target);
-    if (
-      target?.closest("button,input,select,textarea,.note-tag-bar,.color-popover,.text-color-popover,.opacity-popover,.frost-popover")
-    ) {
-      return;
-    }
-    const inToolbar = !!target?.closest(".toolbar");
-    const inPreview = !!target?.closest(".preview-text");
-    if (isEditing) {
-      if (!inToolbar) return;
-    } else if (!inPreview && !inToolbar) {
-      return;
-    }
-    e.preventDefault();
-    try {
-      const surface = /** @type {HTMLDivElement} */ (e.currentTarget);
-      await startManualWindowDrag(e, surface);
-    } catch (err) {
-      console.error("startManualWindowDrag failed", err);
-    }
-  }
-
   async function toggleTopmost() {
     if (!note) return;
     try {
-      const all = await invoke("toggle_z_order_and_apply", {
-        // @ts-ignore
-        id: note.id,
-        sortMode: "custom",
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "toggle_z_order_and_apply",
+        note,
+        noteId,
       });
       const updated = findUpdatedFromList(all);
       if (updated) {
@@ -377,10 +294,11 @@
   async function toggleWallpaperLayer() {
     if (!note) return;
     try {
-      const all = await invoke("toggle_wallpaper_layer_and_apply", {
-        // @ts-ignore
-        id: note.id,
-        sortMode: "custom",
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "toggle_wallpaper_layer_and_apply",
+        note,
+        noteId,
       });
       const updated = findUpdatedFromList(all);
       if (updated) {
@@ -402,11 +320,12 @@
     if (!note) return;
     const closePopover = options.closePopover ?? true;
     try {
-      const all = await invoke("update_note_color", {
-        // @ts-ignore
-        id: note.id,
-        color,
-        sortMode: "custom",
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "update_note_color",
+        note,
+        noteId,
+        payload: { color },
       });
       const updated = findUpdatedFromList(all);
       if (updated) {
@@ -428,11 +347,12 @@
     if (!note) return;
     const closePopover = options.closePopover ?? true;
     try {
-      const all = await invoke("update_note_text_color", {
-        // @ts-ignore
-        id: note.id,
-        color,
-        sortMode: "custom",
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "update_note_text_color",
+        note,
+        noteId,
+        payload: { color },
       });
       const updated = findUpdatedFromList(all);
       if (updated) {
@@ -465,12 +385,12 @@
   async function setOpacity(opacity, emitEvent) {
     if (!note) return;
     try {
-      const all = await invoke("update_note_opacity", {
-        // @ts-ignore
-        id: note.id,
-        opacity,
-        sortMode: "custom",
-        emitEvent,
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "update_note_opacity",
+        note,
+        noteId,
+        payload: { opacity, emitEvent },
       });
       const updated = findUpdatedFromList(all);
       if (updated) {
@@ -490,12 +410,12 @@
   async function setFrost(frost, emitEvent) {
     if (!note) return;
     try {
-      const all = await invoke("update_note_frost", {
-        // @ts-ignore
-        id: note.id,
-        frost,
-        sortMode: "custom",
-        emitEvent,
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "update_note_frost",
+        note,
+        noteId,
+        payload: { frost, emitEvent },
       });
       const updated = findUpdatedFromList(all);
       if (updated) {
@@ -694,13 +614,21 @@
     }
   }
 
+  const noteWindowDrag = createNoteWindowDragController({
+    getCurrentWindow,
+    getClickThrough: () => clickThrough,
+    getIsEditing: () => isEditing,
+    dismissFloatingPanels: dismissFloatingPanelsOnPointerDown,
+  });
+
   async function toggleDone() {
     if (!note) return;
     try {
-      const all = await invoke("toggle_done", {
-        // @ts-ignore
-        id: note.id,
-        sortMode: "custom",
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "toggle_done",
+        note,
+        noteId,
       });
       await syncAfterCommand(all);
     } catch (e) {
@@ -711,10 +639,11 @@
   async function toggleArchive() {
     if (!note) return;
     try {
-      const all = await invoke("toggle_archive", {
-        // @ts-ignore
-        id: note.id,
-        sortMode: "custom",
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "toggle_archive",
+        note,
+        noteId,
       });
       await syncAfterCommand(all, { closeIfUnpinned: true });
     } catch (e) {
@@ -725,10 +654,11 @@
   async function unpinNote() {
     if (!note) return;
     try {
-      const all = await invoke("toggle_pin", {
-        // @ts-ignore
-        id: note.id,
-        sortMode: "custom",
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "toggle_pin",
+        note,
+        noteId,
       });
       await syncAfterCommand(all, { closeIfUnpinned: true });
     } catch (e) {
@@ -739,10 +669,11 @@
   async function moveToTrash() {
     if (!note) return;
     try {
-      const all = await invoke("delete_note", {
-        // @ts-ignore
-        id: note.id,
-        sortMode: "custom",
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "delete_note",
+        note,
+        noteId,
       });
       await syncAfterCommand(all, { closeIfUnpinned: true });
     } catch (e) {
@@ -754,15 +685,21 @@
   async function setNotePriority(priority) {
     if (!note) return;
     try {
-      const payload = {
-        // @ts-ignore
-        id: note.id,
-        sortMode: "custom",
-      };
       const all =
         priority == null
-          ? await invoke("clear_note_priority", payload)
-          : await invoke("update_note_priority", { ...payload, priority });
+          ? await invokeNoteCommand({
+              invoke,
+              command: "clear_note_priority",
+              note,
+              noteId,
+            })
+          : await invokeNoteCommand({
+              invoke,
+              command: "update_note_priority",
+              note,
+              noteId,
+              payload: { priority },
+            });
       await syncAfterCommand(all);
     } catch (e) {
       console.error("setNotePriority", e);
@@ -773,11 +710,12 @@
   async function setNoteTags(tags) {
     if (!note) return;
     try {
-      const all = await invoke("update_note_tags", {
-        // @ts-ignore
-        id: note.id,
-        tags,
-        sortMode: "custom",
+      const all = await invokeNoteCommand({
+        invoke,
+        command: "update_note_tags",
+        note,
+        noteId,
+        payload: { tags },
       });
       await syncAfterCommand(all);
     } catch (e) {
@@ -791,8 +729,7 @@
 
     unlistenPromises.push(
       listen("overlay_input_changed", async (event) => {
-        // @ts-ignore
-        clickThrough = !!event.payload;
+        clickThrough = !!/** @type {{ payload?: unknown }} */ (event).payload;
         try {
           await applyInteractionPolicy();
         } catch (e) {
@@ -825,7 +762,7 @@
           // ignore
         }
       }
-      endManualWindowDrag();
+      noteWindowDrag.endManualWindowDrag();
       clearTimeout(opacitySaveTimer);
       clearTimeout(frostSaveTimer);
       clearTimeout(opacityValueHideTimer);
@@ -838,10 +775,10 @@
 <div
   class="note-window"
   style="background: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {noteFrostBlur}px; --frost-overlay: {noteFrostOverlay};"
-  onpointerdown={handleDragPointerDown}
-  onpointermove={onDragPointerMove}
-  onpointerup={onDragPointerUp}
-  onpointercancel={onDragPointerUp}
+  onpointerdown={noteWindowDrag.handleDragPointerDown}
+  onpointermove={noteWindowDrag.onDragPointerMove}
+  onpointerup={noteWindowDrag.onDragPointerUp}
+  onpointercancel={noteWindowDrag.onDragPointerUp}
 >
   {#if note}
     <NoteTagBar
