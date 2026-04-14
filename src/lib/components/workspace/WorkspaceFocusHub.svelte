@@ -41,7 +41,6 @@
   import {
     BREAK_KIND_LONG,
     BREAK_KIND_MINI,
-    buildFocusTaskFromDraft,
     buildTimerTaskOptions,
     buildTodaySummary,
     FOCUS_WEEKDAYS,
@@ -49,8 +48,6 @@
     getPhaseDurationSec,
     getSafeConfig,
     PHASE_FOCUS,
-    removeTaskFromState,
-    updateTaskInState,
   } from "$lib/workspace/pomodoro/focus-runtime.js";
   import { formatSecondsBrief, sendDesktopNotification } from "$lib/workspace/break-control/focus-break-notify.js";
   import {
@@ -65,12 +62,12 @@
     getRemainingFromDeadline,
   } from "$lib/workspace/pomodoro/focus-runtime-controller.js";
   import { createFocusTimerController } from "$lib/workspace/pomodoro/focus-timer-controller.js";
+  import { createFocusTaskDraftController } from "$lib/workspace/pomodoro/focus-task-draft-controller.js";
   import {
     buildFocusCompletedStats,
     buildStatsWithTaskSession,
     buildTaskStartNotification,
     getCurrentTaskLiveTodaySeconds as getCurrentTaskLiveTodaySecondsFromState,
-    toggleDraftWeekdayValue,
   } from "$lib/workspace/pomodoro/focus-task-controller.js";
 
   let {
@@ -298,6 +295,24 @@
     if ("taskSessionStartedAtTs" in patch) taskSessionStartedAtTs = patch.taskSessionStartedAtTs;
   }
 
+  /** @param {Record<string, any>} patch */
+  function setDraftState(patch) {
+    if ("draftTitle" in patch) draftTitle = patch.draftTitle;
+    if ("draftTaskMode" in patch) draftTaskMode = patch.draftTaskMode;
+    if ("draftTargetMinutes" in patch) draftTargetMinutes = patch.draftTargetMinutes;
+    if ("draftStartTime" in patch) draftStartTime = patch.draftStartTime;
+    if ("draftEndTime" in patch) draftEndTime = patch.draftEndTime;
+    if ("draftRecurrence" in patch) draftRecurrence = patch.draftRecurrence;
+    if ("draftWeekdays" in patch) draftWeekdays = patch.draftWeekdays;
+    if ("draftFocusMinutes" in patch) draftFocusMinutes = patch.draftFocusMinutes;
+    if ("draftTaskStartReminderEnabled" in patch) {
+      draftTaskStartReminderEnabled = patch.draftTaskStartReminderEnabled;
+    }
+    if ("draftTaskStartReminderLeadMinutes" in patch) {
+      draftTaskStartReminderLeadMinutes = patch.draftTaskStartReminderLeadMinutes;
+    }
+  }
+
   function shouldTickBreakReminderClock() {
     if (!safeConfig.breakReminderEnabled) return false;
     if (activeBreakKind) return false;
@@ -487,6 +502,38 @@
   const breakOverlayLifecycle = createBreakOverlayLifecycle({
     getBreakTimerActive: () => breakTimerActive,
     buildPayload: () => buildBreakOverlayPayload(),
+  });
+
+  const taskDraftController = createFocusTaskDraftController({
+    getTasks: () => tasks,
+    getStats: () => stats,
+    getSafeConfig: () => safeConfig,
+    getSelectedTaskId: () => selectedTaskId,
+    getTaskTimingActive: () => taskTimingActive,
+    getRunning: () => running,
+    getHasStarted: () => hasStarted,
+    getTaskSessionStartedAtTs: () => taskSessionStartedAtTs,
+    getCurrentSessionSettleTs,
+    getFocusDurationSec,
+    getDraftTitle: () => draftTitle,
+    getDraftTaskMode: () => draftTaskMode,
+    getDraftTargetMinutes: () => draftTargetMinutes,
+    getDraftStartTime: () => draftStartTime,
+    getDraftEndTime: () => draftEndTime,
+    getDraftRecurrence: () => draftRecurrence,
+    getDraftWeekdays: () => draftWeekdays,
+    getDraftFocusMinutes: () => draftFocusMinutes,
+    getDraftTaskStartReminderEnabled: () => draftTaskStartReminderEnabled,
+    getDraftTaskStartReminderLeadMinutes: () => draftTaskStartReminderLeadMinutes,
+    getShowConfig: () => showConfig,
+    setFocusRuntime: setTimerRuntime,
+    setDraftState,
+    setShowConfig: (show) => (showConfig = show),
+    pauseActiveTaskSession,
+    emitTasks,
+    emitStats,
+    onPomodoroConfigChange: (config) => onPomodoroConfigChange(config),
+    ensureNotificationPermissionFromUserGesture,
   });
 
   /**
@@ -782,147 +829,6 @@
     );
   }
 
-  /** @param {string} taskId */
-  function startTaskFocus(taskId) {
-    if (taskTimingActive || running || taskSessionStartedAtTs > 0) {
-      pauseActiveTaskSession(getCurrentSessionSettleTs(), {
-        keepStarted: false,
-        pauseFocusTimer: true,
-      });
-    }
-    selectedTaskId = taskId;
-    phase = PHASE_FOCUS;
-    remainingSec = getFocusDurationSec();
-    focusDeadlineTs = Date.now() + remainingSec * 1000;
-    running = true;
-    hasStarted = true;
-    taskTimingActive = true;
-    taskSessionStartedAtTs = Date.now();
-  }
-
-  /** @param {string} taskId */
-  function selectTask(taskId) {
-    if (selectedTaskId === (taskId || "")) return;
-    if (taskTimingActive || running || taskSessionStartedAtTs > 0) {
-      pauseActiveTaskSession(getCurrentSessionSettleTs(), {
-        keepStarted: false,
-        pauseFocusTimer: true,
-      });
-    }
-    selectedTaskId = taskId || "";
-  }
-
-  /** @param {string} taskId */
-  function removeTask(taskId) {
-    const statsBeforeRemove = selectedTaskId === taskId
-      ? pauseActiveTaskSession(getCurrentSessionSettleTs(), {
-          keepStarted: false,
-          clearSelection: true,
-          pauseFocusTimer: true,
-        })
-      : stats;
-    if (selectedTaskId === taskId) {
-      taskTimingActive = false;
-      hasStarted = false;
-      taskSessionStartedAtTs = 0;
-    }
-    const { nextTasks, nextStats } = removeTaskFromState(tasks, statsBeforeRemove, taskId);
-    if (selectedTaskId === taskId) selectedTaskId = "";
-    emitTasks(nextTasks);
-    emitStats(nextStats);
-  }
-
-  /**
-   * @param {string} taskId
-   * @param {{
-   * title?: string;
-   * startTime?: string;
-   * endTime?: string;
-   * recurrence?: string;
-   * weekdays?: number[];
-   * }} patch
-   */
-  function updateTask(taskId, patch) {
-    emitTasks(updateTaskInState(tasks, taskId, patch));
-  }
-
-  function addTask() {
-    const title = draftTitle.trim();
-    if (!title) return;
-    const safeTaskMode = draftTaskMode === FOCUS_TASK_MODE_DURATION
-      ? FOCUS_TASK_MODE_DURATION
-      : FOCUS_TASK_MODE_TIME_WINDOW;
-    const next = buildFocusTaskFromDraft({
-      title,
-      taskMode: safeTaskMode,
-      targetSeconds: clampInt(draftTargetMinutes, 120, 1, 24 * 60) * 60,
-      startTime: draftStartTime,
-      endTime: draftEndTime,
-      recurrence: draftRecurrence,
-      weekdays: draftRecurrence === RECURRENCE.CUSTOM ? draftWeekdays : [],
-    });
-    emitTasks([...tasks, next]);
-    draftTitle = "";
-    draftTaskMode = FOCUS_TASK_MODE_TIME_WINDOW;
-    draftTargetMinutes = 120;
-    if (!selectedTaskId) selectedTaskId = next.id;
-  }
-
-  /** @param {number} day */
-  function toggleDraftWeekday(day) {
-    draftWeekdays = toggleDraftWeekdayValue(draftWeekdays, day);
-  }
-
-  function saveTimerConfig() {
-    const next = {
-      breakReminderEnabled: safeConfig.breakReminderEnabled,
-      focusMinutes: clampInt(draftFocusMinutes, safeConfig.focusMinutes, 5, 90),
-      shortBreakMinutes: safeConfig.shortBreakMinutes,
-      longBreakMinutes: safeConfig.longBreakMinutes,
-      longBreakEvery: safeConfig.longBreakEvery,
-      miniBreakEveryMinutes: safeConfig.miniBreakEveryMinutes,
-      miniBreakDurationSeconds: safeConfig.miniBreakDurationSeconds,
-      longBreakEveryMinutes: safeConfig.longBreakEveryMinutes,
-      longBreakDurationMinutes: safeConfig.longBreakDurationMinutes,
-      breakNotifyBeforeSeconds: safeConfig.breakNotifyBeforeSeconds,
-      taskStartReminderEnabled: draftTaskStartReminderEnabled,
-      taskStartReminderLeadMinutes: clampInt(
-        draftTaskStartReminderLeadMinutes,
-        safeConfig.taskStartReminderLeadMinutes,
-        1,
-        60,
-      ),
-      miniBreakPostponeMinutes: safeConfig.miniBreakPostponeMinutes,
-      longBreakPostponeMinutes: safeConfig.longBreakPostponeMinutes,
-      breakPostponeLimit: safeConfig.breakPostponeLimit,
-      breakStrictMode: safeConfig.breakStrictMode,
-      breakReminderMode: safeConfig.breakReminderMode,
-      independentMiniBreakEveryMinutes: safeConfig.independentMiniBreakEveryMinutes,
-      independentLongBreakEveryMinutes: safeConfig.independentLongBreakEveryMinutes,
-    };
-    if (next.taskStartReminderEnabled) {
-      ensureNotificationPermissionFromUserGesture().catch((error) =>
-        console.error("focus request notification permission for task reminder", error),
-      );
-    }
-    Promise.resolve(onPomodoroConfigChange(next)).catch((e) =>
-      console.error("save pomodoro config", e),
-    );
-    if (!running && !hasStarted) {
-      phase = PHASE_FOCUS;
-      remainingSec = getFocusDurationSec(next);
-      focusDeadlineTs = 0;
-    }
-    showConfig = false;
-  }
-
-  function openTimerSettings() {
-    draftFocusMinutes = safeConfig.focusMinutes;
-    draftTaskStartReminderEnabled = safeConfig.taskStartReminderEnabled;
-    draftTaskStartReminderLeadMinutes = safeConfig.taskStartReminderLeadMinutes;
-    showConfig = true;
-  }
-
   /**
    * @param {"warn" | "start"} stage
    * @param {"mini" | "long"} kind
@@ -1023,10 +929,10 @@
     if (!taskId) return;
     if (!focusSelectableTasks.some((task) => task.id === taskId)) return;
     if (command?.type === "start") {
-      startTaskFocus(taskId);
+      taskDraftController.startTaskFocus(taskId);
       return;
     }
-    selectTask(taskId);
+    taskDraftController.selectTask(taskId);
   });
 
   $effect(() => {
@@ -1331,14 +1237,14 @@
   onTriggerBreakSoon={scheduleBreakSoon}
   onPostponeBreak={postponeBreak}
   onSkipBreak={skipBreak}
-  onAddTask={addTask}
-  onToggleSettings={() => (showConfig ? (showConfig = false) : openTimerSettings())}
-  onToggleWeekday={toggleDraftWeekday}
-  onStartTask={startTaskFocus}
+  onAddTask={taskDraftController.addTask}
+  onToggleSettings={taskDraftController.toggleTimerSettings}
+  onToggleWeekday={taskDraftController.toggleDraftWeekday}
+  onStartTask={taskDraftController.startTaskFocus}
   onToggleTask={focusTimerController.toggleRunning}
-  onRemoveTask={removeTask}
-  onUpdateTask={updateTask}
+  onRemoveTask={taskDraftController.removeTask}
+  onUpdateTask={taskDraftController.updateTask}
   {weekdayLabel}
-  onSaveSettings={saveTimerConfig}
+  onSaveSettings={taskDraftController.saveTimerConfig}
   onCancelSettings={() => (showConfig = false)}
 />

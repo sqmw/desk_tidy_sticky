@@ -104,9 +104,9 @@
 - 第二小步：抽出 break overlay lifecycle facade：已完成第一步。
   - 候选：`workspace/break-control/break-overlay-lifecycle.js`
   - 已覆盖：ensure/sync/close overlay、payload key、queued sync 状态、overlay ready 单窗口同步。
-- 第三小步：抽出 task draft facade。
+- 第三小步：抽出 task draft facade：已完成第一步。
   - 候选：`workspace/pomodoro/focus-task-draft-controller.js`
-  - 覆盖：add/update/remove/toggle weekday/open settings/save config。
+  - 已覆盖：start/select/add/update/remove、toggle weekday、open/toggle settings、save config。
 
 约束：
 - 这块有定时器、overlay、notification、localStorage cache，必须小步改。
@@ -120,6 +120,7 @@
 当前进展：
 - 2026-04-14：完成 P2 第一轮 timer runtime controller 拆分，详情见 `docs/refactor/2026-04-14-workspace-focus-hub-timer-runtime-pass1.md`。
 - 2026-04-14：完成 P2 第二轮 break overlay lifecycle 拆分，详情见 `docs/refactor/2026-04-14-workspace-focus-hub-break-overlay-pass2.md`。
+- 2026-04-14：完成 P2 第三轮 task draft/action controller 拆分，详情见 `docs/refactor/2026-04-14-workspace-focus-hub-task-draft-pass3.md`。
 
 ### P3：Workspace 页面装配层瘦身
 状态：待办  
