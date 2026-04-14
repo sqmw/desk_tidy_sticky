@@ -1,5 +1,7 @@
 # Workspace 休息控制开关与快速联调（2026-02-20）
 
+> 状态更新（2026-04-14）：文中“快速测试 / 短休 10秒 / 长休 10秒”入口已调整为仅开发态显示，发行版默认不渲染。以 [2026-04-14-dev-only-quick-actions-gate.md](/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/ui/2026-04-14-dev-only-quick-actions-gate.md) 为最新约束。
+
 ## 背景
 针对当前休息控制体验的三个问题做收敛修复：
 1. `开启提醒/关闭提醒` 是两个文案按钮，状态感知弱。
