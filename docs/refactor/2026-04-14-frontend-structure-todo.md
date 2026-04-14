@@ -68,9 +68,9 @@
 目标文件：`src/lib/components/workspace/WorkspaceSidebar.svelte`
 
 计划：
-- 拆出主模块入口：
+- 拆出主模块入口：已完成第一步
   - 候选：`components/workspace/sidebar/WorkspaceSidebarModules.svelte`
-  - 覆盖：主 tab、开关类入口、compact 状态展示。
+  - 已覆盖：主 tab、compact/collapsed 状态展示。
 - 拆出笔记筛选区：已完成第一步
   - 候选：`components/workspace/sidebar/WorkspaceSidebarNoteFilters.svelte`
   - 已覆盖：view mode、sort mode、tag filter、count badge、compact/collapsed 展示。
@@ -89,6 +89,7 @@
 当前进展：
 - 2026-04-14：完成 P1 第一轮笔记筛选区组件拆分，详情见 `docs/refactor/2026-04-14-workspace-sidebar-note-filters-pass1.md`。
 - 2026-04-14：完成 P1 第二轮 deadline 区组件拆分，详情见 `docs/refactor/2026-04-14-workspace-sidebar-deadlines-pass2.md`。
+- 2026-04-14：完成 P1 第三轮主模块入口组件拆分，详情见 `docs/refactor/2026-04-14-workspace-sidebar-modules-pass3.md`。
 
 ### P2：Workspace FocusHub 运行时继续拆分
 状态：待办  
