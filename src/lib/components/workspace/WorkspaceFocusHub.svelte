@@ -208,14 +208,8 @@
   const selectedTaskEffectiveSeconds = $derived(
     selectedTaskId ? Number(liveTaskEffectiveSeconds?.[selectedTaskId] || 0) : 0,
   );
-  const selectedTaskCycleSnapshot = $derived(
-    getTaskCycleSnapshot(selectedTaskEffectiveSeconds, Number(selectedTask?.targetSeconds || 0)),
-  );
-  const selectedTaskRemainingSeconds = $derived.by(() => {
-    if (!selectedTaskId) return Math.max(0, Math.floor(Number(remainingSec || 0)));
-    return Math.max(0, Number(selectedTaskCycleSnapshot.currentCycleRemainingSeconds || 0));
-  });
-  const pomodoroTimerText = $derived(formatTimer(selectedTaskRemainingSeconds));
+  const pomodoroRemainingSeconds = $derived(Math.max(0, Math.floor(Number(remainingSec || 0))));
+  const pomodoroTimerText = $derived(formatTimer(pomodoroRemainingSeconds));
   const taskTitleRollups = $derived(
     buildTaskTitleRollups(stats, tasks, safeConfig.focusMinutes),
   );
@@ -249,8 +243,9 @@
   const breakSessionRemainingText = $derived(getBreakSessionRemainingText(localBreakSession, nowTick));
   const breakTimerActive = $derived(Boolean(activeBreakKind) && breakRemainingSec > 0);
   const focusProgressPercent = $derived.by(() => {
-    if (!selectedTaskId) return 0;
-    return Math.max(0, Number(selectedTaskCycleSnapshot.currentCycleProgressPercent || 0));
+    const focusDurationSec = Math.max(1, getFocusDurationSec());
+    const elapsedSec = Math.max(0, Math.min(focusDurationSec, focusDurationSec - pomodoroRemainingSeconds));
+    return (elapsedSec / focusDurationSec) * 100;
   });
   const breakProgressPercent = $derived.by(() => {
     return getBreakProgressPercent({
