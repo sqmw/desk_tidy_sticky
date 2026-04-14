@@ -218,6 +218,7 @@
 - 2026-04-14：完成 P4 第一轮 workspace settings dialog 表现层拆分，详情见 `docs/refactor/2026-04-14-workspace-settings-dialog-pass1.md`。
 - 2026-04-14：完成 P4 第二轮 NotesSection 视图模式拆分，详情见 `docs/refactor/2026-04-14-notes-section-view-split-pass2.md`。
 - 2026-04-14：完成 P4 第三轮 workspace theme default template 拆分，详情见 `docs/refactor/2026-04-14-workspace-theme-template-pass3.md`。
+- 2026-04-14：完成 P4 第四轮 NotesLinearList 单条行拆分，详情见 `docs/refactor/2026-04-14-notes-linear-list-item-pass4.md`。
 
 ## 已有关联文档
 - `docs/refactor/2026-04-13-frontend-functional-split-pass1.md`
