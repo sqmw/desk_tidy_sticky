@@ -2,7 +2,7 @@
 
 日期：2026-04-14  
 范围：`src/routes`、`src/lib/components`、`src/lib/workspace`、`src/lib/panel`  
-状态：进行中
+状态：进行中（已切换到真实 Tauri UI 回归阶段）
 
 ## 目标
 - 降低前端大文件和路由入口的认知成本。
@@ -173,6 +173,7 @@
 ## 当前建议
 - 建议暂停继续大规模拆分前端。
 - 建议先完成一轮真实 Tauri UI 回归。
+- 2026-04-14：已建立回归执行清单，详见 `docs/refactor/2026-04-14-frontend-structure-manual-regression-pass1.md`。
 - 若回归稳定，再决定是否继续做：
   - `src/routes/workspace/+page.svelte` 的 `page state factory / state group`
   - `src/lib/components/workspace/WorkspaceFocusHub.svelte` 的 break 流程进一步收口
