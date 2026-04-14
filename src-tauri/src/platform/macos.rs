@@ -149,6 +149,31 @@ pub fn attach_to_wallpaper_layer_with_interaction(
     Ok(())
 }
 
+pub fn attach_to_desktop_layer_with_interaction(
+    ns_window_ptr: *mut c_void,
+    click_through: bool,
+) -> Result<(), String> {
+    let window = cast_ns_window_ptr(ns_window_ptr)?;
+    window.setCanHide(false);
+    window.setHidesOnDeactivate(false);
+    window.setCollectionBehavior(desktop_sticky_collection_behavior());
+    window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+    // Desktop layer means "above desktop icons". Keep interaction policy driven
+    // by global click-through state.
+    window.setIgnoresMouseEvents(click_through);
+    window.setLevel(desktop_icon_interactive_level());
+    window.orderFrontRegardless();
+    log_level(
+        if click_through {
+            "attach_to_desktop_layer_with_interaction(pass-through)"
+        } else {
+            "attach_to_desktop_layer_with_interaction(interactive)"
+        },
+        window,
+    );
+    Ok(())
+}
+
 /// Legacy strategy retained for fallback/experiments.
 /// This variant keeps the previous desktop-icon-aware level and interactive toggle behavior.
 #[allow(dead_code)]

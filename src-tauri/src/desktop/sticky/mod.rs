@@ -40,8 +40,8 @@ pub fn pin_window_to_desktop(
     #[cfg(target_os = "macos")]
     {
         let click_through = get_overlay_click_through(&app);
-        run_macos_window_op(&window, "macos_pin_attach_to_wallpaper_layer", move |ptr| {
-            macos::attach_to_wallpaper_layer_with_interaction(ptr, click_through)
+        run_macos_window_op(&window, "macos_pin_attach_to_desktop_layer", move |ptr| {
+            macos::attach_to_desktop_layer_with_interaction(ptr, click_through)
         })?;
         Ok(())
     }

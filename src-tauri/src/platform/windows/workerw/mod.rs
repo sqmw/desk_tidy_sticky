@@ -41,6 +41,16 @@ fn force_bottom_immediately(hwnd: HWND) {
     }
 }
 
+fn force_desktop_layer_immediately(hwnd: HWND) {
+    unsafe {
+        // Keep no-activate semantics, but move above icon host children for "desktop layer".
+        let flags =
+            SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_FRAMECHANGED | SWP_NOACTIVATE;
+        let _ = SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
+        let _ = SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, flags);
+    }
+}
+
 fn init_worker_w() -> Result<(), String> {
     discovery::spawn_worker_w()?;
     let worker_w_candidate = discovery::find_desktop_worker_w()?;
@@ -75,7 +85,10 @@ pub fn attach_to_wallpaper_worker_w(hwnd_isize: isize) -> Result<(), String> {
         if WALLPAPER_WORKER_W.0.is_null() || !IsWindow(WALLPAPER_WORKER_W).as_bool() {
             if let Err(err) = init_wallpaper_worker_w() {
                 eprintln!("init_wallpaper_worker_w failed: {}", err);
-                return attach_to_worker_w(hwnd_isize);
+                let desktop = GetDesktopWindow();
+                let _ = set_parent_checked(hwnd, desktop, "attach_wallpaper_fallback_desktop");
+                force_bottom_immediately(hwnd);
+                return Ok(());
             }
         }
 
@@ -100,7 +113,10 @@ pub fn attach_to_wallpaper_worker_w(hwnd_isize: isize) -> Result<(), String> {
         };
 
         if !attached {
-            return attach_to_worker_w(hwnd_isize);
+            let desktop = GetDesktopWindow();
+            let _ = set_parent_checked(hwnd, desktop, "attach_wallpaper_fallback_desktop");
+            force_bottom_immediately(hwnd);
+            return Ok(());
         }
     }
 
@@ -140,12 +156,12 @@ pub fn attach_to_worker_w(hwnd_isize: isize) -> Result<(), String> {
         if !attached {
             let desktop = GetDesktopWindow();
             let _ = set_parent_checked(hwnd, desktop, "attach_fallback_desktop");
-            force_bottom_immediately(hwnd);
+            force_desktop_layer_immediately(hwnd);
             return Ok(());
         }
     }
 
-    force_bottom_immediately(hwnd);
+    force_desktop_layer_immediately(hwnd);
     Ok(())
 }
 

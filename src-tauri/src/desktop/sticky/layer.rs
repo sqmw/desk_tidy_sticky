@@ -70,9 +70,9 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
 
     #[cfg(target_os = "macos")]
     {
-        // Match Windows semantics: interaction ON temporarily lifts stickies to an interactive layer.
-        let _ = is_wallpaper;
-        let should_be_top = !click_through || is_always_on_top;
+        // Keep wallpaper notes pinned to wallpaper semantics, and expose a real "desktop layer"
+        // (above icons) for non-wallpaper notes when pass-through mode is active.
+        let should_be_top = (!click_through && !is_wallpaper) || is_always_on_top;
         if should_be_top {
             run_macos_window_op(&w, "macos_detach_from_desktop", macos::detach_from_worker_w)?;
             run_macos_window_op(&w, "macos_set_topmost_true", |ptr| {
@@ -82,9 +82,16 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
             run_macos_window_op(&w, "macos_set_topmost_false", |ptr| {
                 macos::set_topmost_no_activate(ptr, false)
             })?;
-            run_macos_window_op(&w, "macos_attach_to_wallpaper_layer", move |ptr| {
-                macos::attach_to_wallpaper_layer_with_interaction(ptr, click_through)
-            })?;
+            if is_wallpaper {
+                run_macos_window_op(&w, "macos_attach_to_wallpaper_layer", move |ptr| {
+                    // Wallpaper mode should stay behind icons.
+                    macos::attach_to_wallpaper_layer_with_interaction(ptr, true)
+                })?;
+            } else {
+                run_macos_window_op(&w, "macos_attach_to_desktop_layer", move |ptr| {
+                    macos::attach_to_desktop_layer_with_interaction(ptr, click_through)
+                })?;
+            }
         }
         return Ok(());
     }

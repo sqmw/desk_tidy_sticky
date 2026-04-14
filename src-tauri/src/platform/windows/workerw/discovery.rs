@@ -41,7 +41,7 @@ pub(super) fn spawn_worker_w() -> Result<(), String> {
 }
 
 pub(super) fn find_desktop_worker_w() -> Result<HWND, String> {
-    let mut worker_w_candidate = HWND(0 as *mut c_void);
+    let mut desktop_host = HWND(0 as *mut c_void);
 
     unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
         let shell_dll = match FindWindowExW(
@@ -58,43 +58,21 @@ pub(super) fn find_desktop_worker_w() -> Result<HWND, String> {
             return BOOL(1);
         }
 
-        // Typical case: SHELLDLL_DefView is hosted by Progman/WorkerW.
-        // Desktop-content WorkerW is usually the next sibling WorkerW.
-        if let Ok(next_worker) = FindWindowExW(
-            HWND(0 as *mut c_void),
-            hwnd,
-            windows::core::w!("WorkerW"),
-            PCWSTR::null(),
-        ) {
-            if !next_worker.0.is_null() {
-                *(lparam.0 as *mut HWND) = next_worker;
-                return BOOL(0);
-            }
-        }
-
-        // Fallback: if no next sibling found, use current host when it's WorkerW.
-        let mut class_name = [0u16; 32];
-        let len = windows::Win32::UI::WindowsAndMessaging::GetClassNameW(hwnd, &mut class_name);
-        if len > 0 {
-            let class_name = String::from_utf16_lossy(&class_name[..len as usize]);
-            if class_name == "WorkerW" {
-                *(lparam.0 as *mut HWND) = hwnd;
-                return BOOL(0);
-            }
-        }
-
-        BOOL(1)
+        // For "desktop layer" (icons on top, note above icons), we need the host that
+        // owns SHELLDLL_DefView (Progman or WorkerW), not the sibling wallpaper WorkerW.
+        *(lparam.0 as *mut HWND) = hwnd;
+        BOOL(0)
     }
 
     unsafe {
         let _ = EnumWindows(
             Some(enum_windows_proc),
-            LPARAM(&mut worker_w_candidate as *mut _ as isize),
+            LPARAM(&mut desktop_host as *mut _ as isize),
         );
 
-        if worker_w_candidate.0.is_null() {
-            // Last fallback: pick the first WorkerW.
-            worker_w_candidate = FindWindowExW(
+        if desktop_host.0.is_null() {
+            // Fallback to first WorkerW to keep previous behavior on unusual shells.
+            desktop_host = FindWindowExW(
                 HWND(0 as *mut c_void),
                 HWND(0 as *mut c_void),
                 windows::core::w!("WorkerW"),
@@ -104,7 +82,7 @@ pub(super) fn find_desktop_worker_w() -> Result<HWND, String> {
         }
     }
 
-    Ok(worker_w_candidate)
+    Ok(desktop_host)
 }
 
 pub(super) fn find_wallpaper_worker_w() -> HWND {
