@@ -1,4 +1,6 @@
 <script>
+  import { showDevQuickActions } from "$lib/runtime/dev-flags.js";
+
   let {
     strings,
     breakActive = false,
@@ -174,25 +176,27 @@
     </section>
   </div>
 
-  <div class="quick-test-actions">
-    <span class="quick-test-label">{strings.pomodoroBreakQuickTest || "Quick test"}</span>
-    <button
-      type="button"
-      class="btn"
-      disabled={!reminderEnabled}
-      onclick={() => onTriggerBreakSoon("mini", 10)}
-    >
-      {strings.pomodoroBreakQuickMini10s || "Mini 10s"}
-    </button>
-    <button
-      type="button"
-      class="btn"
-      disabled={!reminderEnabled}
-      onclick={() => onTriggerBreakSoon("long", 10)}
-    >
-      {strings.pomodoroBreakQuickLong10s || "Long 10s"}
-    </button>
-  </div>
+  {#if showDevQuickActions}
+    <div class="quick-test-actions">
+      <span class="quick-test-label">{strings.pomodoroBreakQuickTest || "Quick test"}</span>
+      <button
+        type="button"
+        class="btn"
+        disabled={!reminderEnabled}
+        onclick={() => onTriggerBreakSoon("mini", 10)}
+      >
+        {strings.pomodoroBreakQuickMini10s || "Mini 10s"}
+      </button>
+      <button
+        type="button"
+        class="btn"
+        disabled={!reminderEnabled}
+        onclick={() => onTriggerBreakSoon("long", 10)}
+      >
+        {strings.pomodoroBreakQuickLong10s || "Long 10s"}
+      </button>
+    </div>
+  {/if}
 
   <p class="break-hint">
     {strings.pomodoroBreakActionHint || "When reminders are enabled, the system prompts breaks after each interval."}
