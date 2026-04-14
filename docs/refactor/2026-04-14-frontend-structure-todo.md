@@ -41,9 +41,9 @@
 - 抽出贴纸样式动作：已完成第一步
   - 候选：`src/lib/note/note-style-actions.js`
   - 已覆盖：background/text color、opacity、frost、延迟保存、wheel 调整、picker 输入、cleanup。
-- 抽出编辑器能力：
+- 抽出编辑器能力：已完成第一步
   - 候选：`src/lib/note/note-editor-actions.js`
-  - 覆盖：图片粘贴、命令建议、命令插入、键盘事件。
+  - 已覆盖：图片粘贴、命令建议识别、命令插入、键盘导航、编辑保存 timer、cleanup。
 - 抽出窗口拖拽能力：已完成第一步
   - 候选：`src/lib/note/note-window-drag.js`
   - 已覆盖：manual drag state、pointer down/move/up、Tauri window position 更新、cleanup。
@@ -54,6 +54,7 @@
 当前进展：
 - 2026-04-14：完成 P0 第一轮保守拆分，详情见 `docs/refactor/2026-04-14-note-detail-structure-pass1.md`。
 - 2026-04-14：完成 P0 第二轮样式动作拆分，详情见 `docs/refactor/2026-04-14-note-detail-style-actions-pass2.md`。
+- 2026-04-14：完成 P0 第三轮编辑器动作拆分，详情见 `docs/refactor/2026-04-14-note-detail-editor-actions-pass3.md`。
 
 验收：
 - `pnpm check` 通过。

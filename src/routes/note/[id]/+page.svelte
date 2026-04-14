@@ -1,6 +1,6 @@
 <script>
   import { onMount, tick } from "svelte";
-  import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+  import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { listen } from "@tauri-apps/api/event";
   import { page } from "$app/stores";
@@ -10,8 +10,7 @@
   import NoteToolbar from "$lib/components/note/NoteToolbar.svelte";
   import SourceEditorPane from "$lib/components/note/SourceEditorPane.svelte";
   import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
-  import { expandNoteCommands, renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
-  import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
+  import { renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
   import {
     findNoteById,
     invokeNoteCommand,
@@ -20,6 +19,7 @@
   } from "$lib/note/note-window-actions.js";
   import { createNoteWindowDragController } from "$lib/note/note-window-drag.js";
   import { createNoteStyleActions } from "$lib/note/note-style-actions.js";
+  import { createNoteEditorActions } from "$lib/note/note-editor-actions.js";
   import {
     DEFAULT_NOTE_COLOR,
     DEFAULT_NOTE_FROST,
@@ -170,71 +170,6 @@
     }
   }
 
-  /** @type {any} */
-  let timeout;
-
-  /**
-   * @param {Blob} blob
-   * @returns {Promise<string>}
-   */
-  function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const raw = String(reader.result || "");
-        const base64 = raw.startsWith("data:") ? raw.split(",")[1] || "" : raw;
-        resolve(base64);
-      };
-      reader.onerror = () => reject(reader.error || new Error("read blob failed"));
-      reader.readAsDataURL(blob);
-    });
-  }
-  /** @param {Event} [event] */
-  function handleInput(event) {
-    clearTimeout(timeout);
-    timeout = setTimeout(save, 500);
-    const target =
-      /** @type {HTMLTextAreaElement | null} */ (event?.currentTarget) || editorEl;
-    updateCommandSuggestions(target);
-  }
-
-  /** @param {ClipboardEvent} event */
-  async function onEditorPaste(event) {
-    const items = event.clipboardData?.items;
-    if (!items || !editorEl) return;
-    const imageItem = Array.from(items).find(
-      (item) => item.kind === "file" && item.type.startsWith("image/"),
-    );
-    if (!imageItem) return;
-    const file = imageItem.getAsFile();
-    if (!file) return;
-
-    event.preventDefault();
-    try {
-      const dataBase64 = await blobToBase64(file);
-      const savedPath = await invoke("save_clipboard_image", {
-        noteId: resolveNoteId(note, noteId),
-        mimeType: file.type || "image/png",
-        dataBase64,
-      });
-      const imageSrc = convertFileSrc(savedPath);
-      const start = editorEl.selectionStart ?? text.length;
-      const end = editorEl.selectionEnd ?? start;
-      const label = `pasted-${new Date().toISOString().replaceAll(":", "-")}`;
-      const md = `![${label}](${imageSrc})`;
-      text = text.slice(0, start) + md + text.slice(end);
-      showCommandSuggestions = false;
-      await tick();
-      const caret = start + md.length;
-      editorEl.focus();
-      editorEl.setSelectionRange(caret, caret);
-      clearTimeout(timeout);
-      timeout = setTimeout(save, 500);
-    } catch (e) {
-      console.error("onEditorPaste", e);
-    }
-  }
-
   async function enterEditMode() {
     if (clickThrough) return;
     isEditing = true;
@@ -305,74 +240,6 @@
     }
   }
 
-  /**
-   * @param {HTMLTextAreaElement | null} target
-   */
-  function updateCommandSuggestions(target) {
-    if (!target) {
-      showCommandSuggestions = false;
-      return;
-    }
-    const token = findSourceCommandToken(text, target.selectionStart ?? 0);
-    if (!token) {
-      showCommandSuggestions = false;
-      commandQuery = "";
-      return;
-    }
-    commandQuery = token.query;
-    showCommandSuggestions = true;
-    commandActiveIndex = 0;
-  }
-
-  /**
-   * @param {number} index
-   */
-  async function applyCommandSuggestion(index) {
-    if (!editorEl) return;
-    const items = commandSuggestions;
-    if (!items.length) return;
-    const selected = items[Math.max(0, Math.min(index, items.length - 1))];
-    const caret = editorEl.selectionStart ?? 0;
-    const suffix = text.slice(caret);
-    const inserted = applySourceCommandInsert({
-      text,
-      caret,
-      insert: selected.insert,
-    });
-    if (!inserted) return;
-    const transformed = expandNoteCommands(inserted.nextText);
-    text = transformed;
-    showCommandSuggestions = false;
-    commandQuery = "";
-    await tick();
-    const nextCaret = Math.max(0, transformed.length - suffix.length);
-    editorEl.focus();
-    editorEl.setSelectionRange(nextCaret, nextCaret);
-    clearTimeout(timeout);
-    timeout = setTimeout(save, 500);
-  }
-
-  /** @param {KeyboardEvent} e */
-  function onEditorKeydown(e) {
-    if (!showCommandSuggestions || commandSuggestions.length === 0) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      commandActiveIndex = Math.min(
-        commandActiveIndex + 1,
-        commandSuggestions.length - 1,
-      );
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      commandActiveIndex = Math.max(commandActiveIndex - 1, 0);
-    } else if (e.key === "Enter" || e.key === "Tab") {
-      e.preventDefault();
-      applyCommandSuggestion(commandActiveIndex);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      showCommandSuggestions = false;
-    }
-  }
-
   /** @param {HTMLElement | null} target */
   function dismissFloatingPanelsOnPointerDown(target) {
     if (!target) return;
@@ -429,6 +296,23 @@
     setShowFrostValue: (visible) => (showFrostValue = visible),
     defaultOpacity: DEFAULT_NOTE_OPACITY,
     defaultFrost: DEFAULT_NOTE_FROST,
+  });
+
+  const noteEditorActions = createNoteEditorActions({
+    invoke,
+    tick,
+    save,
+    getNote: () => note,
+    getNoteId: () => noteId,
+    getText: () => text,
+    setText: (next) => (text = next),
+    getEditorEl: () => editorEl,
+    getShowCommandSuggestions: () => showCommandSuggestions,
+    getCommandSuggestions: () => commandSuggestions,
+    getCommandActiveIndex: () => commandActiveIndex,
+    setShowCommandSuggestions: (visible) => (showCommandSuggestions = visible),
+    setCommandQuery: (query) => (commandQuery = query),
+    setCommandActiveIndex: (index) => (commandActiveIndex = index),
   });
 
   async function toggleDone() {
@@ -574,6 +458,7 @@
       }
       noteWindowDrag.endManualWindowDrag();
       noteStyleActions.dispose();
+      noteEditorActions.dispose();
     };
   });
 </script>
@@ -605,10 +490,10 @@
         {showCommandSuggestions}
         {commandSuggestionItems}
         {commandActiveIndex}
-        onInput={handleInput}
-        onPaste={onEditorPaste}
-        onKeydown={onEditorKeydown}
-        onApplyCommandSuggestion={applyCommandSuggestion}
+        onInput={noteEditorActions.handleInput}
+        onPaste={noteEditorActions.onEditorPaste}
+        onKeydown={noteEditorActions.onEditorKeydown}
+        onApplyCommandSuggestion={noteEditorActions.applyCommandSuggestion}
       />
     {:else}
       <NotePreview html={renderedMarkdown} />
