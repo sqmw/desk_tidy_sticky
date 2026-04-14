@@ -55,16 +55,11 @@
   import { formatSecondsBrief, sendDesktopNotification } from "$lib/workspace/break-control/focus-break-notify.js";
   import {
     buildBreakOverlayPayload as buildBreakOverlayPayloadFromState,
-    buildBreakOverlayPayloadKey,
     buildBreakWatchdogSnapshot,
     buildBreakNotification,
     getBreakProgressPercent,
   } from "$lib/workspace/break-control/break-control-controller.js";
-  import {
-    closeBreakOverlayWindows,
-    emitBreakOverlayState,
-    ensureBreakOverlayWindows,
-  } from "$lib/workspace/break-control/focus-break-overlay-windows.js";
+  import { createBreakOverlayLifecycle } from "$lib/workspace/break-control/break-overlay-lifecycle.js";
   import { mountBreakControlEventListeners } from "$lib/workspace/break-control/break-control-event-listeners.js";
   import {
     getRemainingFromDeadline,
@@ -150,20 +145,10 @@
   let lastBreakReminderAtSec = $state(-1);
   let notifyEnabled = $state(false);
   let notifyChecked = $state(false);
-  /** @type {string[]} */
-  let breakOverlayLabels = $state([]);
-  let breakOverlaySyncNonce = 0;
-  let overlayLifecycleActive = false;
-  let overlayClosing = false;
-  let overlaySyncInFlight = false;
-  let overlaySyncQueued = false;
-  let lastOverlayPayloadKey = "";
   let timerRuntimeRestored = false;
   /** @type {Set<string>} */
   let sentTaskStartReminderKeys = new Set();
   let taskStartReminderDateKey = "";
-  /** @type {null | Promise<string[]>} */
-  let overlayEnsurePromise = null;
   /** @type {"mini" | "long" | ""} */
   let activeBreakKind = $state("");
   let breakRemainingSec = $state(0);
@@ -499,6 +484,11 @@
     clampInt,
   });
 
+  const breakOverlayLifecycle = createBreakOverlayLifecycle({
+    getBreakTimerActive: () => breakTimerActive,
+    buildPayload: () => buildBreakOverlayPayload(),
+  });
+
   /**
    * @param {number} [nowTs]
    */
@@ -547,7 +537,7 @@
       skipUnlockedAfterPostpone = false;
     }
     if (closeOverlay) {
-      closeBreakOverlayEverywhere(true).catch((error) =>
+      breakOverlayLifecycle.closeEverywhere(true).catch((error) =>
         console.error("focus close break overlay windows", error),
       );
     }
@@ -976,87 +966,6 @@
     });
   }
 
-  async function ensureBreakOverlayLabels() {
-    if (Array.isArray(breakOverlayLabels) && breakOverlayLabels.length > 0) {
-      return breakOverlayLabels;
-    }
-    if (overlayEnsurePromise) {
-      return overlayEnsurePromise;
-    }
-    overlayEnsurePromise = ensureBreakOverlayWindows()
-      .then((labels) => {
-        const safeLabels = Array.isArray(labels)
-          ? Array.from(new Set(labels.map((label) => String(label || "")).filter(Boolean)))
-          : [];
-        breakOverlayLabels = safeLabels;
-        return safeLabels;
-      })
-      .catch((error) => {
-        console.error("focus ensure break overlay windows", error);
-        breakOverlayLabels = [];
-        return [];
-      })
-      .finally(() => {
-        overlayEnsurePromise = null;
-      });
-    return overlayEnsurePromise;
-  }
-
-  async function syncBreakOverlay() {
-    if (!breakTimerActive) return;
-    if (overlayClosing) return;
-    if (overlaySyncInFlight) {
-      overlaySyncQueued = true;
-      return;
-    }
-    overlaySyncInFlight = true;
-    try {
-      const labels = await ensureBreakOverlayLabels();
-      if (!Array.isArray(labels) || labels.length === 0) return;
-      const payload = buildBreakOverlayPayload();
-      const payloadKey = buildBreakOverlayPayloadKey(labels, payload);
-      if (payloadKey === lastOverlayPayloadKey) return;
-      lastOverlayPayloadKey = payloadKey;
-      const healthyLabels = await emitBreakOverlayState(labels, payload);
-      if (healthyLabels.length !== labels.length) {
-        breakOverlayLabels = healthyLabels;
-        lastOverlayPayloadKey = "";
-      }
-    } finally {
-      overlaySyncInFlight = false;
-      if (overlaySyncQueued) {
-        overlaySyncQueued = false;
-        syncBreakOverlay().catch((error) => console.error("focus queued sync break overlay", error));
-      }
-    }
-  }
-
-  /**
-   * @param {boolean} [force]
-   */
-  async function closeBreakOverlayEverywhere(force = false) {
-    if (overlayClosing) return;
-    const labels = Array.isArray(breakOverlayLabels) ? [...breakOverlayLabels] : [];
-    if (!force && labels.length === 0) return;
-    overlayClosing = true;
-    try {
-      if (labels.length > 0) {
-        try {
-          await emitBreakOverlayState(labels, { close: true });
-        } catch (error) {
-          console.error("focus emit break overlay close", error);
-        }
-      }
-      await closeBreakOverlayWindows();
-    } finally {
-      if (breakOverlayLabels.length > 0) breakOverlayLabels = [];
-      overlayEnsurePromise = null;
-      breakOverlaySyncNonce += 1;
-      lastOverlayPayloadKey = "";
-      overlayClosing = false;
-    }
-  }
-
   function onFocusCompleted() {
     const settledAtTs = focusDeadlineTs > 0 ? focusDeadlineTs : Date.now();
     const nextStats = buildFocusCompletedStats({
@@ -1176,22 +1085,7 @@
   });
 
   $effect(() => {
-    const active = breakTimerActive;
-    if (active === overlayLifecycleActive) return;
-    overlayLifecycleActive = active;
-    if (!active) {
-      closeBreakOverlayEverywhere(true).catch((error) =>
-        console.error("focus close break overlay windows", error),
-      );
-      return;
-    }
-    const nonce = ++breakOverlaySyncNonce;
-    (async () => {
-      const labels = await ensureBreakOverlayLabels();
-      if (nonce !== breakOverlaySyncNonce) return;
-      if (!Array.isArray(labels) || labels.length === 0) return;
-      await syncBreakOverlay();
-    })();
+    breakOverlayLifecycle.syncActiveState();
   });
 
   $effect(() => {
@@ -1201,7 +1095,7 @@
     breakRemainingSec = 0;
     breakDeadlineTs = 0;
     skipUnlockedAfterPostpone = false;
-    closeBreakOverlayEverywhere(true).catch((error) =>
+    breakOverlayLifecycle.closeEverywhere(true).catch((error) =>
       console.error("focus force close overlay at zero", error),
     );
   });
@@ -1211,12 +1105,10 @@
     const _tick = breakRemainingSec;
     const _skipReady = skipUnlockedAfterPostpone;
     const _strict = safeConfig.breakStrictMode;
-    const _labelsCount = breakOverlayLabels.length;
     void _tick;
     void _skipReady;
     void _strict;
-    void _labelsCount;
-    syncBreakOverlay().catch((error) => {
+    breakOverlayLifecycle.sync().catch((error) => {
       console.error("focus sync break overlay", error);
     });
   });
@@ -1267,12 +1159,7 @@
       onOverlayReady: (label) => {
         if (!label) return;
         if (!breakTimerActive) return;
-        if (!breakOverlayLabels.includes(label)) {
-          breakOverlayLabels = [...breakOverlayLabels, label];
-        }
-        emitBreakOverlayState([label], buildBreakOverlayPayload()).catch((error) =>
-          console.error("focus emit break overlay ready sync", error),
-        );
+        breakOverlayLifecycle.handleReady(label);
       },
       onBreakDue: (kind) => {
         if (!safeConfig.breakReminderEnabled) return;
@@ -1283,7 +1170,7 @@
         );
         applyBreakNow(kind);
       },
-      onDestroy: () => closeBreakOverlayEverywhere(true),
+      onDestroy: () => breakOverlayLifecycle.closeEverywhere(true),
     })
   );
 
