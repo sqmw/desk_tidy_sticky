@@ -30,7 +30,7 @@
   - `src/lib/components/workspace/WorkspaceSidebar.svelte`：约 623 行。
   - `src/routes/note/[id]/+page.svelte`：约 575 行。
   - `src/lib/workspace/theme/theme-default-template.js`：约 755 行。
-  - `src/lib/components/panel/NotesSection.svelte`：约 713 行。
+  - `src/lib/components/panel/NotesSection.svelte`：约 144 行。
 
 ## 阶段计划
 
@@ -203,7 +203,8 @@
 - `src/lib/workspace/theme/theme-default-template.js`
   - 可考虑拆为 token sections 或模板片段。
 - `src/lib/components/panel/NotesSection.svelte`
-  - 可按 list rendering、drag ghost、trash/archive action 分层。
+  - 可按 list rendering、drag ghost、trash/archive action 分层：已完成第一步。
+  - 已覆盖：按视图模式拆分为 `notes/NotesLinearList.svelte` 与 `notes/NotesQuadrantBoard.svelte`。
 - `src/lib/components/workspace/WorkspaceSettingsDialog.svelte`
   - 可按 theme/display/startup/break settings 分组组件：已完成第一步。
   - 已覆盖：general、theme、display 三段表现层组件拆分。
@@ -214,6 +215,7 @@
 
 当前进展：
 - 2026-04-14：完成 P4 第一轮 workspace settings dialog 表现层拆分，详情见 `docs/refactor/2026-04-14-workspace-settings-dialog-pass1.md`。
+- 2026-04-14：完成 P4 第二轮 NotesSection 视图模式拆分，详情见 `docs/refactor/2026-04-14-notes-section-view-split-pass2.md`。
 
 ## 已有关联文档
 - `docs/refactor/2026-04-13-frontend-functional-split-pass1.md`
