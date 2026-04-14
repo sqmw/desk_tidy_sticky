@@ -110,6 +110,9 @@
 
   let phase = $state(PHASE_FOCUS);
   let remainingSec = $state(25 * 60);
+  // Total duration (seconds) for the current focus cycle. Used for progress UI so config edits
+  // won't retroactively change an in-flight cycle.
+  let focusTotalSec = $state(25 * 60);
   let focusDeadlineTs = $state(0);
   let running = $state(false);
   let hasStarted = $state(false);
@@ -243,9 +246,9 @@
   const breakSessionRemainingText = $derived(getBreakSessionRemainingText(localBreakSession, nowTick));
   const breakTimerActive = $derived(Boolean(activeBreakKind) && breakRemainingSec > 0);
   const focusProgressPercent = $derived.by(() => {
-    const focusDurationSec = Math.max(1, getFocusDurationSec());
-    const elapsedSec = Math.max(0, Math.min(focusDurationSec, focusDurationSec - pomodoroRemainingSeconds));
-    return (elapsedSec / focusDurationSec) * 100;
+    const total = Math.max(1, Math.max(pomodoroRemainingSeconds, Math.floor(Number(focusTotalSec || 0))));
+    const elapsedSec = Math.max(0, Math.min(total, total - pomodoroRemainingSeconds));
+    return (elapsedSec / total) * 100;
   });
   const breakProgressPercent = $derived.by(() => {
     return getBreakProgressPercent({
@@ -265,6 +268,7 @@
   function setTimerRuntime(patch) {
     if ("phase" in patch) phase = patch.phase;
     if ("remainingSec" in patch) remainingSec = patch.remainingSec;
+    if ("focusTotalSec" in patch) focusTotalSec = patch.focusTotalSec;
     if ("focusDeadlineTs" in patch) focusDeadlineTs = patch.focusDeadlineTs;
     if ("running" in patch) running = patch.running;
     if ("hasStarted" in patch) hasStarted = patch.hasStarted;
@@ -378,7 +382,9 @@
   function completeFocusCycle() {
     completedFocusCount += 1;
     phase = PHASE_FOCUS;
-    remainingSec = getFocusDurationSec();
+    const nextDurationSec = getFocusDurationSec();
+    remainingSec = nextDurationSec;
+    focusTotalSec = nextDurationSec;
     focusDeadlineTs = 0;
     running = false;
     hasStarted = Boolean(selectedTaskId);
@@ -452,6 +458,7 @@
 
   const focusTimerController = createFocusTimerController({
     getFocusDurationSec,
+    getFocusTotalSec: () => focusTotalSec,
     getSafeConfig: () => safeConfig,
     getPhase: () => phase,
     getSelectedTaskId: () => selectedTaskId,
@@ -867,6 +874,7 @@
     if (running || hasStarted) return;
     const target = getFocusDurationSec();
     if (remainingSec !== target) remainingSec = target;
+    if (focusTotalSec !== target) focusTotalSec = target;
     if (focusDeadlineTs !== 0) focusDeadlineTs = 0;
     if (phase !== PHASE_FOCUS) phase = PHASE_FOCUS;
   });

@@ -1,4 +1,6 @@
 <script>
+  import HelpTip from "$lib/components/workspace/ui/HelpTip.svelte";
+
   let {
     strings,
     timerText = "00:00",
@@ -73,7 +75,14 @@
         <strong class="timer-task-value">{taskText}</strong>
       </div>
       <div class="timer-stat-chip" aria-label={strings.pomodoroTodayPomodoros || "Today pomodoros"}>
-        <span class="timer-meta-label">{strings.pomodoroTodayPomodoros || "Today pomodoros"}</span>
+        <span class="timer-meta-label">
+          {strings.pomodoroTodayPomodoros || "Today total pomodoros"}
+          <HelpTip
+            text={strings.pomodoroTodayPomodorosHint ||
+              "Counts completed pomodoros today (all tasks). Per-task counts are shown in the task list."}
+            ariaLabel="Pomodoro total help"
+          />
+        </span>
         <strong>🍅 {todayPomodoroScoreText}</strong>
       </div>
     </div>
@@ -227,6 +236,9 @@
   }
 
   .timer-meta-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     font-size: 11px;
     color: var(--ws-muted, #64748b);
   }

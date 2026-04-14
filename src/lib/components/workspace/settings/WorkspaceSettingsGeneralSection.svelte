@@ -1,14 +1,17 @@
 <script>
   import TargetPomodoroInput from "$lib/components/workspace/pomodoro/TargetPomodoroInput.svelte";
+  import HelpTip from "$lib/components/workspace/ui/HelpTip.svelte";
 
   let {
     strings,
     locale = "en",
     isAutostartEnabled = false,
     showPanelOnStartup = false,
+    pomodoroFocusMinutes = 25,
     taskStartReminderLeadMinutes = 10,
     toggleAutostart = async () => {},
     onSavePrefs = async () => {},
+    onChangePomodoroFocusMinutes = async () => {},
     onChangeTaskStartReminderLeadMinutes = async () => {},
     onChangeLanguage = () => {},
   } = $props();
@@ -77,6 +80,34 @@
         max={60}
         title={strings.pomodoroTaskReminderDefaultLeadMinutes || "Default task reminder lead time (min)"}
         onCommit={(/** @type {number} */ nextMinutes) => onChangeTaskStartReminderLeadMinutes(nextMinutes)}
+      />
+    </label>
+  </div>
+</section>
+
+<section class="settings-section compact-section">
+  <div class="setting-stack">
+    <div class="setting-stack-head">
+      <span>{strings.pomodoro || "Pomodoro"}</span>
+    </div>
+
+    <label class="setting-row compact-control-row">
+      <span class="setting-toggle-copy">
+        <span class="setting-toggle-title setting-title-with-tip">
+          {strings.pomodoroFocusMinutes || "Pomodoro duration (min)"}
+          <HelpTip
+            text={strings.pomodoroFocusMinutesHint ||
+              "A pomodoro is counted after this full duration completes. Changes apply to new cycles."}
+            ariaLabel="Pomodoro duration help"
+          />
+        </span>
+      </span>
+      <TargetPomodoroInput
+        value={pomodoroFocusMinutes}
+        min={5}
+        max={90}
+        title={strings.pomodoroFocusMinutes || "Pomodoro duration (min)"}
+        onCommit={(/** @type {number} */ nextMinutes) => onChangePomodoroFocusMinutes(nextMinutes)}
       />
     </label>
   </div>
@@ -168,6 +199,13 @@
     font-size: 13px;
     font-weight: 700;
     line-height: 1.2;
+  }
+
+  .setting-title-with-tip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
   .toggle-switch {

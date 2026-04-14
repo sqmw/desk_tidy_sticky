@@ -30,6 +30,7 @@ function normalizeRuntime(raw) {
     phase,
     selectedTaskId: String(obj.selectedTaskId || ""),
     remainingSec: Math.max(0, Math.floor(safeNumber(obj.remainingSec, 25 * 60))),
+    focusTotalSec: Math.max(1, Math.floor(safeNumber(obj.focusTotalSec, 25 * 60))),
     running: safeBool(obj.running, false),
     hasStarted: safeBool(obj.hasStarted, false),
     taskTimingActive: safeBool(obj.taskTimingActive, false),

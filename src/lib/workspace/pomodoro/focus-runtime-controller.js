@@ -25,6 +25,7 @@ export function buildRestoredTimerRuntime(input) {
         ...input.cached,
         phase: PHASE_FOCUS,
         remainingSec: input.focusDurationSec,
+        focusTotalSec: input.focusDurationSec,
         focusDeadlineTs: 0,
         running: false,
         hasStarted: false,
@@ -41,6 +42,10 @@ export function buildRestoredTimerRuntime(input) {
           : Math.max(0, Math.floor(Number(restored.remainingSec || 0)) - cachedAgeSec)
       )
     : Math.max(0, Math.floor(Number(restored.remainingSec || 0)));
+  const restoredFocusTotalSec = Math.max(
+    restoredFocusRemaining,
+    Math.max(1, Math.floor(Number(restored.focusTotalSec || input.focusDurationSec || 0))),
+  );
   const restoredBreakRemaining = restored.activeBreakKind
     ? (
         restored.breakDeadlineTs > 0
@@ -56,6 +61,7 @@ export function buildRestoredTimerRuntime(input) {
   return {
     phase: restored.phase,
     remainingSec: restoredFocusRemaining,
+    focusTotalSec: restoredFocusTotalSec,
     focusDeadlineTs: restored.running && restoredFocusRemaining > 0
       ? (
           restored.focusDeadlineTs > 0
@@ -108,6 +114,7 @@ export function buildTimerRuntimeCacheSnapshot(runtime) {
     phase: runtime.phase,
     selectedTaskId: runtime.selectedTaskId,
     remainingSec: runtime.remainingSec,
+    focusTotalSec: runtime.focusTotalSec,
     focusDeadlineTs: runtime.focusDeadlineTs,
     running: runtime.running,
     hasStarted: runtime.hasStarted,

@@ -13,6 +13,7 @@ import {
 /**
  * @param {{
  *   getFocusDurationSec: (config?: any) => number;
+ *   getFocusTotalSec: () => number;
  *   getSafeConfig: () => any;
  *   getPhase: () => string;
  *   getSelectedTaskId: () => string;
@@ -63,6 +64,7 @@ export function createFocusTimerController(input) {
       phase: input.getPhase(),
       selectedTaskId: input.getSelectedTaskId(),
       remainingSec: input.getRemainingSec(),
+      focusTotalSec: input.getFocusTotalSec(),
       focusDeadlineTs: input.getFocusDeadlineTs(),
       running: input.getRunning(),
       hasStarted: input.getHasStarted(),
@@ -91,8 +93,11 @@ export function createFocusTimerController(input) {
   function toggleRunning() {
     const currentRemainingSec = input.getRemainingSec();
     const remaining = currentRemainingSec <= 0 ? input.getFocusDurationSec() : currentRemainingSec;
+    const currentTotalSec = input.getFocusTotalSec();
+    const focusTotalSec = currentRemainingSec <= 0 ? remaining : Math.max(0, Math.max(currentTotalSec, remaining));
     input.setTimerRuntime({
       remainingSec: remaining,
+      focusTotalSec,
       phase: PHASE_FOCUS,
     });
     const nextRunning = !input.getRunning();
@@ -126,6 +131,7 @@ export function createFocusTimerController(input) {
       hasStarted: false,
       taskTimingActive: false,
       remainingSec: input.getFocusDurationSec(),
+      focusTotalSec: input.getFocusDurationSec(),
       taskSessionStartedAtTs: 0,
     });
   }
@@ -145,6 +151,7 @@ export function createFocusTimerController(input) {
     if (!input.getRunning() && input.getPhase() === PHASE_FOCUS) {
       input.setTimerRuntime({
         remainingSec: safeMinutes * 60,
+        focusTotalSec: safeMinutes * 60,
         focusDeadlineTs: 0,
       });
     }

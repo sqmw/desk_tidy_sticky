@@ -10,6 +10,7 @@
     isAutostartEnabled = false,
     showPanelOnStartup = $bindable(false),
     taskStartReminderLeadMinutes = 10,
+    pomodoroFocusMinutes = 25,
     zoomOption = "auto",
     fontSize = "medium",
     sidebarLayoutMode = "auto",
@@ -18,6 +19,7 @@
     toggleAutostart = async () => {},
     onSavePrefs = async () => {},
     onChangeTaskStartReminderLeadMinutes = async () => {},
+    onChangePomodoroFocusMinutes = async () => {},
     themeCustomCss = "",
     onChangeLanguage = () => {},
     onChangeThemePreset = () => {},
@@ -110,9 +112,11 @@
           {isAutostartEnabled}
           {showPanelOnStartup}
           {taskStartReminderLeadMinutes}
+          {pomodoroFocusMinutes}
           {toggleAutostart}
           {onSavePrefs}
           {onChangeTaskStartReminderLeadMinutes}
+          {onChangePomodoroFocusMinutes}
           {onChangeLanguage}
         />
 

@@ -819,6 +819,7 @@
   {isAutostartEnabled}
   bind:showPanelOnStartup
   taskStartReminderLeadMinutes={pomodoroConfig.taskStartReminderLeadMinutes}
+  pomodoroFocusMinutes={pomodoroConfig.focusMinutes}
   themePreset={workspaceTheme}
   themePresetOptions={workspaceThemePresetOptions}
   themeCustomCss={workspaceCustomCss}
@@ -832,6 +833,11 @@
     changePomodoroConfig({
       ...pomodoroConfig,
       taskStartReminderLeadMinutes: nextMinutes,
+    })}
+  onChangePomodoroFocusMinutes={(/** @type {number} */ nextMinutes) =>
+    changePomodoroConfig({
+      ...pomodoroConfig,
+      focusMinutes: nextMinutes,
     })}
   onChangeThemePreset={handleWorkspaceThemePresetChange}
   onExportThemeCss={exportWorkspaceThemeCss}
