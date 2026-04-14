@@ -118,7 +118,6 @@
   let selectedTaskId = $state("");
   let lastSyncedSelectedTaskId = $state("");
   let lastCommandNonce = $state(0);
-  let showConfig = $state(false);
   let showBreakPanel = $state(false);
   let showStats = $state(false);
   let nowTick = $state(Date.now());
@@ -132,8 +131,6 @@
   let draftRecurrence = $state(RECURRENCE.NONE);
   let draftWeekdays = $state([1, 2, 3, 4, 5]);
   let draftFocusMinutes = $state(25);
-  let draftTaskStartReminderEnabled = $state(false);
-  let draftTaskStartReminderLeadMinutes = $state(10);
   let focusSinceBreakSec = $state(0);
   let nextMiniBreakAtSec = $state(10 * 60);
   let nextLongBreakAtSec = $state(30 * 60);
@@ -305,12 +302,6 @@
     if ("draftRecurrence" in patch) draftRecurrence = patch.draftRecurrence;
     if ("draftWeekdays" in patch) draftWeekdays = patch.draftWeekdays;
     if ("draftFocusMinutes" in patch) draftFocusMinutes = patch.draftFocusMinutes;
-    if ("draftTaskStartReminderEnabled" in patch) {
-      draftTaskStartReminderEnabled = patch.draftTaskStartReminderEnabled;
-    }
-    if ("draftTaskStartReminderLeadMinutes" in patch) {
-      draftTaskStartReminderLeadMinutes = patch.draftTaskStartReminderLeadMinutes;
-    }
   }
 
   function shouldTickBreakReminderClock() {
@@ -507,7 +498,6 @@
   const taskDraftController = createFocusTaskDraftController({
     getTasks: () => tasks,
     getStats: () => stats,
-    getSafeConfig: () => safeConfig,
     getSelectedTaskId: () => selectedTaskId,
     getTaskTimingActive: () => taskTimingActive,
     getRunning: () => running,
@@ -522,17 +512,11 @@
     getDraftEndTime: () => draftEndTime,
     getDraftRecurrence: () => draftRecurrence,
     getDraftWeekdays: () => draftWeekdays,
-    getDraftFocusMinutes: () => draftFocusMinutes,
-    getDraftTaskStartReminderEnabled: () => draftTaskStartReminderEnabled,
-    getDraftTaskStartReminderLeadMinutes: () => draftTaskStartReminderLeadMinutes,
-    getShowConfig: () => showConfig,
     setFocusRuntime: setTimerRuntime,
     setDraftState,
-    setShowConfig: (show) => (showConfig = show),
     pauseActiveTaskSession,
     emitTasks,
     emitStats,
-    onPomodoroConfigChange: (config) => onPomodoroConfigChange(config),
     ensureNotificationPermissionFromUserGesture,
   });
 
@@ -684,7 +668,6 @@
    * @param {number} nowTs
    */
   function tickTaskStartReminderClock(nowTs) {
-    if (!safeConfig.taskStartReminderEnabled) return;
     if (!notifyEnabled) return;
     const now = new Date(nowTs);
     const dateKey = getDateKey(now);
@@ -699,6 +682,7 @@
     for (const task of tasksForToday) {
       const taskId = String(task?.id || "");
       if (!taskId) continue;
+      if (task?.taskStartReminderEnabled !== true) continue;
       const sentKey = `${dateKey}:${taskId}`;
       if (sentTaskStartReminderKeys.has(sentKey)) continue;
       const startMinutes = timeToMinutes(String(task.startTime || "00:00"));
@@ -1185,10 +1169,7 @@
   bind:draftEndTime
   bind:draftRecurrence
   bind:draftWeekdays
-  bind:draftTaskStartReminderEnabled
-  bind:draftTaskStartReminderLeadMinutes
   bind:showBreakPanel
-  bind:showConfig
   bind:showStats
   {pomodoroTimerText}
   nextMiniBreakCountdownText={formatTimer(nextMiniBreakCountdown)}
@@ -1238,7 +1219,6 @@
   onPostponeBreak={postponeBreak}
   onSkipBreak={skipBreak}
   onAddTask={taskDraftController.addTask}
-  onToggleSettings={taskDraftController.toggleTimerSettings}
   onToggleWeekday={taskDraftController.toggleDraftWeekday}
   onStartTask={taskDraftController.startTaskFocus}
   onToggleTask={focusTimerController.toggleRunning}
@@ -1246,6 +1226,4 @@
   onUpdateTask={taskDraftController.updateTask}
   onApplyFocusMinutes={focusTimerController.applyFocusPreset}
   {weekdayLabel}
-  onSaveSettings={taskDraftController.saveTimerConfig}
-  onCancelSettings={() => (showConfig = false)}
 />

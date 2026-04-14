@@ -9,6 +9,7 @@
     locale = "en",
     isAutostartEnabled = false,
     showPanelOnStartup = $bindable(false),
+    taskStartReminderLeadMinutes = 10,
     zoomOption = "auto",
     fontSize = "medium",
     sidebarLayoutMode = "auto",
@@ -16,6 +17,7 @@
     themePresetOptions = [],
     toggleAutostart = async () => {},
     onSavePrefs = async () => {},
+    onChangeTaskStartReminderLeadMinutes = async () => {},
     themeCustomCss = "",
     onChangeLanguage = () => {},
     onChangeThemePreset = () => {},
@@ -107,8 +109,10 @@
           {locale}
           {isAutostartEnabled}
           {showPanelOnStartup}
+          {taskStartReminderLeadMinutes}
           {toggleAutostart}
           {onSavePrefs}
+          {onChangeTaskStartReminderLeadMinutes}
           {onChangeLanguage}
         />
 

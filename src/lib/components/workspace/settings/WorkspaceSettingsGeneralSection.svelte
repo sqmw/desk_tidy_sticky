@@ -1,11 +1,15 @@
 <script>
+  import TargetPomodoroInput from "$lib/components/workspace/pomodoro/TargetPomodoroInput.svelte";
+
   let {
     strings,
     locale = "en",
     isAutostartEnabled = false,
     showPanelOnStartup = false,
+    taskStartReminderLeadMinutes = 10,
     toggleAutostart = async () => {},
     onSavePrefs = async () => {},
+    onChangeTaskStartReminderLeadMinutes = async () => {},
     onChangeLanguage = () => {},
   } = $props();
 </script>
@@ -59,6 +63,21 @@
         />
         <span class="toggle-slider"></span>
       </span>
+    </label>
+
+    <label class="setting-row compact-control-row">
+      <span class="setting-toggle-copy">
+        <span class="setting-toggle-title">
+          {strings.pomodoroTaskReminderDefaultLeadMinutes || "Default task reminder lead time (min)"}
+        </span>
+      </span>
+      <TargetPomodoroInput
+        value={taskStartReminderLeadMinutes}
+        min={1}
+        max={60}
+        title={strings.pomodoroTaskReminderDefaultLeadMinutes || "Default task reminder lead time (min)"}
+        onCommit={(/** @type {number} */ nextMinutes) => onChangeTaskStartReminderLeadMinutes(nextMinutes)}
+      />
     </label>
   </div>
 </section>
@@ -132,6 +151,10 @@
     border-radius: 10px;
     padding: 10px 12px;
     background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.96)) 55%, var(--ws-btn-bg, #fbfdff));
+  }
+
+  .compact-control-row {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .setting-toggle-copy {

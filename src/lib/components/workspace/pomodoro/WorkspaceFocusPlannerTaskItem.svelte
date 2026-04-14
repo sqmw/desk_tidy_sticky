@@ -30,6 +30,7 @@
   let editEndTime = $state("10:00");
   let editRecurrence = $state("none");
   let editWeekdays = $state([1, 2, 3, 4, 5]);
+  let editTaskStartReminderEnabled = $state(false);
 
   function beginEdit() {
     editTitle = String(task?.title || "");
@@ -39,6 +40,7 @@
     editEndTime = String(task?.endTime || "10:00");
     editRecurrence = String(task?.recurrence || recurrence.NONE);
     editWeekdays = Array.isArray(task?.weekdays) ? [...task.weekdays] : [1, 2, 3, 4, 5];
+    editTaskStartReminderEnabled = task?.taskStartReminderEnabled === true;
     editing = true;
   }
 
@@ -69,6 +71,7 @@
       endTime: editEndTime,
       recurrence: nextRecurrence,
       weekdays: nextRecurrence === recurrence.CUSTOM ? editWeekdays : [],
+      taskStartReminderEnabled: editTaskStartReminderEnabled,
     });
     editing = false;
   }
@@ -151,6 +154,10 @@
         {/each}
       </div>
     {/if}
+    <label class="edit-toggle-row">
+      <span>{strings.pomodoroTaskStartReminderToggle || "Task start reminder"}</span>
+      <input type="checkbox" bind:checked={editTaskStartReminderEnabled} />
+    </label>
     <div class="task-actions">
       <button type="button" class="btn tiny primary" onclick={() => saveEdit()}>{strings.saveNote}</button>
       <button type="button" class="btn tiny" onclick={() => cancelEdit()}>{strings.cancel}</button>
@@ -256,6 +263,28 @@
     display: grid;
     gap: 8px;
     align-items: stretch;
+  }
+
+  .edit-toggle-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    min-height: 40px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #dbe4ef) 82%, transparent);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent);
+    color: var(--ws-text, #334155);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .edit-toggle-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--ws-accent, #1d4ed8);
+    cursor: pointer;
   }
 
   .task-main {

@@ -161,6 +161,7 @@ export function removeTaskFromState(tasks, stats, taskId) {
  * endTime?: string;
  * recurrence?: string;
  * weekdays?: number[];
+ * taskStartReminderEnabled?: boolean;
  * }} patch
  */
 export function updateTaskInState(tasks, taskId, patch) {

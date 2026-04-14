@@ -16,7 +16,6 @@ import { toggleDraftWeekdayValue } from "$lib/workspace/pomodoro/focus-task-cont
  * @param {{
  *   getTasks: () => any[];
  *   getStats: () => Record<string, any>;
- *   getSafeConfig: () => Record<string, any>;
  *   getSelectedTaskId: () => string;
  *   getTaskTimingActive: () => boolean;
  *   getRunning: () => boolean;
@@ -31,20 +30,14 @@ import { toggleDraftWeekdayValue } from "$lib/workspace/pomodoro/focus-task-cont
  *   getDraftEndTime: () => string;
  *   getDraftRecurrence: () => string;
  *   getDraftWeekdays: () => number[];
- *   getDraftFocusMinutes: () => number;
- *   getDraftTaskStartReminderEnabled: () => boolean;
- *   getDraftTaskStartReminderLeadMinutes: () => number;
- *   getShowConfig: () => boolean;
  *   setFocusRuntime: (patch: Record<string, any>) => void;
  *   setDraftState: (patch: Record<string, any>) => void;
- *   setShowConfig: (show: boolean) => void;
  *   pauseActiveTaskSession: (
  *     settleUntilTs?: number,
  *     options?: { keepStarted?: boolean; clearSelection?: boolean; pauseFocusTimer?: boolean },
  *   ) => any;
  *   emitTasks: (tasks: any[]) => void;
  *   emitStats: (stats: Record<string, any>) => void;
- *   onPomodoroConfigChange: (config: any) => any;
  *   ensureNotificationPermissionFromUserGesture: () => any;
  * }} input
  */
@@ -109,14 +102,20 @@ export function createFocusTaskDraftController(input) {
   /**
    * @param {string} taskId
    * @param {{
-   * title?: string;
-   * startTime?: string;
-   * endTime?: string;
-   * recurrence?: string;
-   * weekdays?: number[];
+   *   title?: string;
+   *   startTime?: string;
+   *   endTime?: string;
+   *   recurrence?: string;
+   *   weekdays?: number[];
+   *   taskStartReminderEnabled?: boolean;
    * }} patch
    */
   function updateTask(taskId, patch) {
+    if (patch?.taskStartReminderEnabled === true) {
+      Promise.resolve(input.ensureNotificationPermissionFromUserGesture()).catch((error) =>
+        console.error("focus request notification permission for task reminder", error),
+      );
+    }
     input.emitTasks(updateTaskInState(input.getTasks(), taskId, patch));
   }
 
@@ -151,79 +150,12 @@ export function createFocusTaskDraftController(input) {
     });
   }
 
-  function saveTimerConfig() {
-    const safeConfig = input.getSafeConfig();
-    const next = {
-      breakReminderEnabled: safeConfig.breakReminderEnabled,
-      focusMinutes: clampInt(input.getDraftFocusMinutes(), safeConfig.focusMinutes, 5, 90),
-      shortBreakMinutes: safeConfig.shortBreakMinutes,
-      longBreakMinutes: safeConfig.longBreakMinutes,
-      longBreakEvery: safeConfig.longBreakEvery,
-      miniBreakEveryMinutes: safeConfig.miniBreakEveryMinutes,
-      miniBreakDurationSeconds: safeConfig.miniBreakDurationSeconds,
-      longBreakEveryMinutes: safeConfig.longBreakEveryMinutes,
-      longBreakDurationMinutes: safeConfig.longBreakDurationMinutes,
-      breakNotifyBeforeSeconds: safeConfig.breakNotifyBeforeSeconds,
-      taskStartReminderEnabled: input.getDraftTaskStartReminderEnabled(),
-      taskStartReminderLeadMinutes: clampInt(
-        input.getDraftTaskStartReminderLeadMinutes(),
-        safeConfig.taskStartReminderLeadMinutes,
-        1,
-        60,
-      ),
-      miniBreakPostponeMinutes: safeConfig.miniBreakPostponeMinutes,
-      longBreakPostponeMinutes: safeConfig.longBreakPostponeMinutes,
-      breakPostponeLimit: safeConfig.breakPostponeLimit,
-      breakStrictMode: safeConfig.breakStrictMode,
-      breakReminderMode: safeConfig.breakReminderMode,
-      independentMiniBreakEveryMinutes: safeConfig.independentMiniBreakEveryMinutes,
-      independentLongBreakEveryMinutes: safeConfig.independentLongBreakEveryMinutes,
-    };
-    if (next.taskStartReminderEnabled) {
-      Promise.resolve(input.ensureNotificationPermissionFromUserGesture()).catch((error) =>
-        console.error("focus request notification permission for task reminder", error),
-      );
-    }
-    Promise.resolve(input.onPomodoroConfigChange(next)).catch((e) =>
-      console.error("save pomodoro config", e),
-    );
-    if (!input.getRunning() && !input.getHasStarted()) {
-      input.setFocusRuntime({
-        phase: PHASE_FOCUS,
-        remainingSec: input.getFocusDurationSec(next),
-        focusDeadlineTs: 0,
-      });
-    }
-    input.setShowConfig(false);
-  }
-
-  function openTimerSettings() {
-    const safeConfig = input.getSafeConfig();
-    input.setDraftState({
-      draftFocusMinutes: safeConfig.focusMinutes,
-      draftTaskStartReminderEnabled: safeConfig.taskStartReminderEnabled,
-      draftTaskStartReminderLeadMinutes: safeConfig.taskStartReminderLeadMinutes,
-    });
-    input.setShowConfig(true);
-  }
-
-  function toggleTimerSettings() {
-    if (input.getShowConfig()) {
-      input.setShowConfig(false);
-      return;
-    }
-    openTimerSettings();
-  }
-
   return {
     addTask,
-    openTimerSettings,
     removeTask,
-    saveTimerConfig,
     selectTask,
     startTaskFocus,
     toggleDraftWeekday,
-    toggleTimerSettings,
     updateTask,
   };
 }

@@ -818,6 +818,7 @@
   {locale}
   {isAutostartEnabled}
   bind:showPanelOnStartup
+  taskStartReminderLeadMinutes={pomodoroConfig.taskStartReminderLeadMinutes}
   themePreset={workspaceTheme}
   themePresetOptions={workspaceThemePresetOptions}
   themeCustomCss={workspaceCustomCss}
@@ -827,6 +828,11 @@
   onChangeLanguage={setLanguage}
   {toggleAutostart}
   onSavePrefs={savePrefs}
+  onChangeTaskStartReminderLeadMinutes={(/** @type {number} */ nextMinutes) =>
+    changePomodoroConfig({
+      ...pomodoroConfig,
+      taskStartReminderLeadMinutes: nextMinutes,
+    })}
   onChangeThemePreset={handleWorkspaceThemePresetChange}
   onExportThemeCss={exportWorkspaceThemeCss}
   onImportThemeCss={importWorkspaceThemeCss}

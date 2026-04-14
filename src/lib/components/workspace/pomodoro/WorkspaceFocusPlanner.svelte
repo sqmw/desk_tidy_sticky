@@ -15,7 +15,6 @@
     draftRecurrence = $bindable("none"),
     draftWeekdays = $bindable([1, 2, 3, 4, 5]),
     tasks = [],
-    showSettings = false,
     selectedTaskId = "",
     activeTaskStarted = false,
     activeTaskRunning = false,
@@ -23,13 +22,11 @@
     todayTaskCount = 0,
     todayStats,
     onAddTask = () => {},
-    onToggleSettings = () => {},
     onToggleWeekday = () => {},
     onStartTask = () => {},
     onToggleTask = () => {},
     onRemoveTask = () => {},
     onUpdateTask = () => {},
-    settingsPanel = undefined,
     weekdayLabel = /** @type {(day: number) => string} */ ((day) => String(day)),
   } = $props();
 </script>
@@ -49,11 +46,6 @@
           · {strings.pomodoroTaskRounds || "Task rounds"} x{todayStats.totalTaskCycles || 0}
         </span>
       {/if}
-      <button type="button" class="btn planner-settings-btn" onclick={() => onToggleSettings()}>
-        {showSettings
-          ? (strings.workspaceFocusHideSettings || "Hide settings")
-          : (strings.workspaceFocusEditSettings || "Edit settings")}
-      </button>
     </div>
   </div>
   <div class="planner-form">
@@ -97,11 +89,6 @@
           {weekdayLabel(day)}
         </button>
       {/each}
-    </div>
-  {/if}
-  {#if showSettings && typeof settingsPanel === "function"}
-    <div class="planner-settings">
-      {@render settingsPanel()}
     </div>
   {/if}
   <div class="task-list">
@@ -234,13 +221,6 @@
     white-space: nowrap;
   }
 
-  .planner-settings-btn {
-    height: 28px;
-    padding: 0 10px;
-    font-size: 11px;
-    border-radius: 999px;
-  }
-
   .btn.primary {
     border-color: var(--ws-border-active, #2f4368);
     background: linear-gradient(180deg, color-mix(in srgb, var(--ws-accent, #1d4ed8) 26%, #334155) 0%, #273a57 100%);
@@ -281,10 +261,6 @@
     align-content: start;
     grid-auto-rows: max-content;
     gap: 6px;
-  }
-
-  .planner-settings {
-    margin-top: 8px;
   }
 
   .empty {

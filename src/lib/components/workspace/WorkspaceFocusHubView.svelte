@@ -1,7 +1,6 @@
 <script>
   import WorkspaceBreakControlBar from "$lib/components/workspace/break-control/WorkspaceBreakControlBar.svelte";
   import WorkspaceFocusPlanner from "$lib/components/workspace/pomodoro/WorkspaceFocusPlanner.svelte";
-  import WorkspaceFocusSettingsPanel from "$lib/components/workspace/pomodoro/WorkspaceFocusSettingsPanel.svelte";
   import WorkspaceFocusStats from "$lib/components/workspace/pomodoro/WorkspaceFocusStats.svelte";
   import WorkspaceFocusTimer from "$lib/components/workspace/pomodoro/WorkspaceFocusTimer.svelte";
 
@@ -19,8 +18,6 @@
     draftEndTime = $bindable("10:00"),
     draftRecurrence = $bindable("none"),
     draftWeekdays = $bindable([1, 2, 3, 4, 5]),
-    draftTaskStartReminderEnabled = $bindable(false),
-    draftTaskStartReminderLeadMinutes = $bindable(10),
     pomodoroTimerText,
     nextMiniBreakCountdownText,
     nextLongBreakCountdownText,
@@ -28,7 +25,6 @@
     focusMinutes = 25,
     phaseProgress,
     showBreakPanel = $bindable(false),
-    showConfig = $bindable(false),
     showStats = $bindable(false),
     selectedTaskId = "",
     selectedTaskPomodoroScoreText = "",
@@ -66,7 +62,6 @@
     onPostponeBreak = () => {},
     onSkipBreak = () => {},
     onAddTask = () => {},
-    onToggleSettings = () => {},
     onToggleWeekday = () => {},
     onStartTask = () => {},
     onToggleTask = () => {},
@@ -74,8 +69,6 @@
     onUpdateTask = () => {},
     onApplyFocusMinutes = () => {},
     weekdayLabel = () => "",
-    onSaveSettings = () => {},
-    onCancelSettings = () => {},
   } = $props();
 </script>
 
@@ -96,7 +89,6 @@
         {onApplyFocusMinutes}
         onToggleBreakPanel={(next = !showBreakPanel) => {
           showBreakPanel = !!next;
-          if (showBreakPanel && showConfig) showConfig = false;
         }}
       >
         {#snippet breakPanel()}
@@ -137,7 +129,6 @@
         bind:draftRecurrence
         bind:draftWeekdays
         tasks={plannerTasks}
-        showSettings={showConfig}
         {selectedTaskId}
         {activeTaskStarted}
         {activeTaskRunning}
@@ -145,24 +136,13 @@
         {todayTaskCount}
         todayStats={plannerTodayStats}
         {onAddTask}
-        {onToggleSettings}
         {onToggleWeekday}
         {onStartTask}
         {onToggleTask}
         {onRemoveTask}
         {onUpdateTask}
         {weekdayLabel}
-      >
-        {#snippet settingsPanel()}
-          <WorkspaceFocusSettingsPanel
-            {strings}
-            bind:draftTaskStartReminderEnabled
-            bind:draftTaskStartReminderLeadMinutes
-            {onSaveSettings}
-            {onCancelSettings}
-          />
-        {/snippet}
-      </WorkspaceFocusPlanner>
+      />
     </div>
   </div>
 
