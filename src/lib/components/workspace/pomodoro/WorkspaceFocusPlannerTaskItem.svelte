@@ -79,13 +79,9 @@
   const isRunningTask = $derived(runningTask === true);
   const safeEffectiveSeconds = $derived(Math.max(0, Math.floor(Number(effectiveSeconds || 0))));
   const safeTargetSeconds = $derived(Math.max(0, Math.floor(Number(targetSeconds || 0))));
-  const hasTaskProgress = $derived(
-    safeEffectiveSeconds > 0 || Math.max(0, Math.floor(Number(donePomodoros || 0))) > 0,
-  );
-  const isResumableTask = $derived(isStartedTask || (!isRunningTask && hasTaskProgress));
   const primaryActionText = $derived.by(() => {
     if (isRunningTask) return strings.pomodoroPause || "Pause";
-    if (isResumableTask) return strings.pomodoroResume || "Resume";
+    if (isStartedTask) return strings.pomodoroResume || "Resume";
     return strings.pomodoroStart || "Start";
   });
   const showEffectiveProgress = $derived(safeTargetSeconds > 0);
@@ -196,7 +192,7 @@
       <button
         type="button"
         class="btn tiny"
-        class:started={isResumableTask}
+        class:started={isStartedTask}
         onclick={() => (isStartedTask ? onToggleTask() : onStartTask(task.id))}
       >
         {primaryActionText}
