@@ -19,7 +19,7 @@ pub(super) fn spawn_worker_w() -> Result<(), String> {
         let _ = SendMessageTimeoutW(
             progman,
             0x052C,
-            WPARAM(0),
+            WPARAM(0xD),
             LPARAM(0),
             SMTO_NORMAL,
             1000,
@@ -30,7 +30,7 @@ pub(super) fn spawn_worker_w() -> Result<(), String> {
         let _ = SendMessageTimeoutW(
             progman,
             0x052C,
-            WPARAM(0),
+            WPARAM(0xD),
             LPARAM(1),
             SMTO_NORMAL,
             1000,
@@ -127,6 +127,25 @@ pub(super) fn find_wallpaper_worker_w() -> HWND {
 
     if !worker_w_candidate.0.is_null() {
         return worker_w_candidate;
+    }
+
+    unsafe {
+        // Windows 11 can place the wallpaper WorkerW directly under Progman instead of as a
+        // sibling discovered via EnumWindows.
+        if let Ok(progman) = FindWindowW(windows::core::w!("Progman"), PCWSTR::null()) {
+            if !progman.0.is_null() {
+                if let Ok(child_worker) = FindWindowExW(
+                    progman,
+                    HWND(0 as *mut c_void),
+                    windows::core::w!("WorkerW"),
+                    PCWSTR::null(),
+                ) {
+                    if !child_worker.0.is_null() {
+                        return child_worker;
+                    }
+                }
+            }
+        }
     }
 
     let mut fallback = HWND(0 as *mut c_void);

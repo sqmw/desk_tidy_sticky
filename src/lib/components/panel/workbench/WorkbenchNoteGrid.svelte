@@ -108,15 +108,17 @@
                   {@render iconLayerBottom()}
                 {/if}
               </button>
-              <button
-                type="button"
-                class="action-btn"
-                class:active={note.isWallpaper}
-                title={note.isWallpaper ? strings.pinToDesktopLayer : strings.pinToWallpaper}
-                onclick={() => toggleWallpaperLayer(note)}
-              >
-                {@render iconWallpaperLayer()}
-              </button>
+              {#if !note.isAlwaysOnTop}
+                <button
+                  type="button"
+                  class="action-btn"
+                  class:active={note.isWallpaper}
+                  title={note.isWallpaper ? strings.pinToDesktopLayer : strings.pinToWallpaper}
+                  onclick={() => toggleWallpaperLayer(note)}
+                >
+                  {@render iconWallpaperLayer()}
+                </button>
+              {/if}
             {/if}
           {/if}
           <button
@@ -423,4 +425,3 @@
     position: relative;
   }
 </style>
-

@@ -84,7 +84,7 @@
       {/if}
     </button>
 
-    {#if note?.isPinned}
+    {#if note?.isPinned && !note?.isAlwaysOnTop}
       <button
         class="tool-btn"
         class:active={!!note?.isWallpaper}

@@ -51,6 +51,16 @@ fn force_bottom_immediately(hwnd: HWND) {
     }
 }
 
+fn force_wallpaper_layer_immediately(hwnd: HWND) {
+    unsafe {
+        // The wallpaper WorkerW is already below desktop icons. Keep the note at the front of
+        // that parent so it stays visible instead of being pushed behind wallpaper siblings.
+        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_FRAMECHANGED | SWP_NOACTIVATE;
+        let _ = SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
+        let _ = SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, flags);
+    }
+}
+
 fn refresh_style(hwnd: HWND) {
     unsafe {
         let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER | SWP_FRAMECHANGED;
@@ -175,7 +185,7 @@ pub fn attach_to_wallpaper_worker_w(hwnd_isize: isize) -> Result<(), String> {
         // Even when the parent is already correct, refreshing Z order is still required after
         // Tauri/WebView show(): Windows may keep the window visually raised until focus changes.
         let _ = parent_changed;
-        force_bottom_immediately(hwnd);
+        force_wallpaper_layer_immediately(hwnd);
     }
     Ok(())
 }
