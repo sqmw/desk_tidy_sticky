@@ -1,4 +1,6 @@
 <script>
+  import FeedbackQrCard from "$lib/components/common/FeedbackQrCard.svelte";
+
   let {
     strings,
     showSettings = $bindable(),
@@ -95,6 +97,10 @@
               <kbd>Esc</kbd>
             </div>
           </div>
+        </div>
+
+        <div class="settings-section">
+          <FeedbackQrCard {strings} variant="compact" />
         </div>
       </div>
 

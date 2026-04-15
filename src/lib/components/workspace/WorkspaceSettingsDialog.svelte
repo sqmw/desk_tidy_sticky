@@ -2,6 +2,7 @@
   import WorkspaceSettingsDisplaySection from "$lib/components/workspace/settings/WorkspaceSettingsDisplaySection.svelte";
   import WorkspaceSettingsGeneralSection from "$lib/components/workspace/settings/WorkspaceSettingsGeneralSection.svelte";
   import WorkspaceSettingsThemeSection from "$lib/components/workspace/settings/WorkspaceSettingsThemeSection.svelte";
+  import FeedbackQrCard from "$lib/components/common/FeedbackQrCard.svelte";
 
   let {
     strings,
@@ -155,6 +156,8 @@
           {onChangeFontSize}
           onChangeSidebarLayoutMode={onChangeSidebarLayoutMode}
         />
+
+        <FeedbackQrCard {strings} variant="workspace" />
       </div>
     </div>
   </div>
