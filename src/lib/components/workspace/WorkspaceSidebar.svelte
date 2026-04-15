@@ -304,10 +304,24 @@
       {/if}
     </div>
     {#if !compact || !settingsCollapsed || collapsed}
-      <button type="button" class="ghost-btn" onclick={onToggleStickiesVisibility}>
-        {collapsed ? "贴" : stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
-      </button>
-      <button type="button" class="ghost-btn" onclick={onToggleInteraction}>{collapsed ? "交" : interactionLabel()}</button>
+      <div class="sidebar-toggle-row">
+        {#if !collapsed}
+          <div class="sidebar-toggle-text">{strings.overlay}</div>
+        {/if}
+        <label class="toggle-switch" title={stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}>
+          <input type="checkbox" checked={stickiesVisible} onchange={onToggleStickiesVisibility} />
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <div class="sidebar-toggle-row">
+        {#if !collapsed}
+          <div class="sidebar-toggle-text">{strings.overlayClickThrough}</div>
+        {/if}
+        <label class="toggle-switch" title={interactionLabel()}>
+          <input type="checkbox" checked={!interactionDisabled} onchange={onToggleInteraction} />
+          <span class="slider round"></span>
+        </label>
+      </div>
     {/if}
   </div>
 </aside>
@@ -551,27 +565,75 @@
     flex: 0 0 auto;
   }
 
-  .ghost-btn {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
+  .sidebar-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 8px;
     border-radius: 10px;
-    padding: 8px 10px;
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
     background: var(--ws-btn-bg, #fdfefe);
+  }
+
+  .sidebar.collapsed .sidebar-toggle-row {
+    justify-content: center;
+    padding: 6px 6px;
+  }
+
+  .sidebar-toggle-text {
+    font-size: 12px;
     color: var(--ws-text, #334155);
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    user-select: none;
+  }
+
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
     cursor: pointer;
-    text-align: left;
-    font-size: 12px;
-    transition: all 0.16s ease;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: 0.2s;
+    border-radius: 999px;
   }
 
-  .sidebar.collapsed .ghost-btn {
-    text-align: center;
-    padding: 8px 4px;
-    font-size: 12px;
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 999px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   }
 
-  .ghost-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
+  input:checked + .slider {
+    background-color: #3b82f6;
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(20px);
   }
 
   .sidebar.compact .brand h1 {
@@ -588,27 +650,22 @@
     margin-bottom: 6px;
   }
 
-  @container (max-width: 230px) {
-    .sidebar {
-      padding: 10px 8px;
-      gap: 8px;
-    }
+	  @container (max-width: 230px) {
+	    .sidebar {
+	      padding: 10px 8px;
+	      gap: 8px;
+	    }
 
     .brand p {
       font-size: 11px;
       margin-top: 4px;
     }
 
-    .sidebar-block {
-      padding: 8px;
-    }
+	    .sidebar-block {
+	      padding: 8px;
+	    }
 
-    .ghost-btn {
-      font-size: 12px;
-      padding: 7px 9px;
-    }
-
-  }
+	  }
 
   @media (max-width: 920px) {
     .sidebar {
