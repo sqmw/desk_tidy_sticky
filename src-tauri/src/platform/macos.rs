@@ -69,10 +69,25 @@ fn break_overlay_collection_behavior() -> NSWindowCollectionBehavior {
         | NSWindowCollectionBehavior::FullScreenAuxiliary
 }
 
+fn topmost_sticky_collection_behavior() -> NSWindowCollectionBehavior {
+    NSWindowCollectionBehavior::CanJoinAllSpaces
+        | NSWindowCollectionBehavior::Stationary
+        | NSWindowCollectionBehavior::IgnoresCycle
+        | NSWindowCollectionBehavior::FullScreenAuxiliary
+}
+
 fn apply_desktop_sticky_window_traits(window: &NSWindow) {
     window.setCanHide(false);
     window.setHidesOnDeactivate(false);
     window.setCollectionBehavior(desktop_sticky_collection_behavior());
+    window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+}
+
+fn apply_topmost_sticky_window_traits(window: &NSWindow) {
+    window.setCanHide(false);
+    window.setHidesOnDeactivate(false);
+    window.setIgnoresMouseEvents(false);
+    window.setCollectionBehavior(topmost_sticky_collection_behavior());
     window.setAnimationBehavior(NSWindowAnimationBehavior::None);
 }
 
@@ -204,6 +219,7 @@ pub fn detach_from_worker_w(ns_window_ptr: *mut c_void) -> Result<(), String> {
 pub fn set_topmost_no_activate(ns_window_ptr: *mut c_void, topmost: bool) -> Result<(), String> {
     let window = cast_ns_window_ptr(ns_window_ptr)?;
     if topmost {
+        apply_topmost_sticky_window_traits(window);
         window.setLevel(floating_window_level());
         window.orderFrontRegardless();
         log_level("set_topmost_no_activate(true)", window);

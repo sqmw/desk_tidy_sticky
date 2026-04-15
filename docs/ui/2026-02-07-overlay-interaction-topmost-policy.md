@@ -27,6 +27,16 @@
   - 置顶贴纸不再需要通过“反复拉伸窗口边缘”这种间接方式挪位置。
   - 全局鼠标交互关闭时，置顶贴纸仍然保留直接拖动能力，符合“置顶即可单贴纸交互”的产品预期。
 
+## 2026-04-15 补充：macOS 全屏场景置顶
+- 问题：macOS 置顶贴纸虽然提升到了普通 floating level，但没有加入全屏辅助 space，因此当前台应用进入全屏后，贴纸不会出现在该 fullscreen space 之上。
+- 修复：
+  - `src-tauri/src/platform/macos.rs`
+  - 为置顶贴纸单独应用 `CanJoinAllSpaces | FullScreenAuxiliary | Stationary | IgnoresCycle` 的 collection behavior。
+  - 保持 `orderFrontRegardless + floating level`，让置顶贴纸在不抢焦点的前提下进入全屏空间前台。
+- 结果：
+  - macOS 上显式设为“置顶”的贴纸，预期可覆盖普通全屏窗口场景。
+  - 桌面层 / 壁纸层贴纸继续维持原有桌面语义，不会被一起提升到全屏辅助层。
+
 ## Backend Changes
 文件：`src-tauri/src/lib.rs`
 
