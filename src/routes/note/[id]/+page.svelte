@@ -44,6 +44,7 @@
   let showOpacityValue = $state(false);
   let showFrostValue = $state(false);
   let isEditing = $state(false);
+  let isControlMode = $state(false);
   let showCommandSuggestions = $state(false);
   let commandQuery = $state("");
   let commandActiveIndex = $state(0);
@@ -65,7 +66,11 @@
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
   const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
   const canInteract = $derived(!!note?.isAlwaysOnTop || (!clickThrough && !note?.isWallpaper));
-  const allowHoverToolbar = $derived(canInteract);
+  const isMac =
+    typeof navigator !== "undefined" &&
+    /mac/i.test(String(navigator.userAgent || navigator.platform || ""));
+  const showTopmostControls = $derived(!!note?.isAlwaysOnTop && (isControlMode || isEditing));
+  const allowHoverToolbar = $derived((note?.isAlwaysOnTop ? false : canInteract));
   const noteCenterHudText = $derived.by(() => {
     if (showOpacityValue) {
       return `${strings.noteOpacityHud} ${Math.round(opacityDraft * 100)}%`;
@@ -79,6 +84,23 @@
   const commandSuggestionItems = $derived(
     commandSuggestions.map((cmd) => ({ ...cmd, preview: getNoteCommandPreview(cmd) })),
   );
+  const CONTROL_MODE_TRIGGER_BLOCKED_SELECTOR = [
+    "button",
+    "input",
+    "select",
+    "textarea",
+    "a",
+    "label",
+    "summary",
+    "[contenteditable=\"true\"]",
+    ".command-popover",
+    ".note-tag-editor",
+    ".toolbar",
+    ".color-popover",
+    ".text-color-popover",
+    ".opacity-popover",
+    ".frost-popover",
+  ].join(",");
 
   async function loadNote() {
     try {
@@ -183,6 +205,9 @@
 
   async function enterEditMode() {
     if (!canInteract) return;
+    if (note?.isAlwaysOnTop) {
+      isControlMode = true;
+    }
     isEditing = true;
     showPalette = false;
     showTextColorPalette = false;
@@ -197,6 +222,19 @@
     await save();
     isEditing = false;
     showCommandSuggestions = false;
+  }
+
+  function enterControlMode() {
+    if (!note?.isAlwaysOnTop || !canInteract) return;
+    isControlMode = true;
+  }
+
+  async function exitControlMode() {
+    dismissFloatingPanelsOnPointerDown(null);
+    if (isEditing) {
+      await exitEditMode();
+    }
+    isControlMode = false;
   }
 
   async function toggleMouseInteraction() {
@@ -253,33 +291,64 @@
 
   /** @param {HTMLElement | null} target */
   function dismissFloatingPanelsOnPointerDown(target) {
-    if (!target) return;
-    if (showCommandSuggestions && !target.closest(".command-popover")) {
+    const targetInPopover = !!target?.closest(".command-popover");
+    if (showCommandSuggestions && !targetInPopover) {
       showCommandSuggestions = false;
     }
 
-    if (showPalette && !target.closest(".color-popover") && !target.closest(".color-trigger")) {
+    if (
+      showPalette &&
+      !target?.closest(".color-popover") &&
+      !target?.closest(".color-trigger")
+    ) {
       showPalette = false;
     }
     if (
       showTextColorPalette &&
-      !target.closest(".text-color-popover") &&
-      !target.closest(".text-color-trigger")
+      !target?.closest(".text-color-popover") &&
+      !target?.closest(".text-color-trigger")
     ) {
       showTextColorPalette = false;
     }
     if (
       showOpacityPanel &&
-      !target.closest(".opacity-popover") &&
-      !target.closest(".opacity-trigger")
+      !target?.closest(".opacity-popover") &&
+      !target?.closest(".opacity-trigger")
     ) {
       showOpacityPanel = false;
       showOpacityValue = false;
     }
-    if (showFrostPanel && !target.closest(".frost-popover") && !target.closest(".frost-trigger")) {
+    if (
+      showFrostPanel &&
+      !target?.closest(".frost-popover") &&
+      !target?.closest(".frost-trigger")
+    ) {
       showFrostPanel = false;
       showFrostValue = false;
     }
+  }
+
+  /** @param {MouseEvent} event */
+  function handleNoteDoubleClick(event) {
+    if (!note?.isAlwaysOnTop || isControlMode || isEditing) return;
+    const target = /** @type {HTMLElement | null} */ (event.target);
+    if (target?.closest(CONTROL_MODE_TRIGGER_BLOCKED_SELECTOR)) {
+      return;
+    }
+    enterControlMode();
+  }
+
+  /** @param {KeyboardEvent} event */
+  function handleWindowKeydown(event) {
+    if (event.key !== "Escape") return;
+    if (!note?.isAlwaysOnTop) return;
+    if (!isControlMode && !isEditing) return;
+    if (showCommandSuggestions) {
+      showCommandSuggestions = false;
+      return;
+    }
+    event.preventDefault();
+    void exitControlMode();
   }
 
   const noteWindowDrag = createNoteWindowDragController({
@@ -491,13 +560,23 @@
       noteEditorActions.dispose();
     };
   });
+
+  $effect(() => {
+    if (!note?.isAlwaysOnTop && isControlMode) {
+      isControlMode = false;
+    }
+  });
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="note-window"
   data-toolbar-visible={allowHoverToolbar ? "true" : "false"}
+  data-control-mode={showTopmostControls ? "true" : "false"}
   style="background: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {noteFrostBlur}px; --frost-overlay: {noteFrostOverlay};"
+  ondblclick={handleNoteDoubleClick}
   onpointerdown={noteWindowDrag.handleDragPointerDown}
   onpointermove={noteWindowDrag.onDragPointerMove}
   onpointerup={noteWindowDrag.onDragPointerUp}
@@ -507,6 +586,9 @@
     <NoteTagBar
       {strings}
       {isEditing}
+      isControlMode={showTopmostControls}
+      isAlwaysOnTop={!!note.isAlwaysOnTop}
+      controlInsetSide={showTopmostControls ? (isMac ? "left" : "right") : null}
       priority={note.priority ?? null}
       tags={Array.isArray(note.tags) ? note.tags : []}
       {tagSuggestions}
@@ -538,6 +620,9 @@
     <NoteToolbar
       {strings}
       {isEditing}
+      isControlMode={showTopmostControls}
+      showControlExit={showTopmostControls}
+      {isMac}
       note={note}
       showPalette={showPalette}
       showTextColorPalette={showTextColorPalette}
@@ -552,6 +637,7 @@
       noteColors={NOTE_COLORS}
       noteTextColors={NOTE_TEXT_COLORS}
       onToggleEdit={() => (isEditing ? exitEditMode() : enterEditMode())}
+      onExitControlMode={exitControlMode}
       onToggleTopmost={toggleTopmost}
       onToggleWallpaper={toggleWallpaperLayer}
       onToggleMouseInteraction={toggleMouseInteraction}

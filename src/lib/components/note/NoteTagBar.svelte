@@ -7,21 +7,33 @@
     tags = /** @type {string[]} */ ([]),
     tagSuggestions = /** @type {string[]} */ ([]),
     isEditing = false,
+    isControlMode = false,
+    isAlwaysOnTop = false,
+    controlInsetSide = null,
     onChangePriority = () => {},
     onChangeTags = () => {},
   } = $props();
-
+  const showTagBar = $derived(
+    isAlwaysOnTop
+      ? isControlMode || isEditing
+      : isControlMode || isEditing || priority != null || tags.length > 0,
+  );
 </script>
 
-{#if isEditing || priority != null || tags.length > 0}
-  <div class="note-tag-bar" data-no-drag="true">
+{#if showTagBar}
+  <div
+    class="note-tag-bar"
+    class:control-inset-left={controlInsetSide === "left"}
+    class:control-inset-right={controlInsetSide === "right"}
+    data-no-drag="true"
+  >
     <div class="note-tag-editor">
       <NoteTagsEditor
         {strings}
         {tags}
         {priority}
         showPriority={true}
-        showInput={isEditing}
+        showInput={isControlMode || isEditing}
         suggestions={tagSuggestions}
         onChange={onChangeTags}
         onPriorityChange={onChangePriority}
@@ -43,6 +55,14 @@
   .note-tag-editor {
     flex: 1 1 auto;
     min-width: 0;
+  }
+
+  .note-tag-bar.control-inset-left {
+    padding-left: 38px;
+  }
+
+  .note-tag-bar.control-inset-right {
+    padding-right: 42px;
   }
 
   @media (max-width: 560px) {

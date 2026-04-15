@@ -2,6 +2,9 @@
   let {
     strings,
     isEditing = false,
+    isControlMode = false,
+    showControlExit = false,
+    isMac = false,
     note = null,
     showPalette = false,
     showTextColorPalette = false,
@@ -31,6 +34,7 @@
     onFrostWheel = () => {},
     onToggleDone = () => {},
     onToggleArchive = () => {},
+    onExitControlMode = () => {},
     onUnpin = () => {},
     onMoveToTrash = () => {},
     onSetBackgroundColor = () => {},
@@ -40,9 +44,33 @@
   } = $props();
 </script>
 
-<div class="toolbar-mask" class:editing={isEditing} aria-hidden="true"></div>
+<div class="toolbar-mask" class:editing={isEditing} class:control={isControlMode} aria-hidden="true"></div>
+{#if showControlExit}
+  <button
+    type="button"
+    class="control-exit"
+    class:mac={isMac}
+    class:windows={!isMac}
+    onclick={() => onExitControlMode()}
+    title={strings.close}
+    aria-label={strings.close}
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 6l12 12"></path>
+      <path d="M18 6 6 18"></path>
+    </svg>
+  </button>
+{/if}
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="toolbar" class:editing={isEditing}>
+<div class="toolbar" class:editing={isEditing} class:control={isControlMode}>
   <div class="toolbar-actions">
     <button
       class="tool-btn tool-btn-primary"
@@ -304,6 +332,63 @@
     box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
   }
 
+  .control-exit {
+    position: absolute;
+    top: 12px;
+    z-index: 3;
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.58);
+    backdrop-filter: blur(10px) saturate(1.02);
+    -webkit-backdrop-filter: blur(10px) saturate(1.02);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.1);
+    pointer-events: auto;
+    cursor: pointer;
+    transition:
+      background-color 0.16s ease,
+      box-shadow 0.16s ease,
+      transform 0.16s ease;
+  }
+
+  .control-exit:hover {
+    transform: translateY(-1px);
+  }
+
+  .control-exit.mac {
+    left: 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, #ff5f57 72%, white);
+    color: rgba(122, 18, 18, 0.76);
+  }
+
+  .control-exit.mac:hover {
+    background: color-mix(in srgb, #ff5f57 82%, white);
+    box-shadow: 0 8px 16px rgba(239, 68, 68, 0.18);
+  }
+
+  .control-exit.windows {
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    background: color-mix(in srgb, white 70%, transparent);
+    color: #64748b;
+  }
+
+  .control-exit.windows:hover {
+    background: color-mix(in srgb, #fee2e2 70%, white);
+    color: #b91c1c;
+    box-shadow: 0 8px 16px rgba(239, 68, 68, 0.12);
+  }
+
+  .control-exit svg {
+    width: 10px;
+    height: 10px;
+  }
+
   .toolbar-actions {
     display: flex;
     align-items: center;
@@ -345,7 +430,16 @@
     pointer-events: auto;
   }
 
+  .toolbar.control {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .toolbar-mask.editing {
+    opacity: 1;
+  }
+
+  .toolbar-mask.control {
     opacity: 1;
   }
 

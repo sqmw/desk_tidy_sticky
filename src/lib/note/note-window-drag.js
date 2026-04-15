@@ -39,6 +39,13 @@ export function createNoteWindowDragController(input) {
   let lastDragScreenY = 0;
   let dragPointerId = -1;
   let dragging = false;
+  let pendingPointerId = -1;
+  let pendingStartScreenX = 0;
+  let pendingStartScreenY = 0;
+  /** @type {HTMLDivElement | null} */
+  let pendingSurface = null;
+
+  const DRAG_START_THRESHOLD_PX = 4;
 
   /** @param {boolean} next */
   function setDragging(next) {
@@ -49,6 +56,14 @@ export function createNoteWindowDragController(input) {
   function endManualWindowDrag() {
     setDragging(false);
     dragPointerId = -1;
+    clearPendingDragIntent();
+  }
+
+  function clearPendingDragIntent() {
+    pendingPointerId = -1;
+    pendingStartScreenX = 0;
+    pendingStartScreenY = 0;
+    pendingSurface = null;
   }
 
   function persistCurrentPosition() {
@@ -77,6 +92,7 @@ export function createNoteWindowDragController(input) {
     dragPointerId = event.pointerId;
     setDragging(true);
     dragSurface.setPointerCapture(event.pointerId);
+    clearPendingDragIntent();
   }
 
   /** @param {PointerEvent} event */
@@ -105,11 +121,33 @@ export function createNoteWindowDragController(input) {
 
   /** @param {PointerEvent} event */
   function onDragPointerMove(event) {
+    if (!dragging && event.pointerId === pendingPointerId) {
+      const deltaX = Math.abs(event.screenX - pendingStartScreenX);
+      const deltaY = Math.abs(event.screenY - pendingStartScreenY);
+      if (deltaX < DRAG_START_THRESHOLD_PX && deltaY < DRAG_START_THRESHOLD_PX) {
+        return;
+      }
+      event.preventDefault();
+      const surface = pendingSurface;
+      if (!surface) {
+        clearPendingDragIntent();
+        return;
+      }
+      void startManualWindowDrag(event, surface).catch((err) => {
+        console.error("startManualWindowDrag failed", err);
+        clearPendingDragIntent();
+      });
+      return;
+    }
     applyManualWindowDragPosition(event);
   }
 
   /** @param {PointerEvent} event */
   function onDragPointerUp(event) {
+    if (!dragging && event.pointerId === pendingPointerId) {
+      clearPendingDragIntent();
+      return;
+    }
     if (event.pointerId !== dragPointerId) return;
     const surface = /** @type {HTMLDivElement | null} */ (event.currentTarget);
     if (surface?.hasPointerCapture(event.pointerId)) {
@@ -117,6 +155,7 @@ export function createNoteWindowDragController(input) {
     }
     persistCurrentPosition();
     endManualWindowDrag();
+    clearPendingDragIntent();
   }
 
   /** @param {PointerEvent} event */
@@ -138,13 +177,11 @@ export function createNoteWindowDragController(input) {
     } else if (!isAlwaysOnTop && !inPreview && !inToolbar) {
       return;
     }
-    event.preventDefault();
-    try {
-      const surface = /** @type {HTMLDivElement} */ (event.currentTarget);
-      await startManualWindowDrag(event, surface);
-    } catch (err) {
-      console.error("startManualWindowDrag failed", err);
-    }
+    const surface = /** @type {HTMLDivElement} */ (event.currentTarget);
+    pendingPointerId = event.pointerId;
+    pendingStartScreenX = event.screenX;
+    pendingStartScreenY = event.screenY;
+    pendingSurface = surface;
   }
 
   return {
