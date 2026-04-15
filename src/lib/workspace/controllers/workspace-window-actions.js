@@ -48,10 +48,10 @@ export function createWorkspaceWindowActions(deps) {
       const next = !deps.getStickiesVisible();
       deps.setStickiesVisible(next);
       await deps.savePrefs({ overlayEnabled: next });
-      if (next) await deps.loadNotes();
-      await deps.syncWindows();
       if (next) {
-        await deps.invoke("sync_all_note_window_layers");
+        await deps.loadNotes();
+      } else {
+        await deps.syncWindows();
       }
     } catch (error) {
       console.error("toggleStickiesVisibility(workspace)", error);

@@ -9,8 +9,8 @@ pub(crate) use panel::{
 pub(crate) use sticky::{
     apply_note_window_layer, apply_overlay_input_state, apply_window_no_snap_by_label,
     get_overlay_interaction, pin_window_to_desktop, sync_all_note_window_layers,
-    toggle_overlay_interaction, toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply,
-    unpin_window_from_desktop,
+    sync_note_window_layer, toggle_overlay_interaction, toggle_wallpaper_layer_and_apply,
+    toggle_z_order_and_apply, unpin_window_from_desktop,
 };
 pub(crate) use tray::{build_tray, update_tray_texts};
 

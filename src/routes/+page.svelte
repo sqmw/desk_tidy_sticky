@@ -320,10 +320,8 @@
       await savePrefs({ overlayEnabled: stickiesVisible });
       if (stickiesVisible) {
         await loadNotes();
-      }
-      await windowSync.syncWindows();
-      if (stickiesVisible) {
-        await invoke("sync_all_note_window_layers");
+      } else {
+        await windowSync.syncWindows();
       }
     } catch (e) {
       console.error("toggleStickiesVisibility", e);

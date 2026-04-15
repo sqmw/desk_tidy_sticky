@@ -276,6 +276,23 @@
     getClickThrough: () => clickThrough,
     getIsEditing: () => isEditing,
     dismissFloatingPanels: dismissFloatingPanelsOnPointerDown,
+    onPositionPersist: async (position) => {
+      if (!note) return;
+      try {
+        await invoke("update_note_position", {
+          id: resolveNoteId(note, noteId),
+          x: position.x,
+          y: position.y,
+        });
+        note = {
+          ...note,
+          x: position.x,
+          y: position.y,
+        };
+      } catch (e) {
+        console.error("persistNotePosition", e);
+      }
+    },
   });
 
   const noteStyleActions = createNoteStyleActions({

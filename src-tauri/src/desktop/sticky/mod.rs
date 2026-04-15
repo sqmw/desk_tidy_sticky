@@ -102,6 +102,29 @@ pub fn apply_note_window_layer(
     )
 }
 
+fn sync_note_layer_by_id(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
+    let notes = notes_service::load_notes(NoteSortMode::Custom)?;
+    let Some(note) = notes.into_iter().find(|n| n.id == id) else {
+        return Ok(());
+    };
+    if !note.is_pinned || note.is_archived || note.is_deleted {
+        return Ok(());
+    }
+    let label = format!("note-{}", note.id);
+    apply_note_window_layer_with_interaction_by_label(
+        app,
+        &label,
+        note.is_always_on_top,
+        get_overlay_click_through(app),
+        note.is_wallpaper,
+    )
+}
+
+#[tauri::command]
+pub fn sync_note_window_layer(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    sync_note_layer_by_id(&app, &id)
+}
+
 #[tauri::command]
 pub fn sync_all_note_window_layers(app: tauri::AppHandle) -> Result<(), String> {
     let notes = notes_service::load_notes(NoteSortMode::Custom)?;
@@ -180,6 +203,15 @@ pub fn toggle_z_order_and_apply(
                 "toggle_z_order_and_apply layer switch failed for {}: {}",
                 label, e
             );
+        }
+        #[cfg(target_os = "windows")]
+        if !updated.is_always_on_top {
+            if let Some(w) = app.get_webview_window(&label) {
+                if let Ok(Some(hwnd_isize)) = window_hwnd_isize(&w) {
+                    // One-shot: ensure the "pin to bottom" click takes effect immediately.
+                    let _ = windows::send_window_to_bottom_if_top_level(hwnd_isize);
+                }
+            }
         }
     }
     emit_notes_changed(&app);

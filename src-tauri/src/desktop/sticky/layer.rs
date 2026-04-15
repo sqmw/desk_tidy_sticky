@@ -39,12 +39,6 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
         return Ok(());
     };
 
-    #[cfg(any(
-        target_os = "windows",
-        all(not(target_os = "windows"), not(target_os = "macos"))
-    ))]
-    let should_be_top = !click_through || is_always_on_top;
-
     #[cfg(target_os = "windows")]
     {
         let Some(hwnd_isize) = window_hwnd_isize(&w)? else {
@@ -56,9 +50,9 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
             windows::attach_to_wallpaper_worker_w(hwnd_isize)?;
             return Ok(());
         }
-        if should_be_top {
-            let _ = w.set_always_on_top(true);
+        if is_always_on_top {
             windows::detach_from_worker_w(hwnd_isize)?;
+            let _ = w.set_always_on_top(true);
             windows::set_topmost_no_activate(hwnd_isize, true)?;
         } else {
             let _ = w.set_always_on_top(false);
@@ -99,7 +93,8 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
     #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
     {
         let _ = is_wallpaper;
-        let _ = w.set_always_on_top(should_be_top);
+        let _ = click_through;
+        let _ = w.set_always_on_top(is_always_on_top);
         Ok(())
     }
 }

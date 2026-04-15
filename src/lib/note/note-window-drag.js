@@ -11,6 +11,7 @@ import { LogicalPosition } from "@tauri-apps/api/dpi";
  *   getIsEditing: () => boolean;
  *   dismissFloatingPanels: (target: HTMLElement | null) => void;
  *   onDraggingChange?: (dragging: boolean) => void;
+ *   onPositionPersist?: (position: { x: number; y: number }) => Promise<void> | void;
  * }} input
  */
 export function createNoteWindowDragController(input) {
@@ -30,6 +31,18 @@ export function createNoteWindowDragController(input) {
   function endManualWindowDrag() {
     setDragging(false);
     dragPointerId = -1;
+  }
+
+  function persistCurrentPosition() {
+    if (!dragging) return;
+    void Promise.resolve(
+      input.onPositionPersist?.({
+        x: dragWindowX,
+        y: dragWindowY,
+      }),
+    ).catch((err) => {
+      console.error("persistCurrentPosition failed", err);
+    });
   }
 
   /**
@@ -53,6 +66,7 @@ export function createNoteWindowDragController(input) {
     if (!dragging) return;
     if (event.pointerId !== dragPointerId) return;
     if (event.buttons !== 1) {
+      persistCurrentPosition();
       endManualWindowDrag();
       return;
     }
@@ -83,6 +97,7 @@ export function createNoteWindowDragController(input) {
     if (surface?.hasPointerCapture(event.pointerId)) {
       surface.releasePointerCapture(event.pointerId);
     }
+    persistCurrentPosition();
     endManualWindowDrag();
   }
 
