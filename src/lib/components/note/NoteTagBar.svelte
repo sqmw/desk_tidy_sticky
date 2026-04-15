@@ -6,59 +6,49 @@
     priority = null,
     tags = /** @type {string[]} */ ([]),
     tagSuggestions = /** @type {string[]} */ ([]),
+    isEditing = false,
     onChangePriority = () => {},
     onChangeTags = () => {},
   } = $props();
 
 </script>
 
-<div class="note-tag-bar" data-no-drag="true">
-  <div class="note-tag-title">{strings.tags}</div>
-  <div class="note-tag-editor">
-    <NoteTagsEditor
-      {strings}
-      {tags}
-      {priority}
-      showPriority={true}
-      suggestions={tagSuggestions}
-      onChange={onChangeTags}
-      onPriorityChange={onChangePriority}
-    />
+{#if isEditing || priority != null || tags.length > 0}
+  <div class="note-tag-bar" data-no-drag="true">
+    <div class="note-tag-editor">
+      <NoteTagsEditor
+        {strings}
+        {tags}
+        {priority}
+        showPriority={true}
+        showInput={isEditing}
+        suggestions={tagSuggestions}
+        onChange={onChangeTags}
+        onPriorityChange={onChangePriority}
+      />
+    </div>
   </div>
-</div>
+{/if}
 
 <style>
   .note-tag-bar {
     border-bottom: 1px solid color-mix(in srgb, var(--ws-border-soft, #dbe4ef) 90%, transparent);
-    padding: 10px 14px;
-    background: color-mix(in srgb, var(--ws-btn-bg, rgba(255, 255, 255, 0.7)) 82%, transparent);
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: start;
-    gap: 10px;
-  }
-
-  .note-tag-title {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--ws-muted, #64748b);
-    line-height: 30px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
+    padding: 8px 12px;
+    background: color-mix(in srgb, var(--ws-btn-bg, rgba(255, 255, 255, 0.7)) 78%, transparent);
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   .note-tag-editor {
+    flex: 1 1 auto;
     min-width: 0;
   }
 
   @media (max-width: 560px) {
     .note-tag-bar {
-      grid-template-columns: 1fr;
       gap: 6px;
-    }
-
-    .note-tag-title {
-      line-height: 1.2;
+      align-items: flex-start;
     }
   }
 </style>

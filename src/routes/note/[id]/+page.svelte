@@ -506,6 +506,7 @@
   {#if note}
     <NoteTagBar
       {strings}
+      {isEditing}
       priority={note.priority ?? null}
       tags={Array.isArray(note.tags) ? note.tags : []}
       {tagSuggestions}

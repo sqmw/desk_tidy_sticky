@@ -6,6 +6,7 @@
     tags = $bindable(/** @type {string[]} */ ([])),
     priority = $bindable(/** @type {number | null} */ (null)),
     showPriority = false,
+    showInput = true,
     suggestions = /** @type {string[]} */ ([]),
     compact = false,
     onChange = () => {},
@@ -138,30 +139,37 @@
     </span>
   {/each}
 
-  <input
-    class="tag-input"
-    type="text"
-    bind:value={inputValue}
-    placeholder={strings.tagsPlaceholder}
-    onkeydown={onInputKeydown}
-    onfocus={() => (focused = true)}
-    onblur={onInputBlur}
-  />
+  {#if showInput}
+    <label class="tag-input-chip" class:active={focused || !!inputValue.trim()} title={strings.tagsPlaceholder}>
+      <span class="tag-input-prefix">+</span>
+      <input
+        class="tag-input"
+        type="text"
+        bind:value={inputValue}
+        placeholder={focused || inputValue.trim() ? strings.tagsPlaceholder : "标签"}
+        onkeydown={onInputKeydown}
+        onfocus={() => (focused = true)}
+        onblur={onInputBlur}
+      />
+    </label>
+  {/if}
 
-  {#if focused && filteredSuggestions.length > 0}
-    <div class="tag-suggestions">
-      {#each filteredSuggestions as item (item)}
-        <button
-          type="button"
-          class="tag-suggestion-item"
-          onmousedown={(e) => e.preventDefault()}
-          onclick={() => pickSuggestion(item)}
-          title={`#${item}`}
-        >
-          #{item}
-        </button>
-      {/each}
-    </div>
+  {#if showInput}
+    {#if focused && filteredSuggestions.length > 0}
+      <div class="tag-suggestions">
+        {#each filteredSuggestions as item (item)}
+          <button
+            type="button"
+            class="tag-suggestion-item"
+            onmousedown={(e) => e.preventDefault()}
+            onclick={() => pickSuggestion(item)}
+            title={`#${item}`}
+          >
+            #{item}
+          </button>
+        {/each}
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -169,7 +177,7 @@
   .tags-editor {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     flex-wrap: wrap;
     min-width: 0;
     position: relative;
@@ -183,12 +191,13 @@
     border-radius: 999px;
     background: var(--ws-btn-bg, #fff);
     color: var(--ws-text, #334155);
-    padding: 3px 8px;
-    max-width: 160px;
+    padding: 2px 8px;
+    min-height: 28px;
+    max-width: 136px;
   }
 
   .tag-text {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
@@ -209,20 +218,52 @@
     color: #dc2626;
   }
 
-  .tag-input {
+  .tag-input-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     border: 1px dashed var(--ws-border-soft, #d6e0ee);
     border-radius: 999px;
     background: var(--ws-card-bg, #fff);
+    color: var(--ws-muted, #64748b);
+    padding: 2px 9px;
+    min-height: 28px;
+    min-width: 64px;
+    max-width: 112px;
+    transition:
+      border-color 0.16s ease,
+      background-color 0.16s ease,
+      max-width 0.18s ease;
+    cursor: text;
+  }
+
+  .tag-input-chip.active {
+    border-color: var(--ws-border-active, #94a3b8);
+    background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent);
+    max-width: 176px;
+  }
+
+  .tag-input-prefix {
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    color: inherit;
+  }
+
+  .tag-input {
+    border: none;
+    background: transparent;
     color: var(--ws-text, #1f2937);
-    font-size: 12px;
-    padding: 5px 10px;
-    min-width: 118px;
-    max-width: 180px;
+    font-size: 11px;
+    padding: 0;
+    width: 100%;
+    min-width: 0;
     outline: none;
   }
 
-  .tag-input:focus {
-    border-color: var(--ws-border-active, #94a3b8);
+  .tag-input::placeholder {
+    color: color-mix(in srgb, var(--ws-muted, #64748b) 88%, transparent);
   }
 
   .tag-suggestions {
