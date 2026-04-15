@@ -1,12 +1,10 @@
-import { LogicalPosition } from "@tauri-apps/api/dpi";
-
 /**
  * @param {{
  *   getCurrentWindow: () => {
  *     outerPosition: () => Promise<{ x: number; y: number }>;
  *     scaleFactor: () => Promise<number>;
- *     setPosition: (position: LogicalPosition) => Promise<void>;
  *   };
+ *   moveWindow: (position: { x: number; y: number }) => Promise<void>;
  *   getCanInteract: () => boolean;
  *   getIsEditing: () => boolean;
  *   getIsAlwaysOnTop?: () => boolean;
@@ -111,10 +109,12 @@ export function createNoteWindowDragController(input) {
     dragWindowX += deltaX;
     dragWindowY += deltaY;
     input
-      .getCurrentWindow()
-      .setPosition(new LogicalPosition(dragWindowX, dragWindowY))
+      .moveWindow({
+        x: dragWindowX,
+        y: dragWindowY,
+      })
       .catch((err) => {
-        console.error("setPosition failed", err);
+        console.error("moveWindow failed", err);
         endManualWindowDrag();
       });
   }

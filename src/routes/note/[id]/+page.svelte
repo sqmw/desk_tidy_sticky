@@ -45,6 +45,7 @@
   let showFrostValue = $state(false);
   let isEditing = $state(false);
   let isControlMode = $state(false);
+  let suppressPointerActivationUntil = $state(0);
   let showCommandSuggestions = $state(false);
   let commandQuery = $state("");
   let commandActiveIndex = $state(0);
@@ -101,6 +102,11 @@
     ".opacity-popover",
     ".frost-popover",
   ].join(",");
+  const POINTER_ACTIVATION_SUPPRESS_MS = 240;
+
+  function getNow() {
+    return globalThis.performance?.now?.() ?? Date.now();
+  }
 
   async function loadNote() {
     try {
@@ -229,6 +235,10 @@
     isControlMode = true;
   }
 
+  function shouldSuppressPointerActivation() {
+    return getNow() < suppressPointerActivationUntil;
+  }
+
   async function exitControlMode() {
     dismissFloatingPanelsOnPointerDown(null);
     if (isEditing) {
@@ -329,7 +339,27 @@
   }
 
   /** @param {MouseEvent} event */
+  function handleNoteClick(event) {
+    if (!shouldSuppressPointerActivation()) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  /** @param {KeyboardEvent} event */
+  function handleNoteKeydown(event) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    if (!shouldSuppressPointerActivation()) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  /** @param {MouseEvent} event */
   function handleNoteDoubleClick(event) {
+    if (shouldSuppressPointerActivation()) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (!note?.isAlwaysOnTop || isControlMode || isEditing) return;
     const target = /** @type {HTMLElement | null} */ (event.target);
     if (target?.closest(CONTROL_MODE_TRIGGER_BLOCKED_SELECTOR)) {
@@ -353,10 +383,19 @@
 
   const noteWindowDrag = createNoteWindowDragController({
     getCurrentWindow,
+    moveWindow: (position) =>
+      invoke("move_note_window_without_activation", {
+        x: position.x,
+        y: position.y,
+      }),
     getCanInteract: () => canInteract,
     getIsEditing: () => isEditing,
     getIsAlwaysOnTop: () => !!note?.isAlwaysOnTop,
     dismissFloatingPanels: dismissFloatingPanelsOnPointerDown,
+    onDraggingChange: (dragging) => {
+      if (dragging) return;
+      suppressPointerActivationUntil = getNow() + POINTER_ACTIVATION_SUPPRESS_MS;
+    },
     onPositionPersist: async (position) => {
       if (!note) return;
       try {
@@ -364,6 +403,7 @@
           id: resolveNoteId(note, noteId),
           x: position.x,
           y: position.y,
+          emitEvent: false,
         });
         note = {
           ...note,
@@ -570,12 +610,14 @@
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 <div
   class="note-window"
   data-toolbar-visible={allowHoverToolbar ? "true" : "false"}
   data-control-mode={showTopmostControls ? "true" : "false"}
   style="background: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {noteFrostBlur}px; --frost-overlay: {noteFrostOverlay};"
+  onclick={handleNoteClick}
+  onkeydown={handleNoteKeydown}
   ondblclick={handleNoteDoubleClick}
   onpointerdown={noteWindowDrag.handleDragPointerDown}
   onpointermove={noteWindowDrag.onDragPointerMove}

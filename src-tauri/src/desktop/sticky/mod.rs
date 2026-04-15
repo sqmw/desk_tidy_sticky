@@ -265,3 +265,28 @@ pub fn get_overlay_interaction(app: tauri::AppHandle) -> Result<bool, String> {
         Err("OverlayInputState not found".to_string())
     }
 }
+
+#[tauri::command]
+pub fn move_note_window_without_activation(
+    window: tauri::WebviewWindow,
+    x: f64,
+    y: f64,
+) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let Some(hwnd_isize) = window_hwnd_isize(&window)? else {
+            return Ok(());
+        };
+        let scale = window.scale_factor().map_err(|e| e.to_string())?;
+        let physical_x = (x * scale).round() as i32;
+        let physical_y = (y * scale).round() as i32;
+        return windows::move_window_no_activate(hwnd_isize, physical_x, physical_y);
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        window
+            .set_position(tauri::Position::Logical(tauri::LogicalPosition::new(x, y)))
+            .map_err(|e| e.to_string())
+    }
+}

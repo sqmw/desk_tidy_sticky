@@ -55,9 +55,12 @@ pub fn update_note_position(
     id: String,
     x: f64,
     y: f64,
+    emit_event: Option<bool>,
 ) -> Result<(), String> {
     notes_service::update_note_position(&id, x, y)?;
-    emit_notes_changed(&app);
+    if emit_event.unwrap_or(true) {
+        emit_notes_changed(&app);
+    }
     Ok(())
 }
 

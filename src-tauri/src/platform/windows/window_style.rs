@@ -23,6 +23,20 @@ pub fn set_topmost_no_activate(hwnd_isize: isize, topmost: bool) -> Result<(), S
     Ok(())
 }
 
+pub fn move_window_no_activate(hwnd_isize: isize, x: i32, y: i32) -> Result<(), String> {
+    let hwnd = HWND(hwnd_isize as *mut c_void);
+    unsafe {
+        if hwnd.0.is_null() || !IsWindow(hwnd).as_bool() {
+            return Err("move_window_no_activate target hwnd invalid".to_string());
+        }
+
+        let flags = SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW;
+        let _ = SetWindowPos(hwnd, HWND_TOP, x, y, 0, 0, flags);
+    }
+
+    Ok(())
+}
+
 /// When switching from "always-on-top" to normal, Windows may keep the active window visually
 /// above other non-topmost windows until focus changes. This forces an immediate send-to-back,
 /// but only for top-level windows to avoid pushing desktop-attached child windows under icons.
