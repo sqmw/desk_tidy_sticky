@@ -7,7 +7,7 @@ import { LogicalPosition } from "@tauri-apps/api/dpi";
  *     scaleFactor: () => Promise<number>;
  *     setPosition: (position: LogicalPosition) => Promise<void>;
  *   };
- *   getClickThrough: () => boolean;
+ *   getCanInteract: () => boolean;
  *   getIsEditing: () => boolean;
  *   dismissFloatingPanels: (target: HTMLElement | null) => void;
  *   onDraggingChange?: (dragging: boolean) => void;
@@ -104,7 +104,7 @@ export function createNoteWindowDragController(input) {
   /** @param {PointerEvent} event */
   async function handleDragPointerDown(event) {
     if (event.button !== 0) return;
-    if (input.getClickThrough()) return;
+    if (!input.getCanInteract()) return;
     const target = /** @type {HTMLElement | null} */ (event.target);
     input.dismissFloatingPanels(target);
     if (

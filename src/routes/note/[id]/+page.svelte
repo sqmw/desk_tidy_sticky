@@ -64,7 +64,8 @@
 
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
   const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
-  const allowHoverToolbar = $derived(!clickThrough && !note?.isWallpaper);
+  const canInteract = $derived(!!note?.isAlwaysOnTop || (!clickThrough && !note?.isWallpaper));
+  const allowHoverToolbar = $derived(canInteract);
   const commandSuggestions = $derived(filterNoteCommands(commandQuery));
   const commandSuggestionItems = $derived(
     commandSuggestions.map((cmd) => ({ ...cmd, preview: getNoteCommandPreview(cmd) })),
@@ -150,7 +151,7 @@
   }
 
   async function applyInteractionPolicy() {
-    const ignoreCursor = note?.isWallpaper ? true : clickThrough;
+    const ignoreCursor = note?.isAlwaysOnTop ? false : note?.isWallpaper ? true : clickThrough;
     try {
       await getCurrentWindow().setIgnoreCursorEvents(ignoreCursor);
     } catch (e) {
@@ -172,7 +173,7 @@
   }
 
   async function enterEditMode() {
-    if (clickThrough) return;
+    if (!canInteract) return;
     isEditing = true;
     showPalette = false;
     showTextColorPalette = false;
@@ -274,7 +275,7 @@
 
   const noteWindowDrag = createNoteWindowDragController({
     getCurrentWindow,
-    getClickThrough: () => clickThrough,
+    getCanInteract: () => canInteract,
     getIsEditing: () => isEditing,
     dismissFloatingPanels: dismissFloatingPanelsOnPointerDown,
     onPositionPersist: async (position) => {
@@ -454,6 +455,7 @@
       listen("notes_changed", async () => {
         await loadNote();
         await applyInteractionPolicy();
+        await applyZOrderAndParent();
       }),
     );
 

@@ -12,13 +12,14 @@ pub fn apply_overlay_input_state(app: &tauri::AppHandle, click_through: bool) {
         if label.starts_with("note-") {
             let note_id = label.trim_start_matches("note-");
             if let Some(n) = notes.iter().find(|x| x.id == note_id) {
-                let ignore_cursor = if n.is_wallpaper { true } else { click_through };
+                let ignore_cursor =
+                    resolve_note_ignore_cursor(n.is_always_on_top, n.is_wallpaper, click_through);
                 let _ = w.set_ignore_cursor_events(ignore_cursor);
                 let _ = apply_note_window_layer_with_interaction_by_label(
                     app,
                     &label,
                     n.is_always_on_top,
-                    ignore_cursor,
+                    click_through,
                     n.is_wallpaper,
                 );
             } else {
@@ -44,30 +45,27 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
         let Some(hwnd_isize) = window_hwnd_isize(&w)? else {
             return Ok(());
         };
+        if is_always_on_top {
+            windows::detach_from_worker_w(hwnd_isize)?;
+            let _ = w.set_always_on_top(true);
+            windows::set_topmost_no_activate(hwnd_isize, true)?;
+            return Ok(());
+        }
         if is_wallpaper {
             let _ = w.set_always_on_top(false);
             windows::set_topmost_no_activate(hwnd_isize, false)?;
             windows::attach_to_wallpaper_worker_w(hwnd_isize)?;
             return Ok(());
         }
-        if is_always_on_top {
-            windows::detach_from_worker_w(hwnd_isize)?;
-            let _ = w.set_always_on_top(true);
-            windows::set_topmost_no_activate(hwnd_isize, true)?;
-        } else {
-            let _ = w.set_always_on_top(false);
-            windows::set_topmost_no_activate(hwnd_isize, false)?;
-            windows::attach_to_worker_w(hwnd_isize)?;
-        }
+        let _ = w.set_always_on_top(false);
+        windows::set_topmost_no_activate(hwnd_isize, false)?;
+        windows::attach_to_worker_w(hwnd_isize)?;
         return Ok(());
     }
 
     #[cfg(target_os = "macos")]
     {
-        // Keep wallpaper notes pinned to wallpaper semantics, and expose a real "desktop layer"
-        // (above icons) for non-wallpaper notes when pass-through mode is active.
-        let should_be_top = (!click_through && !is_wallpaper) || is_always_on_top;
-        if should_be_top {
+        if is_always_on_top {
             run_macos_window_op(&w, "macos_detach_from_desktop", macos::detach_from_worker_w)?;
             run_macos_window_op(&w, "macos_set_topmost_true", |ptr| {
                 macos::set_topmost_no_activate(ptr, true)
@@ -82,8 +80,10 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
                     macos::attach_to_wallpaper_layer_with_interaction(ptr, true)
                 })?;
             } else {
+                let ignore_cursor =
+                    resolve_note_ignore_cursor(is_always_on_top, is_wallpaper, click_through);
                 run_macos_window_op(&w, "macos_attach_to_desktop_layer", move |ptr| {
-                    macos::attach_to_desktop_layer_with_interaction(ptr, click_through)
+                    macos::attach_to_desktop_layer_with_interaction(ptr, ignore_cursor)
                 })?;
             }
         }
@@ -97,6 +97,20 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
         let _ = w.set_always_on_top(is_always_on_top);
         Ok(())
     }
+}
+
+fn resolve_note_ignore_cursor(
+    is_always_on_top: bool,
+    is_wallpaper: bool,
+    overlay_click_through: bool,
+) -> bool {
+    if is_always_on_top {
+        return false;
+    }
+    if is_wallpaper {
+        return true;
+    }
+    overlay_click_through
 }
 
 pub(super) fn get_overlay_click_through(app: &tauri::AppHandle) -> bool {

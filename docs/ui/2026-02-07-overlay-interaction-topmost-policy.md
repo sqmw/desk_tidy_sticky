@@ -12,9 +12,10 @@
 - 只在 `isPinned = true` 且 `isAlwaysOnTop = false` 时显示。
 - 原因：`贴到壁纸层 / 贴在图标上层` 属于“底部语义”的二级切换，不应在置顶状态下同时出现，避免用户误以为两套层级可以并行生效。
 3. 鼠标交互按钮：
-- 控制鼠标穿透（`setIgnoreCursorEvents`）。
+- 控制全局鼠标穿透（`setIgnoreCursorEvents`）。
 - 不再覆盖 `isAlwaysOnTop / isWallpaper` 的层级语义。
-- 便笺窗口底部悬浮工具栏只在 `鼠标交互开启` 且 `不是壁纸层` 时允许通过 hover 展示。
+- `isAlwaysOnTop = true` 的贴纸始终允许 hover、编辑与拖拽，不受全局鼠标交互限制。
+- `desktop / wallpaper` 贴纸继续受全局鼠标交互控制。
 
 ## Backend Changes
 文件：`src-tauri/src/lib.rs`
@@ -38,4 +39,5 @@
 ## Impact
 - “置底(WorkerW)”在当前版本立即生效，且能稳定保持底层。
 - 全局交互按钮不再误伤层级策略，避免“明明设了置底却不在底层”。
-- 当贴纸处于 click-through 或壁纸层时，用户不会再看到误导性的 hover 编辑按钮。
+- 置顶贴纸在全局鼠标交互关闭时仍可直接编辑，不需要额外切换批量交互模式。
+- 当贴纸处于底部 click-through 或壁纸层时，用户不会再看到误导性的 hover 编辑按钮。
