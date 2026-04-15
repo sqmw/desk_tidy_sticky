@@ -18,6 +18,7 @@
 - 进一步确认：只做 `SetParent` 不足以让 Tauri WebView 稳定进入 WorkerW 桌面层；窗口仍可能保留顶层 `WS_POPUP` 语义，表现为刚开启时贴底/置顶视觉层级交叉、需要点击其它窗口才刷新。
 - 2026-04-15 追加确认：Windows 壁纸层并不是单纯的 `HWND_BOTTOM` 问题，它依赖 `Progman -> WorkerW` 的正确生成与发现。此前 `spawn_worker_w()` 使用了 `wParam=0`，与通用 WorkerW 方案和 `lively` 的 `wParam=0xD` 不一致，导致部分机器上“图标上层”可用，但“壁纸层 sibling WorkerW”无法稳定生成或发现。
 - 2026-04-15 追加确认：Windows 11 某些桌面布局下，壁纸层 `WorkerW` 会直接作为 `Progman` 子窗口存在，而不一定能通过“拥有 `SHELLDLL_DefView` 的宿主窗口的下一个 sibling”拿到。
+- 2026-04-15 追加确认：桌面层子窗口会失去 Windows 原生圆角观感，因此贴纸内容容器必须自己提供圆角裁剪，不能依赖顶层窗口默认圆角。
 
 ## 修复
 - 将 Windows 层级判断收敛为：
@@ -59,6 +60,10 @@
   - `spawn_worker_w()` 改为对 `Progman` 发送 `0x052C(wParam=0xD)`，分别尝试 `lParam=0` 和 `lParam=1`。
   - `find_wallpaper_worker_w()` 在原有 sibling `WorkerW` 发现失败后，增加 `Progman -> child WorkerW` 回退，覆盖 Windows 11 常见桌面布局。
   - 目的：先保证“壁纸层容器”本身是对的，再谈窗口样式和 Z 顺序。
+- 便笺窗口 hover 工具栏显隐收敛：
+  - 文件：`src/routes/note/[id]/+page.svelte`、`src/lib/components/note/NoteToolbar.svelte`
+  - `note-window` 增加 `data-toolbar-visible` 状态，只在 `clickThrough=false` 且 `isWallpaper=false` 时允许 hover 显示工具栏。
+  - 贴纸根容器改为 `width/height: 100%` 铺满父容器，并用 `12px` 圆角 + `::before` 继承圆角裁剪，避免桌面层/壁纸层子窗口出现方角、两侧透明宿主边缘或“背景没有贴满外框”的观感。
 
 ## 回归关注点
 1. 「置顶显示」仍应立即上浮，不受影响。
@@ -68,3 +73,5 @@
 5. 新增贴纸或批量开启桌面贴纸时，不应出现所有贴纸连续闪动。
 6. 刚开启桌面贴纸后，初始层级应立即符合每条 note 的 `is_always_on_top` / `is_wallpaper` 状态，不需要再手动点一次按钮修正。
 7. Windows 上切换到「贴到壁纸层」时，贴纸必须真正进入图标下方，而不是仍停留在图标上层。
+8. 贴在底部时，贴纸仍应保持圆角外观，不应出现左右透明宿主边缘。
+9. 悬浮编辑按钮只应在鼠标交互开启时显示。

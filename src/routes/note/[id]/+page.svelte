@@ -64,6 +64,7 @@
 
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
   const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
+  const allowHoverToolbar = $derived(!clickThrough && !note?.isWallpaper);
   const commandSuggestions = $derived(filterNoteCommands(commandQuery));
   const commandSuggestionItems = $derived(
     commandSuggestions.map((cmd) => ({ ...cmd, preview: getNoteCommandPreview(cmd) })),
@@ -483,6 +484,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="note-window"
+  data-toolbar-visible={allowHoverToolbar ? "true" : "false"}
   style="background: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {noteFrostBlur}px; --frost-overlay: {noteFrostOverlay};"
   onpointerdown={noteWindowDrag.handleDragPointerDown}
   onpointermove={noteWindowDrag.onDragPointerMove}
@@ -565,12 +567,15 @@
 <style>
   .note-window {
     position: relative;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
+    border-radius: 12px;
+    background-clip: padding-box;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     overflow: hidden;
+    isolation: isolate;
     backdrop-filter: blur(var(--frost-blur, 7px)) saturate(1.08);
     -webkit-backdrop-filter: blur(var(--frost-blur, 7px)) saturate(1.08);
   }
@@ -580,6 +585,7 @@
     position: absolute;
     inset: 0;
     background: rgba(255, 255, 255, var(--frost-overlay, 0.09));
+    border-radius: inherit;
     pointer-events: none;
     z-index: 0;
   }

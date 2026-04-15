@@ -309,12 +309,12 @@
     z-index: 1;
   }
 
-  :global(.note-window:hover) .toolbar {
+  :global(.note-window[data-toolbar-visible="true"]:hover) .toolbar {
     opacity: 1;
     pointer-events: auto;
   }
 
-  :global(.note-window:hover) .toolbar-mask {
+  :global(.note-window[data-toolbar-visible="true"]:hover) .toolbar-mask {
     opacity: 1;
   }
 

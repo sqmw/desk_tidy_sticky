@@ -14,6 +14,7 @@
 3. 鼠标交互按钮：
 - 控制鼠标穿透（`setIgnoreCursorEvents`）。
 - 不再覆盖 `isAlwaysOnTop / isWallpaper` 的层级语义。
+- 便笺窗口底部悬浮工具栏只在 `鼠标交互开启` 且 `不是壁纸层` 时允许通过 hover 展示。
 
 ## Backend Changes
 文件：`src-tauri/src/lib.rs`
@@ -37,3 +38,4 @@
 ## Impact
 - “置底(WorkerW)”在当前版本立即生效，且能稳定保持底层。
 - 全局交互按钮不再误伤层级策略，避免“明明设了置底却不在底层”。
+- 当贴纸处于 click-through 或壁纸层时，用户不会再看到误导性的 hover 编辑按钮。
