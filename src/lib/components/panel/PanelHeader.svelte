@@ -9,7 +9,6 @@
     NOTE_VIEW_MODES,
     windowPinned,
     showSettings = $bindable(),
-    glassOpacity,
     newNoteText = $bindable(),
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
     newNoteTags = $bindable(/** @type {string[]} */ ([])),
@@ -25,7 +24,6 @@
     startWindowDragPointer,
     toggleWindowPinned,
     toggleLanguage,
-    adjustGlass,
     hideWindow,
     minimizeWindow,
     switchToWorkspace,
@@ -75,11 +73,9 @@
     <HeaderActions
       {strings}
       {windowPinned}
-      {glassOpacity}
       showWindowControls={!isMac}
       {toggleWindowPinned}
       {toggleLanguage}
-      {adjustGlass}
       {hideWindow}
       {minimizeWindow}
       {switchToWorkspace}
@@ -109,7 +105,7 @@
     </button>
   </div>
 
-  <div class="tabs-row">
+  <div class="tabs-row" data-tauri-drag-region="false">
     <div class="tabs-main">
       <div class="view-tabs">
         {#each NOTE_VIEW_MODES as mode}
@@ -119,17 +115,11 @@
             class:active={viewMode === mode}
             onclick={() => setViewMode(mode)}
           >
-            {strings[
-              mode === "active"
-                ? "active"
-                : mode === "todo"
-                  ? "todo"
-                  : mode === "quadrant"
-                    ? "quadrant"
-                    : mode === "archived"
-                      ? "archived"
-                      : "trash"
-            ]}
+            {mode === "active"
+              ? strings.compactActive
+              : mode === "archived"
+                ? strings.archived
+                : strings.trash}
           </button>
         {/each}
       </div>

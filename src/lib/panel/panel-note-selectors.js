@@ -2,7 +2,7 @@ import { matchNote } from "$lib/note/search.js";
 import { normalizeTagKey, normalizeTagText } from "$lib/note/tags.js";
 import { hasQuadrantPriority } from "$lib/panel/note-priority.js";
 
-export const PANEL_NOTE_VIEW_MODES = ["active", "todo", "quadrant", "archived", "trash"];
+export const PANEL_NOTE_VIEW_MODES = ["active", "archived", "trash"];
 
 /**
  * @param {any[]} source
@@ -70,4 +70,3 @@ export function getPanelNoteTagOptions(notes, options) {
   }
   return [...bucket.values()].sort((a, b) => a.localeCompare(b)).slice(0, limit);
 }
-

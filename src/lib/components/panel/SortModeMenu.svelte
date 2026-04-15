@@ -1,4 +1,6 @@
 <script>
+  import { tick } from "svelte";
+
   let {
     strings,
     sortMode,
@@ -6,18 +8,41 @@
     setSortMode,
   } = $props();
 
+  /** @type {HTMLButtonElement | null} */
+  let triggerEl = $state(null);
+  let menuTop = $state(0);
+  let menuLeft = $state(0);
+  let menuMinWidth = $state(100);
+
   /** @param {"custom" | "newest" | "oldest"} mode */
   function applySortMode(mode) {
     setSortMode(mode);
     isSortMenuOpen = false;
   }
+
+  function updateMenuPosition() {
+    const rect = triggerEl?.getBoundingClientRect();
+    if (!rect) return;
+    menuTop = rect.bottom + 6;
+    menuLeft = rect.left;
+    menuMinWidth = Math.max(112, Math.round(rect.width));
+  }
+
+  $effect(() => {
+    if (!isSortMenuOpen) return;
+    tick().then(() => {
+      updateMenuPosition();
+    });
+  });
 </script>
 
-<div class="sort-dropdown">
+<div class="sort-dropdown" data-tauri-drag-region="false">
   <button
     type="button"
     class="sort-trigger"
+    bind:this={triggerEl}
     onclick={() => (isSortMenuOpen = !isSortMenuOpen)}
+    onpointerdown={(event) => event.stopPropagation()}
     title={strings.sortMode}
   >
     <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" class="sort-icon">
@@ -39,14 +64,29 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="sort-menu-overlay" onclick={() => (isSortMenuOpen = false)}></div>
-    <div class="sort-menu">
-      <button class="sort-item" class:selected={sortMode === "custom"} onclick={() => applySortMode("custom")}>
+    <div class="sort-menu" style={`top:${menuTop}px; left:${menuLeft}px; min-width:${menuMinWidth}px;`}>
+      <button
+        class="sort-item"
+        class:selected={sortMode === "custom"}
+        onclick={() => applySortMode("custom")}
+        onpointerdown={(event) => event.stopPropagation()}
+      >
         {strings.sortByCustom}
       </button>
-      <button class="sort-item" class:selected={sortMode === "newest"} onclick={() => applySortMode("newest")}>
+      <button
+        class="sort-item"
+        class:selected={sortMode === "newest"}
+        onclick={() => applySortMode("newest")}
+        onpointerdown={(event) => event.stopPropagation()}
+      >
         {strings.sortByNewest}
       </button>
-      <button class="sort-item" class:selected={sortMode === "oldest"} onclick={() => applySortMode("oldest")}>
+      <button
+        class="sort-item"
+        class:selected={sortMode === "oldest"}
+        onclick={() => applySortMode("oldest")}
+        onpointerdown={(event) => event.stopPropagation()}
+      >
         {strings.sortByOldest}
       </button>
     </div>
@@ -92,16 +132,12 @@
   }
 
   .sort-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    margin-top: 4px;
+    position: fixed;
     background: #fff;
     border: 1px solid var(--divider);
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 100;
-    min-width: 100px;
+    z-index: 1400;
     padding: 4px;
     display: flex;
     flex-direction: column;
@@ -111,7 +147,7 @@
   .sort-menu-overlay {
     position: fixed;
     inset: 0;
-    z-index: 99;
+    z-index: 1399;
     cursor: default;
   }
 

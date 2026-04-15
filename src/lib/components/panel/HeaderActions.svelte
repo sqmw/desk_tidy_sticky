@@ -2,11 +2,9 @@
   let {
     strings,
     windowPinned,
-    glassOpacity,
     showWindowControls = true,
     toggleWindowPinned,
     toggleLanguage,
-    adjustGlass,
     hideWindow,
     minimizeWindow,
     onOpenSettings,
@@ -59,22 +57,17 @@
       <path d="M3 3h8v8H3V3zm10 0h8v5h-2V5h-6v6h3v2h-5V3zm-10 10h5v2H5v4h4v-3h2v5H3v-8zm10 2h8v6h-8v-6zm2 2v2h4v-2h-4z" />
     </svg>
   </button>
-
-  <button
-    type="button"
-    class="icon-btn glass-btn"
-    title={strings.glassAdjust}
-    onwheel={(e) => {
-      e.preventDefault();
-      adjustGlass(-e.deltaY * 0.0005);
-    }}
-  >
-    <span class="glass-pct">{Math.round(glassOpacity * 100)}%</span>
-  </button>
-
   {#if showWindowControls}
-    <button type="button" class="icon-btn" title={strings.minimizeWindow} onclick={minimizeWindow}>-</button>
-    <button type="button" class="icon-btn" title={strings.hideWindow} onclick={hideWindow}>✕</button>
+    <button type="button" class="icon-btn window-btn" title={strings.minimizeWindow} onclick={minimizeWindow}>
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M6 12.5h12" stroke-linecap="round" />
+      </svg>
+    </button>
+    <button type="button" class="icon-btn window-btn close-btn" title={strings.hideWindow} onclick={hideWindow}>
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M7 7l10 10M17 7 7 17" stroke-linecap="round" />
+      </svg>
+    </button>
   {/if}
 </div>
 
@@ -105,22 +98,25 @@
     color: var(--primary);
   }
 
-  .glass-btn {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    opacity: 1;
-    width: auto;
-    padding: 0 4px;
-    font-variant-numeric: tabular-nums;
+  .window-btn {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border-radius: 5px;
+    border: none;
+    background: transparent;
+    transition:
+      opacity 0.16s ease,
+      background-color 0.16s ease,
+      color 0.16s ease;
   }
 
-  .glass-pct {
-    font-size: 11px;
-    font-weight: 500;
-    min-width: 24px;
-    text-align: center;
-    color: #666;
+  .window-btn:hover {
+    background: color-mix(in srgb, #f5f7fa 88%, transparent);
   }
 
+  .close-btn:hover {
+    color: #a12f2f;
+    background: color-mix(in srgb, #fff1f1 90%, transparent);
+  }
 </style>

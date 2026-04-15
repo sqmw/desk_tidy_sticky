@@ -29,6 +29,7 @@
   import SettingsDialog from "$lib/components/panel/SettingsDialog.svelte";
 
   const NOTE_VIEW_MODES = PANEL_NOTE_VIEW_MODES;
+  const COMPACT_ALLOWED_VIEW_MODES = new Set(PANEL_NOTE_VIEW_MODES);
 
   /** @type {any[]} */
   let notes = $state([]);
@@ -37,7 +38,6 @@
   let searchQuery = $state("");
   let hideAfterSave = $state(true);
   let windowPinned = $state(false);
-  let glassOpacity = $state(0.18);
   /** @type {string} */
   let locale = $state("en");
   let newNoteText = $state("");
@@ -93,6 +93,14 @@
   });
 
   const noteTagOptions = $derived.by(() => getPanelNoteTagOptions(notes));
+
+  /**
+   * @param {string | null | undefined} mode
+   */
+  function normalizeCompactViewMode(mode) {
+    const safe = String(mode || "").trim();
+    return COMPACT_ALLOWED_VIEW_MODES.has(safe) ? safe : "active";
+  }
 
   const windowSync = createWindowSync({
     getNotes: () => notes,
@@ -161,9 +169,8 @@
     try {
       const p = await getPreferences(invoke);
       hideAfterSave = p.hideAfterSave ?? true;
-      viewMode = p.viewMode || "active";
+      viewMode = normalizeCompactViewMode(p.viewMode);
       sortMode = p.sortMode || "custom";
-      glassOpacity = p.glassOpacity ?? 0.18;
       locale = p.language || "en";
       showPanelOnStartup = p.showPanelOnStartup ?? false;
       stickiesVisible = p.overlayEnabled ?? true;
@@ -253,8 +260,9 @@
 
   /** @param {string} mode */
   async function setViewMode(mode) {
-    viewMode = mode;
-    await savePrefs({ viewMode: mode });
+    const safeMode = normalizeCompactViewMode(mode);
+    viewMode = safeMode;
+    await savePrefs({ viewMode: safeMode });
     await loadNotes();
   }
 
@@ -263,13 +271,6 @@
     sortMode = mode;
     await savePrefs({ sortMode: mode });
     await loadNotes();
-  }
-
-  /** @param {number} delta */
-  async function adjustGlass(delta) {
-    const next = Math.max(0.05, Math.min(1, glassOpacity + delta));
-    glassOpacity = next;
-    await savePrefs({ glassOpacity: next });
   }
 
   /** @param {KeyboardEvent} e */
@@ -434,14 +435,13 @@
   onpointercancel={handleWindowPointerCancel}
 />
 
-<div class="panel" style="--glass-opacity: {glassOpacity}">
+<div class="panel">
   <div class="glass-container">
     <PanelHeader
       {strings}
       {NOTE_VIEW_MODES}
       {windowPinned}
       bind:showSettings
-      {glassOpacity}
       bind:newNoteText
       bind:newNotePriority
       bind:newNoteTags
@@ -457,7 +457,6 @@
       {startWindowDragPointer}
       {toggleWindowPinned}
       {toggleLanguage}
-      {adjustGlass}
       {hideWindow}
       {minimizeWindow}
       {switchToWorkspace}
@@ -528,10 +527,12 @@
   }
 
   .glass-container {
-    background: rgba(255, 255, 255, var(--glass-opacity, 0.18));
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 0;
+    background: #f7f8fa;
+    border-radius: 12px;
+    border: 1px solid #e6eaf0;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.78),
+      0 14px 32px rgba(15, 23, 42, 0.08);
     height: 100%;
     display: flex;
     flex-direction: column;
