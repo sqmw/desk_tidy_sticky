@@ -66,6 +66,15 @@
   const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
   const canInteract = $derived(!!note?.isAlwaysOnTop || (!clickThrough && !note?.isWallpaper));
   const allowHoverToolbar = $derived(canInteract);
+  const noteCenterHudText = $derived.by(() => {
+    if (showOpacityValue) {
+      return `${strings.noteOpacityHud} ${Math.round(opacityDraft * 100)}%`;
+    }
+    if (showFrostValue) {
+      return `${strings.noteFrostHud} ${Math.round(frostDraft * 100)}%`;
+    }
+    return "";
+  });
   const commandSuggestions = $derived(filterNoteCommands(commandQuery));
   const commandSuggestionItems = $derived(
     commandSuggestions.map((cmd) => ({ ...cmd, preview: getNoteCommandPreview(cmd) })),
@@ -520,6 +529,10 @@
       <NotePreview html={renderedMarkdown} />
     {/if}
 
+    {#if noteCenterHudText}
+      <div class="note-center-hud">{noteCenterHudText}</div>
+    {/if}
+
     <NoteToolbar
       {strings}
       {isEditing}
@@ -528,8 +541,6 @@
       showTextColorPalette={showTextColorPalette}
       showOpacityPanel={showOpacityPanel}
       showFrostPanel={showFrostPanel}
-      showOpacityValue={showOpacityValue}
-      showFrostValue={showFrostValue}
       opacityDraft={opacityDraft}
       frostDraft={frostDraft}
       noteBgColor={noteBgColor}
@@ -595,6 +606,27 @@
   .note-window > * {
     position: relative;
     z-index: 1;
+  }
+
+  .note-center-hud {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 118px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.72);
+    color: #f8fafc;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.01em;
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.2);
+    pointer-events: none;
+    z-index: 4;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
   }
 
 </style>

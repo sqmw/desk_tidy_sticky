@@ -288,7 +288,6 @@ export function createNoteStyleActions(input) {
   function onOpacityIconWheel(event) {
     event.preventDefault();
     event.stopPropagation();
-    input.setShowOpacityPanel(true);
     onOpacityWheel(event);
   }
 
@@ -298,7 +297,6 @@ export function createNoteStyleActions(input) {
   function onFrostIconWheel(event) {
     event.preventDefault();
     event.stopPropagation();
-    input.setShowFrostPanel(true);
     onFrostWheel(event);
   }
 
