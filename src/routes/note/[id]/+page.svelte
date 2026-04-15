@@ -286,6 +286,7 @@
     getCurrentWindow,
     getCanInteract: () => canInteract,
     getIsEditing: () => isEditing,
+    getIsAlwaysOnTop: () => !!note?.isAlwaysOnTop,
     dismissFloatingPanels: dismissFloatingPanelsOnPointerDown,
     onPositionPersist: async (position) => {
       if (!note) return;
