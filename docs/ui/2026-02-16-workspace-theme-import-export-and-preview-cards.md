@@ -64,6 +64,26 @@
 - 设置弹窗与工作台主题保持一致；
 - 自定义主题 CSS 不再只对主界面生效，弹窗也能同步看到结果。
 
+## 2026-04-15 补充：完整模板变量覆盖校准
+
+### 判定
+- 类型：`Bug/回归`
+
+### 问题
+- 项目中实际使用到的主题 token 包含 `--ws-accent-soft` / `--ws-accent-strong`，但旧模板未列出，容易导致主题覆盖不完整。
+- 旧模板变量只写在 `.workspace` 上，但设置弹窗渲染在 `.workspace` 外，导致“改变量”无法覆盖弹窗。
+
+### 修复
+- `src/lib/workspace/theme/theme-default-template-config.js`
+  - `THEME_TOKEN_ORDER` 补齐 `--ws-accent-strong`、`--ws-accent-soft`。
+- `src/lib/workspace/theme/theme-default-template-sections.js`
+  - 变量根选择器改为 `:where(.workspace, .settings-backdrop)`，让设置弹窗也吃到同一套 token；
+  - 模板变量行统一带 `!important`，避免被 preset 的内联变量覆盖；
+  - 设置弹窗相关默认样式与选择器索引不再强依赖 `.workspace` 前缀；
+  - 运行时内部变量（`--ws-ui-scale` 等）仅以注释形式列出，不建议在主题里覆盖，防止缩放/过渡逻辑被破坏。
+- `src/lib/workspace/theme/theme-presets.js`
+  - `buildWorkspaceThemeVarStyle` 补齐衍生 token，保证所有 preset 下都有稳定值。
+
 ## 2026-03-30 补充：设置弹窗排版重构
 
 ### 判定

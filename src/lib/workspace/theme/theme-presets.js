@@ -201,9 +201,15 @@ export function resolveWorkspaceThemeToggleTarget(value) {
  */
 export function buildWorkspaceThemeVarStyle(value) {
   const preset = getWorkspaceThemePreset(value);
-  return Object.entries(preset.vars)
-    .map(([name, token]) => `${name}: ${token};`)
-    .join(" ");
+  const lines = Object.entries(preset.vars).map(([name, token]) => `${name}: ${token};`);
+  // Derived accent tokens used by some UI bits (they also have fallback). Keep them present for every preset.
+  if (!("--ws-accent-strong" in preset.vars)) {
+    lines.push(`--ws-accent-strong: var(--ws-accent);`);
+  }
+  if (!("--ws-accent-soft" in preset.vars)) {
+    lines.push(`--ws-accent-soft: color-mix(in srgb, var(--ws-accent) 18%, transparent);`);
+  }
+  return lines.join(" ");
 }
 
 /**

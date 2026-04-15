@@ -5,14 +5,29 @@ export function buildThemeTokenSection() {
   const preset = getWorkspaceThemePreset("light");
   const vars = preset.vars;
   const lines = [
-    ".workspace {",
-    "  /* 核心主题变量：改这里即可影响所有模块 */",
+    ":where(.workspace, .settings-backdrop) {",
+    "  /* 核心主题变量：改这里即可影响所有模块（含设置弹窗） */",
+    "  /* 注意：工作台主题 preset 通过内联 style 注入，覆盖变量时建议加 !important */",
   ];
   for (const token of THEME_TOKEN_ORDER) {
-    const value = vars[token] || "";
-    lines.push(`  ${token}: ${value};`);
+    let value = vars[token] || "";
+    if (!value && token === "--ws-accent-strong") {
+      value = "var(--ws-accent)";
+    }
+    if (!value && token === "--ws-accent-soft") {
+      value = "color-mix(in srgb, var(--ws-accent) 18%, transparent)";
+    }
+    lines.push(`  ${token}: ${value} !important;`);
   }
   lines.push("}");
+  lines.push("");
+  lines.push("/* 运行时内部变量（请勿在主题里强行覆盖） */");
+  lines.push("/* --ws-ui-scale: 1; */");
+  lines.push("/* --ws-layout-scale: 1; */");
+  lines.push("/* --ws-text-scale: 1; */");
+  lines.push("/* --ws-vt-x: 0px; */");
+  lines.push("/* --ws-vt-y: 0px; */");
+  lines.push("/* --ws-heart-size: 0px; */");
   return lines.join("\n");
 }
 
@@ -404,35 +419,35 @@ export function buildModuleDefaultSection() {
     "/* ============================= */",
     "/* 设置弹窗（主题设置区域） */",
     "/* ============================= */",
-    ".workspace .settings-backdrop {",
+    ".settings-backdrop {",
     "  background: color-mix(in srgb, #020617 38%, transparent);",
     "}",
     "",
-    ".workspace .settings-dialog {",
+    ".settings-dialog {",
     "  border: 1px solid var(--ws-border);",
     "  background: var(--ws-panel-bg);",
     "}",
     "",
-    ".workspace .settings-dialog .setting-row,",
-    ".workspace .settings-dialog .setting-stack {",
+    ".settings-dialog .setting-row,",
+    ".settings-dialog .setting-stack {",
     "  color: var(--ws-text);",
     "}",
     "",
-    ".workspace .settings-dialog select,",
-    ".workspace .settings-dialog .css-editor {",
+    ".settings-dialog select,",
+    ".settings-dialog .css-editor {",
     "  border: 1px solid var(--ws-border-soft);",
     "  background: var(--ws-btn-bg);",
     "  color: var(--ws-text);",
     "}",
     "",
-    ".workspace .settings-dialog .theme-card,",
-    ".workspace .settings-dialog .clear-btn {",
+    ".settings-dialog .theme-card,",
+    ".settings-dialog .clear-btn {",
     "  border: 1px solid var(--ws-border-soft);",
     "  background: var(--ws-btn-bg);",
     "  color: var(--ws-text);",
     "}",
     "",
-    ".workspace .settings-dialog .theme-card.active {",
+    ".settings-dialog .theme-card.active {",
     "  border-color: var(--ws-border-active);",
     "  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ws-accent) 25%, transparent);",
     "}",
@@ -453,7 +468,15 @@ export function buildSelectorIndexSection() {
     "",
   ];
   for (const className of WORKSPACE_SELECTOR_INDEX) {
-    lines.push(`.workspace .${className}`);
+    if (className === "settings-backdrop") {
+      lines.push(".settings-backdrop");
+      continue;
+    }
+    if (className === "settings-dialog") {
+      lines.push(".settings-dialog");
+      continue;
+    }
+    lines.push(`:where(.workspace, .settings-dialog) .${className}`);
   }
   lines.push("*/");
   return lines.join("\n");

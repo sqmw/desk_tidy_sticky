@@ -3,6 +3,8 @@ export const THEME_TOKEN_ORDER = [
   "--ws-text",
   "--ws-muted",
   "--ws-accent",
+  "--ws-accent-strong",
+  "--ws-accent-soft",
   "--ws-panel-bg",
   "--ws-card-bg",
   "--ws-btn-bg",
