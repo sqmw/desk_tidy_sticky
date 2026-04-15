@@ -43,7 +43,6 @@
 <div class="toolbar-mask" class:editing={isEditing} aria-hidden="true"></div>
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="toolbar" class:editing={isEditing}>
-  <div class="toolbar-drag-pad"></div>
   <div class="toolbar-actions">
     <button
       class="tool-btn tool-btn-primary"
@@ -292,10 +291,7 @@
     left: 10px;
     right: 10px;
     bottom: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px 10px 10px;
+    padding: 10px;
     opacity: 0;
     transition: opacity 0.2s;
     pointer-events: none;
@@ -316,21 +312,12 @@
     justify-content: center;
   }
 
-  .toolbar-drag-pad {
-    width: 100%;
-    height: 18px;
-    border-radius: 10px;
-    background:
-      linear-gradient(90deg, rgba(148, 163, 184, 0.08), rgba(148, 163, 184, 0)),
-      rgba(255, 255, 255, 0.16);
-  }
-
   .toolbar-mask {
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
-    height: 124px;
+    height: 104px;
     background:
       linear-gradient(
         to top,
