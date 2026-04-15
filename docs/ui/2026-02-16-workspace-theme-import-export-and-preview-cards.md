@@ -44,6 +44,26 @@
 - `npm run check`：通过（0 error / 0 warning）
 - `cargo check`：通过（仅历史 warning）
 
+## 2026-04-15 补充：设置弹窗主题透传修复
+
+### 判定
+- 类型：`Bug/回归`
+
+### 问题
+- 工作台主界面已经应用主题预设和自定义 `workspaceCustomCss`；
+- 但设置弹窗在 DOM 层级上挂在 `workspace` 容器外，导致原本依赖继承的 `--ws-*` token 不生效，回退成浅色默认样式。
+
+### 调整
+- `src/routes/workspace/+page.svelte`
+  - 将 `workspaceThemeDark` 与 `workspaceThemeVarStyle` 传入 `WorkspaceSettingsDialog`。
+- `src/lib/components/workspace/WorkspaceSettingsDialog.svelte`
+  - 在 backdrop 根节点显式应用主题变量；
+  - 增加 `theme-dark` 状态，保证弹窗内部各 section 与 workspace 主界面使用同一套 token。
+
+### 结果
+- 设置弹窗与工作台主题保持一致；
+- 自定义主题 CSS 不再只对主界面生效，弹窗也能同步看到结果。
+
 ## 2026-03-30 补充：设置弹窗排版重构
 
 ### 判定

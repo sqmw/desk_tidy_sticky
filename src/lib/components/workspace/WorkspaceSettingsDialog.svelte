@@ -31,6 +31,8 @@
     onChangeZoomOption = () => {},
     onChangeFontSize = () => {},
     onChangeSidebarLayoutMode = () => {},
+    themeDark = false,
+    themeVarStyle = "",
   } = $props();
 
   /** @type {HTMLInputElement | null} */
@@ -97,7 +99,14 @@
 
 {#if show}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="settings-backdrop" role="button" tabindex="-1" onclick={() => (show = false)}>
+  <div
+    class="settings-backdrop"
+    class:theme-dark={themeDark}
+    style={themeVarStyle}
+    role="button"
+    tabindex="-1"
+    onclick={() => (show = false)}
+  >
     <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div class="settings-dialog" role="dialog" tabindex="-1" onclick={(e) => e.stopPropagation()}>
       <div class="dialog-head">
@@ -153,6 +162,27 @@
 
 <style>
   .settings-backdrop {
+    --ws-text-strong: #0f172a;
+    --ws-text: #334155;
+    --ws-muted: #64748b;
+    --ws-accent: #1d4ed8;
+    --ws-panel-bg: rgba(255, 255, 255, 0.92);
+    --ws-card-bg: #fdfefe;
+    --ws-btn-bg: #fbfdff;
+    --ws-btn-hover: #f4f8ff;
+    --ws-btn-active: linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%);
+    --ws-badge-bg: #e8f0ff;
+    --ws-badge-border: #d7e5ff;
+    --ws-border: #dce5f3;
+    --ws-border-soft: #d9e2ef;
+    --ws-border-hover: #c6d5e8;
+    --ws-border-active: #94a3b8;
+    --ws-scrollbar-track: rgba(148, 163, 184, 0.14);
+    --ws-scrollbar-thumb: rgba(71, 85, 105, 0.45);
+    --ws-scrollbar-thumb-hover: rgba(51, 65, 85, 0.62);
+    --ws-input-bg: #fbfdff;
+    --ws-input-border: #d9e2ef;
+    --ws-input-text: #0f172a;
     position: fixed;
     inset: 0;
     z-index: 2400;
@@ -160,6 +190,30 @@
     display: grid;
     place-items: center;
     padding: 20px;
+  }
+
+  .settings-backdrop.theme-dark {
+    --ws-text-strong: #e5ecf7;
+    --ws-text: #c6d0dd;
+    --ws-muted: #94a3b8;
+    --ws-accent: #7aa2ff;
+    --ws-panel-bg: rgba(16, 23, 36, 0.92);
+    --ws-card-bg: #152033;
+    --ws-btn-bg: #1a2740;
+    --ws-btn-hover: #233454;
+    --ws-btn-active: linear-gradient(180deg, #1d2f50 0%, #263a5a 100%);
+    --ws-badge-bg: #1a2c49;
+    --ws-badge-border: #2f4a75;
+    --ws-border: #2b3a54;
+    --ws-border-soft: #31445f;
+    --ws-border-hover: #415981;
+    --ws-border-active: #6389c9;
+    --ws-scrollbar-track: rgba(148, 163, 184, 0.14);
+    --ws-scrollbar-thumb: rgba(148, 163, 184, 0.42);
+    --ws-scrollbar-thumb-hover: rgba(186, 201, 224, 0.58);
+    --ws-input-bg: #12233a;
+    --ws-input-border: #324561;
+    --ws-input-text: #dbe7f7;
   }
 
   .settings-dialog {

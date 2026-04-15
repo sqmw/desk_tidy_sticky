@@ -815,6 +815,8 @@
 <WorkspaceSettingsDialog
   {strings}
   bind:show={showWorkspaceSettings}
+  themeDark={workspaceThemeDark}
+  themeVarStyle={workspaceThemeVarStyle}
   {locale}
   {isAutostartEnabled}
   bind:showPanelOnStartup

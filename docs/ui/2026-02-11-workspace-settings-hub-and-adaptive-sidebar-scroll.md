@@ -23,6 +23,28 @@
   - 贴纸鼠标交互开关
 - 通过 `WorkspaceWindowBar.svelte` 增加设置按钮进入弹窗。
 
+## 2026-04-15 补充：设置弹窗接入工作台主题
+
+### 判定
+- 类型：`Bug/回归`
+
+### 根因
+- `WorkspaceSettingsDialog.svelte` 已经使用 `--ws-*` 主题变量；
+- 但弹窗挂在 `workspace` 根容器外部渲染，无法自然继承 `workspace/+page.svelte` 上的主题变量和 `theme-dark` 状态；
+- 因此会退回到默认浅色 fallback，表现成“纯白弹窗”。
+
+### 修复
+- `src/routes/workspace/+page.svelte`
+  - 显式把 `workspaceThemeDark` 与 `workspaceThemeVarStyle` 传给 `WorkspaceSettingsDialog`。
+- `src/lib/components/workspace/WorkspaceSettingsDialog.svelte`
+  - 弹窗 backdrop 根节点接收 `themeDark` 与 `themeVarStyle`；
+  - 在弹窗自身建立一层 `--ws-*` fallback，保证即使脱离 workspace 容器也能正确取色；
+  - 暗色主题通过 `theme-dark` class 切换到与 workspace 一致的 token 组。
+
+### 结果
+- 设置弹窗现在会跟随工作台主题切换；
+- 浅色/深色/自定义主题都能保持一致，不再出现主界面有主题、弹窗却是纯白的割裂感。
+
 ### 3. 自适应缩放算法升级
 - `src/routes/workspace/+page.svelte` 中 `workspaceAdaptiveScale` 从简单长短边比，改为基于：
   - 视口宽高
