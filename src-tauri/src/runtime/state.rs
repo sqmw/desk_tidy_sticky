@@ -1,20 +1,20 @@
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
-pub struct OverlayInputState(pub Arc<Mutex<bool>>);
+pub struct GlobalControlState(pub Arc<Mutex<bool>>);
 
-impl OverlayInputState {
+impl GlobalControlState {
     pub fn toggle(&self) -> bool {
-        let mut guard = self.0.lock().expect("overlay input mutex poisoned");
+        let mut guard = self.0.lock().expect("global control mutex poisoned");
         *guard = !*guard;
         *guard
     }
 }
 
-impl Default for OverlayInputState {
+impl Default for GlobalControlState {
     fn default() -> Self {
-        // Start in click-through mode so newly pinned notes follow their own z-order policy
-        // and default to desktop-bottom unless explicitly set always-on-top.
+        // Default to "global control off": non-topmost desktop notes stay in their
+        // normal desktop / wallpaper layers and only individually topmost notes remain interactive.
         Self(Arc::new(Mutex::new(true)))
     }
 }

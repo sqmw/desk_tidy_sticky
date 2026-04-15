@@ -34,7 +34,7 @@
   let note = $state(null);
   const noteId = $derived(String($page.params.id || ""));
   let text = $state("");
-  let clickThrough = $state(false);
+  let globalControlDisabled = $state(false);
   /** @type {string} */
   let locale = $state("en");
   let showPalette = $state(false);
@@ -66,12 +66,13 @@
 
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
   const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
-  const canInteract = $derived(!!note?.isAlwaysOnTop || (!clickThrough && !note?.isWallpaper));
+  const canInteract = $derived(!globalControlDisabled || !!note?.isAlwaysOnTop);
+  const isEffectiveTopmost = $derived(!!note?.isAlwaysOnTop || !globalControlDisabled);
   const isMac =
     typeof navigator !== "undefined" &&
     /mac/i.test(String(navigator.userAgent || navigator.platform || ""));
-  const showTopmostControls = $derived(!!note?.isAlwaysOnTop && (isControlMode || isEditing));
-  const allowHoverToolbar = $derived((note?.isAlwaysOnTop ? false : canInteract));
+  const showTopmostControls = $derived(isEffectiveTopmost && (isControlMode || isEditing));
+  const allowHoverToolbar = $derived((isEffectiveTopmost ? false : canInteract));
   const noteCenterHudText = $derived.by(() => {
     if (showOpacityValue) {
       return `${strings.noteOpacityHud} ${Math.round(opacityDraft * 100)}%`;
@@ -138,12 +139,12 @@
     }
   }
 
-  async function loadOverlayInteractionState() {
+  async function loadGlobalControlState() {
     try {
       const state = await invoke("get_overlay_interaction");
-      clickThrough = !!state;
+      globalControlDisabled = !!state;
     } catch (e) {
-      console.error("loadOverlayInteractionState", e);
+      console.error("loadGlobalControlState", e);
     }
   }
 
@@ -188,7 +189,7 @@
   }
 
   async function applyInteractionPolicy() {
-    const ignoreCursor = note?.isAlwaysOnTop ? false : note?.isWallpaper ? true : clickThrough;
+    const ignoreCursor = !globalControlDisabled ? false : !(note?.isAlwaysOnTop);
     try {
       await getCurrentWindow().setIgnoreCursorEvents(ignoreCursor);
     } catch (e) {
@@ -211,7 +212,7 @@
 
   async function enterEditMode() {
     if (!canInteract) return;
-    if (note?.isAlwaysOnTop) {
+    if (isEffectiveTopmost) {
       isControlMode = true;
     }
     isEditing = true;
@@ -231,7 +232,7 @@
   }
 
   function enterControlMode() {
-    if (!note?.isAlwaysOnTop || !canInteract) return;
+    if (!isEffectiveTopmost || !canInteract) return;
     isControlMode = true;
   }
 
@@ -247,13 +248,13 @@
     isControlMode = false;
   }
 
-  async function toggleMouseInteraction() {
+  async function toggleGlobalControl() {
     try {
       const next = await invoke("toggle_overlay_interaction");
-      clickThrough = !!next;
+      globalControlDisabled = !!next;
       await applyInteractionPolicy();
     } catch (e) {
-      console.error("toggleMouseInteraction", e);
+      console.error("toggleGlobalControl", e);
     }
   }
 
@@ -360,7 +361,7 @@
       event.stopPropagation();
       return;
     }
-    if (!note?.isAlwaysOnTop || isControlMode || isEditing) return;
+    if (!isEffectiveTopmost || isControlMode || isEditing) return;
     const target = /** @type {HTMLElement | null} */ (event.target);
     if (target?.closest(CONTROL_MODE_TRIGGER_BLOCKED_SELECTOR)) {
       return;
@@ -371,7 +372,7 @@
   /** @param {KeyboardEvent} event */
   function handleWindowKeydown(event) {
     if (event.key !== "Escape") return;
-    if (!note?.isAlwaysOnTop) return;
+    if (!isEffectiveTopmost) return;
     if (!isControlMode && !isEditing) return;
     if (showCommandSuggestions) {
       showCommandSuggestions = false;
@@ -390,7 +391,7 @@
       }),
     getCanInteract: () => canInteract,
     getIsEditing: () => isEditing,
-    getIsAlwaysOnTop: () => !!note?.isAlwaysOnTop,
+    getIsAlwaysOnTop: () => isEffectiveTopmost,
     dismissFloatingPanels: dismissFloatingPanelsOnPointerDown,
     onDraggingChange: (dragging) => {
       if (dragging) return;
@@ -560,12 +561,12 @@
     const unlistenPromises = [];
 
     unlistenPromises.push(
-      listen("overlay_input_changed", async (event) => {
-        clickThrough = !!/** @type {{ payload?: unknown }} */ (event).payload;
+      listen("global_control_changed", async (event) => {
+        globalControlDisabled = !!/** @type {{ payload?: unknown }} */ (event).payload;
         try {
           await applyInteractionPolicy();
         } catch (e) {
-          console.error("overlay_input_changed", e);
+          console.error("global_control_changed", e);
         }
       }),
     );
@@ -579,7 +580,7 @@
     );
 
     loadLocale()
-      .then(loadOverlayInteractionState)
+      .then(loadGlobalControlState)
       .then(loadNote)
       .then(async () => {
         await applyInteractionPolicy();
@@ -602,7 +603,7 @@
   });
 
   $effect(() => {
-    if (!note?.isAlwaysOnTop && isControlMode) {
+    if (!isEffectiveTopmost && isControlMode) {
       isControlMode = false;
     }
   });
@@ -629,7 +630,7 @@
       {strings}
       {isEditing}
       isControlMode={showTopmostControls}
-      isAlwaysOnTop={!!note.isAlwaysOnTop}
+      isAlwaysOnTop={isEffectiveTopmost}
       controlInsetSide={showTopmostControls ? (isMac ? "left" : "right") : null}
       priority={note.priority ?? null}
       tags={Array.isArray(note.tags) ? note.tags : []}
@@ -682,7 +683,7 @@
       onExitControlMode={exitControlMode}
       onToggleTopmost={toggleTopmost}
       onToggleWallpaper={toggleWallpaperLayer}
-      onToggleMouseInteraction={toggleMouseInteraction}
+      onToggleGlobalControl={toggleGlobalControl}
       onTogglePalette={() => (showPalette = !showPalette)}
       onToggleTextColorPalette={() => (showTextColorPalette = !showTextColorPalette)}
       onToggleOpacityPanel={() => (showOpacityPanel = !showOpacityPanel)}

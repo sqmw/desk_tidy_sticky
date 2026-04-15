@@ -56,7 +56,7 @@
   /** @type {HTMLInputElement | null} */
   let noteInputEl = $state(null);
 
-  let interactionDisabled = $state(false);
+  let globalControlDisabled = $state(false);
   let stickiesVisible = $state(true);
   let isSortMenuOpen = $state(false);
   let suppressNotesReloadUntil = 0;
@@ -306,12 +306,12 @@
     await startWindowDrag(e);
   }
 
-  async function toggleInteraction() {
+  async function toggleGlobalControl() {
     try {
       const newState = await invoke("toggle_overlay_interaction");
-      interactionDisabled = /** @type {boolean} */ (newState);
+      globalControlDisabled = /** @type {boolean} */ (newState);
     } catch (e) {
-      console.error("toggleInteraction", e);
+      console.error("toggleGlobalControl", e);
     }
   }
 
@@ -363,7 +363,7 @@
   onMount(() => {
     invoke("get_overlay_interaction")
       .then((state) => {
-        interactionDisabled = /** @type {boolean} */ (state);
+        globalControlDisabled = /** @type {boolean} */ (state);
       })
       .catch((e) => console.error("get_overlay_interaction", e));
 
@@ -384,8 +384,8 @@
     );
 
     unsubs.push(
-      listen("overlay_input_changed", (event) => {
-        interactionDisabled = /** @type {boolean} */ (event.payload);
+      listen("global_control_changed", (event) => {
+        globalControlDisabled = /** @type {boolean} */ (event.payload);
       }),
     );
 
@@ -453,7 +453,7 @@
       bind:searchQuery
       bind:hideAfterSave
       {stickiesVisible}
-      {interactionDisabled}
+      {globalControlDisabled}
       {startWindowDragPointer}
       {toggleWindowPinned}
       {toggleLanguage}
@@ -465,7 +465,7 @@
       {setSortMode}
       {emptyTrash}
       {toggleStickiesVisibility}
-      {toggleInteraction}
+      {toggleGlobalControl}
       onHideAfterSaveChange={() => savePrefs({ hideAfterSave })}
     />
 

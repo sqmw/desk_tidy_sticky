@@ -20,7 +20,7 @@
 - `src/lib/note/note-window-drag.js`
   - 承载 manual window drag 的内部状态。
   - 统一 pointer down/move/up/cancel 与 Tauri `setPosition` 更新。
-  - 通过 getter 读取 `clickThrough` 与 `isEditing`，避免 helper 持有 Svelte 状态对象。
+  - 通过 getter 读取全局操作状态与 `isEditing`，避免 helper 持有 Svelte 状态对象。
 - `src/routes/note/[id]/+page.svelte`
   - 移除窗口拖拽内部变量与拖拽函数。
   - 将 topmost、wallpaper、颜色、透明度、毛玻璃、done/archive/unpin/trash/priority/tags 的命令参数拼装切到 `invokeNoteCommand`。
@@ -41,7 +41,7 @@
 - 编辑保存和图片粘贴。
 - 命令建议弹层与命令插入。
 - 窗口拖拽开始、移动、释放、取消。
-- topmost、wallpaper、鼠标穿透状态同步。
+- topmost、wallpaper、全局操作状态同步。
 - 背景色、文字色、透明度、毛玻璃。
 - done/archive/unpin/trash/priority/tags。
 
@@ -49,7 +49,7 @@
 
 - `pnpm check`：通过，`svelte-check` 0 error / 0 warning。
 - `git diff --check`：通过。
-- 未执行真实 Tauri 窗口手工回归；拖拽、topmost、wallpaper、鼠标穿透仍需后续手工抽测。
+- 未执行真实 Tauri 窗口手工回归；拖拽、topmost、wallpaper、全局操作仍需后续手工抽测。
 
 ## 后续
 

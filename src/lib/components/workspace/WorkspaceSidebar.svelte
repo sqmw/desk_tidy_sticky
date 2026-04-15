@@ -40,7 +40,7 @@
     onSetSelectedTag = () => {},
     onSetInitialViewMode = () => {},
     stickiesVisible,
-    interactionDisabled = false,
+    globalControlDisabled = false,
     showMacTrafficLights = false,
     focusDeadlines = [],
     noteTags = [],
@@ -48,7 +48,7 @@
     taggedNoteCount = 0,
     onDeadlineAction = () => {},
     onToggleStickiesVisibility,
-    onToggleInteraction,
+    onToggleGlobalControl,
   } = $props();
 
   const mainTabs = $derived(getWorkspaceMainTabDefs(strings));
@@ -111,8 +111,8 @@
       : `--section-max-height:${deadlineSectionMaxHeight}px;`,
   );
 
-  function interactionLabel() {
-    return interactionDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn;
+  function globalControlLabel() {
+    return globalControlDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn;
   }
 
   /** @param {PointerEvent} event */
@@ -317,8 +317,8 @@
         {#if !collapsed}
           <div class="sidebar-toggle-text">{strings.overlayClickThrough}</div>
         {/if}
-        <label class="toggle-switch" title={interactionLabel()}>
-          <input type="checkbox" checked={!interactionDisabled} onchange={onToggleInteraction} />
+        <label class="toggle-switch" title={globalControlLabel()}>
+          <input type="checkbox" checked={!globalControlDisabled} onchange={onToggleGlobalControl} />
           <span class="slider round"></span>
         </label>
       </div>

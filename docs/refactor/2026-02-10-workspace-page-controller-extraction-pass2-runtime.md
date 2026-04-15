@@ -13,10 +13,10 @@
 - 负责：
   - 启动流程：加载偏好、加载便笺、发出 `workspace_ready`
   - 窗口最大化状态同步
-  - 贴纸交互状态同步
+  - 全局操作状态同步
   - 运行时监听与清理：
     - `notes_changed`（含防抖 + suppress 窗口）
-    - `overlay_input_changed`
+    - `global_control_changed`
     - `deadlineNowTick` 心跳更新
 
 ### 页面侧调整

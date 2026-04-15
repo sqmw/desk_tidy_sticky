@@ -10,7 +10,7 @@
  *   getIsMac: () => boolean;
  *   getStickiesVisible: () => boolean;
  *   setStickiesVisible: (next: boolean) => void;
- *   setInteractionDisabled: (next: boolean) => void;
+ *   setGlobalControlDisabled: (next: boolean) => void;
  *   setWindowMaximized: (next: boolean) => void;
  *   setViewportMetrics: (next: { width: number; height: number; dpr: number }) => void;
  *   getFocusTasks: () => any[];
@@ -86,7 +86,7 @@ export function createWorkspaceRouteWorkspaceBridge(input) {
       getIsMac: input.getIsMac,
       getStickiesVisible: input.getStickiesVisible,
       setStickiesVisible: input.setStickiesVisible,
-      setInteractionDisabled: input.setInteractionDisabled,
+      setGlobalControlDisabled: input.setGlobalControlDisabled,
       setWindowMaximized: input.setWindowMaximized,
       savePrefs: input.savePrefs,
       loadNotes: input.loadNotes,

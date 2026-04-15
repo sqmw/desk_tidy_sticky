@@ -1,5 +1,5 @@
 use crate::desktop::{apply_overlay_input_state, show_preferred_panel_window};
-use crate::runtime::OverlayInputState;
+use crate::runtime::GlobalControlState;
 use std::collections::HashMap;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -59,7 +59,7 @@ pub fn build_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let toggle_interaction_i = MenuItem::with_id(
         app,
         "toggle_interaction",
-        "Stickers: Toggle Mouse Interaction",
+        "Stickers: Toggle Global Control",
         true,
         None::<&str>,
     )?;
@@ -104,10 +104,10 @@ pub fn build_tray(app: &mut tauri::App) -> tauri::Result<()> {
             } else if event.id.as_ref() == "toggle_stickies" {
                 let _ = app.emit("tray_overlay_toggle", ());
             } else if event.id.as_ref() == "toggle_interaction" {
-                if let Some(state) = app.try_state::<OverlayInputState>() {
-                    let click_through = state.toggle();
-                    apply_overlay_input_state(app, click_through);
-                    let _ = app.emit("overlay_input_changed", click_through);
+                if let Some(state) = app.try_state::<GlobalControlState>() {
+                    let interaction_disabled = state.toggle();
+                    apply_overlay_input_state(app, interaction_disabled);
+                    let _ = app.emit("global_control_changed", interaction_disabled);
                 }
             } else if event.id.as_ref() == "quit" {
                 app.exit(0);

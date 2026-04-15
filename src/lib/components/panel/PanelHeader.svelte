@@ -20,7 +20,7 @@
     searchQuery = $bindable(),
     hideAfterSave = $bindable(),
     stickiesVisible,
-    interactionDisabled,
+    globalControlDisabled,
     startWindowDragPointer,
     toggleWindowPinned,
     toggleLanguage,
@@ -32,7 +32,7 @@
     setSortMode,
     emptyTrash,
     toggleStickiesVisibility,
-    toggleInteraction,
+    toggleGlobalControl,
     onHideAfterSaveChange,
   } = $props();
 
@@ -169,12 +169,12 @@
       <button
         type="button"
         class="icon-btn"
-        class:active={!interactionDisabled}
+        class:active={!globalControlDisabled}
         title={strings.trayInteraction}
-        onclick={toggleInteraction}
+        onclick={toggleGlobalControl}
       >
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          {#if !interactionDisabled}
+          {#if !globalControlDisabled}
             <path d="M13 1.1V9h7.4c0-3.9-3.1-7.1-6.8-7.8l-.6-.1zm-2 0C7.1 1.6 4.1 4.8 4.1 8.7V9H11V1.1zm-7.1 9.9v4.5C3.9 19.9 7.5 23.5 12 23.5S20 19.9 20 15.5V11H3.9z" />
           {:else}
             <path

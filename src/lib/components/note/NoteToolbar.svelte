@@ -21,7 +21,7 @@
     onToggleEdit = () => {},
     onToggleTopmost = () => {},
     onToggleWallpaper = () => {},
-    onToggleMouseInteraction = () => {},
+    onToggleGlobalControl = () => {},
     onTogglePalette = () => {},
     onToggleTextColorPalette = () => {},
     onToggleOpacityPanel = () => {},
@@ -155,7 +155,7 @@
 
     <button
       class="tool-btn"
-      onclick={() => onToggleMouseInteraction()}
+      onclick={() => onToggleGlobalControl()}
       title={strings.overlayClickThrough}
     >
       <svg viewBox="0 0 24 24" fill="currentColor">

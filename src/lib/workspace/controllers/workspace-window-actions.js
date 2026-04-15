@@ -7,7 +7,7 @@ import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
  *   getIsMac: () => boolean;
  *   getStickiesVisible: () => boolean;
  *   setStickiesVisible: (next: boolean) => void;
- *   setInteractionDisabled: (next: boolean) => void;
+ *   setGlobalControlDisabled: (next: boolean) => void;
  *   setWindowMaximized: (next: boolean) => void;
  *   savePrefs: (updates: Record<string, any>) => Promise<void>;
  *   loadNotes: () => Promise<void>;
@@ -34,12 +34,12 @@ export function createWorkspaceWindowActions(deps) {
     syncWindowPresentationState();
   }
 
-  async function toggleInteraction() {
+  async function toggleGlobalControl() {
     try {
       const newState = await deps.invoke("toggle_overlay_interaction");
-      deps.setInteractionDisabled(/** @type {boolean} */ (newState));
+      deps.setGlobalControlDisabled(/** @type {boolean} */ (newState));
     } catch (error) {
-      console.error("toggleInteraction(workspace)", error);
+      console.error("toggleGlobalControl(workspace)", error);
     }
   }
 
@@ -103,7 +103,7 @@ export function createWorkspaceWindowActions(deps) {
     switchToCompact,
     refreshViewportMetrics,
     onWindowResize,
-    toggleInteraction,
+    toggleGlobalControl,
     toggleStickiesVisibility,
     toggleWindowMaximize,
     syncWindowPresentationState,

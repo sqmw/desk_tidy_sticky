@@ -3,13 +3,15 @@ use crate::notes::{self, service as notes_service, NoteSortMode};
 use crate::platform::{macos, run_macos_window_op};
 #[cfg(target_os = "windows")]
 use crate::platform::{window_hwnd_isize, windows};
-use crate::runtime::OverlayInputState;
+use crate::runtime::GlobalControlState;
 use tauri::{Emitter, Manager};
 
 mod layer;
 
 pub use layer::apply_overlay_input_state;
-use layer::{apply_note_window_layer_with_interaction_by_label, get_overlay_click_through};
+use layer::{
+    apply_note_window_layer_with_interaction_by_label, get_overlay_interaction_disabled,
+};
 
 fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
     match sort_mode {
@@ -39,9 +41,9 @@ pub fn pin_window_to_desktop(
 
     #[cfg(target_os = "macos")]
     {
-        let click_through = get_overlay_click_through(&app);
+        let interaction_disabled = get_overlay_interaction_disabled(&app);
         run_macos_window_op(&window, "macos_pin_attach_to_desktop_layer", move |ptr| {
-            macos::attach_to_desktop_layer_with_interaction(ptr, click_through)
+            macos::attach_to_desktop_layer_with_interaction(ptr, interaction_disabled)
         })?;
         Ok(())
     }
@@ -97,7 +99,7 @@ pub fn apply_note_window_layer(
         &app,
         window.label(),
         is_always_on_top,
-        get_overlay_click_through(&app),
+        get_overlay_interaction_disabled(&app),
         is_wallpaper,
     )
 }
@@ -115,7 +117,7 @@ fn sync_note_layer_by_id(app: &tauri::AppHandle, id: &str) -> Result<(), String>
         app,
         &label,
         note.is_always_on_top,
-        get_overlay_click_through(app),
+        get_overlay_interaction_disabled(app),
         note.is_wallpaper,
     )
 }
@@ -128,7 +130,7 @@ pub fn sync_note_window_layer(app: tauri::AppHandle, id: String) -> Result<(), S
 #[tauri::command]
 pub fn sync_all_note_window_layers(app: tauri::AppHandle) -> Result<(), String> {
     let notes = notes_service::load_notes(NoteSortMode::Custom)?;
-    let click_through = get_overlay_click_through(&app);
+    let interaction_disabled = get_overlay_interaction_disabled(&app);
     for n in notes {
         if !n.is_pinned || n.is_archived || n.is_deleted {
             continue;
@@ -138,7 +140,7 @@ pub fn sync_all_note_window_layers(app: tauri::AppHandle) -> Result<(), String> 
             &app,
             &label,
             n.is_always_on_top,
-            click_through,
+            interaction_disabled,
             n.is_wallpaper,
         );
     }
@@ -196,7 +198,7 @@ pub fn toggle_z_order_and_apply(
             &app,
             &label,
             updated.is_always_on_top,
-            get_overlay_click_through(&app),
+            get_overlay_interaction_disabled(&app),
             updated.is_wallpaper,
         ) {
             eprintln!(
@@ -231,7 +233,7 @@ pub fn toggle_wallpaper_layer_and_apply(
             &app,
             &label,
             updated.is_always_on_top,
-            get_overlay_click_through(&app),
+            get_overlay_interaction_disabled(&app),
             updated.is_wallpaper,
         ) {
             eprintln!(
@@ -246,23 +248,23 @@ pub fn toggle_wallpaper_layer_and_apply(
 
 #[tauri::command]
 pub fn toggle_overlay_interaction(app: tauri::AppHandle) -> Result<bool, String> {
-    if let Some(state) = app.try_state::<OverlayInputState>() {
-        let click_through = state.toggle();
-        apply_overlay_input_state(&app, click_through);
-        let _ = app.emit("overlay_input_changed", click_through);
-        Ok(click_through)
+    if let Some(state) = app.try_state::<GlobalControlState>() {
+        let interaction_disabled = state.toggle();
+        apply_overlay_input_state(&app, interaction_disabled);
+        let _ = app.emit("global_control_changed", interaction_disabled);
+        Ok(interaction_disabled)
     } else {
-        Err("OverlayInputState not found".to_string())
+        Err("GlobalControlState not found".to_string())
     }
 }
 
 #[tauri::command]
 pub fn get_overlay_interaction(app: tauri::AppHandle) -> Result<bool, String> {
-    if let Some(state) = app.try_state::<OverlayInputState>() {
+    if let Some(state) = app.try_state::<GlobalControlState>() {
         let guard = state.0.lock().map_err(|_| "mutex poisoned")?;
         Ok(*guard)
     } else {
-        Err("OverlayInputState not found".to_string())
+        Err("GlobalControlState not found".to_string())
     }
 }
 

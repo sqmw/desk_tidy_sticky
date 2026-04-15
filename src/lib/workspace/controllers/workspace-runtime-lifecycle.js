@@ -7,7 +7,7 @@
  *   loadNotes: () => Promise<void>;
  *   getCurrentWindow: typeof import("@tauri-apps/api/window").getCurrentWindow;
  *   suppressNotesReloadUntilRef: () => number;
- *   setInteractionDisabled: (next: boolean) => void;
+ *   setGlobalControlDisabled: (next: boolean) => void;
  *   updateDeadlineTick: () => void;
  * }} deps
  */
@@ -32,10 +32,10 @@ export function createWorkspaceRuntimeLifecycle(deps) {
     }
   }
 
-  async function syncOverlayInteractionState() {
+  async function syncGlobalControlState() {
     try {
       const state = await deps.invoke("get_overlay_interaction");
-      deps.setInteractionDisabled(/** @type {boolean} */ (state));
+      deps.setGlobalControlDisabled(/** @type {boolean} */ (state));
     } catch {
       // ignore
     }
@@ -64,8 +64,8 @@ export function createWorkspaceRuntimeLifecycle(deps) {
     );
 
     unsubs.push(
-      deps.listen("overlay_input_changed", (event) => {
-        deps.setInteractionDisabled(/** @type {boolean} */ (event.payload));
+      deps.listen("global_control_changed", (event) => {
+        deps.setGlobalControlDisabled(/** @type {boolean} */ (event.payload));
       }),
     );
 
@@ -83,7 +83,7 @@ export function createWorkspaceRuntimeLifecycle(deps) {
   return {
     bootstrap,
     syncWindowMaximizedState,
-    syncOverlayInteractionState,
+    syncGlobalControlState,
     mountRuntimeListeners,
   };
 }

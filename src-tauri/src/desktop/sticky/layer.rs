@@ -3,27 +3,30 @@ use crate::notes::{service as notes_service, NoteSortMode};
 use crate::platform::{macos, run_macos_window_op};
 #[cfg(target_os = "windows")]
 use crate::platform::{window_hwnd_isize, windows};
-use crate::runtime::OverlayInputState;
+use crate::runtime::GlobalControlState;
 use tauri::Manager;
 
-pub fn apply_overlay_input_state(app: &tauri::AppHandle, click_through: bool) {
+pub fn apply_overlay_input_state(app: &tauri::AppHandle, interaction_disabled: bool) {
     let notes = notes_service::load_notes(NoteSortMode::Custom).unwrap_or_default();
     for (label, w) in app.webview_windows() {
         if label.starts_with("note-") {
             let note_id = label.trim_start_matches("note-");
             if let Some(n) = notes.iter().find(|x| x.id == note_id) {
-                let ignore_cursor =
-                    resolve_note_ignore_cursor(n.is_always_on_top, n.is_wallpaper, click_through);
+                let ignore_cursor = resolve_note_ignore_cursor(
+                    n.is_always_on_top,
+                    n.is_wallpaper,
+                    interaction_disabled,
+                );
                 let _ = w.set_ignore_cursor_events(ignore_cursor);
                 let _ = apply_note_window_layer_with_interaction_by_label(
                     app,
                     &label,
                     n.is_always_on_top,
-                    click_through,
+                    interaction_disabled,
                     n.is_wallpaper,
                 );
             } else {
-                let _ = w.set_ignore_cursor_events(click_through);
+                let _ = w.set_ignore_cursor_events(interaction_disabled);
             }
         }
     }
@@ -33,19 +36,20 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
     app: &tauri::AppHandle,
     label: &str,
     is_always_on_top: bool,
-    click_through: bool,
+    interaction_disabled: bool,
     is_wallpaper: bool,
 ) -> Result<(), String> {
     let Some(w) = app.get_webview_window(label) else {
         return Ok(());
     };
+    let force_global_top = !interaction_disabled;
 
     #[cfg(target_os = "windows")]
     {
         let Some(hwnd_isize) = window_hwnd_isize(&w)? else {
             return Ok(());
         };
-        if is_always_on_top {
+        if force_global_top || is_always_on_top {
             windows::detach_from_worker_w(hwnd_isize)?;
             let _ = w.set_always_on_top(true);
             windows::set_topmost_no_activate(hwnd_isize, true)?;
@@ -65,7 +69,7 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
 
     #[cfg(target_os = "macos")]
     {
-        if is_always_on_top {
+        if force_global_top || is_always_on_top {
             run_macos_window_op(&w, "macos_detach_from_desktop", macos::detach_from_worker_w)?;
             run_macos_window_op(&w, "macos_set_topmost_true", |ptr| {
                 macos::set_topmost_no_activate(ptr, true)
@@ -81,7 +85,7 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
                 })?;
             } else {
                 let ignore_cursor =
-                    resolve_note_ignore_cursor(is_always_on_top, is_wallpaper, click_through);
+                    resolve_note_ignore_cursor(is_always_on_top, is_wallpaper, interaction_disabled);
                 run_macos_window_op(&w, "macos_attach_to_desktop_layer", move |ptr| {
                     macos::attach_to_desktop_layer_with_interaction(ptr, ignore_cursor)
                 })?;
@@ -93,8 +97,8 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
     #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
     {
         let _ = is_wallpaper;
-        let _ = click_through;
-        let _ = w.set_always_on_top(is_always_on_top);
+        let _ = interaction_disabled;
+        let _ = w.set_always_on_top(force_global_top || is_always_on_top);
         Ok(())
     }
 }
@@ -102,19 +106,22 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
 fn resolve_note_ignore_cursor(
     is_always_on_top: bool,
     is_wallpaper: bool,
-    overlay_click_through: bool,
+    interaction_disabled: bool,
 ) -> bool {
+    if !interaction_disabled {
+        return false;
+    }
     if is_always_on_top {
         return false;
     }
     if is_wallpaper {
         return true;
     }
-    overlay_click_through
+    true
 }
 
-pub(super) fn get_overlay_click_through(app: &tauri::AppHandle) -> bool {
-    if let Some(state) = app.try_state::<OverlayInputState>() {
+pub(super) fn get_overlay_interaction_disabled(app: &tauri::AppHandle) -> bool {
+    if let Some(state) = app.try_state::<GlobalControlState>() {
         if let Ok(guard) = state.0.lock() {
             return *guard;
         }

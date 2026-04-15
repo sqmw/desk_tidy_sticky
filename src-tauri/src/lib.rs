@@ -30,13 +30,13 @@ use notes::{
 #[cfg(target_os = "windows")]
 use platform::window_hwnd_isize;
 use preferences::{get_preferences, set_preferences};
-use runtime::{BreakOverlayPresentationState, BreakReminderWatchState, OverlayInputState};
+use runtime::{BreakOverlayPresentationState, BreakReminderWatchState, GlobalControlState};
 use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
-        .manage(OverlayInputState::default())
+        .manage(GlobalControlState::default())
         .manage(BreakReminderWatchState::default())
         .manage(BreakOverlayPresentationState::default())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
@@ -107,10 +107,10 @@ pub fn run() {
                         } else if shortcut
                             .matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyO)
                         {
-                            if let Some(state) = app.try_state::<OverlayInputState>() {
-                                let click_through = state.toggle();
-                                apply_overlay_input_state(app, click_through);
-                                let _ = app.emit("overlay_input_changed", click_through);
+                            if let Some(state) = app.try_state::<GlobalControlState>() {
+                                let interaction_disabled = state.toggle();
+                                apply_overlay_input_state(app, interaction_disabled);
+                                let _ = app.emit("global_control_changed", interaction_disabled);
                             }
                         }
                     }

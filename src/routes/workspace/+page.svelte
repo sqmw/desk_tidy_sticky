@@ -103,7 +103,7 @@
   let workspaceViewportEl = $state(null);
   let suppressNotesReloadUntil = 0;
   let stickiesVisible = $state(true);
-  let interactionDisabled = $state(false);
+  let globalControlDisabled = $state(false);
   let showWorkspaceSettings = $state(false);
   let workspaceTheme = $state("light");
   let workspaceCustomCss = $state("");
@@ -360,8 +360,8 @@
     setStickiesVisible: (next) => {
       stickiesVisible = next;
     },
-    setInteractionDisabled: (next) => {
-      interactionDisabled = next;
+    setGlobalControlDisabled: (next) => {
+      globalControlDisabled = next;
     },
     setWindowMaximized: (next) => {
       windowMaximized = next;
@@ -451,8 +451,8 @@
     loadNotes,
     getCurrentWindow,
     suppressNotesReloadUntilRef: () => suppressNotesReloadUntil,
-    setInteractionDisabled: (next) => {
-      interactionDisabled = next;
+    setGlobalControlDisabled: (next) => {
+      globalControlDisabled = next;
     },
     updateDeadlineTick: () => {
       deadlineNowTick = Date.now();
@@ -499,7 +499,7 @@
     switchToCompact,
     refreshViewportMetrics,
     onWindowResize,
-    toggleInteraction,
+    toggleGlobalControl,
     toggleStickiesVisibility,
     toggleWindowMaximize,
     syncWindowPresentationState,
@@ -580,7 +580,7 @@
     refreshViewportMetrics();
     runtimeLifecycle.bootstrap();
     syncWindowPresentationState();
-    runtimeLifecycle.syncOverlayInteractionState();
+    runtimeLifecycle.syncGlobalControlState();
     initAutostart();
     let cleanup = /** @type {(() => void) | null} */ (null);
     let unlistenPrefs = /** @type {(() => void) | null} */ (null);
@@ -697,11 +697,11 @@
     taggedNoteCount={taggedNoteCount}
     {initialViewMode}
     {stickiesVisible}
-    {interactionDisabled}
+    {globalControlDisabled}
     focusDeadlines={deadlineTasks}
     onDeadlineAction={handleDeadlineAction}
     onToggleStickiesVisibility={toggleStickiesVisibility}
-    onToggleInteraction={toggleInteraction}
+    onToggleGlobalControl={toggleGlobalControl}
   />
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="sidebar-splitter" onpointerdown={resizeController.startSidebarResize} ondblclick={() => (sidebarWidth = 260)}></div>
