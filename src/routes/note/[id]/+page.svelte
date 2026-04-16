@@ -20,6 +20,7 @@
   import { createNoteWindowDragController } from "$lib/note/note-window-drag.js";
   import { createNoteStyleActions } from "$lib/note/note-style-actions.js";
   import { createNoteEditorActions } from "$lib/note/note-editor-actions.js";
+  import { applyNoteWindowNativeEffects } from "$lib/note/note-native-effects.js";
   import {
     DEFAULT_NOTE_COLOR,
     DEFAULT_NOTE_FROST,
@@ -50,6 +51,7 @@
   let commandQuery = $state("");
   let commandActiveIndex = $state(0);
   let tagSuggestions = $state(/** @type {string[]} */ ([]));
+  let hasNativeWindowFrost = $state(false);
   let opacityDraft = $state(DEFAULT_NOTE_OPACITY);
   let frostDraft = $state(DEFAULT_NOTE_FROST);
   /** @type {HTMLTextAreaElement | null} */
@@ -59,12 +61,15 @@
   const noteTextColor = $derived(note?.textColor || DEFAULT_NOTE_TEXT_COLOR);
   const noteOpacity = $derived(note?.opacity ?? DEFAULT_NOTE_OPACITY);
   const noteFrost = $derived(note?.frost ?? DEFAULT_NOTE_FROST);
-  const noteFrostBlur = $derived((4 + noteFrost * 16).toFixed(2));
-  const noteFrostOverlay = $derived((0.04 + noteFrost * 0.24).toFixed(3));
+  const noteFrostBlur = $derived((noteFrost * 26).toFixed(2));
+  const noteFrostOverlay = $derived((noteFrost * 0.34).toFixed(3));
+  const noteFrostGlow = $derived((noteFrost * 0.16).toFixed(3));
+  const noteBorderAlpha = $derived((0.06 + noteOpacity * 0.22).toFixed(3));
+  const noteInnerHighlightAlpha = $derived((0.04 + noteOpacity * 0.16).toFixed(3));
   const backgroundPickerValue = $derived(toColorPickerHex(noteBgColor, DEFAULT_NOTE_COLOR));
   const textPickerValue = $derived(toColorPickerHex(noteTextColor, DEFAULT_NOTE_TEXT_COLOR));
-
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
+  const cssFrostBlur = $derived((hasNativeWindowFrost ? noteFrost * 4 : noteFrostBlur));
   const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
   const canInteract = $derived(!globalControlDisabled || !!note?.isAlwaysOnTop);
   const isEffectiveTopmost = $derived(!!note?.isAlwaysOnTop || !globalControlDisabled);
@@ -607,6 +612,21 @@
       isControlMode = false;
     }
   });
+
+  $effect(() => {
+    const frost = noteFrost;
+    let cancelled = false;
+    const window = getCurrentWindow();
+    queueMicrotask(async () => {
+      const applied = await applyNoteWindowNativeEffects(window.label, frost);
+      if (!cancelled) {
+        hasNativeWindowFrost = applied;
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} />
@@ -616,7 +636,7 @@
   class="note-window"
   data-toolbar-visible={allowHoverToolbar ? "true" : "false"}
   data-control-mode={showTopmostControls ? "true" : "false"}
-  style="background: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {noteFrostBlur}px; --frost-overlay: {noteFrostOverlay};"
+  style="--note-tint: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {cssFrostBlur}px; --frost-overlay: {noteFrostOverlay}; --frost-glow: {noteFrostGlow}; --note-border-alpha: {noteBorderAlpha}; --note-inner-highlight-alpha: {noteInnerHighlightAlpha};"
   onclick={handleNoteClick}
   onkeydown={handleNoteKeydown}
   ondblclick={handleNoteDoubleClick}
@@ -626,83 +646,86 @@
   onpointercancel={noteWindowDrag.onDragPointerUp}
 >
   {#if note}
-    <NoteTagBar
-      {strings}
-      {isEditing}
-      isControlMode={showTopmostControls}
-      isAlwaysOnTop={isEffectiveTopmost}
-      controlInsetSide={showTopmostControls ? (isMac ? "left" : "right") : null}
-      priority={note.priority ?? null}
-      tags={Array.isArray(note.tags) ? note.tags : []}
-      {tagSuggestions}
-      onChangePriority={setNotePriority}
-      onChangeTags={setNoteTags}
-    />
-
-    {#if isEditing}
-      <SourceEditorPane
-        bind:text
-        bind:editorEl
-        placeholder={strings.noteEditorPlaceholder}
-        {showCommandSuggestions}
-        {commandSuggestionItems}
-        {commandActiveIndex}
-        onInput={noteEditorActions.handleInput}
-        onPaste={noteEditorActions.onEditorPaste}
-        onKeydown={noteEditorActions.onEditorKeydown}
-        onApplyCommandSuggestion={noteEditorActions.applyCommandSuggestion}
+    <div class="note-frost-layer" aria-hidden="true"></div>
+    <div class="note-content">
+      <NoteTagBar
+        {strings}
+        {isEditing}
+        isControlMode={showTopmostControls}
+        isAlwaysOnTop={isEffectiveTopmost}
+        controlInsetSide={showTopmostControls ? (isMac ? "left" : "right") : null}
+        priority={note.priority ?? null}
+        tags={Array.isArray(note.tags) ? note.tags : []}
+        {tagSuggestions}
+        onChangePriority={setNotePriority}
+        onChangeTags={setNoteTags}
       />
-    {:else}
-      <NotePreview html={renderedMarkdown} />
-    {/if}
 
-    {#if noteCenterHudText}
-      <div class="note-center-hud">{noteCenterHudText}</div>
-    {/if}
+      {#if isEditing}
+        <SourceEditorPane
+          bind:text
+          bind:editorEl
+          placeholder={strings.noteEditorPlaceholder}
+          {showCommandSuggestions}
+          {commandSuggestionItems}
+          {commandActiveIndex}
+          onInput={noteEditorActions.handleInput}
+          onPaste={noteEditorActions.onEditorPaste}
+          onKeydown={noteEditorActions.onEditorKeydown}
+          onApplyCommandSuggestion={noteEditorActions.applyCommandSuggestion}
+        />
+      {:else}
+        <NotePreview html={renderedMarkdown} />
+      {/if}
 
-    <NoteToolbar
-      {strings}
-      {isEditing}
-      isControlMode={showTopmostControls}
-      showControlExit={showTopmostControls}
-      {isMac}
-      note={note}
-      showPalette={showPalette}
-      showTextColorPalette={showTextColorPalette}
-      showOpacityPanel={showOpacityPanel}
-      showFrostPanel={showFrostPanel}
-      opacityDraft={opacityDraft}
-      frostDraft={frostDraft}
-      noteBgColor={noteBgColor}
-      noteTextColor={noteTextColor}
-      backgroundPickerValue={backgroundPickerValue}
-      textPickerValue={textPickerValue}
-      noteColors={NOTE_COLORS}
-      noteTextColors={NOTE_TEXT_COLORS}
-      onToggleEdit={() => (isEditing ? exitEditMode() : enterEditMode())}
-      onExitControlMode={exitControlMode}
-      onToggleTopmost={toggleTopmost}
-      onToggleWallpaper={toggleWallpaperLayer}
-      onToggleGlobalControl={toggleGlobalControl}
-      onTogglePalette={() => (showPalette = !showPalette)}
-      onToggleTextColorPalette={() => (showTextColorPalette = !showTextColorPalette)}
-      onToggleOpacityPanel={() => (showOpacityPanel = !showOpacityPanel)}
-      onOpacityIconWheel={noteStyleActions.onOpacityIconWheel}
-      onOpacityInput={noteStyleActions.onOpacityInput}
-      onOpacityWheel={noteStyleActions.onOpacityWheel}
-      onToggleFrostPanel={() => (showFrostPanel = !showFrostPanel)}
-      onFrostIconWheel={noteStyleActions.onFrostIconWheel}
-      onFrostInput={noteStyleActions.onFrostInput}
-      onFrostWheel={noteStyleActions.onFrostWheel}
-      onToggleDone={toggleDone}
-      onToggleArchive={toggleArchive}
-      onUnpin={unpinNote}
-      onMoveToTrash={moveToTrash}
-      onSetBackgroundColor={noteStyleActions.setBackgroundColor}
-      onSetTextColor={noteStyleActions.setTextColor}
-      onBackgroundColorPickerChange={noteStyleActions.onBackgroundColorPickerChange}
-      onTextColorPickerChange={noteStyleActions.onTextColorPickerChange}
-    />
+      {#if noteCenterHudText}
+        <div class="note-center-hud">{noteCenterHudText}</div>
+      {/if}
+
+      <NoteToolbar
+        {strings}
+        {isEditing}
+        isControlMode={showTopmostControls}
+        showControlExit={showTopmostControls}
+        {isMac}
+        note={note}
+        showPalette={showPalette}
+        showTextColorPalette={showTextColorPalette}
+        showOpacityPanel={showOpacityPanel}
+        showFrostPanel={showFrostPanel}
+        opacityDraft={opacityDraft}
+        frostDraft={frostDraft}
+        noteBgColor={noteBgColor}
+        noteTextColor={noteTextColor}
+        backgroundPickerValue={backgroundPickerValue}
+        textPickerValue={textPickerValue}
+        noteColors={NOTE_COLORS}
+        noteTextColors={NOTE_TEXT_COLORS}
+        onToggleEdit={() => (isEditing ? exitEditMode() : enterEditMode())}
+        onExitControlMode={exitControlMode}
+        onToggleTopmost={toggleTopmost}
+        onToggleWallpaper={toggleWallpaperLayer}
+        onToggleGlobalControl={toggleGlobalControl}
+        onTogglePalette={() => (showPalette = !showPalette)}
+        onToggleTextColorPalette={() => (showTextColorPalette = !showTextColorPalette)}
+        onToggleOpacityPanel={() => (showOpacityPanel = !showOpacityPanel)}
+        onOpacityIconWheel={noteStyleActions.onOpacityIconWheel}
+        onOpacityInput={noteStyleActions.onOpacityInput}
+        onOpacityWheel={noteStyleActions.onOpacityWheel}
+        onToggleFrostPanel={() => (showFrostPanel = !showFrostPanel)}
+        onFrostIconWheel={noteStyleActions.onFrostIconWheel}
+        onFrostInput={noteStyleActions.onFrostInput}
+        onFrostWheel={noteStyleActions.onFrostWheel}
+        onToggleDone={toggleDone}
+        onToggleArchive={toggleArchive}
+        onUnpin={unpinNote}
+        onMoveToTrash={moveToTrash}
+        onSetBackgroundColor={noteStyleActions.setBackgroundColor}
+        onSetTextColor={noteStyleActions.setTextColor}
+        onBackgroundColorPickerChange={noteStyleActions.onBackgroundColorPickerChange}
+        onTextColorPickerChange={noteStyleActions.onTextColorPickerChange}
+      />
+    </div>
   {:else}
     <div class="loading">Loading...</div>
   {/if}
@@ -716,25 +739,50 @@
     display: flex;
     flex-direction: column;
     border-radius: 12px;
+    background: transparent;
     background-clip: padding-box;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, var(--note-border-alpha, 0.22));
+    box-shadow:
+      0 10px 24px rgba(15, 23, 42, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, var(--note-inner-highlight-alpha, 0.14));
     overflow: hidden;
     isolation: isolate;
-    backdrop-filter: blur(var(--frost-blur, 7px)) saturate(1.08);
-    -webkit-backdrop-filter: blur(var(--frost-blur, 7px)) saturate(1.08);
   }
 
-  .note-window::before {
-    content: "";
+  .note-frost-layer {
     position: absolute;
     inset: 0;
-    background: rgba(255, 255, 255, var(--frost-overlay, 0.09));
+    background-color: var(--note-tint, transparent);
+    background-image:
+      radial-gradient(circle at 16% 10%, rgba(255, 255, 255, var(--frost-glow, 0.08)) 0%, transparent 36%),
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, calc(var(--frost-overlay, 0.09) * 1.08)) 0%,
+        rgba(255, 255, 255, calc(var(--frost-overlay, 0.09) * 0.74)) 42%,
+        rgba(255, 255, 255, calc(var(--frost-overlay, 0.09) * 0.56)) 100%
+      );
+    background-repeat: no-repeat;
+    background-size: cover;
     border-radius: inherit;
     pointer-events: none;
     z-index: 0;
+    backdrop-filter: blur(var(--frost-blur, 0px)) saturate(1.12);
+    -webkit-backdrop-filter: blur(var(--frost-blur, 0px)) saturate(1.12);
+    will-change: backdrop-filter, -webkit-backdrop-filter, background-color;
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 
-  .note-window > * {
+  .note-content {
+    position: relative;
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+    z-index: 1;
+  }
+
+  .note-content > * {
     position: relative;
     z-index: 1;
   }

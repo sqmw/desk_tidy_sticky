@@ -1,3 +1,4 @@
+use crate::desktop::apply_note_window_frost;
 use crate::notes::{assets as note_assets, service as notes_service, Note, NoteSortMode};
 use tauri::Emitter;
 
@@ -135,6 +136,7 @@ pub fn update_note_frost(
     emit_event: Option<bool>,
 ) -> Result<Vec<Note>, String> {
     let notes = notes_service::update_note_frost(&id, frost, parse_sort_mode(sort_mode.as_str()))?;
+    let _ = apply_note_window_frost(app.clone(), format!("note-{}", id), frost);
     if emit_event.unwrap_or(true) {
         emit_notes_changed(&app);
     }

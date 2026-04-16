@@ -6,6 +6,8 @@ use crate::platform::{window_hwnd_isize, windows};
 use crate::runtime::GlobalControlState;
 use tauri::Manager;
 
+use super::effects::apply_note_window_frost_by_label;
+
 pub fn apply_overlay_input_state(app: &tauri::AppHandle, interaction_disabled: bool) {
     let notes = notes_service::load_notes(NoteSortMode::Custom).unwrap_or_default();
     for (label, w) in app.webview_windows() {
@@ -25,6 +27,7 @@ pub fn apply_overlay_input_state(app: &tauri::AppHandle, interaction_disabled: b
                     interaction_disabled,
                     n.is_wallpaper,
                 );
+                let _ = apply_note_window_frost_by_label(app, &label, n.frost.unwrap_or_default());
             } else {
                 let _ = w.set_ignore_cursor_events(interaction_disabled);
             }
@@ -84,8 +87,11 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
                     macos::attach_to_wallpaper_layer_with_interaction(ptr, true)
                 })?;
             } else {
-                let ignore_cursor =
-                    resolve_note_ignore_cursor(is_always_on_top, is_wallpaper, interaction_disabled);
+                let ignore_cursor = resolve_note_ignore_cursor(
+                    is_always_on_top,
+                    is_wallpaper,
+                    interaction_disabled,
+                );
                 run_macos_window_op(&w, "macos_attach_to_desktop_layer", move |ptr| {
                     macos::attach_to_desktop_layer_with_interaction(ptr, ignore_cursor)
                 })?;

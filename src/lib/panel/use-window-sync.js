@@ -1,5 +1,6 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { applyNoSnapWhenReady } from "$lib/panel/window-effects.js";
+import { applyNoteWindowNativeEffects } from "$lib/note/note-native-effects.js";
 
 /**
  * @param {{
@@ -57,6 +58,11 @@ export function createWindowSync(deps) {
    */
   async function showNoteWindowAfterLayerReady(window, note) {
     try {
+      await applyNoteWindowNativeEffects(window.label, note?.frost ?? 0);
+    } catch (error) {
+      console.error("applyNoteWindowNativeEffects(show)", error);
+    }
+    try {
       await syncNoteLayerOnce(note);
     } catch (error) {
       console.error("sync_note_window_layer(initial)", error);
@@ -96,6 +102,7 @@ export function createWindowSync(deps) {
       y: isFiniteNumber(note?.y) ? note.y : undefined,
       decorations: false,
       transparent: true,
+      backgroundColor: [0, 0, 0, 0],
       alwaysOnTop: false,
       skipTaskbar: true,
       resizable: true,
@@ -107,6 +114,7 @@ export function createWindowSync(deps) {
       webview.once("tauri://created", async function () {
         try {
           await applyNoSnapWhenReady(deps.invoke, label);
+          await applyNoteWindowNativeEffects(label, note?.frost ?? 0);
           await showNoteWindowAfterLayerReady(webview, note);
         } catch (error) {
           console.error("openNoteWindow(created)", error);

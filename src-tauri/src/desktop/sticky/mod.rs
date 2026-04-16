@@ -6,12 +6,13 @@ use crate::platform::{window_hwnd_isize, windows};
 use crate::runtime::GlobalControlState;
 use tauri::{Emitter, Manager};
 
+mod effects;
 mod layer;
 
+pub use effects::apply_note_window_frost;
+use effects::{apply_note_window_frost_by_label, sync_note_window_frost_by_id};
 pub use layer::apply_overlay_input_state;
-use layer::{
-    apply_note_window_layer_with_interaction_by_label, get_overlay_interaction_disabled,
-};
+use layer::{apply_note_window_layer_with_interaction_by_label, get_overlay_interaction_disabled};
 
 fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
     match sort_mode {
@@ -101,7 +102,10 @@ pub fn apply_note_window_layer(
         is_always_on_top,
         get_overlay_interaction_disabled(&app),
         is_wallpaper,
-    )
+    )?;
+    let note_id = window.label().trim_start_matches("note-");
+    let _ = sync_note_window_frost_by_id(&app, note_id);
+    Ok(())
 }
 
 fn sync_note_layer_by_id(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
@@ -119,7 +123,9 @@ fn sync_note_layer_by_id(app: &tauri::AppHandle, id: &str) -> Result<(), String>
         note.is_always_on_top,
         get_overlay_interaction_disabled(app),
         note.is_wallpaper,
-    )
+    )?;
+    let _ = apply_note_window_frost_by_label(app, &label, note.frost.unwrap_or_default());
+    Ok(())
 }
 
 #[tauri::command]
@@ -143,6 +149,7 @@ pub fn sync_all_note_window_layers(app: tauri::AppHandle) -> Result<(), String> 
             interaction_disabled,
             n.is_wallpaper,
         );
+        let _ = apply_note_window_frost_by_label(&app, &label, n.frost.unwrap_or_default());
     }
     Ok(())
 }
@@ -206,6 +213,7 @@ pub fn toggle_z_order_and_apply(
                 label, e
             );
         }
+        let _ = apply_note_window_frost_by_label(&app, &label, updated.frost.unwrap_or_default());
         #[cfg(target_os = "windows")]
         if !updated.is_always_on_top {
             if let Some(w) = app.get_webview_window(&label) {
@@ -241,6 +249,7 @@ pub fn toggle_wallpaper_layer_and_apply(
                 label, e
             );
         }
+        let _ = apply_note_window_frost_by_label(&app, &label, updated.frost.unwrap_or_default());
     }
     emit_notes_changed(&app);
     Ok(notes)

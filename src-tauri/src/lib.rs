@@ -14,12 +14,13 @@ use desktop::ensure_hidden_workspace_runtime_window;
 #[cfg(target_os = "macos")]
 use desktop::{apply_macos_runtime_dock_icon, ensure_hidden_workspace_runtime_window};
 use desktop::{
-    apply_note_window_layer, apply_overlay_input_state, apply_window_no_snap_by_label,
-    get_overlay_interaction, hide_panel_window, minimize_panel_window,
-    move_note_window_without_activation, pin_window_to_desktop, show_and_focus_window,
-    show_preferred_panel_window, sync_all_note_window_layers, sync_note_window_layer,
-    sync_panel_window_shell_state, toggle_overlay_interaction, toggle_wallpaper_layer_and_apply,
-    toggle_z_order_and_apply, unpin_window_from_desktop, update_tray_texts,
+    apply_note_window_frost, apply_note_window_layer, apply_overlay_input_state,
+    apply_window_no_snap_by_label, get_overlay_interaction, hide_panel_window,
+    minimize_panel_window, move_note_window_without_activation, pin_window_to_desktop,
+    show_and_focus_window, show_preferred_panel_window, sync_all_note_window_layers,
+    sync_note_window_layer, sync_panel_window_shell_state, toggle_overlay_interaction,
+    toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply, unpin_window_from_desktop,
+    update_tray_texts,
 };
 use notes::{
     add_note, clear_note_priority, delete_note, empty_trash, load_notes, permanently_delete_note,
@@ -146,6 +147,7 @@ pub fn run() {
             pin_window_to_desktop,
             unpin_window_from_desktop,
             apply_note_window_layer,
+            apply_note_window_frost,
             sync_note_window_layer,
             sync_all_note_window_layers,
             move_note_window_without_activation,

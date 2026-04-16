@@ -1,4 +1,4 @@
-const OPACITY_MIN = 0.35;
+const OPACITY_MIN = 0;
 const OPACITY_MAX = 1;
 const FROST_MIN = 0;
 const FROST_MAX = 1;

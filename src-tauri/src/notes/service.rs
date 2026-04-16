@@ -163,7 +163,7 @@ pub fn update_note_opacity(
     opacity: f64,
     sort_mode: NoteSortMode,
 ) -> Result<Vec<Note>, String> {
-    let clamped = opacity.clamp(0.35, 1.0);
+    let clamped = opacity.clamp(0.0, 1.0);
     mutate_note(id, Some(sort_mode), |n| {
         n.opacity = Some(clamped);
         n.updated_at = chrono_now();

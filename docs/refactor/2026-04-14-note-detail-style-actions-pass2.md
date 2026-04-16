@@ -27,7 +27,7 @@ P0 第一轮已把 note window load/command helper 和窗口拖拽 controller �
 
 - `update_note_color`、`update_note_text_color`、`update_note_opacity`、`update_note_frost` 命令名保持不变。
 - `sortMode` 仍由上一轮的 `invokeNoteCommand` 统一保持为 `custom`。
-- opacity clamp 保持 `0.35..1`。
+- opacity clamp 改为 `0..1`。
 - frost clamp 保持 `0..1`。
 - wheel step 保持 `0.02`。
 - 延迟保存保持 `60ms`。
