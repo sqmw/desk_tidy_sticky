@@ -47,6 +47,34 @@
 2. 验证桌面图标层级：置底便签应在图标下方，不应浮在图标上。
 3. 高频操作：快速 pin/unpin + 切换置顶/置底，确认不再出现 `already exists`。
 
+## 追加修复（2026-04-16）: WorkerW 透明边框遮挡图标
+
+### 问题
+- Windows 上「贴在底部 / 图标上层」时，贴纸左右边缘外围看似透明，但会轻微遮挡下方桌面图标。
+- macOS 不受影响。
+
+### 根因
+- Windows 贴纸窗口为了允许原生拉伸保留了 `WS_THICKFRAME`。
+- 窗口被 reparent 到 WorkerW 后，透明的原生 resize 边框仍然参与桌面层合成，视觉上像透明区域，实际会覆盖边缘下方内容。
+
+### 处理
+文件：
+- `src-tauri/Cargo.toml`
+- `src-tauri/src/platform/windows/workerw/mod.rs`
+
+- `apply_desktop_child_style()` 在切到 WorkerW 子窗口时移除 `WS_THICKFRAME` / `WS_MAXIMIZEBOX`。
+- `apply_top_level_style()` 在脱离 WorkerW 回到顶层窗口时恢复 `WS_THICKFRAME`，保留置顶状态下的原生拉伸能力。
+- 对 WorkerW 子窗口追加 `SetWindowRgn(CreateRoundRectRgn(...))`，以 client 区域为基准裁掉贴纸圆角外的透明矩形。
+- 脱离 WorkerW 时清除 window region，避免置顶窗口继续沿用桌面层裁剪。
+- Windows 依赖增加 `Win32_Graphics_Gdi`，用于 `ClientToScreen` / `CreateRoundRectRgn` / `SetWindowRgn` / `DeleteObject`。
+- 当前项目使用 `windows 0.58`，`SetWindowRgn` / `DeleteObject` 需要直接传 `HRGN`；清除 region 使用空 `HRGN`，不要写成新版风格的 `Option<HRGN>` 或额外 `.into()`。
+
+### 回归点
+1. Windows：贴在图标上层时，贴纸左右透明边缘不应再遮挡桌面图标。
+2. Windows：切回置顶显示后，贴纸仍应可拉伸。
+3. Windows：贴纸圆角外的透明区域不应再裁掉桌面图标文字，但壁纸仍应正常透出。
+4. macOS：无行为变化。
+
 ## 追加修复（同日）: handle unavailable + 拖动卡顿
 
 ### 问题
