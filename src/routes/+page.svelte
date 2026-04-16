@@ -527,7 +527,7 @@
   }
 
   .glass-container {
-    background: #f7f8fa;
+    background: linear-gradient(180deg, #fafbfd 0%, #f4f6f9 100%);
     border-radius: 12px;
     border: 1px solid #e6eaf0;
     box-shadow:

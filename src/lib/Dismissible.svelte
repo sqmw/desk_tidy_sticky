@@ -231,7 +231,7 @@
   .dismissible {
     position: relative;
     overflow: hidden;
-    border-radius: 8px;
+    border-radius: 0;
     margin-bottom: 0;
   }
 
@@ -268,7 +268,7 @@
 
   .dismissible-content {
     position: relative;
-    background: rgba(255, 255, 255, 0.85);
+    background: transparent;
     transform: translateX(var(--offset, 0));
     transition: transform 0.12s ease-out;
     height: 100%;

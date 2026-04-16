@@ -64,12 +64,15 @@
   .notes-list {
     flex: 1;
     overflow-y: auto;
-    padding: 4px 6px 10px;
+    padding: 0 0 10px;
     scrollbar-width: thin;
     scrollbar-color: #aeb7c4 transparent;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 0;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(250, 251, 253, 0.96) 100%);
+    border-top: 1px solid rgba(220, 226, 235, 0.9);
   }
 
   .notes-list::-webkit-scrollbar {
@@ -92,14 +95,13 @@
 
   .note-wrapper {
     position: relative;
-    border-radius: 10px;
     z-index: 1;
   }
 
   .note-wrapper.drag-placeholder::before {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: 6px 10px;
     border-radius: 10px;
     border: 1px dashed #b9c7dc;
     background: rgba(84, 110, 122, 0.05);
@@ -114,9 +116,9 @@
   .note-wrapper.drop-target::after {
     content: "";
     position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: -4px;
+    left: 14px;
+    right: 14px;
+    bottom: 0;
     height: 3px;
     border-radius: 999px;
     background: var(--primary);

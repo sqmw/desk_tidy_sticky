@@ -278,32 +278,37 @@
 
 <style>
   .note-item {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 16px;
     position: relative;
-    padding: 11px 12px;
-    border-radius: 10px;
-    background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
-    border: 1px solid #e7ebf1;
+    padding: 18px 16px 16px;
+    background: transparent;
+    border: 0;
     cursor: default;
     transition:
-      transform 0.16s ease,
-      box-shadow 0.16s ease,
-      border-color 0.16s ease;
+      background-color 0.16s ease,
+      color 0.16s ease;
     user-select: none;
   }
 
+  .note-item::after {
+    content: "";
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 0;
+    height: 1px;
+    background: rgba(223, 228, 236, 0.92);
+  }
+
   .note-item:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 5px 14px rgba(15, 23, 42, 0.08);
-    border-color: #dbe3ee;
+    background: rgba(84, 110, 122, 0.04);
   }
 
   .note-item.muted {
-    background: #fafbfc;
-    border-color: #e8ebef;
-    opacity: 0.9;
+    opacity: 0.72;
   }
 
   .note-content {
@@ -313,14 +318,15 @@
 
   .note-text.rendered {
     display: block;
-    max-height: 62px;
+    max-height: 70px;
     overflow: hidden;
   }
 
   .note-text.rendered :global(*) {
     margin: 0;
-    font-size: 13px;
-    line-height: 1.35;
+    font-size: 15px;
+    line-height: 1.42;
+    color: #1f2937;
   }
 
   .note-text.rendered :global(ul),
@@ -335,8 +341,8 @@
 
   .note-date {
     font-size: 11px;
-    color: #9aa3af;
-    margin-top: 6px;
+    color: #98a2b3;
+    margin-top: 8px;
     display: block;
   }
 
@@ -349,21 +355,20 @@
 
   .note-actions {
     display: flex;
-    gap: 4px;
+    align-items: center;
+    gap: 6px;
     flex-shrink: 0;
-    margin-left: 8px;
-    opacity: 0.45;
-    transition: opacity 0.2s;
-  }
-
-  .note-item:hover .note-actions {
-    opacity: 1;
+    margin-left: 6px;
+    opacity: 0.74;
+    transition:
+      opacity 0.2s ease,
+      color 0.2s ease;
   }
 
   .action-btn {
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
     padding: 4px;
     font-size: 12px;
@@ -371,8 +376,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     transition: all 0.2s;
   }
 
@@ -386,9 +391,9 @@
   }
 
   .action-btn:hover {
-    background: #f0f2f5;
+    background: rgba(84, 110, 122, 0.08);
     color: #333;
-    border-color: #e4e7ed;
+    border-color: transparent;
   }
 
   .action-btn.danger:hover {
@@ -417,16 +422,49 @@
 
   .action-btn.priority-btn {
     width: auto;
-    min-width: 28px;
+    min-width: 36px;
     font-size: 10px;
     font-weight: 700;
     color: #334155;
     border-color: #dbe3ee;
+    background: rgba(255, 255, 255, 0.75);
   }
 
   .zorder-icon {
     width: 15px;
     height: 15px;
     display: block;
+  }
+
+  @media (max-width: 540px) {
+    .note-item {
+      padding-left: 14px;
+      padding-right: 14px;
+      column-gap: 12px;
+    }
+
+    .note-item::after {
+      left: 14px;
+      right: 14px;
+    }
+
+    .note-text.rendered :global(*) {
+      font-size: 14px;
+    }
+
+    .note-actions {
+      gap: 4px;
+      margin-left: 2px;
+    }
+
+    .action-btn {
+      width: 24px;
+      height: 24px;
+      padding: 3px;
+    }
+
+    .action-btn.priority-btn {
+      min-width: 32px;
+    }
   }
 </style>

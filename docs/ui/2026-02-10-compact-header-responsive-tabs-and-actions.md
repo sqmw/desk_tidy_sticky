@@ -92,3 +92,27 @@
 - 结果：
   - Win mini 顶部窗控和整套图标按钮视觉保持一致；
   - 观感更精致，也更接近原生窗控语义。
+
+## 2026-04-16 补充：mini 笔记列表扁平化
+- 判定：`设计问题`
+- 最短依据：
+  - 当前 mini 列表由 `glass-container -> notes-list -> note-wrapper -> note-item` 多层叠加而成；
+  - 单条笔记带独立卡片边框、阴影和大间距，整体更像“卡片堆叠”，和旧版 Flutter 的平铺列表气质不一致。
+- 本轮调整：
+  - `src/lib/components/panel/notes/NotesLinearList.svelte`
+    - 列表容器去掉卡片组式间距，改为零间距线性流；
+    - 增加极轻的顶部边线，让头部和列表区自然分层；
+    - 拖拽占位和落点指示改成贴合新列表边距的样式。
+  - `src/lib/components/panel/notes/NotesLinearListItem.svelte`
+    - 单条 note 从“带边框卡片”改成“扁平行项”；
+    - 去掉白卡片背景、边框、悬浮阴影，改为弱 hover 背景；
+    - 文本区字号、行高和日期留白同步收敛；
+    - 操作按钮改成更轻的无框图标组，优先保持列表信息流本身。
+  - `src/lib/Dismissible.svelte`
+    - 行项去掉额外圆角与默认白底，避免 swipe 容器再次形成“卡片包裹感”。
+  - `src/routes/+page.svelte`
+    - mini 外层容器背景改成更轻的浅色渐变，减少列表区域被“内嵌盒子”包住的厚重感。
+- 结果：
+  - mini 列表更接近旧版 Flutter 的平铺、轻量、连续阅读风格；
+  - 相邻项之间不再被厚卡片边框和大间隙割裂；
+  - 保留原有 swipe、拖拽排序、归档/回收站操作能力。
