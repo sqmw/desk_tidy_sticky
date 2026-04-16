@@ -168,12 +168,15 @@ export function createNoteWindowDragController(input) {
       return;
     }
     const isAlwaysOnTop = input.getIsAlwaysOnTop?.() ?? false;
+    const inShell = !!target?.closest(".note-shell");
     const inWindow = !!target?.closest(".note-window");
     const inToolbar = !!target?.closest(".toolbar");
     const inPreview = !!target?.closest(".preview-text");
     if (input.getIsEditing()) {
       if (!isAlwaysOnTop && !inToolbar) return;
-      if (isAlwaysOnTop && !inWindow && !inToolbar) return;
+      if (isAlwaysOnTop && !inWindow && !inToolbar && !inShell) return;
+    } else if (isAlwaysOnTop) {
+      if (!inWindow && !inToolbar && !inShell) return;
     } else if (!isAlwaysOnTop && !inPreview && !inToolbar) {
       return;
     }

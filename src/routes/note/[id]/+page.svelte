@@ -1,6 +1,7 @@
 <script>
   import { onMount, tick } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
+  import { LogicalSize } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { listen } from "@tauri-apps/api/event";
   import { page } from "$app/stores";
@@ -46,6 +47,10 @@
   let showFrostValue = $state(false);
   let isEditing = $state(false);
   let isControlMode = $state(false);
+  let outsideToolbarSlotEl = $state(/** @type {HTMLDivElement | null} */ (null));
+  let outsideToolbarHeight = $state(0);
+  let collapsedWindowHeight = $state(0);
+  let toolbarWindowExpanded = $state(false);
   let suppressPointerActivationUntil = $state(0);
   let showCommandSuggestions = $state(false);
   let commandQuery = $state("");
@@ -109,9 +114,61 @@
     ".frost-popover",
   ].join(",");
   const POINTER_ACTIVATION_SUPPRESS_MS = 240;
+  const OUTSIDE_TOOLBAR_GAP_PX = 12;
 
   function getNow() {
     return globalThis.performance?.now?.() ?? Date.now();
+  }
+
+  function getToolbarWindowReserve() {
+    if (!showTopmostControls) return 0;
+    return Math.max(0, outsideToolbarHeight + OUTSIDE_TOOLBAR_GAP_PX);
+  }
+
+  /** @param {number} nextHeight */
+  async function resizeWindowHeight(nextHeight) {
+    const logicalWidth = Math.max(1, window.innerWidth || 1);
+    const logicalHeight = Math.max(220, Math.round(nextHeight));
+    try {
+      await getCurrentWindow().setSize(new LogicalSize(logicalWidth, logicalHeight));
+    } catch (e) {
+      console.error("resizeWindowHeight", e);
+    }
+  }
+
+  async function syncWindowHeightForOutsideToolbar() {
+    const currentHeight = Math.max(220, window.innerHeight || 220);
+    if (!showTopmostControls) {
+      if (!toolbarWindowExpanded) {
+        collapsedWindowHeight = currentHeight;
+        return;
+      }
+      toolbarWindowExpanded = false;
+      await resizeWindowHeight(collapsedWindowHeight || currentHeight);
+      return;
+    }
+
+    const reserve = getToolbarWindowReserve();
+    if (reserve <= 0) return;
+    if (!toolbarWindowExpanded) {
+      collapsedWindowHeight = currentHeight;
+    }
+    const expandedHeight = Math.max(220, collapsedWindowHeight || currentHeight) + reserve;
+    if (Math.abs(currentHeight - expandedHeight) < 1) {
+      toolbarWindowExpanded = true;
+      return;
+    }
+    toolbarWindowExpanded = true;
+    await resizeWindowHeight(expandedHeight);
+  }
+
+  function handleViewportResize() {
+    const currentHeight = Math.max(220, window.innerHeight || 220);
+    if (toolbarWindowExpanded && showTopmostControls) {
+      collapsedWindowHeight = Math.max(220, currentHeight - getToolbarWindowReserve());
+      return;
+    }
+    collapsedWindowHeight = currentHeight;
   }
 
   async function loadNote() {
@@ -459,6 +516,50 @@
     setCommandActiveIndex: (index) => (commandActiveIndex = index),
   });
 
+  const noteToolbarProps = $derived({
+    strings,
+    isEditing,
+    isControlMode: showTopmostControls,
+    showControlExit: showTopmostControls,
+    isMac,
+    note,
+    showPalette,
+    showTextColorPalette,
+    showOpacityPanel,
+    showFrostPanel,
+    opacityDraft,
+    frostDraft,
+    noteBgColor,
+    noteTextColor,
+    backgroundPickerValue,
+    textPickerValue,
+    noteColors: NOTE_COLORS,
+    noteTextColors: NOTE_TEXT_COLORS,
+    onToggleEdit: () => (isEditing ? exitEditMode() : enterEditMode()),
+    onExitControlMode: exitControlMode,
+    onToggleTopmost: toggleTopmost,
+    onToggleWallpaper: toggleWallpaperLayer,
+    onToggleGlobalControl: toggleGlobalControl,
+    onTogglePalette: () => (showPalette = !showPalette),
+    onToggleTextColorPalette: () => (showTextColorPalette = !showTextColorPalette),
+    onToggleOpacityPanel: () => (showOpacityPanel = !showOpacityPanel),
+    onOpacityIconWheel: noteStyleActions.onOpacityIconWheel,
+    onOpacityInput: noteStyleActions.onOpacityInput,
+    onOpacityWheel: noteStyleActions.onOpacityWheel,
+    onToggleFrostPanel: () => (showFrostPanel = !showFrostPanel),
+    onFrostIconWheel: noteStyleActions.onFrostIconWheel,
+    onFrostInput: noteStyleActions.onFrostInput,
+    onFrostWheel: noteStyleActions.onFrostWheel,
+    onToggleDone: toggleDone,
+    onToggleArchive: toggleArchive,
+    onUnpin: unpinNote,
+    onMoveToTrash: moveToTrash,
+    onSetBackgroundColor: noteStyleActions.setBackgroundColor,
+    onSetTextColor: noteStyleActions.setTextColor,
+    onBackgroundColorPickerChange: noteStyleActions.onBackgroundColorPickerChange,
+    onTextColorPickerChange: noteStyleActions.onTextColorPickerChange,
+  });
+
   async function toggleDone() {
     if (!note) return;
     try {
@@ -565,6 +666,9 @@
     /** @type {Array<Promise<() => void>>} */
     const unlistenPromises = [];
 
+    collapsedWindowHeight = Math.max(220, window.innerHeight || 220);
+    window.addEventListener("resize", handleViewportResize);
+
     unlistenPromises.push(
       listen("global_control_changed", async (event) => {
         globalControlDisabled = !!/** @type {{ payload?: unknown }} */ (event).payload;
@@ -593,6 +697,7 @@
       });
 
     return async () => {
+      window.removeEventListener("resize", handleViewportResize);
       for (const p of unlistenPromises) {
         try {
           const unlisten = await p;
@@ -627,111 +732,128 @@
       cancelled = true;
     };
   });
+
+  $effect(() => {
+    const slot = outsideToolbarSlotEl;
+    if (!slot) {
+      outsideToolbarHeight = 0;
+      return;
+    }
+    const updateToolbarHeight = () => {
+      outsideToolbarHeight = slot.offsetHeight;
+    };
+    updateToolbarHeight();
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      updateToolbarHeight();
+    });
+    observer.observe(slot);
+    return () => {
+      observer.disconnect();
+    };
+  });
+
+  $effect(() => {
+    showTopmostControls;
+    outsideToolbarHeight;
+    void tick().then(() => syncWindowHeightForOutsideToolbar());
+  });
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 <div
-  class="note-window"
-  data-toolbar-visible={allowHoverToolbar ? "true" : "false"}
+  class="note-shell"
   data-control-mode={showTopmostControls ? "true" : "false"}
-  style="--note-tint: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {cssFrostBlur}px; --frost-overlay: {noteFrostOverlay}; --frost-glow: {noteFrostGlow}; --note-border-alpha: {noteBorderAlpha}; --note-inner-highlight-alpha: {noteInnerHighlightAlpha};"
-  onclick={handleNoteClick}
-  onkeydown={handleNoteKeydown}
-  ondblclick={handleNoteDoubleClick}
+  data-toolbar-placement={showTopmostControls ? "outside" : "inside"}
   onpointerdown={noteWindowDrag.handleDragPointerDown}
   onpointermove={noteWindowDrag.onDragPointerMove}
   onpointerup={noteWindowDrag.onDragPointerUp}
   onpointercancel={noteWindowDrag.onDragPointerUp}
 >
   {#if note}
-    <div class="note-frost-layer" aria-hidden="true"></div>
-    <div class="note-content">
-      <NoteTagBar
-        {strings}
-        {isEditing}
-        isControlMode={showTopmostControls}
-        isAlwaysOnTop={isEffectiveTopmost}
-        controlInsetSide={showTopmostControls ? (isMac ? "left" : "right") : null}
-        priority={note.priority ?? null}
-        tags={Array.isArray(note.tags) ? note.tags : []}
-        {tagSuggestions}
-        onChangePriority={setNotePriority}
-        onChangeTags={setNoteTags}
-      />
-
-      {#if isEditing}
-        <SourceEditorPane
-          bind:text
-          bind:editorEl
-          placeholder={strings.noteEditorPlaceholder}
-          {showCommandSuggestions}
-          {commandSuggestionItems}
-          {commandActiveIndex}
-          onInput={noteEditorActions.handleInput}
-          onPaste={noteEditorActions.onEditorPaste}
-          onKeydown={noteEditorActions.onEditorKeydown}
-          onApplyCommandSuggestion={noteEditorActions.applyCommandSuggestion}
+    <div
+      class="note-window"
+      data-toolbar-visible={allowHoverToolbar ? "true" : "false"}
+      data-control-mode={showTopmostControls ? "true" : "false"}
+      style="--note-tint: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {cssFrostBlur}px; --frost-overlay: {noteFrostOverlay}; --frost-glow: {noteFrostGlow}; --note-border-alpha: {noteBorderAlpha}; --note-inner-highlight-alpha: {noteInnerHighlightAlpha};"
+      onclick={handleNoteClick}
+      onkeydown={handleNoteKeydown}
+      ondblclick={handleNoteDoubleClick}
+    >
+      <div class="note-frost-layer" aria-hidden="true"></div>
+      <div class="note-content">
+        <NoteTagBar
+          {strings}
+          {isEditing}
+          isControlMode={showTopmostControls}
+          isAlwaysOnTop={isEffectiveTopmost}
+          controlInsetSide={showTopmostControls ? (isMac ? "left" : "right") : null}
+          priority={note.priority ?? null}
+          tags={Array.isArray(note.tags) ? note.tags : []}
+          {tagSuggestions}
+          onChangePriority={setNotePriority}
+          onChangeTags={setNoteTags}
         />
-      {:else}
-        <NotePreview html={renderedMarkdown} />
-      {/if}
 
-      {#if noteCenterHudText}
-        <div class="note-center-hud">{noteCenterHudText}</div>
-      {/if}
+        {#if isEditing}
+          <SourceEditorPane
+            bind:text
+            bind:editorEl
+            placeholder={strings.noteEditorPlaceholder}
+            {showCommandSuggestions}
+            {commandSuggestionItems}
+            {commandActiveIndex}
+            onInput={noteEditorActions.handleInput}
+            onPaste={noteEditorActions.onEditorPaste}
+            onKeydown={noteEditorActions.onEditorKeydown}
+            onApplyCommandSuggestion={noteEditorActions.applyCommandSuggestion}
+          />
+        {:else}
+          <NotePreview html={renderedMarkdown} />
+        {/if}
 
-      <NoteToolbar
-        {strings}
-        {isEditing}
-        isControlMode={showTopmostControls}
-        showControlExit={showTopmostControls}
-        {isMac}
-        note={note}
-        showPalette={showPalette}
-        showTextColorPalette={showTextColorPalette}
-        showOpacityPanel={showOpacityPanel}
-        showFrostPanel={showFrostPanel}
-        opacityDraft={opacityDraft}
-        frostDraft={frostDraft}
-        noteBgColor={noteBgColor}
-        noteTextColor={noteTextColor}
-        backgroundPickerValue={backgroundPickerValue}
-        textPickerValue={textPickerValue}
-        noteColors={NOTE_COLORS}
-        noteTextColors={NOTE_TEXT_COLORS}
-        onToggleEdit={() => (isEditing ? exitEditMode() : enterEditMode())}
-        onExitControlMode={exitControlMode}
-        onToggleTopmost={toggleTopmost}
-        onToggleWallpaper={toggleWallpaperLayer}
-        onToggleGlobalControl={toggleGlobalControl}
-        onTogglePalette={() => (showPalette = !showPalette)}
-        onToggleTextColorPalette={() => (showTextColorPalette = !showTextColorPalette)}
-        onToggleOpacityPanel={() => (showOpacityPanel = !showOpacityPanel)}
-        onOpacityIconWheel={noteStyleActions.onOpacityIconWheel}
-        onOpacityInput={noteStyleActions.onOpacityInput}
-        onOpacityWheel={noteStyleActions.onOpacityWheel}
-        onToggleFrostPanel={() => (showFrostPanel = !showFrostPanel)}
-        onFrostIconWheel={noteStyleActions.onFrostIconWheel}
-        onFrostInput={noteStyleActions.onFrostInput}
-        onFrostWheel={noteStyleActions.onFrostWheel}
-        onToggleDone={toggleDone}
-        onToggleArchive={toggleArchive}
-        onUnpin={unpinNote}
-        onMoveToTrash={moveToTrash}
-        onSetBackgroundColor={noteStyleActions.setBackgroundColor}
-        onSetTextColor={noteStyleActions.setTextColor}
-        onBackgroundColorPickerChange={noteStyleActions.onBackgroundColorPickerChange}
-        onTextColorPickerChange={noteStyleActions.onTextColorPickerChange}
-      />
+        {#if noteCenterHudText}
+          <div class="note-center-hud">{noteCenterHudText}</div>
+        {/if}
+
+        {#if !showTopmostControls}
+          <NoteToolbar {...noteToolbarProps} placement="inside" />
+        {/if}
+      </div>
     </div>
+    {#if showTopmostControls}
+      <div class="note-toolbar-slot" bind:this={outsideToolbarSlotEl}>
+        <NoteToolbar {...noteToolbarProps} placement="outside" />
+      </div>
+    {/if}
   {:else}
     <div class="loading">Loading...</div>
   {/if}
 </div>
 
 <style>
+  .note-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .note-shell[data-toolbar-placement="outside"] {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .note-toolbar-slot {
+    width: 100%;
+  }
+
   .note-window {
     --note-radius: 12px;
     position: relative;

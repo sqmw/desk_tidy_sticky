@@ -1,5 +1,6 @@
 <script>
   let {
+    placement = "inside",
     strings,
     isEditing = false,
     isControlMode = false,
@@ -44,7 +45,9 @@
   } = $props();
 </script>
 
-<div class="toolbar-mask" class:editing={isEditing} class:control={isControlMode} aria-hidden="true"></div>
+{#if placement === "inside"}
+  <div class="toolbar-mask" class:editing={isEditing} class:control={isControlMode} aria-hidden="true"></div>
+{/if}
 {#if showControlExit}
   <button
     type="button"
@@ -70,7 +73,7 @@
   </button>
 {/if}
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="toolbar" class:editing={isEditing} class:control={isControlMode}>
+<div class="toolbar" class:editing={isEditing} class:control={isControlMode} class:outside={placement === "outside"}>
   <div class="toolbar-actions">
     <button
       class="tool-btn tool-btn-primary"
@@ -330,6 +333,17 @@
     backdrop-filter: blur(10px) saturate(1.04);
     -webkit-backdrop-filter: blur(10px) saturate(1.04);
     box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  }
+
+  .toolbar.outside {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: calc(100% - 20px);
+    margin: 0 auto;
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .control-exit {
