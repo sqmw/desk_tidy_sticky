@@ -3,7 +3,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { LogicalSize } from "@tauri-apps/api/dpi";
   import { getCurrentWindow } from "@tauri-apps/api/window";
-  import { listen } from "@tauri-apps/api/event";
+  import { emit, listen } from "@tauri-apps/api/event";
   import { page } from "$app/stores";
   import { getStrings } from "$lib/strings.js";
   import NotePreview from "$lib/components/note/NotePreview.svelte";
@@ -115,6 +115,12 @@
   ].join(",");
   const POINTER_ACTIVATION_SUPPRESS_MS = 240;
   const OUTSIDE_TOOLBAR_GAP_PX = 12;
+  const NOTE_MIN_SIZE_PX = 220;
+  const WINDOW_SIZE_PERSIST_DEBOUNCE_MS = 180;
+  const WINDOW_SIZE_POLL_MS = 900;
+  let windowSizePersistTimer = /** @type {ReturnType<typeof setTimeout> | null} */ (null);
+  let windowSizePollTimer = /** @type {ReturnType<typeof setInterval> | null} */ (null);
+  let lastPersistedWindowSizeKey = "";
 
   function getNow() {
     return globalThis.performance?.now?.() ?? Date.now();
@@ -128,7 +134,7 @@
   /** @param {number} nextHeight */
   async function resizeWindowHeight(nextHeight) {
     const logicalWidth = Math.max(1, window.innerWidth || 1);
-    const logicalHeight = Math.max(220, Math.round(nextHeight));
+    const logicalHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(nextHeight));
     try {
       await getCurrentWindow().setSize(new LogicalSize(logicalWidth, logicalHeight));
     } catch (e) {
@@ -137,7 +143,7 @@
   }
 
   async function syncWindowHeightForOutsideToolbar() {
-    const currentHeight = Math.max(220, window.innerHeight || 220);
+    const currentHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
     if (!showTopmostControls) {
       if (!toolbarWindowExpanded) {
         collapsedWindowHeight = currentHeight;
@@ -153,7 +159,7 @@
     if (!toolbarWindowExpanded) {
       collapsedWindowHeight = currentHeight;
     }
-    const expandedHeight = Math.max(220, collapsedWindowHeight || currentHeight) + reserve;
+    const expandedHeight = Math.max(NOTE_MIN_SIZE_PX, collapsedWindowHeight || currentHeight) + reserve;
     if (Math.abs(currentHeight - expandedHeight) < 1) {
       toolbarWindowExpanded = true;
       return;
@@ -163,12 +169,92 @@
   }
 
   function handleViewportResize() {
-    const currentHeight = Math.max(220, window.innerHeight || 220);
+    const currentHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
     if (toolbarWindowExpanded && showTopmostControls) {
-      collapsedWindowHeight = Math.max(220, currentHeight - getToolbarWindowReserve());
+      collapsedWindowHeight = Math.max(NOTE_MIN_SIZE_PX, currentHeight - getToolbarWindowReserve());
       return;
     }
     collapsedWindowHeight = currentHeight;
+  }
+
+  function clearWindowSizePersistTimer() {
+    if (windowSizePersistTimer == null) return;
+    clearTimeout(windowSizePersistTimer);
+    windowSizePersistTimer = null;
+  }
+
+  function clearWindowSizePollTimer() {
+    if (windowSizePollTimer == null) return;
+    clearInterval(windowSizePollTimer);
+    windowSizePollTimer = null;
+  }
+
+  async function getPersistableWindowSize() {
+    let width = Math.max(NOTE_MIN_SIZE_PX, Math.round(window.innerWidth || NOTE_MIN_SIZE_PX));
+    let rawHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(window.innerHeight || NOTE_MIN_SIZE_PX));
+    try {
+      const currentWindow = getCurrentWindow();
+      const [physicalSize, scaleFactor] = await Promise.all([
+        currentWindow.innerSize(),
+        currentWindow.scaleFactor(),
+      ]);
+      const logicalSize = physicalSize.toLogical(scaleFactor);
+      width = Math.max(NOTE_MIN_SIZE_PX, Math.round(logicalSize.width || width));
+      rawHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(logicalSize.height || rawHeight));
+    } catch (e) {
+      console.error("getPersistableWindowSize", e);
+    }
+    const toolbarReserve = toolbarWindowExpanded && showTopmostControls ? getToolbarWindowReserve() : 0;
+    const height = Math.max(NOTE_MIN_SIZE_PX, rawHeight - toolbarReserve);
+    return { width, height };
+  }
+
+  async function persistWindowSize({ force = false } = {}) {
+    if (!note) return;
+    const { width, height } = await getPersistableWindowSize();
+    const sizeKey = `${width}x${height}`;
+    const savedWidth = typeof note.width === "number" ? Math.round(note.width) : null;
+    const savedHeight = typeof note.height === "number" ? Math.round(note.height) : null;
+    const matchesNote = savedWidth === width && savedHeight === height;
+    if (!force && (matchesNote || lastPersistedWindowSizeKey === sizeKey)) {
+      return;
+    }
+    try {
+      await invoke("update_note_size", {
+        id: resolveNoteId(note, noteId),
+        width,
+        height,
+        emitEvent: force,
+      });
+      lastPersistedWindowSizeKey = sizeKey;
+      note = {
+        ...note,
+        width,
+        height,
+      };
+    } catch (e) {
+      console.error("persistWindowSize", e);
+    }
+  }
+
+  function scheduleWindowSizePersist() {
+    clearWindowSizePersistTimer();
+    windowSizePersistTimer = setTimeout(() => {
+      windowSizePersistTimer = null;
+      void persistWindowSize();
+    }, WINDOW_SIZE_PERSIST_DEBOUNCE_MS);
+  }
+
+  function startWindowSizePoll() {
+    clearWindowSizePollTimer();
+    windowSizePollTimer = setInterval(() => {
+      void persistWindowSize();
+    }, WINDOW_SIZE_POLL_MS);
+  }
+
+  function handleWindowResizePersistence() {
+    handleViewportResize();
+    scheduleWindowSizePersist();
   }
 
   async function loadNote() {
@@ -186,6 +272,9 @@
         text = snapshot.text;
         opacityDraft = snapshot.opacityDraft;
         frostDraft = snapshot.frostDraft;
+        const width = typeof snapshot.note.width === "number" ? Math.round(snapshot.note.width) : null;
+        const height = typeof snapshot.note.height === "number" ? Math.round(snapshot.note.height) : null;
+        lastPersistedWindowSizeKey = width && height ? `${width}x${height}` : "";
       }
     } catch (e) {
       console.error("loadNote", e);
@@ -257,6 +346,14 @@
     } catch (e) {
       console.error("applyInteractionPolicy", e);
     }
+  }
+
+  async function notifyNoteWindowReady() {
+    const currentWindow = getCurrentWindow();
+    await emit("note_window_ready", {
+      label: currentWindow.label,
+      id: noteId,
+    });
   }
 
   async function save() {
@@ -578,6 +675,7 @@
   async function toggleArchive() {
     if (!note) return;
     try {
+      await persistWindowSize({ force: true });
       const all = await invokeNoteCommand({
         invoke,
         command: "toggle_archive",
@@ -593,6 +691,7 @@
   async function unpinNote() {
     if (!note) return;
     try {
+      await persistWindowSize({ force: true });
       const all = await invokeNoteCommand({
         invoke,
         command: "toggle_pin",
@@ -608,6 +707,7 @@
   async function moveToTrash() {
     if (!note) return;
     try {
+      await persistWindowSize({ force: true });
       const all = await invokeNoteCommand({
         invoke,
         command: "delete_note",
@@ -665,9 +765,25 @@
   onMount(() => {
     /** @type {Array<Promise<() => void>>} */
     const unlistenPromises = [];
+    const currentWindow = getCurrentWindow();
 
-    collapsedWindowHeight = Math.max(220, window.innerHeight || 220);
-    window.addEventListener("resize", handleViewportResize);
+    collapsedWindowHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
+    window.addEventListener("resize", handleWindowResizePersistence);
+    unlistenPromises.push(currentWindow.onResized(() => handleWindowResizePersistence()));
+    unlistenPromises.push(
+      currentWindow.onFocusChanged(async ({ payload: focused }) => {
+        if (focused) return;
+        clearWindowSizePersistTimer();
+        await persistWindowSize();
+      }),
+    );
+    unlistenPromises.push(
+      currentWindow.onCloseRequested(async () => {
+        clearWindowSizePersistTimer();
+        await persistWindowSize({ force: true });
+      }),
+    );
+    startWindowSizePoll();
 
     unlistenPromises.push(
       listen("global_control_changed", async (event) => {
@@ -694,10 +810,14 @@
       .then(async () => {
         await applyInteractionPolicy();
         await applyZOrderAndParent();
+        await notifyNoteWindowReady();
       });
 
     return async () => {
-      window.removeEventListener("resize", handleViewportResize);
+      window.removeEventListener("resize", handleWindowResizePersistence);
+      clearWindowSizePersistTimer();
+      clearWindowSizePollTimer();
+      await persistWindowSize({ force: true });
       for (const p of unlistenPromises) {
         try {
           const unlisten = await p;

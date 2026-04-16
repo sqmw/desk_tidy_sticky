@@ -554,6 +554,10 @@
     setAutostartEnabled: (next) => {
       isAutostartEnabled = next;
     },
+    setStickiesVisible: (next) => {
+      stickiesVisible = next;
+    },
+    syncWindows: windowSync.syncWindows,
   });
 
   const routeResizeBridge = createWorkspaceRouteResizeBridge({

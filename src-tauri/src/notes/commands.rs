@@ -1,6 +1,6 @@
 use crate::desktop::apply_note_window_frost;
 use crate::notes::{assets as note_assets, service as notes_service, Note, NoteSortMode};
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 fn emit_notes_changed(app: &tauri::AppHandle) {
     let _ = app.emit("notes_changed", ());
@@ -59,6 +59,47 @@ pub fn update_note_position(
     emit_event: Option<bool>,
 ) -> Result<(), String> {
     notes_service::update_note_position(&id, x, y)?;
+    if emit_event.unwrap_or(true) {
+        emit_notes_changed(&app);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_note_size(
+    app: tauri::AppHandle,
+    id: String,
+    width: f64,
+    height: f64,
+    emit_event: Option<bool>,
+) -> Result<(), String> {
+    notes_service::update_note_size(&id, width, height)?;
+    if emit_event.unwrap_or(true) {
+        emit_notes_changed(&app);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn persist_note_window_size(
+    app: tauri::AppHandle,
+    id: String,
+    emit_event: Option<bool>,
+) -> Result<(), String> {
+    let label = format!("note-{}", id);
+    let Some(window) = app.get_webview_window(label.as_str()) else {
+        return Ok(());
+    };
+    let size = window.inner_size().map_err(|e| e.to_string())?;
+    let raw_scale = window.scale_factor().map_err(|e| e.to_string())?;
+    let scale = if raw_scale.is_finite() && raw_scale > 0.0 {
+        raw_scale
+    } else {
+        1.0
+    };
+    let width = (size.width as f64 / scale).max(220.0);
+    let height = (size.height as f64 / scale).max(220.0);
+    notes_service::update_note_size(&id, width, height)?;
     if emit_event.unwrap_or(true) {
         emit_notes_changed(&app);
     }

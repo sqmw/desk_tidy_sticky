@@ -415,6 +415,10 @@
         if (typeof updates.autostartEnabled === "boolean") {
           isAutostartEnabled = updates.autostartEnabled;
         }
+        if (typeof updates.overlayEnabled === "boolean") {
+          stickiesVisible = updates.overlayEnabled;
+          await windowSync.syncWindows();
+        }
       }),
     );
 

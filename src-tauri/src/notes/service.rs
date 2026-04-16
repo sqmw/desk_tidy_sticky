@@ -125,6 +125,16 @@ pub fn update_note_position(id: &str, x: f64, y: f64) -> Result<(), String> {
     Ok(())
 }
 
+pub fn update_note_size(id: &str, width: f64, height: f64) -> Result<(), String> {
+    let safe_width = width.max(220.0);
+    let safe_height = height.max(220.0);
+    let _ = mutate_note(id, None, |n| {
+        n.width = Some(safe_width);
+        n.height = Some(safe_height);
+    })?;
+    Ok(())
+}
+
 pub fn update_note_text(
     id: &str,
     text: String,

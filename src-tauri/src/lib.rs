@@ -24,9 +24,10 @@ use desktop::{
 };
 use notes::{
     add_note, clear_note_priority, delete_note, empty_trash, load_notes, permanently_delete_note,
-    reorder_notes, restore_note, save_clipboard_image, toggle_archive, toggle_done, toggle_pin,
-    update_note, update_note_color, update_note_frost, update_note_opacity, update_note_position,
-    update_note_priority, update_note_tags, update_note_text, update_note_text_color,
+    persist_note_window_size, reorder_notes, restore_note, save_clipboard_image, toggle_archive,
+    toggle_done, toggle_pin, update_note, update_note_color, update_note_frost,
+    update_note_opacity, update_note_position, update_note_priority, update_note_size,
+    update_note_tags, update_note_text, update_note_text_color,
 };
 #[cfg(target_os = "windows")]
 use platform::window_hwnd_isize;
@@ -123,6 +124,8 @@ pub fn run() {
             add_note,
             update_note,
             update_note_position,
+            update_note_size,
+            persist_note_window_size,
             update_note_text,
             save_clipboard_image,
             update_note_color,

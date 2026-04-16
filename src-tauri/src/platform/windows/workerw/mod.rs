@@ -6,7 +6,7 @@ use windows::Win32::Graphics::Gdi::{
 use windows::Win32::UI::WindowsAndMessaging::{
     GetClientRect, GetDesktopWindow, GetParent, GetWindowLongPtrW, GetWindowRect, IsWindow,
     SetParent, SetWindowLongPtrW, SetWindowPos, GWL_STYLE, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOP,
-    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW,
+    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
     WS_CHILD, WS_MAXIMIZEBOX, WS_POPUP, WS_THICKFRAME,
 };
 
@@ -50,7 +50,7 @@ fn force_bottom_immediately(hwnd: HWND) {
     unsafe {
         // Do not use SWP_NOACTIVATE when sinking: active top-level windows may otherwise
         // stay visually above until another window gets focus.
-        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_FRAMECHANGED;
+        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED;
         let _ = SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
         let _ = SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0, flags);
     }
@@ -60,7 +60,7 @@ fn force_wallpaper_layer_immediately(hwnd: HWND) {
     unsafe {
         // The wallpaper WorkerW is already below desktop icons. Keep the note at the front of
         // that parent so it stays visible instead of being pushed behind wallpaper siblings.
-        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_FRAMECHANGED | SWP_NOACTIVATE;
+        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED | SWP_NOACTIVATE;
         let _ = SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
         let _ = SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, flags);
     }
@@ -153,7 +153,7 @@ fn apply_top_level_style(hwnd: HWND) {
 
 fn force_desktop_layer_immediately(hwnd: HWND) {
     unsafe {
-        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW | SWP_FRAMECHANGED | SWP_NOACTIVATE;
+        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED | SWP_NOACTIVATE;
         let _ = SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
         let _ = SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, flags);
     }
@@ -326,7 +326,7 @@ pub fn detach_from_worker_w(hwnd_isize: isize) -> Result<(), String> {
         apply_top_level_style(hwnd);
 
         // Keep window as top-level; caller decides whether to promote topmost.
-        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_FRAMECHANGED;
+        let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED;
         let _ = SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
         let _ = SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, flags);
     }
