@@ -733,18 +733,19 @@
 
 <style>
   .note-window {
+    --note-radius: 12px;
     position: relative;
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
-    border-radius: 12px;
+    border-radius: var(--note-radius);
     background: transparent;
     background-clip: padding-box;
     border: 1px solid rgba(255, 255, 255, var(--note-border-alpha, 0.22));
-    box-shadow:
-      0 10px 24px rgba(15, 23, 42, 0.16),
-      inset 0 1px 0 rgba(255, 255, 255, var(--note-inner-highlight-alpha, 0.14));
+    clip-path: inset(0 round var(--note-radius));
+    -webkit-clip-path: inset(0 round var(--note-radius));
+    filter: drop-shadow(0 10px 24px rgba(15, 23, 42, 0.16));
     overflow: hidden;
     isolation: isolate;
   }
@@ -764,6 +765,7 @@
     background-repeat: no-repeat;
     background-size: cover;
     border-radius: inherit;
+    clip-path: inset(0 round var(--note-radius));
     pointer-events: none;
     z-index: 0;
     backdrop-filter: blur(var(--frost-blur, 0px)) saturate(1.12);
@@ -780,6 +782,8 @@
     min-height: 0;
     flex-direction: column;
     z-index: 1;
+    border-radius: inherit;
+    overflow: hidden;
   }
 
   .note-content > * {

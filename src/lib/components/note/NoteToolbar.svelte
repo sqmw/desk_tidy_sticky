@@ -399,9 +399,9 @@
 
   .toolbar-mask {
     position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 1px;
+    right: 1px;
+    bottom: 1px;
     height: 104px;
     background:
       linear-gradient(
@@ -410,6 +410,7 @@
         rgba(255, 255, 255, 0.72) 48%,
         rgba(255, 255, 255, 0) 100%
       );
+    border-radius: 0 0 calc(var(--note-radius, 12px) - 1px) calc(var(--note-radius, 12px) - 1px);
     opacity: 0;
     transition: opacity 0.2s;
     pointer-events: none;
