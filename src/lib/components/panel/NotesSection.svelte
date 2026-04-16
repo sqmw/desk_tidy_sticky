@@ -13,6 +13,7 @@
     dragGhostTop,
     dragGhostLeft,
     dragGhostWidth,
+    dragGhostHeight,
     formatDate,
     notesListEl = $bindable(),
     restoreNote,
@@ -58,7 +59,10 @@
 {/if}
 
 {#if draggedNote}
-  <div class="drag-ghost" style="top: {dragGhostTop}px; left: {dragGhostLeft}px; width: {dragGhostWidth}px;">
+  <div
+    class="drag-ghost"
+    style={`top:${dragGhostTop}px;left:${dragGhostLeft}px;width:${Math.max(240, dragGhostWidth)}px;height:${Math.max(68, dragGhostHeight)}px;`}
+  >
     <div class="note-item ghost">
       <div class="note-content">
         <div class="note-text rendered" class:done={draggedNote.isDone}>{@html draggedNote.renderedHtml}</div>
@@ -71,13 +75,14 @@
 <style>
   .note-item {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
+    align-items: center;
     position: relative;
-    padding: 11px 12px;
-    border-radius: 10px;
-    background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
-    border: 1px solid #e7ebf1;
+    min-height: 100%;
+    padding: 16px 18px;
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(248, 250, 252, 0.96) 100%);
+    border: 1px solid rgba(176, 190, 208, 0.42);
     cursor: default;
     transition:
       transform 0.16s ease,
@@ -90,31 +95,50 @@
     position: fixed;
     pointer-events: none;
     z-index: 2000;
+    padding: 0 10px;
+    box-sizing: border-box;
   }
 
   .note-item.ghost {
-    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.24);
-    border-color: color-mix(in srgb, var(--primary) 45%, #d9dee7);
-    transform: scale(1.015);
-    background: linear-gradient(180deg, #ffffff 0%, #fdfdff 100%);
-    opacity: 0.98;
+    height: 100%;
+    box-shadow:
+      0 18px 34px rgba(15, 23, 42, 0.16),
+      0 4px 10px rgba(15, 23, 42, 0.08);
+    border-color: color-mix(in srgb, var(--primary) 18%, rgba(176, 190, 208, 0.42));
+    backdrop-filter: blur(14px);
+    transform: translateY(-1px);
+    opacity: 0.985;
+    overflow: hidden;
+  }
+
+  .note-item.ghost::before {
+    content: "";
+    position: absolute;
+    left: 10px;
+    top: 12px;
+    bottom: 12px;
+    width: 3px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 58%, #dbe4ef);
   }
 
   .note-content {
     flex: 1;
     min-width: 0;
+    padding-left: 10px;
   }
 
   .note-text.rendered {
     display: block;
-    max-height: 62px;
+    max-height: 3.05em;
     overflow: hidden;
   }
 
   .note-text.rendered :global(*) {
     margin: 0;
-    font-size: 13px;
-    line-height: 1.35;
+    font-size: 15px;
+    line-height: 1.42;
+    color: #1f2937;
   }
 
   .note-text.rendered :global(ul),
@@ -129,8 +153,8 @@
 
   .note-date {
     font-size: 11px;
-    color: #9aa3af;
-    margin-top: 6px;
+    color: #98a2b3;
+    margin-top: 8px;
     display: block;
   }
 

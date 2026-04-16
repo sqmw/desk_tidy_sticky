@@ -30,8 +30,8 @@
 <div class="notes-list" bind:this={notesListEl}>
   {#each renderedNotes as note, index (note.id)}
     <div
-      transition:slide={{ duration: 200, axis: "y" }}
-      animate:flip={{ duration: 200 }}
+      transition:slide={{ duration: draggedNoteId ? 0 : 200, axis: "y" }}
+      animate:flip={{ duration: draggedNoteId ? 0 : 200 }}
       class="note-wrapper"
       data-note-id={note.id}
       class:drag-placeholder={draggedNoteId === note.id}
@@ -102,9 +102,13 @@
     content: "";
     position: absolute;
     inset: 6px 10px;
-    border-radius: 10px;
-    border: 1px dashed #b9c7dc;
-    background: rgba(84, 110, 122, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(163, 178, 197, 0.45);
+    background:
+      linear-gradient(180deg, rgba(233, 239, 246, 0.9) 0%, rgba(241, 245, 250, 0.76) 100%);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.58),
+      inset 0 10px 18px rgba(255, 255, 255, 0.22);
     pointer-events: none;
     z-index: 2;
   }
@@ -116,13 +120,12 @@
   .note-wrapper.drop-target::after {
     content: "";
     position: absolute;
-    left: 14px;
-    right: 14px;
-    bottom: 0;
-    height: 3px;
-    border-radius: 999px;
-    background: var(--primary);
-    opacity: 0.45;
+    left: 16px;
+    right: 16px;
+    top: 0;
+    height: 1px;
+    background: rgba(84, 110, 122, 0.16);
+    opacity: 1;
   }
 
 </style>

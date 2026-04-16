@@ -7,8 +7,10 @@
  *     dragGhostTop: number;
  *     dragGhostLeft: number;
  *     dragGhostWidth: number;
+ *     dragGhostHeight: number;
  *     dragPointerOffsetY: number;
  *     verticalDragStartY: number | null;
+ *     lastGhostCenterY: number | null;
  *   };
  *   getCanReorder: () => boolean;
  *   getVisibleNotes: () => any[];
@@ -27,37 +29,12 @@ export function createDragReorder(deps) {
   }
 
   /**
-   * @param {number} pointerY
+   * @param {Array<{ id: string; rect: DOMRect }>} groupRows
    * @param {any[]} rest
-   * @param {boolean} pinGroup
+   * @param {number} groupInsertPos
    */
-  function findDropInsertionIndex(pointerY, rest, pinGroup) {
-    const notesListEl = deps.getNotesListEl();
-    const drag = deps.drag;
-    if (!notesListEl || !drag.draggedNoteId) return 0;
-
-    const wrappers = Array.from(notesListEl.querySelectorAll(".note-wrapper"))
-      .filter((el) => !el.classList.contains("drag-placeholder"));
-    if (wrappers.length === 0) return pinGroup ? 0 : rest.length;
-
-    /** @type {Array<{ id: string; centerY: number }>} */
-    const wrapperRows = [];
-    for (const el of wrappers) {
-      const id = String(el.getAttribute("data-note-id") || "");
-      if (!id) continue;
-      const rect = el.getBoundingClientRect();
-      wrapperRows.push({ id, centerY: rect.top + rect.height / 2 });
-    }
-
-    const groupIds = rest.filter((n) => !!n?.isPinned === pinGroup).map((n) => String(n.id));
-    const groupSet = new Set(groupIds);
-    const groupRows = wrapperRows.filter((row) => groupSet.has(row.id));
-    if (groupRows.length === 0) return pinGroup ? 0 : rest.length;
-
-    let groupInsertPos = 0;
-    for (let i = 0; i < groupRows.length; i += 1) {
-      if (pointerY > groupRows[i].centerY) groupInsertPos = i + 1;
-    }
+  function resolveInsertionIndex(groupRows, rest, groupInsertPos) {
+    if (groupRows.length === 0) return rest.length;
     if (groupInsertPos <= 0) {
       const firstId = groupRows[0].id;
       const firstIndex = rest.findIndex((n) => String(n.id) === firstId);
@@ -71,6 +48,61 @@ export function createDragReorder(deps) {
     const nextId = groupRows[groupInsertPos].id;
     const nextIndex = rest.findIndex((n) => String(n.id) === nextId);
     return nextIndex >= 0 ? nextIndex : rest.length;
+  }
+
+  /**
+   * @param {number} pointerY
+   * @param {number} ghostTop
+   * @param {number} ghostBottom
+   * @param {boolean} draggingDown
+   * @param {any[]} rest
+   * @param {boolean} pinGroup
+   */
+  function findDropInsertionIndex(pointerY, ghostTop, ghostBottom, draggingDown, rest, pinGroup) {
+    const notesListEl = deps.getNotesListEl();
+    const drag = deps.drag;
+    if (!notesListEl || !drag.draggedNoteId) return 0;
+
+    const wrappers = Array.from(notesListEl.querySelectorAll(".note-wrapper"))
+      .filter((el) => !el.classList.contains("drag-placeholder"));
+    if (wrappers.length === 0) return pinGroup ? 0 : rest.length;
+
+    /** @type {Array<{ id: string; centerY: number; rect: DOMRect }>} */
+    const wrapperRows = [];
+    for (const el of wrappers) {
+      const id = String(el.getAttribute("data-note-id") || "");
+      if (!id) continue;
+      const rect = el.getBoundingClientRect();
+      wrapperRows.push({ id, centerY: rect.top + rect.height / 2, rect });
+    }
+
+    const groupIds = rest.filter((n) => !!n?.isPinned === pinGroup).map((n) => String(n.id));
+    const groupSet = new Set(groupIds);
+    const groupRows = wrapperRows.filter((row) => groupSet.has(row.id));
+    if (groupRows.length === 0) return pinGroup ? 0 : rest.length;
+
+    let dominantIndex = -1;
+    let dominantRatio = 0;
+    for (let i = 0; i < groupRows.length; i += 1) {
+      const { rect } = groupRows[i];
+      const overlap = Math.max(0, Math.min(ghostBottom, rect.bottom) - Math.max(ghostTop, rect.top));
+      const ratio = rect.height > 0 ? overlap / rect.height : 0;
+      if (ratio > dominantRatio) {
+        dominantRatio = ratio;
+        dominantIndex = i;
+      }
+    }
+
+    if (dominantIndex >= 0 && dominantRatio >= 0.5) {
+      const insertPos = dominantIndex + (draggingDown ? 1 : 0);
+      return resolveInsertionIndex(groupRows, rest, insertPos);
+    }
+
+    let groupInsertPos = 0;
+    for (let i = 0; i < groupRows.length; i += 1) {
+      if (pointerY > groupRows[i].centerY) groupInsertPos = i + 1;
+    }
+    return resolveInsertionIndex(groupRows, rest, groupInsertPos);
   }
 
   /** @param {number} pointerY */
@@ -112,9 +144,13 @@ export function createDragReorder(deps) {
       drag.dragGhostTop = rect.top;
       drag.dragGhostLeft = rect.left;
       drag.dragGhostWidth = rect.width;
+      drag.dragGhostHeight = rect.height;
       drag.dragPointerOffsetY = Math.max(0, clientY - rect.top);
+      drag.lastGhostCenterY = rect.top + rect.height / 2;
     } else {
       drag.dragPointerOffsetY = 18;
+      drag.dragGhostHeight = 68;
+      drag.lastGhostCenterY = clientY;
     }
 
     drag.draggedNoteId = current.id;
@@ -137,13 +173,26 @@ export function createDragReorder(deps) {
         ? getEventClientY(e)
         : drag.verticalDragStartY + deltaY;
 
-    drag.dragGhostTop = clientY - drag.dragPointerOffsetY;
+    const ghostTop = clientY - drag.dragPointerOffsetY;
+    const ghostHeight = Math.max(56, drag.dragGhostHeight || 0);
+    const ghostBottom = ghostTop + ghostHeight;
+    const ghostCenterY = ghostTop + ghostHeight / 2;
+    const draggingDown =
+      drag.lastGhostCenterY === null ? true : ghostCenterY >= drag.lastGhostCenterY;
+
+    drag.dragGhostTop = ghostTop;
+    drag.lastGhostCenterY = ghostCenterY;
     autoScrollNotesList(clientY);
-    applyDropTargetByPointer(clientY);
+    applyDropTargetByPointer(clientY, ghostTop, ghostBottom, draggingDown);
   }
 
-  /** @param {number} pointerY */
-  function applyDropTargetByPointer(pointerY) {
+  /**
+   * @param {number} pointerY
+   * @param {number} ghostTop
+   * @param {number} ghostBottom
+   * @param {boolean} draggingDown
+   */
+  function applyDropTargetByPointer(pointerY, ghostTop, ghostBottom, draggingDown) {
     const drag = deps.drag;
     if (!drag.draggedNoteId) return;
 
@@ -155,7 +204,7 @@ export function createDragReorder(deps) {
     const [item] = rest.splice(from, 1);
     if (!item) return;
     const pinGroup = draggedPinned ?? !!item.isPinned;
-    const insertionIndex = findDropInsertionIndex(pointerY, rest, pinGroup);
+    const insertionIndex = findDropInsertionIndex(pointerY, ghostTop, ghostBottom, draggingDown, rest, pinGroup);
     const clampedInsert = Math.max(0, Math.min(rest.length, insertionIndex));
     rest.splice(clampedInsert, 0, item);
 
@@ -183,7 +232,9 @@ export function createDragReorder(deps) {
     drag.verticalDragStartY = null;
     drag.dragPreviewNotes = null;
     drag.dragGhostWidth = 0;
+    drag.dragGhostHeight = 0;
     drag.dragPointerOffsetY = 0;
+    drag.lastGhostCenterY = null;
     draggedPinned = null;
 
     if (!shouldPersist) return;

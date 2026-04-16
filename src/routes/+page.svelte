@@ -68,8 +68,10 @@
     dragGhostTop: 0,
     dragGhostLeft: 0,
     dragGhostWidth: 0,
+    dragGhostHeight: 0,
     dragPointerOffsetY: 0,
     verticalDragStartY: /** @type {number | null} */ (null),
+    lastGhostCenterY: /** @type {number | null} */ (null),
   });
 
   const strings = $derived(getStrings(locale));
@@ -480,6 +482,7 @@
       dragGhostTop={drag.dragGhostTop}
       dragGhostLeft={drag.dragGhostLeft}
       dragGhostWidth={drag.dragGhostWidth}
+      dragGhostHeight={drag.dragGhostHeight}
       {formatDate}
       bind:notesListEl
       {restoreNote}
