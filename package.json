@@ -1,7 +1,7 @@
 {
   "name": "desk_tidy_sticky",
-  "version": "0.1.0",
-  "description": "",
+  "version": "1.2.0",
+  "description": "Cross-platform desktop stickies and focus workstation (Tauri + SvelteKit).",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
@@ -12,6 +12,14 @@
     "tauri": "tauri"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sqmw/desk_tidy_sticky.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sqmw/desk_tidy_sticky/issues"
+  },
+  "homepage": "https://github.com/sqmw/desk_tidy_sticky#readme",
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-autostart": "^2.5.1",

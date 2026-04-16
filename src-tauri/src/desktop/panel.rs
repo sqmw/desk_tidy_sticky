@@ -73,7 +73,8 @@ pub fn ensure_workspace_panel_window(app: &tauri::AppHandle) -> Option<tauri::We
     .decorations(false)
     .skip_taskbar(false)
     .resizable(true)
-    .maximizable(true);
+    .maximizable(true)
+    .devtools(true);
     match builder.build() {
         Ok(window) => Some(window),
         Err(err) => {

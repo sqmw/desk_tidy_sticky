@@ -149,6 +149,7 @@ async function ensureOverlayWindow(label, monitor) {
     minimizable: false,
     focus: true,
     shadow: false,
+    devtools: true,
   });
   await new Promise((resolve, reject) => {
     webview.once("tauri://created", () => resolve(true));

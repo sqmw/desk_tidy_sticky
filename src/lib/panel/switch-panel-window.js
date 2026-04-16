@@ -36,6 +36,7 @@ async function ensureWorkspaceWindow(invoke) {
     skipTaskbar: false,
     resizable: true,
     maximizable: true,
+    devtools: true,
   });
 
   await new Promise((resolve, reject) => {

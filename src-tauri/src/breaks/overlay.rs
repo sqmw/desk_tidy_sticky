@@ -89,6 +89,7 @@ pub fn ensure_break_overlay_windows_native(app: &tauri::AppHandle) -> Result<(),
             .minimizable(false)
             .focused(true)
             .shadow(false)
+            .devtools(true)
             .build()
             .map_err(|e| e.to_string())?
         };

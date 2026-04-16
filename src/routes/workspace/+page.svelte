@@ -627,13 +627,7 @@
 
   $effect(() => {
     if (mainTab !== WORKSPACE_MAIN_TAB_NOTES) return;
-    if (viewMode === WORKSPACE_NOTE_VIEW_QUADRANT) {
-      if (newNotePriority == null) {
-        newNotePriority = 2;
-      }
-      return;
-    }
-    newNotePriority = null;
+    if (viewMode !== WORKSPACE_NOTE_VIEW_QUADRANT) newNotePriority = null;
   });
 
   $effect(() => {

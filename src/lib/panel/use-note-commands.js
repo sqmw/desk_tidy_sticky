@@ -39,9 +39,6 @@ export function createNoteCommands(deps) {
     if (!text) return;
     let selectedPriority =
       priorityOverride === undefined ? (deps.getNewNotePriority?.() ?? null) : priorityOverride;
-    if (deps.getViewMode() === "quadrant" && selectedPriority == null) {
-      selectedPriority = 2;
-    }
     const selectedTags = deps.getNewNoteTags?.() ?? [];
     const selectedTag = String(deps.getSelectedTag?.() ?? "").trim();
     const finalTags =

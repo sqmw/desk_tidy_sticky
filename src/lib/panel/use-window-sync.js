@@ -172,6 +172,7 @@ export function createWindowSync(deps) {
       resizable: true,
       maximizable: false,
       visible: false,
+      devtools: true,
     });
 
     const creatingPromise = new Promise((resolve) => {

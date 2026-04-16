@@ -1,86 +1,128 @@
 # Desk Tidy Sticky
 
-> 📝 **跨平台极简多功能便笺助手** — 随手记录，灵感不丢失
+> 跨平台桌面便笺与专注工作台。mini 模式用于快速记录与桌面贴纸，workstation（工作台）模式用于任务、专注与休息节奏。
 
-**🇨🇳 中文** | [🇬🇧 English](README.en.md)
+[English](README.en.md) · [参与开发](docs/contributing.md) · [加入群](#加入群) · [GitHub](https://github.com/sqmw/desk_tidy_sticky) · 喜欢的话欢迎点 Star
 
-## ✨ 功能特性
+## 介绍视频
 
-### 简洁模式（主面板 / 贴纸）
+想先快速了解使用场景和核心功能，可以看 B 站介绍视频：
 
-- **极速唤醒**：全局快捷键 `Ctrl + Shift + N`，系统托盘一键呼出
-- **简约设计**：磨砂质感 UI，滚轮调节透明度
-- **笔记管理**：活动/归档/回收站视图，支持拼音搜索
-- **滑动操作**：左滑删除，右滑归档/恢复（与 Flutter 版一致）
-- **拖拽排序**：手动排序模式下可拖动笔记调整顺序
-- **置顶/置底**：已钉住便笺可切换置顶或贴在底部
-- **开机自启**：设置中可开启开机自动启动
-- **启动时显示**：可选择启动时是否显示主窗口
-- **单实例**：重复启动会激活已有窗口
-- **快捷操作**：`Ctrl + Enter` 保存并置顶，`Esc` 隐藏面板
+[▶ 在 B 站观看 Desk Tidy Sticky 介绍视频](https://www.bilibili.com/video/BV1Ckd8BhES1/)
 
-### 工作台模式（Workspace）
+## 为什么做它
 
-- **一体工作台**：笔记、任务与专注聚合在同一窗口
-- **多视图笔记**：全部 / 待办 / 四象限 / 归档 / 回收站
-- **标签与检索**：标签筛选、搜索栏、右侧详情编辑
-- **专注番茄**：任务规划、专注计时、统计概览
-- **休息控制**：独立提醒、短休/长休、休息遮罩
-- **显示与主题**：主题预设、自定义 CSS、缩放与字号配置
+很多便笺工具只解决“写下来”，很多番茄钟只解决“开始计时”。Desk Tidy Sticky 更关注日常工作里的连续动作：在 mini 模式里快速记录和钉贴纸，在 workstation（工作台）模式里整理任务、进入专注、适时休息。
 
-完整模式拆分与模块说明见：`docs/product/2026-03-29-tauri-modes-overview.md`
+它适合这些场景：
 
-## ⌨️ 快捷键
+- 看论文、写代码、看视频时，把关键想法悬浮在桌面上。
+- 临时记录待办，再按活动、归档、回收站持续整理。
+- 把当天任务放进 workstation（工作台）模式，用番茄和休息提醒维持节奏。
+- 在 macOS 和 Windows 之间保持接近一致的贴纸层级体验。
 
-| 快捷键 | 功能 |
-|-------|------|
-| `Ctrl + Shift + N` | 唤醒/隐藏主面板 |
-| `Ctrl + Shift + O` | 贴纸：切换鼠标交互（穿透/可点） |
-| `Ctrl + Enter` | 保存并固定到桌面 |
-| `Esc` | 隐藏面板（不保存） |
+## 核心能力
 
-## 🖼️ 截图
+### mini 模式：便笺与桌面贴纸
 
-### 简洁模式
+- 全局快捷键 `Ctrl + Shift + N` 唤醒 mini 面板。
+- 支持活动、归档、回收站，带拼音搜索。
+- 支持标签、优先级、拖拽排序和 Markdown 基础渲染。
+- 便笺可钉在桌面，支持置顶、置底、贴到壁纸层、贴在图标上层。
+- 置顶贴纸可双击进入编辑状态，日常显示时保持干净。
 
-| 主界面 | 贴纸 | 列表 |
+### workstation（工作台）模式：任务与专注
+
+- workstation（工作台）聚合笔记、任务、专注计时和休息控制。
+- 支持任务规划、番茄统计、任务开始提醒。
+- 支持独立短休、长休、全屏休息遮罩和推迟策略。
+- 支持主题预设、自定义 CSS、缩放、字号和侧边栏布局。
+
+完整模式说明见：`docs/product/2026-03-29-tauri-modes-overview.md`
+
+## 截图
+
+### mini 模式
+
+| mini 面板 | 桌面贴纸 | mini 列表 |
 |:---:|:---:|:---:|
-| ![hero](.github/screenshots/hero.png) | ![desktop](.github/screenshots/desktop_mode.png) | ![list](.github/screenshots/list_page.png) |
+| ![mini 面板](.github/screenshots/hero.png) | ![桌面贴纸](.github/screenshots/desktop_mode.png) | ![mini 列表](.github/screenshots/list_page.png) |
 
-### 工作台模式
+### workstation（工作台）模式
 
 | 笔记 | 专注 | 休息 |
 |:---:|:---:|:---:|
-| ![workspace-notes](.github/screenshots/workspace_notes.webp) | ![workspace-focus](.github/screenshots/workspace_focus.webp) | ![workspace-break](.github/screenshots/workspace_break.webp) |
+| ![工作台笔记](.github/screenshots/workspace_notes.webp) | ![专注计时](.github/screenshots/workspace_focus.webp) | ![休息控制](.github/screenshots/workspace_break.webp) |
 
-## 🔧 技术栈
+## 快捷键
 
-- **框架**: Tauri 2 + SvelteKit
-- **后端**: Rust
-- **数据存储**: 本地 JSON
+| 快捷键 | 功能 |
+|---|---|
+| `Ctrl + Shift + N` | 唤醒或隐藏 mini 面板 |
+| `Ctrl + Shift + O` | 切换贴纸鼠标交互 |
+| `Ctrl + Enter` | 保存并钉到桌面 |
+| `Esc` | 隐藏面板 |
 
-## 📦 开发
+## 开发
+
+- Node.js + pnpm
+- Rust stable
+- Tauri 2 所需系统依赖
 
 ```bash
-# 安装依赖
 pnpm install
-
-# 开发模式
 pnpm tauri dev
-
-# 构建
 pnpm tauri build
 ```
 
-## 📂 数据迁移
+常用检查：
 
-从 Flutter/Dart 版本迁移：当前版本会在 Windows 读取笔记时，同时尝试扫描 Flutter 旧路径下的 `notes.json`，并把旧版笔记按 `id` 合并进当前 Tauri 路径；若旧路径里有坏文件、字段版本较老（缺少后续新增字段）或坏条目，只会跳过异常部分，不会影响当前 Tauri 笔记加载。旧路径兼容 `%APPDATA%\desk_tidy_sticky\notes.json`、`%APPDATA%\com.example\desk_tidy_sticky\notes.json`、历史上级目录变体以及 `%LOCALAPPDATA%` 下对应目录。若自动兼容未命中，仍可手动复制。
+```bash
+pnpm check
+cargo check --manifest-path src-tauri/Cargo.toml
+```
 
-## 🧭 迁移记录
+Windows 开发与同步约定见：`AGENTS.md`
+
+## 参与开发
+
+欢迎一起把它打磨成更顺手的桌面工具。比较适合贡献的方向：
+
+- 修复 macOS / Windows 桌面层级、贴纸交互、窗口行为差异。
+- 优化 workstation（工作台）、番茄钟、休息控制和 Markdown 编辑体验。
+- 补充文档、截图、复现步骤和跨平台测试记录。
+- 提出更清晰的产品交互建议。
+
+开始前建议先读：`docs/contributing.md`
+
+## 加入群
+
+遇到问题、想提建议、想参与开发，都可以扫码加入反馈交流群。
+
+<img src=".github/screenshots/qq_group.png" alt="QQ 交流群" width="260">
+
+## 支持项目
+
+如果这个项目帮到了你，欢迎在 GitHub 点一个 Star。Star 会让更多需要桌面便笺和专注工具的人看到它，也会让我更容易判断哪些方向值得继续投入。
+
+GitHub 仓库：<https://github.com/sqmw/desk_tidy_sticky>
+
+## 数据迁移
+
+从 Flutter/Dart 版本迁移时，Windows 版本会尝试扫描旧版 `notes.json`，并按 `id` 合并进当前 Tauri 数据。坏文件、旧字段或异常条目会被跳过，不影响当前笔记加载。
+
+迁移记录：
 
 - `docs/migration/2026-02-06-flutter-to-tauri.md`
 - `docs/migration/2026-03-29-flutter-notes-auto-import-compat.md`
 
-## 📄 开源协议
+## 技术栈
+
+- Tauri 2
+- SvelteKit / Svelte 5
+- Rust
+- 本地 JSON 存储
+
+## 开源协议
 
 MIT License
