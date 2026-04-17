@@ -407,16 +407,6 @@
     isControlMode = false;
   }
 
-  async function toggleGlobalControl() {
-    try {
-      const next = await invoke("toggle_overlay_interaction");
-      globalControlDisabled = !!next;
-      await applyInteractionPolicy();
-    } catch (e) {
-      console.error("toggleGlobalControl", e);
-    }
-  }
-
   async function toggleTopmost() {
     if (!note) return;
     try {
@@ -636,7 +626,6 @@
     onExitControlMode: exitControlMode,
     onToggleTopmost: toggleTopmost,
     onToggleWallpaper: toggleWallpaperLayer,
-    onToggleGlobalControl: toggleGlobalControl,
     onTogglePalette: () => (showPalette = !showPalette),
     onToggleTextColorPalette: () => (showTextColorPalette = !showTextColorPalette),
     onToggleOpacityPanel: () => (showOpacityPanel = !showOpacityPanel),

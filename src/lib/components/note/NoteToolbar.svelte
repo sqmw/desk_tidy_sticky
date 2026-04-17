@@ -22,7 +22,6 @@
     onToggleEdit = () => {},
     onToggleTopmost = () => {},
     onToggleWallpaper = () => {},
-    onToggleGlobalControl = () => {},
     onTogglePalette = () => {},
     onToggleTextColorPalette = () => {},
     onToggleOpacityPanel = () => {},
@@ -155,16 +154,6 @@
         </svg>
       </button>
     {/if}
-
-    <button
-      class="tool-btn"
-      onclick={() => onToggleGlobalControl()}
-      title={strings.overlayClickThrough}
-    >
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zM7 9c0-2.76 2.24-5 5-5s5 2.24 5 5H7z" />
-      </svg>
-    </button>
 
     <button class="tool-btn color-trigger" onclick={() => onTogglePalette()} title="Change color">
       🎨
@@ -522,7 +511,7 @@
   }
 
   .tool-popover-anchor {
-    position: relative;
+    position: static;
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
@@ -598,18 +587,22 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 38px;
+    bottom: 42px;
     background: rgba(255, 255, 255, 0.96);
     border: 1px solid #d1d5db;
     border-radius: 8px;
     padding: 6px;
     display: flex;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+    width: min(152px, calc(100% - 24px));
+    max-width: calc(100% - 24px);
+    justify-content: center;
+    box-sizing: border-box;
   }
 
   .opacity-slider,
   .frost-slider {
-    width: 118px;
+    width: 100%;
     cursor: pointer;
   }
 
