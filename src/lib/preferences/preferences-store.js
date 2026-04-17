@@ -22,7 +22,9 @@ export async function getPreferences(invoke) {
  */
 export async function updatePreferences(invoke, updates) {
   const task = async () => {
-    const base = prefsCache || (await getPreferences(invoke));
+    // Always merge against the latest backend snapshot because mini/workspace
+    // run in separate webviews with independent JS module caches.
+    const base = await getPreferences(invoke);
     const next = { ...base, ...updates };
     await invoke("set_preferences", { prefs: next });
     prefsCache = next;

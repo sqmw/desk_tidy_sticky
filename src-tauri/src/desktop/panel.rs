@@ -1,5 +1,6 @@
 use crate::preferences;
 use tauri::Manager;
+use tauri::utils::config::BackgroundThrottlingPolicy;
 
 pub const PANEL_WINDOW_LABELS: [&str; 2] = ["main", "workspace"];
 
@@ -74,6 +75,7 @@ pub fn ensure_workspace_panel_window(app: &tauri::AppHandle) -> Option<tauri::We
     .skip_taskbar(false)
     .resizable(true)
     .maximizable(true)
+    .background_throttling(BackgroundThrottlingPolicy::Disabled)
     .devtools(true);
     match builder.build() {
         Ok(window) => Some(window),

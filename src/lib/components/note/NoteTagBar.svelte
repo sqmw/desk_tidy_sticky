@@ -13,11 +13,7 @@
     onChangePriority = () => {},
     onChangeTags = () => {},
   } = $props();
-  const showTagBar = $derived(
-    isAlwaysOnTop
-      ? isControlMode || isEditing
-      : isControlMode || isEditing || priority != null || tags.length > 0,
-  );
+  const showTagBar = $derived(isControlMode || isEditing);
 </script>
 
 {#if showTagBar}

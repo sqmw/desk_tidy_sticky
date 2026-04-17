@@ -1,6 +1,7 @@
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { applyNoSnapWhenReady } from "$lib/panel/window-effects.js";
+import { updatePreferences } from "$lib/preferences/preferences-store.js";
 
 /**
  * @param {typeof import("@tauri-apps/api/core").invoke} invoke
@@ -8,10 +9,7 @@ import { applyNoSnapWhenReady } from "$lib/panel/window-effects.js";
  */
 async function saveLastPanelWindow(invoke, label) {
   try {
-    const prefs = await invoke("get_preferences");
-    await invoke("set_preferences", {
-      prefs: { ...prefs, lastPanelWindow: label },
-    });
+    await updatePreferences(invoke, { lastPanelWindow: label });
   } catch (e) {
     console.warn("saveLastPanelWindow", e);
   }
@@ -36,6 +34,7 @@ async function ensureWorkspaceWindow(invoke) {
     skipTaskbar: false,
     resizable: true,
     maximizable: true,
+    backgroundThrottling: /** @type {any} */ ("disabled"),
     devtools: true,
   });
 
@@ -56,10 +55,10 @@ export async function switchPanelWindow(target, invoke) {
   const currentLabel = current.label;
 
   if (target === "workspace") {
+    await saveLastPanelWindow(invoke, "workspace");
     const { window: ws } = await ensureWorkspaceWindow(invoke);
     await ws.show();
     await ws.setFocus();
-    await saveLastPanelWindow(invoke, "workspace");
     await applyNoSnapWhenReady(invoke, "workspace");
     if (currentLabel !== "workspace") {
       await current.hide();
@@ -73,9 +72,9 @@ export async function switchPanelWindow(target, invoke) {
 
   const compact = await WebviewWindow.getByLabel("main");
   if (!compact) return;
+  await saveLastPanelWindow(invoke, "main");
   await compact.show();
   await compact.setFocus();
-  await saveLastPanelWindow(invoke, "main");
   if (currentLabel !== "main") {
     await current.hide();
   }
