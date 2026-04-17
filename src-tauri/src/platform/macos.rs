@@ -37,13 +37,18 @@ fn floating_window_level() -> isize {
 }
 
 fn topmost_window_level() -> isize {
-    // `OverlayWindowLevel` is not sufficient in some fullscreen-Space scenarios.
-    // Keep topmost stickies/panels just below the break overlay window.
-    screen_saver_window_level().saturating_sub(1)
+    // Fullscreen Spaces can hide windows below screen-saver level.
+    // Use the screen-saver level for topmost stickies/panels so they remain visible
+    // even when another app is fullscreen.
+    screen_saver_window_level()
 }
 
 fn screen_saver_window_level() -> isize {
     CGWindowLevelForKey(CGWindowLevelKey::ScreenSaverWindowLevelKey) as isize
+}
+
+fn assistive_tech_high_window_level() -> isize {
+    CGWindowLevelForKey(CGWindowLevelKey::AssistiveTechHighWindowLevelKey) as isize
 }
 
 fn desktop_icon_interactive_level() -> isize {
@@ -244,7 +249,8 @@ pub fn apply_break_overlay_window_traits(ns_window_ptr: *mut c_void) -> Result<(
     window.setIgnoresMouseEvents(false);
     window.setCollectionBehavior(break_overlay_collection_behavior());
     window.setAnimationBehavior(NSWindowAnimationBehavior::None);
-    window.setLevel(screen_saver_window_level());
+    // Ensure break overlay stays above all other topmost windows (stickies/panels).
+    window.setLevel(assistive_tech_high_window_level());
     window.makeKeyAndOrderFront(None);
     window.orderFrontRegardless();
     log_level("apply_break_overlay_window_traits", window);

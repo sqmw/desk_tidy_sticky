@@ -33,7 +33,11 @@
 
 进一步提升为：
 
-- 接近 `ScreenSaverWindowLevel`（比休息遮罩层低一级）
+- `ScreenSaverWindowLevel`
+
+并将休息遮罩层提升到更高层级：
+
+- `AssistiveTechHighWindowLevel`
 
 同时补充和保留以下 traits：
 
