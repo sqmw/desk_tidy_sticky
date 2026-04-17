@@ -1,13 +1,17 @@
 <script>
   import FeedbackQrCard from "$lib/components/common/FeedbackQrCard.svelte";
+  import ShortcutSettingsSection from "$lib/components/common/ShortcutSettingsSection.svelte";
 
   let {
     strings,
     showSettings = $bindable(),
     isAutostartEnabled,
     showPanelOnStartup = $bindable(),
+    shortcutSettings,
+    shortcutSettingsSaving = false,
     toggleAutostart,
     savePrefs,
+    onSaveShortcutSettings = async () => {},
   } = $props();
 </script>
 
@@ -79,24 +83,12 @@
 
         <div class="settings-section">
           <h4>{strings.shortcuts}</h4>
-          <div class="shortcuts-grid">
-            <div class="shortcut-row">
-              <span class="sc-desc">{strings.shortcutToggle.split(":")[0]}</span>
-              <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>
-            </div>
-            <div class="shortcut-row">
-              <span class="sc-desc">{strings.shortcutOverlay.split(":")[0]}</span>
-              <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd>
-            </div>
-            <div class="shortcut-row">
-              <span class="sc-desc">{strings.shortcutPinSave.split(":")[0]}</span>
-              <kbd>Ctrl</kbd>+<kbd>Enter</kbd>
-            </div>
-            <div class="shortcut-row">
-              <span class="sc-desc">{strings.shortcutEsc.split(":")[0]}</span>
-              <kbd>Esc</kbd>
-            </div>
-          </div>
+          <ShortcutSettingsSection
+            {strings}
+            {shortcutSettings}
+            saving={shortcutSettingsSaving}
+            onSave={onSaveShortcutSettings}
+          />
         </div>
 
         <div class="settings-section">
@@ -216,34 +208,6 @@
   .setting-label {
     font-size: 14px;
     color: var(--neutral);
-  }
-
-  .shortcuts-grid {
-    display: grid;
-    gap: 8px;
-  }
-
-  .shortcut-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 13px;
-    color: #555;
-  }
-
-  kbd {
-    background: #f4f4f5;
-    border: 1px solid #e4e7ed;
-    border-radius: 4px;
-    box-shadow: 0 1px 0 #e4e7ed;
-    color: #606266;
-    display: inline-block;
-    font-family: monospace;
-    font-size: 11px;
-    padding: 2px 6px;
-    margin: 0 2px;
-    min-width: 20px;
-    text-align: center;
   }
 
   .dialog-footer {

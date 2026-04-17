@@ -25,6 +25,12 @@
   import { createWorkspaceSettingsActions } from "$lib/workspace/controllers/workspace-settings-actions.js";
   import { createWorkspaceStartupActions } from "$lib/workspace/controllers/workspace-startup-actions.js";
   import { createWorkspaceWindowActions } from "$lib/workspace/controllers/workspace-window-actions.js";
+  import {
+    createDefaultShortcutSettings,
+    getShortcutSettings,
+    listenShortcutSettingsChanged,
+    updateShortcutSettings,
+  } from "$lib/shortcuts/shortcut-settings-service.js";
 
   import WorkbenchSection from "$lib/components/panel/WorkbenchSection.svelte";
   import WorkspaceFocusHub from "$lib/components/workspace/WorkspaceFocusHub.svelte";
@@ -115,6 +121,8 @@
   let themeTransitionShape = $state("circle");
   let isAutostartEnabled = $state(false);
   let showPanelOnStartup = $state(false);
+  let shortcutSettings = $state(createDefaultShortcutSettings());
+  let shortcutSettingsSaving = $state(false);
   /** @type {any[]} */
   let focusTasks = $state([]);
   /** @type {Record<string, any>} */
@@ -491,6 +499,28 @@
 
   const { initAutostart, toggleAutostart } = startupActions;
 
+  async function loadShortcutSettingsState() {
+    try {
+      shortcutSettings = await getShortcutSettings(invoke);
+    } catch (error) {
+      console.error("loadShortcutSettingsState(workspace)", error);
+    }
+  }
+
+  /**
+   * @param {{ panelShortcut: string, overlayShortcut: string }} payload
+   */
+  async function saveShortcutSettings(payload) {
+    try {
+      shortcutSettingsSaving = true;
+      shortcutSettings = await updateShortcutSettings(invoke, payload);
+    } catch (error) {
+      console.error("saveShortcutSettings(workspace)", error);
+    } finally {
+      shortcutSettingsSaving = false;
+    }
+  }
+
   const workspaceWindowActions = createWorkspaceWindowActions(
     routeWorkspaceBridge.createWindowActionsConfig(),
   );
@@ -586,18 +616,26 @@
     syncWindowPresentationState();
     runtimeLifecycle.syncGlobalControlState();
     initAutostart();
+    loadShortcutSettingsState();
     let cleanup = /** @type {(() => void) | null} */ (null);
     let unlistenPrefs = /** @type {(() => void) | null} */ (null);
+    let unlistenShortcutSettings = /** @type {(() => void) | null} */ (null);
     runtimeLifecycle.mountRuntimeListeners().then((fn) => {
       cleanup = fn;
     });
     workspacePreferenceSync.mountPreferenceSync().then((fn) => {
       unlistenPrefs = fn;
     });
+    listenShortcutSettingsChanged((nextSettings) => {
+      shortcutSettings = nextSettings;
+    }).then((fn) => {
+      unlistenShortcutSettings = fn;
+    });
     window.addEventListener("resize", onWindowResize);
     return () => {
       window.removeEventListener("resize", onWindowResize);
       clearWorkspaceCustomCssPersistTimer();
+      unlistenShortcutSettings?.();
       unlistenPrefs?.();
       cleanup?.();
     };
@@ -829,6 +867,9 @@
   onChangeLanguage={setLanguage}
   {toggleAutostart}
   onSavePrefs={savePrefs}
+  {shortcutSettings}
+  {shortcutSettingsSaving}
+  onSaveShortcutSettings={saveShortcutSettings}
   onChangeTaskStartReminderLeadMinutes={(/** @type {number} */ nextMinutes) =>
     changePomodoroConfig({
       ...pomodoroConfig,

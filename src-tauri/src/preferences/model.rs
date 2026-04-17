@@ -1,6 +1,9 @@
 use crate::runtime::paths;
 use serde::{Deserialize, Serialize};
 
+pub const DEFAULT_PANEL_SHORTCUT: &str = "Ctrl+Shift+N";
+pub const DEFAULT_OVERLAY_SHORTCUT: &str = "Ctrl+Shift+O";
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PanelPreferences {
@@ -18,6 +21,10 @@ pub struct PanelPreferences {
     pub overlay_enabled: bool,
     #[serde(default)]
     pub show_panel_on_startup: bool,
+    #[serde(default = "default_panel_shortcut")]
+    pub panel_shortcut: String,
+    #[serde(default = "default_overlay_shortcut")]
+    pub overlay_shortcut: String,
     #[serde(default = "default_workspace_theme")]
     pub workspace_theme: String,
     #[serde(default = "default_workspace_custom_css")]
@@ -95,6 +102,12 @@ fn default_true() -> bool {
 }
 fn default_false() -> bool {
     false
+}
+fn default_panel_shortcut() -> String {
+    DEFAULT_PANEL_SHORTCUT.to_string()
+}
+fn default_overlay_shortcut() -> String {
+    DEFAULT_OVERLAY_SHORTCUT.to_string()
 }
 fn default_glass() -> f64 {
     0.18
@@ -193,39 +206,30 @@ fn default_focus_break_session_json() -> String {
     "{\"mode\":\"none\",\"untilTs\":0}".to_string()
 }
 
-pub fn read_show_panel_on_startup() -> bool {
-    let path = match prefs_path() {
-        Ok(p) => p,
-        Err(_) => return false,
-    };
+pub fn read_preferences() -> Result<PanelPreferences, String> {
+    let path = prefs_path()?;
     if !path.exists() {
-        return false;
+        return Ok(PanelPreferences::default());
     }
-    let content = match std::fs::read_to_string(&path) {
-        Ok(c) => c,
-        Err(_) => return false,
-    };
-    let prefs: PanelPreferences = match serde_json::from_str(&content) {
-        Ok(p) => p,
-        Err(_) => return false,
-    };
-    prefs.show_panel_on_startup
+    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    serde_json::from_str(&content).map_err(|e| e.to_string())
+}
+
+pub fn write_preferences(prefs: &PanelPreferences) -> Result<(), String> {
+    let path = prefs_path()?;
+    let content = serde_json::to_string_pretty(prefs).map_err(|e| e.to_string())?;
+    std::fs::write(&path, content).map_err(|e| e.to_string())
+}
+
+pub fn read_show_panel_on_startup() -> bool {
+    read_preferences()
+        .map(|prefs| prefs.show_panel_on_startup)
+        .unwrap_or(false)
 }
 
 pub fn read_last_panel_window() -> String {
-    let path = match prefs_path() {
-        Ok(p) => p,
-        Err(_) => return "main".to_string(),
-    };
-    if !path.exists() {
-        return "main".to_string();
-    }
-    let content = match std::fs::read_to_string(&path) {
-        Ok(c) => c,
-        Err(_) => return "main".to_string(),
-    };
-    let prefs: PanelPreferences = match serde_json::from_str(&content) {
-        Ok(p) => p,
+    let prefs = match read_preferences() {
+        Ok(prefs) => prefs,
         Err(_) => return "main".to_string(),
     };
     match prefs.last_panel_window.as_str() {

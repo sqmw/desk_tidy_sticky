@@ -23,6 +23,12 @@
   import { createDragReorder } from "$lib/panel/use-drag-reorder.js";
   import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
   import { getPreferences, updatePreferences } from "$lib/preferences/preferences-store.js";
+  import {
+    createDefaultShortcutSettings,
+    getShortcutSettings,
+    listenShortcutSettingsChanged,
+    updateShortcutSettings,
+  } from "$lib/shortcuts/shortcut-settings-service.js";
   import PanelHeader from "$lib/components/panel/PanelHeader.svelte";
   import NotesSection from "$lib/components/panel/NotesSection.svelte";
   import EditDialog from "$lib/components/panel/EditDialog.svelte";
@@ -50,6 +56,8 @@
   let showSettings = $state(false);
   let isAutostartEnabled = $state(false);
   let showPanelOnStartup = $state(false);
+  let shortcutSettings = $state(createDefaultShortcutSettings());
+  let shortcutSettingsSaving = $state(false);
 
   /** @type {HTMLDivElement | null} */
   let notesListEl = $state(null);
@@ -198,6 +206,28 @@
     }
   }
 
+  async function loadShortcutSettingsState() {
+    try {
+      shortcutSettings = await getShortcutSettings(invoke);
+    } catch (error) {
+      console.error("loadShortcutSettingsState", error);
+    }
+  }
+
+  /**
+   * @param {{ panelShortcut: string, overlayShortcut: string }} payload
+   */
+  async function saveShortcutSettings(payload) {
+    try {
+      shortcutSettingsSaving = true;
+      shortcutSettings = await updateShortcutSettings(invoke, payload);
+    } catch (error) {
+      console.error("saveShortcutSettings", error);
+    } finally {
+      shortcutSettingsSaving = false;
+    }
+  }
+
   /** @param {boolean} enabled */
   async function toggleAutostart(enabled) {
     try {
@@ -241,9 +271,16 @@
   }
 
   async function toggleWindowPinned() {
-    windowPinned = !windowPinned;
-    const win = getCurrentWindow();
-    await win.setAlwaysOnTop(windowPinned);
+    const next = !windowPinned;
+    try {
+      await invoke("set_panel_window_pinned", {
+        label: getCurrentWindow().label,
+        pinned: next,
+      });
+      windowPinned = next;
+    } catch (error) {
+      console.error("toggleWindowPinned", error);
+    }
   }
 
   async function toggleLanguage() {
@@ -353,6 +390,7 @@
 
   $effect(() => {
     loadPrefs().then(() => {
+      loadShortcutSettingsState();
       loadNotes();
       updateTrayMenu();
     });
@@ -419,6 +457,12 @@
           stickiesVisible = updates.overlayEnabled;
           await windowSync.syncWindows();
         }
+      }),
+    );
+
+    unsubs.push(
+      listenShortcutSettingsChanged((nextSettings) => {
+        shortcutSettings = nextSettings;
       }),
     );
 
@@ -514,6 +558,9 @@
   bind:showPanelOnStartup
   {toggleAutostart}
   {savePrefs}
+  {shortcutSettings}
+  {shortcutSettingsSaving}
+  onSaveShortcutSettings={saveShortcutSettings}
 />
 
 <style>

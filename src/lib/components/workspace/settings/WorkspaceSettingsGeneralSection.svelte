@@ -1,16 +1,20 @@
 <script>
   import TargetPomodoroInput from "$lib/components/workspace/pomodoro/TargetPomodoroInput.svelte";
   import HelpTip from "$lib/components/workspace/ui/HelpTip.svelte";
+  import ShortcutSettingsSection from "$lib/components/common/ShortcutSettingsSection.svelte";
 
   let {
     strings,
     locale = "en",
     isAutostartEnabled = false,
     showPanelOnStartup = false,
+    shortcutSettings,
+    shortcutSettingsSaving = false,
     pomodoroFocusMinutes = 25,
     taskStartReminderLeadMinutes = 10,
     toggleAutostart = async () => {},
     onSavePrefs = async () => {},
+    onSaveShortcutSettings = async () => {},
     onChangePomodoroFocusMinutes = async () => {},
     onChangeTaskStartReminderLeadMinutes = async () => {},
     onChangeLanguage = () => {},
@@ -29,6 +33,21 @@
       <option value="en">English</option>
     </select>
   </label>
+</section>
+
+<section class="settings-section compact-section">
+  <div class="setting-stack">
+    <div class="setting-stack-head">
+      <span>{strings.shortcuts}</span>
+    </div>
+    <ShortcutSettingsSection
+      {strings}
+      {shortcutSettings}
+      saving={shortcutSettingsSaving}
+      onSave={onSaveShortcutSettings}
+      variant="workspace"
+    />
+  </div>
 </section>
 
 <section class="settings-section compact-section">

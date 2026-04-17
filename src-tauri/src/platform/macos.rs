@@ -36,6 +36,12 @@ fn floating_window_level() -> isize {
     CGWindowLevelForKey(CGWindowLevelKey::FloatingWindowLevelKey) as isize
 }
 
+fn topmost_window_level() -> isize {
+    // `OverlayWindowLevel` is not sufficient in some fullscreen-Space scenarios.
+    // Keep topmost stickies/panels just below the break overlay window.
+    screen_saver_window_level().saturating_sub(1)
+}
+
 fn screen_saver_window_level() -> isize {
     CGWindowLevelForKey(CGWindowLevelKey::ScreenSaverWindowLevelKey) as isize
 }
@@ -46,12 +52,13 @@ fn desktop_icon_interactive_level() -> isize {
 
 fn log_level(tag: &str, window: &NSWindow) {
     eprintln!(
-        "[macos-layer] {tag} current={} desktop={} desktop_icon={} normal={} floating={} ignore_mouse={}",
+        "[macos-layer] {tag} current={} desktop={} desktop_icon={} normal={} floating={} topmost={} ignore_mouse={}",
         window.level(),
         desktop_window_level(),
         desktop_icon_window_level(),
         normal_window_level(),
         floating_window_level(),
+        topmost_window_level(),
         window.ignoresMouseEvents(),
     );
 }
@@ -220,7 +227,7 @@ pub fn set_topmost_no_activate(ns_window_ptr: *mut c_void, topmost: bool) -> Res
     let window = cast_ns_window_ptr(ns_window_ptr)?;
     if topmost {
         apply_topmost_sticky_window_traits(window);
-        window.setLevel(floating_window_level());
+        window.setLevel(topmost_window_level());
         window.orderFrontRegardless();
         log_level("set_topmost_no_activate(true)", window);
     } else {

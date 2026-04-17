@@ -14,13 +14,14 @@ use desktop::ensure_hidden_workspace_runtime_window;
 #[cfg(target_os = "macos")]
 use desktop::{apply_macos_runtime_dock_icon, ensure_hidden_workspace_runtime_window};
 use desktop::{
-    apply_note_window_frost, apply_note_window_layer, apply_overlay_input_state,
-    apply_window_no_snap_by_label, get_overlay_interaction, hide_panel_window,
-    minimize_panel_window, move_note_window_without_activation, pin_window_to_desktop,
-    show_and_focus_window, show_preferred_panel_window, sync_all_note_window_layers,
-    sync_note_window_layer, sync_panel_window_shell_state, toggle_overlay_interaction,
+    apply_note_window_frost, apply_note_window_layer, apply_window_no_snap_by_label,
+    get_overlay_interaction, get_shortcut_settings,
+    hide_panel_window, initialize_shortcut_settings, minimize_panel_window,
+    move_note_window_without_activation, pin_window_to_desktop, show_preferred_panel_window,
+    set_panel_window_pinned, sync_all_note_window_layers, sync_note_window_layer,
+    sync_panel_window_shell_state, toggle_overlay_interaction,
     toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply, unpin_window_from_desktop,
-    update_tray_texts,
+    update_shortcut_settings, update_tray_texts,
 };
 use notes::{
     add_note, clear_note_priority, delete_note, empty_trash, load_notes, permanently_delete_note,
@@ -32,8 +33,11 @@ use notes::{
 #[cfg(target_os = "windows")]
 use platform::window_hwnd_isize;
 use preferences::{get_preferences, set_preferences};
-use runtime::{BreakOverlayPresentationState, BreakReminderWatchState, GlobalControlState};
-use tauri::{Emitter, Manager};
+use runtime::{
+    BreakOverlayPresentationState, BreakReminderWatchState, GlobalControlState,
+    ShortcutRuntimeState,
+};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -41,6 +45,7 @@ pub fn run() {
         .manage(GlobalControlState::default())
         .manage(BreakReminderWatchState::default())
         .manage(BreakOverlayPresentationState::default())
+        .manage(ShortcutRuntimeState::default())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             show_preferred_panel_window(app);
         }))
@@ -89,36 +94,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_shortcuts(["Ctrl+Shift+N", "Ctrl+Shift+O"])
-                .expect("Failed to register shortcut")
-                .with_handler(|app, shortcut, event| {
-                    use tauri_plugin_global_shortcut::{Code, Modifiers};
-                    if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                        if shortcut.matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyN) {
-                            if let Some(window) = app.get_webview_window("main") {
-                                if window.is_visible().unwrap_or(false) {
-                                    let _ = window.hide();
-                                    let _ = window.set_skip_taskbar(true);
-                                } else {
-                                    show_and_focus_window(&window);
-                                }
-                                sync_panel_window_shell_state(app);
-                            }
-                        } else if shortcut
-                            .matches(Modifiers::CONTROL | Modifiers::SHIFT, Code::KeyO)
-                        {
-                            if let Some(state) = app.try_state::<GlobalControlState>() {
-                                let interaction_disabled = state.toggle();
-                                apply_overlay_input_state(app, interaction_disabled);
-                                let _ = app.emit("global_control_changed", interaction_disabled);
-                            }
-                        }
-                    }
-                })
-                .build(),
-        )
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             load_notes,
             add_note,
@@ -147,6 +123,8 @@ pub fn run() {
             reorder_notes,
             get_preferences,
             set_preferences,
+            get_shortcut_settings,
+            update_shortcut_settings,
             pin_window_to_desktop,
             unpin_window_from_desktop,
             apply_note_window_layer,
@@ -163,9 +141,14 @@ pub fn run() {
             sync_break_reminder_watchdog,
             hide_panel_window,
             minimize_panel_window,
+            set_panel_window_pinned,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
+
+    if let Err(error) = initialize_shortcut_settings(&app.handle()) {
+        eprintln!("initialize shortcut settings failed: {}", error);
+    }
 
     app.run(|app_handle, event| {
         #[cfg(target_os = "macos")]

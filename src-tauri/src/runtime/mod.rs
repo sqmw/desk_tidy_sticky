@@ -3,5 +3,5 @@ mod state;
 
 pub(crate) use state::{
     BreakOverlayPresentationState, BreakReminderWatchSnapshot, BreakReminderWatchState,
-    GlobalControlState,
+    GlobalControlState, ShortcutBindingSnapshot, ShortcutRuntimeState, ShortcutSettingsSnapshot,
 };
