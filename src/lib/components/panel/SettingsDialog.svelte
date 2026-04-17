@@ -1,4 +1,5 @@
 <script>
+  import { openUrl } from "@tauri-apps/plugin-opener";
   import FeedbackQrCard from "$lib/components/common/FeedbackQrCard.svelte";
   import ShortcutSettingsSection from "$lib/components/common/ShortcutSettingsSection.svelte";
 
@@ -13,6 +14,14 @@
     savePrefs,
     onSaveShortcutSettings = async () => {},
   } = $props();
+
+  async function openGithubRepo() {
+    try {
+      await openUrl("https://github.com/sqmw/desk_tidy_sticky");
+    } catch (error) {
+      console.error("open github repo failed", error);
+    }
+  }
 </script>
 
 {#if showSettings}
@@ -30,12 +39,11 @@
           <h3>{strings.settingsTitle}</h3>
           <span class="version-badge">{strings.version}</span>
         </div>
-        <a
-          href="https://github.com/sqmw/desk_tidy_sticky"
-          target="_blank"
-          rel="noopener"
+        <button
+          type="button"
           class="github-link"
           title={strings.starOnGithub}
+          onclick={openGithubRepo}
         >
           <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
             <path
@@ -43,7 +51,7 @@
             />
           </svg>
           <span>Star</span>
-        </a>
+        </button>
       </div>
 
       <div class="settings-content">
@@ -160,12 +168,12 @@
     gap: 6px;
     font-size: 13px;
     color: var(--neutral);
-    text-decoration: none;
     background: #fff;
     border: 1px solid #dcdfe6;
     padding: 6px 12px;
     border-radius: 20px;
     transition: all 0.2s;
+    cursor: pointer;
   }
 
   .github-link:hover {
