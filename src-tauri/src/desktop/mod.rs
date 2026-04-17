@@ -1,10 +1,9 @@
 #[cfg(target_os = "macos")]
 pub(crate) use panel::apply_macos_runtime_dock_icon;
-#[cfg(target_os = "macos")]
 pub(crate) use panel::PANEL_WINDOW_LABELS;
 pub(crate) use panel::{
     ensure_hidden_workspace_runtime_window, hide_panel_window, minimize_panel_window,
-    set_panel_window_pinned, show_preferred_panel_window, sync_panel_window_shell_state,
+    show_preferred_panel_window, sync_panel_window_shell_state,
 };
 pub(crate) use shortcuts::{
     get_shortcut_settings, initialize_shortcut_settings, update_shortcut_settings,

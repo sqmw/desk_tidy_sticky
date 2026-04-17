@@ -18,8 +18,8 @@ use desktop::{
     get_overlay_interaction, get_shortcut_settings,
     hide_panel_window, initialize_shortcut_settings, minimize_panel_window,
     move_note_window_without_activation, pin_window_to_desktop, show_preferred_panel_window,
-    set_panel_window_pinned, sync_all_note_window_layers, sync_note_window_layer,
-    sync_panel_window_shell_state, toggle_overlay_interaction,
+    sync_all_note_window_layers, sync_note_window_layer, sync_panel_window_shell_state,
+    toggle_overlay_interaction,
     toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply, unpin_window_from_desktop,
     update_shortcut_settings, update_tray_texts,
 };
@@ -141,7 +141,6 @@ pub fn run() {
             sync_break_reminder_watchdog,
             hide_panel_window,
             minimize_panel_window,
-            set_panel_window_pinned,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

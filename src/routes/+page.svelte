@@ -43,7 +43,6 @@
   let viewMode = $state("active");
   let searchQuery = $state("");
   let hideAfterSave = $state(true);
-  let windowPinned = $state(false);
   /** @type {string} */
   let locale = $state("en");
   let newNoteText = $state("");
@@ -270,19 +269,6 @@
     editingNote = null;
   }
 
-  async function toggleWindowPinned() {
-    const next = !windowPinned;
-    try {
-      await invoke("set_panel_window_pinned", {
-        label: getCurrentWindow().label,
-        pinned: next,
-      });
-      windowPinned = next;
-    } catch (error) {
-      console.error("toggleWindowPinned", error);
-    }
-  }
-
   async function toggleLanguage() {
     locale = locale === "en" ? "zh" : "en";
     await savePrefs({ language: locale });
@@ -490,7 +476,6 @@
     <PanelHeader
       {strings}
       {NOTE_VIEW_MODES}
-      {windowPinned}
       bind:showSettings
       bind:newNoteText
       bind:newNotePriority
@@ -505,7 +490,6 @@
       {stickiesVisible}
       {globalControlDisabled}
       {startWindowDragPointer}
-      {toggleWindowPinned}
       {toggleLanguage}
       {hideWindow}
       {minimizeWindow}

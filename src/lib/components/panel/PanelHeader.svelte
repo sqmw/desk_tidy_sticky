@@ -7,7 +7,6 @@
   let {
     strings,
     NOTE_VIEW_MODES,
-    windowPinned,
     showSettings = $bindable(),
     newNoteText = $bindable(),
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
@@ -22,7 +21,6 @@
     stickiesVisible,
     globalControlDisabled,
     startWindowDragPointer,
-    toggleWindowPinned,
     toggleLanguage,
     hideWindow,
     minimizeWindow,
@@ -72,9 +70,7 @@
 
     <HeaderActions
       {strings}
-      {windowPinned}
       showWindowControls={!isMac}
-      {toggleWindowPinned}
       {toggleLanguage}
       {hideWindow}
       {minimizeWindow}

@@ -1,8 +1,4 @@
 use crate::preferences;
-#[cfg(target_os = "macos")]
-use crate::platform::{macos, run_macos_window_op};
-#[cfg(target_os = "windows")]
-use crate::platform::{window_hwnd_isize, windows};
 use tauri::Manager;
 use tauri::utils::config::BackgroundThrottlingPolicy;
 
@@ -127,49 +123,6 @@ pub fn show_preferred_panel_window(app: &tauri::AppHandle) {
     }
 
     sync_panel_window_shell_state(app);
-}
-
-#[tauri::command]
-pub fn set_panel_window_pinned(
-    app: tauri::AppHandle,
-    label: String,
-    pinned: bool,
-) -> Result<(), String> {
-    let target = if label == "workspace" {
-        "workspace"
-    } else {
-        "main"
-    };
-    let Some(window) = app.get_webview_window(target) else {
-        return Ok(());
-    };
-
-    #[cfg(target_os = "windows")]
-    {
-        let Some(hwnd_isize) = window_hwnd_isize(&window)? else {
-            return Ok(());
-        };
-        let _ = window.set_always_on_top(pinned);
-        windows::set_topmost_no_activate(hwnd_isize, pinned)?;
-        return Ok(());
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        let _ = window.set_always_on_top(pinned);
-        let _ = window.set_visible_on_all_workspaces(pinned);
-        return run_macos_window_op(&window, "macos_set_panel_window_pinned", move |ptr| {
-            macos::set_topmost_no_activate(ptr, pinned)
-        });
-    }
-
-    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
-    {
-        let _ = app;
-        window
-            .set_always_on_top(pinned)
-            .map_err(|error| error.to_string())
-    }
 }
 
 #[tauri::command]

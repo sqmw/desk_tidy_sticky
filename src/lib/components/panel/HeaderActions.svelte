@@ -1,9 +1,7 @@
 <script>
   let {
     strings,
-    windowPinned,
     showWindowControls = true,
-    toggleWindowPinned,
     toggleLanguage,
     hideWindow,
     minimizeWindow,
@@ -13,29 +11,6 @@
 </script>
 
 <div class="header-actions">
-  <button
-    type="button"
-    class="icon-btn"
-    class:active={windowPinned}
-    title={windowPinned ? strings.unpinWindow : strings.pinWindow}
-    onclick={toggleWindowPinned}
-  >
-    <svg
-      viewBox="0 0 24 24"
-      width="14"
-      height="14"
-      fill="currentColor"
-      fill-rule="evenodd"
-      style="transform: translateY(0.5px);"
-    >
-      {#if windowPinned}
-        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
-      {:else}
-        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zm-2-2h-4V4h4v6z" />
-      {/if}
-    </svg>
-  </button>
-
   <button type="button" class="icon-btn" title={strings.language} onclick={toggleLanguage}>
     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
       <path
@@ -91,11 +66,6 @@
 
   .icon-btn:hover {
     opacity: 1;
-  }
-
-  .icon-btn.active {
-    opacity: 1;
-    color: var(--primary);
   }
 
   .window-btn {
