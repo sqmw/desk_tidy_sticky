@@ -1,20 +1,17 @@
 use std::ffi::c_void;
-use windows::Win32::Foundation::{GetLastError, SetLastError, HWND, POINT, RECT, WIN32_ERROR};
-use windows::Win32::Graphics::Gdi::{
-    ClientToScreen, CreateRoundRectRgn, DeleteObject, SetWindowRgn, HRGN,
-};
+use windows::Win32::Foundation::{GetLastError, SetLastError, HWND, WIN32_ERROR};
+use windows::Win32::Graphics::Gdi::{SetWindowRgn, HRGN};
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetClientRect, GetDesktopWindow, GetParent, GetWindowLongPtrW, GetWindowRect, IsWindow,
-    SetParent, SetWindowLongPtrW, SetWindowPos, GWL_STYLE, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOP,
-    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
-    WS_CHILD, WS_MAXIMIZEBOX, WS_POPUP, WS_THICKFRAME,
+    GetDesktopWindow, GetParent, GetWindowLongPtrW, IsWindow, SetParent, SetWindowLongPtrW,
+    SetWindowPos, GWL_STYLE, HWND_BOTTOM, HWND_NOTOPMOST, HWND_TOP, SWP_FRAMECHANGED,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_CHILD, WS_MAXIMIZEBOX, WS_POPUP,
+    WS_THICKFRAME,
 };
 
 mod discovery;
 
 static mut WORKER_W: HWND = HWND(0 as *mut c_void);
 static mut WALLPAPER_WORKER_W: HWND = HWND(0 as *mut c_void);
-const DESKTOP_CHILD_REGION_DIAMETER: i32 = 24;
 
 fn set_parent_checked(hwnd: HWND, expected_parent: HWND, phase: &str) -> Result<bool, String> {
     unsafe {
@@ -73,49 +70,6 @@ fn refresh_style(hwnd: HWND) {
     }
 }
 
-fn apply_desktop_child_region(hwnd: HWND) {
-    unsafe {
-        let mut window_rect = RECT::default();
-        if GetWindowRect(hwnd, &mut window_rect).is_err() {
-            return;
-        }
-
-        let mut client_rect = RECT::default();
-        if GetClientRect(hwnd, &mut client_rect).is_err() {
-            return;
-        }
-
-        let mut client_origin = POINT { x: 0, y: 0 };
-        if !ClientToScreen(hwnd, &mut client_origin).as_bool() {
-            return;
-        }
-
-        let client_x = client_origin.x - window_rect.left;
-        let client_y = client_origin.y - window_rect.top;
-        let client_width = client_rect.right - client_rect.left;
-        let client_height = client_rect.bottom - client_rect.top;
-        if client_width <= 0 || client_height <= 0 {
-            return;
-        }
-
-        let region = CreateRoundRectRgn(
-            client_x,
-            client_y,
-            client_x + client_width,
-            client_y + client_height,
-            DESKTOP_CHILD_REGION_DIAMETER,
-            DESKTOP_CHILD_REGION_DIAMETER,
-        );
-        if region.0.is_null() {
-            return;
-        }
-
-        if SetWindowRgn(hwnd, region, true) == 0 {
-            let _ = DeleteObject(region);
-        }
-    }
-}
-
 fn clear_window_region(hwnd: HWND) {
     unsafe {
         let _ = SetWindowRgn(hwnd, HRGN(std::ptr::null_mut()), true);
@@ -133,7 +87,9 @@ fn apply_desktop_child_style(hwnd: HWND) {
             let _ = SetWindowLongPtrW(hwnd, GWL_STYLE, next_style as isize);
             refresh_style(hwnd);
         }
-        apply_desktop_child_region(hwnd);
+        // Windows 10 leaves visible transparent spikes around clipped WorkerW children.
+        // Keep the native region rectangular; CSS still controls the visible note surface.
+        clear_window_region(hwnd);
     }
 }
 

@@ -73,14 +73,18 @@
   const noteInnerHighlightAlpha = $derived((0.04 + noteOpacity * 0.16).toFixed(3));
   const backgroundPickerValue = $derived(toColorPickerHex(noteBgColor, DEFAULT_NOTE_COLOR));
   const textPickerValue = $derived(toColorPickerHex(noteTextColor, DEFAULT_NOTE_TEXT_COLOR));
-  const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
-  const cssFrostBlur = $derived((hasNativeWindowFrost ? noteFrost * 4 : noteFrostBlur));
-  const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
-  const canInteract = $derived(!globalControlDisabled || !!note?.isAlwaysOnTop);
-  const isEffectiveTopmost = $derived(!!note?.isAlwaysOnTop || !globalControlDisabled);
   const isMac =
     typeof navigator !== "undefined" &&
     /mac/i.test(String(navigator.userAgent || navigator.platform || ""));
+  const isWindows =
+    typeof navigator !== "undefined" &&
+    /win/i.test(String(navigator.userAgent || navigator.platform || ""));
+  const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
+  const cssFrostBlur = $derived((hasNativeWindowFrost ? noteFrost * 4 : noteFrostBlur));
+  const noteWindowRadius = $derived(isWindows ? "0px" : "12px");
+  const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
+  const canInteract = $derived(!globalControlDisabled || !!note?.isAlwaysOnTop);
+  const isEffectiveTopmost = $derived(!!note?.isAlwaysOnTop || !globalControlDisabled);
   const showTopmostControls = $derived(isEffectiveTopmost && (isControlMode || isEditing));
   const allowHoverToolbar = $derived((isEffectiveTopmost ? false : canInteract));
   const noteCenterHudText = $derived.by(() => {
@@ -886,9 +890,10 @@
   {#if note}
     <div
       class="note-window"
+      class:windows-flat={isWindows}
       data-toolbar-visible={allowHoverToolbar ? "true" : "false"}
       data-control-mode={showTopmostControls ? "true" : "false"}
-      style="--note-tint: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {cssFrostBlur}px; --frost-overlay: {noteFrostOverlay}; --frost-glow: {noteFrostGlow}; --note-border-alpha: {noteBorderAlpha}; --note-inner-highlight-alpha: {noteInnerHighlightAlpha};"
+      style="--note-radius: {noteWindowRadius}; --note-tint: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {cssFrostBlur}px; --frost-overlay: {noteFrostOverlay}; --frost-glow: {noteFrostGlow}; --note-border-alpha: {noteBorderAlpha}; --note-inner-highlight-alpha: {noteInnerHighlightAlpha};"
       onclick={handleNoteClick}
       onkeydown={handleNoteKeydown}
       ondblclick={handleNoteDoubleClick}
@@ -964,14 +969,13 @@
   }
 
   .note-window {
-    --note-radius: 12px;
     position: relative;
     width: 100%;
     height: 100%;
     display: flex;
     flex-direction: column;
     border-radius: var(--note-radius);
-    background: transparent;
+    background: var(--note-tint, transparent);
     background-clip: padding-box;
     border: 1px solid rgba(255, 255, 255, var(--note-border-alpha, 0.22));
     clip-path: inset(0 round var(--note-radius));
@@ -979,6 +983,11 @@
     filter: drop-shadow(0 10px 24px rgba(15, 23, 42, 0.16));
     overflow: hidden;
     isolation: isolate;
+  }
+
+  .note-window.windows-flat {
+    --note-radius: 0px;
+    filter: none;
   }
 
   .note-frost-layer {

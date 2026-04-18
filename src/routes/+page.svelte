@@ -67,6 +67,9 @@
   let stickiesVisible = $state(true);
   let isSortMenuOpen = $state(false);
   let suppressNotesReloadUntil = 0;
+  const isWindows =
+    typeof navigator !== "undefined" &&
+    /win/i.test(String(navigator.userAgent || navigator.platform || ""));
 
   let drag = $state({
     draggedNoteId: /** @type {string | null} */ (null),
@@ -471,7 +474,7 @@
   onpointercancel={handleWindowPointerCancel}
 />
 
-<div class="panel">
+<div class="panel" class:windows-flat={isWindows}>
   <div class="glass-container">
     <PanelHeader
       {strings}
@@ -564,6 +567,10 @@
     font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
   }
 
+  .panel.windows-flat {
+    background: linear-gradient(180deg, #fafbfd 0%, #f4f6f9 100%);
+  }
+
   .glass-container {
     background: linear-gradient(180deg, #fafbfd 0%, #f4f6f9 100%);
     border-radius: 12px;
@@ -575,5 +582,10 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  .panel.windows-flat .glass-container {
+    border-radius: 0;
+    box-shadow: none;
   }
 </style>
