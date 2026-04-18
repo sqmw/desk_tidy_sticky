@@ -12,6 +12,9 @@
     <h4>{strings.feedbackCommunityTitle}</h4>
     <p>{strings.feedbackCommunityHint}</p>
     <div class="feedback-note">{strings.feedbackCommunityCaption}</div>
+    {#if import.meta.env.DEV && strings.feedbackCommunityDevCaption}
+      <div class="feedback-note dev-note">{strings.feedbackCommunityDevCaption}</div>
+    {/if}
   </div>
   <div class="feedback-qr-wrap">
     <img class="feedback-qr" src={imageSrc} alt={strings.feedbackCommunityTitle} loading="lazy" />
@@ -96,6 +99,10 @@
     margin-top: 8px;
     font-size: 12px;
     line-height: 1.45;
+  }
+
+  .dev-note {
+    opacity: 0.78;
   }
 
   .workspace .feedback-note {

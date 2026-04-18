@@ -30,7 +30,10 @@
   - `feedbackCommunityTitle`
   - `feedbackCommunityHint`
   - `feedbackCommunityCaption`
+  - `feedbackCommunityDevCaption`
 - 卡片默认直接展示二维码，不增加额外二级跳转，降低用户寻找成本。
+- `feedbackCommunityCaption` 是正式用户可见文案，只说明交流反馈用途。
+- `feedbackCommunityDevCaption` 仅在 `import.meta.env.DEV` 下展示，用于开发时确认二维码资源会进入打包产物；release 构建不展示该实现说明。
 
 ## 回归关注点
 1. 简洁模式与工作台模式的设置弹窗中都能看到二维码卡片。
