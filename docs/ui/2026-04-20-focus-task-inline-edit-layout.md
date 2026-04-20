@@ -184,3 +184,7 @@ Recommended verification flow:
 4. Check whether macOS shows the correct app name and icon in the notification banner.
 
 If the bundled app still shows an incorrect notification identity, continue investigation from bundle metadata, app icon embedding, and macOS notification registration rather than from the dev runtime path.
+
+## Related Docs
+
+- Time input uses an explicit 24-hour `HH:MM` field (no AM/PM, noon safe): `docs/ui/2026-04-20-focus-task-time-input-24h.md`

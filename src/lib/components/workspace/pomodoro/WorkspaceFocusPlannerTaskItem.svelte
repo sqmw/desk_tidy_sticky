@@ -1,4 +1,5 @@
 <script>
+  import TimeText24 from "$lib/components/ui/TimeText24.svelte";
   import {
     getTaskCycleSnapshot,
   } from "$lib/workspace/pomodoro/focus-pomodoro-metrics.js";
@@ -146,8 +147,8 @@
           />
           <div class="field-duration-hint">{strings.pomodoroTaskFlexibleSchedule || "Flexible schedule"}</div>
         {:else}
-          <input class="field-start" type="time" bind:value={editStartTime} />
-          <input class="field-end" type="time" bind:value={editEndTime} />
+          <TimeText24 class="field-start" bind:value={editStartTime} stepMinutes={5} />
+          <TimeText24 class="field-end" bind:value={editEndTime} stepMinutes={5} />
         {/if}
         <select class="field-recur" bind:value={editRecurrence}>
           <option value={recurrence.NONE}>{strings.recurrenceNone}</option>
@@ -427,6 +428,7 @@
   }
 
   .task-edit-grid input,
+  .task-edit-grid :global(.time-text-24),
   .task-edit-grid select {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 9px;

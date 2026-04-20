@@ -1,5 +1,6 @@
 <script>
   import { showDevQuickActions } from "$lib/runtime/dev-flags.js";
+  import TimeText24 from "$lib/components/ui/TimeText24.svelte";
   import WorkspaceFocusPlannerTaskItem from "$lib/components/workspace/pomodoro/WorkspaceFocusPlannerTaskItem.svelte";
 
   let {
@@ -71,8 +72,8 @@
       />
       <div class="field-duration-hint">{strings.pomodoroTaskFlexibleSchedule || "Flexible schedule"}</div>
     {:else}
-      <input class="field-start" type="time" bind:value={draftStartTime} />
-      <input class="field-end" type="time" bind:value={draftEndTime} />
+      <TimeText24 class="field-start" bind:value={draftStartTime} stepMinutes={5} />
+      <TimeText24 class="field-end" bind:value={draftEndTime} stepMinutes={5} />
     {/if}
     <select class="field-recur" bind:value={draftRecurrence}>
       <option value={recurrence.NONE}>{strings.recurrenceNone}</option>
@@ -208,6 +209,7 @@
   }
 
   .planner-form input,
+  .planner-form :global(.time-text-24),
   .planner-form select,
   .planner-reminder-lead input {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
@@ -366,8 +368,8 @@
       grid-column: span 2;
     }
 
-    .field-start,
-    .field-end,
+    .planner-form :global(.field-start),
+    .planner-form :global(.field-end),
     .field-recur,
     .field-add {
       grid-column: span 1;
@@ -384,8 +386,8 @@
       grid-column: span 2;
     }
 
-    .field-start,
-    .field-end,
+    .planner-form :global(.field-start),
+    .planner-form :global(.field-end),
     .field-recur,
     .field-add {
       grid-column: span 1;
