@@ -1,4 +1,5 @@
 <script>
+  import { showDevQuickActions } from "$lib/runtime/dev-flags.js";
   import WorkspaceFocusPlannerTaskItem from "$lib/components/workspace/pomodoro/WorkspaceFocusPlannerTaskItem.svelte";
 
   let {
@@ -14,10 +15,13 @@
     draftEndTime = $bindable("10:00"),
     draftRecurrence = $bindable("none"),
     draftWeekdays = $bindable([1, 2, 3, 4, 5]),
+    draftTaskStartReminderEnabled = $bindable(false),
+    draftTaskStartReminderLeadMinutes = $bindable(10),
     tasks = [],
     selectedTaskId = "",
     activeTaskStarted = false,
     activeTaskRunning = false,
+    taskStartReminderLeadMinutes = 10,
     showingAllTasks = false,
     todayTaskCount = 0,
     todayStats,
@@ -27,6 +31,7 @@
     onToggleTask = () => {},
     onRemoveTask = () => {},
     onUpdateTask = () => {},
+    onTriggerTaskStartReminderTest = () => {},
     weekdayLabel = /** @type {(day: number) => string} */ ((day) => String(day)),
   } = $props();
 </script>
@@ -77,6 +82,31 @@
     </select>
     <button type="button" class="btn primary field-add" onclick={() => onAddTask()}>{strings.addTask}</button>
   </div>
+  <div class="planner-reminder-row">
+    <label class="planner-reminder-toggle">
+      <span>{strings.pomodoroTaskStartReminderToggle || "Task start reminder"}</span>
+      <input type="checkbox" bind:checked={draftTaskStartReminderEnabled} />
+    </label>
+    <label class="planner-reminder-lead">
+      <span>{strings.pomodoroTaskStartReminderLeadMinutes || "Remind before task start (min)"}</span>
+      <input
+        type="number"
+        min="1"
+        max="60"
+        step="1"
+        bind:value={draftTaskStartReminderLeadMinutes}
+        disabled={!draftTaskStartReminderEnabled}
+      />
+    </label>
+    {#if showDevQuickActions}
+      <div class="planner-reminder-test">
+        <span>{strings.pomodoroTaskReminderQuickTest || "Reminder test"}</span>
+        <button type="button" class="btn" onclick={() => onTriggerTaskStartReminderTest()}>
+          {strings.pomodoroTaskReminderQuickNow || "Trigger now"}
+        </button>
+      </div>
+    {/if}
+  </div>
   {#if draftRecurrence === recurrence.CUSTOM}
     <div class="weekday-picker">
       {#each weekdays as day}
@@ -105,6 +135,7 @@
           {task}
           startedTask={activeTaskStarted && selectedTaskId === task.id}
           runningTask={activeTaskRunning && selectedTaskId === task.id}
+          defaultTaskStartReminderLeadMinutes={taskStartReminderLeadMinutes}
           donePomodoros={todayStats.taskPomodoros?.[task.id] || 0}
           effectiveSeconds={todayStats.taskEffectiveSeconds?.[task.id] || 0}
           targetSeconds={task.targetSeconds || 0}
@@ -177,7 +208,8 @@
   }
 
   .planner-form input,
-  .planner-form select {
+  .planner-form select,
+  .planner-reminder-lead input {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 9px;
     background: var(--ws-card-bg, #fff);
@@ -205,6 +237,60 @@
 
   .field-add {
     min-width: 92px;
+  }
+
+  .planner-reminder-row {
+    margin-top: 6px;
+    display: grid;
+    grid-template-columns: minmax(190px, 0.9fr) minmax(220px, 1.1fr) auto;
+    gap: 6px;
+    max-width: min(800px, 100%);
+  }
+
+  .planner-reminder-toggle,
+  .planner-reminder-lead,
+  .planner-reminder-test {
+    min-height: clamp(34px, 2.3vw, 40px);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d6e0ee) 88%, transparent);
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent);
+    color: var(--ws-text, #334155);
+    font-size: clamp(12px, 0.72vw, 14px);
+    font-weight: 600;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .planner-reminder-test {
+    color: var(--ws-muted, #64748b);
+  }
+
+  .planner-reminder-test .btn {
+    height: 28px;
+    font-size: 11px;
+    padding: 0 8px;
+  }
+
+  .planner-reminder-toggle input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--ws-accent, #1d4ed8);
+    cursor: pointer;
+  }
+
+  .planner-reminder-lead input {
+    width: 78px;
+    height: 28px;
+    padding: 0 8px;
+    box-shadow: none;
+  }
+
+  .planner-reminder-lead input:disabled {
+    opacity: 0.52;
+    cursor: not-allowed;
   }
 
   .field-duration-hint {
@@ -257,9 +343,8 @@
     min-height: 180px;
     max-height: clamp(220px, 44vh, 620px);
     overflow: auto;
-    display: grid;
-    align-content: start;
-    grid-auto-rows: max-content;
+    display: flex;
+    flex-direction: column;
     gap: 6px;
   }
 
@@ -319,6 +404,11 @@
 
     .field-add {
       grid-column: 1 / -1;
+    }
+
+    .planner-reminder-row {
+      grid-template-columns: 1fr;
+      max-width: none;
     }
 
   }

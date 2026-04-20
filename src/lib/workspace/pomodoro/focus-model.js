@@ -13,6 +13,7 @@
  * @property {FocusRecurrence} recurrence
  * @property {number[]} weekdays
  * @property {boolean} taskStartReminderEnabled
+ * @property {number} taskStartReminderLeadMinutes
  * @property {boolean} enabled
  * @property {string} createdAt
  */
@@ -188,6 +189,7 @@ export function normalizeFocusTask(raw) {
     recurrence: normalizeRecurrence(raw?.recurrence),
     weekdays: normalizeWeekdays(raw?.weekdays),
     taskStartReminderEnabled: raw?.taskStartReminderEnabled === true,
+    taskStartReminderLeadMinutes: clampInt(raw?.taskStartReminderLeadMinutes, 10, 1, 60),
     enabled: raw?.enabled !== false,
     createdAt: String(raw?.createdAt || new Date().toISOString()),
   };

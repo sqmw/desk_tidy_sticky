@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { invoke } from "@tauri-apps/api/core";
   import {
     FOCUS_TASK_MODE_DURATION,
@@ -49,7 +49,12 @@
     getSafeConfig,
     PHASE_FOCUS,
   } from "$lib/workspace/pomodoro/focus-runtime.js";
-  import { formatSecondsBrief, sendDesktopNotification } from "$lib/workspace/break-control/focus-break-notify.js";
+  import {
+    ensureDesktopNotificationPermission,
+    formatSecondsBrief,
+    hasDesktopNotificationPermission,
+    sendDesktopNotification,
+  } from "$lib/workspace/break-control/focus-break-notify.js";
   import {
     buildBreakOverlayPayload as buildBreakOverlayPayloadFromState,
     buildBreakWatchdogSnapshot,
@@ -133,6 +138,8 @@
   let draftEndTime = $state("10:00");
   let draftRecurrence = $state(RECURRENCE.NONE);
   let draftWeekdays = $state([1, 2, 3, 4, 5]);
+  let draftTaskStartReminderEnabled = $state(false);
+  let draftTaskStartReminderLeadMinutes = $state(10);
   let draftFocusMinutes = $state(25);
   let focusSinceBreakSec = $state(0);
   let nextMiniBreakAtSec = $state(10 * 60);
@@ -142,6 +149,8 @@
   let lastBreakReminderAtSec = $state(-1);
   let notifyEnabled = $state(false);
   let notifyChecked = $state(false);
+  let taskStartReminderNotice = $state(/** @type {{ title: string; body: string; ts: number } | null} */ (null));
+  let taskStartReminderNoticeTimer = 0;
   let timerRuntimeRestored = false;
   /** @type {Set<string>} */
   let sentTaskStartReminderKeys = new Set();
@@ -297,6 +306,8 @@
     if ("draftEndTime" in patch) draftEndTime = patch.draftEndTime;
     if ("draftRecurrence" in patch) draftRecurrence = patch.draftRecurrence;
     if ("draftWeekdays" in patch) draftWeekdays = patch.draftWeekdays;
+    if ("draftTaskStartReminderEnabled" in patch) draftTaskStartReminderEnabled = patch.draftTaskStartReminderEnabled;
+    if ("draftTaskStartReminderLeadMinutes" in patch) draftTaskStartReminderLeadMinutes = patch.draftTaskStartReminderLeadMinutes;
     if ("draftFocusMinutes" in patch) draftFocusMinutes = patch.draftFocusMinutes;
   }
 
@@ -511,6 +522,9 @@
     getDraftEndTime: () => draftEndTime,
     getDraftRecurrence: () => draftRecurrence,
     getDraftWeekdays: () => draftWeekdays,
+    getDraftTaskStartReminderEnabled: () => draftTaskStartReminderEnabled,
+    getDraftTaskStartReminderLeadMinutes: () => draftTaskStartReminderLeadMinutes,
+    getDefaultTaskStartReminderLeadMinutes: () => safeConfig.taskStartReminderLeadMinutes,
     setFocusRuntime: setTimerRuntime,
     setDraftState,
     pauseActiveTaskSession,
@@ -667,16 +681,14 @@
    * @param {number} nowTs
    */
   function tickTaskStartReminderClock(nowTs) {
-    if (!notifyEnabled) return;
     const now = new Date(nowTs);
     const dateKey = getDateKey(now);
     if (taskStartReminderDateKey !== dateKey) {
       taskStartReminderDateKey = dateKey;
       sentTaskStartReminderKeys = new Set();
     }
-    const leadMinutes = clampInt(safeConfig.taskStartReminderLeadMinutes, 10, 1, 60);
+    const defaultLeadMinutes = clampInt(safeConfig.taskStartReminderLeadMinutes, 10, 1, 60);
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const dayStats = ensureDayStats(stats, dateKey);
     const tasksForToday = getTodayTasks(tasks, now);
     for (const task of tasksForToday) {
       const taskId = String(task?.id || "");
@@ -684,9 +696,10 @@
       if (task?.taskStartReminderEnabled !== true) continue;
       const sentKey = `${dateKey}:${taskId}`;
       if (sentTaskStartReminderKeys.has(sentKey)) continue;
+      const leadMinutes = clampInt(task?.taskStartReminderLeadMinutes, defaultLeadMinutes, 1, 60);
       const startMinutes = timeToMinutes(String(task.startTime || "00:00"));
       const remindAt = Math.max(0, startMinutes - leadMinutes);
-      if (nowMinutes < remindAt || nowMinutes >= startMinutes) continue;
+      if (nowMinutes < remindAt || nowMinutes > startMinutes) continue;
       sentTaskStartReminderKeys.add(sentKey);
       notifyTaskStart(task, leadMinutes).catch((error) =>
         console.error("notify task start reminder", error),
@@ -787,18 +800,8 @@
   }
 
   async function ensureNotificationPermissionFromUserGesture() {
-    if (typeof window === "undefined" || typeof Notification === "undefined") return;
     notifyChecked = true;
-    if (Notification.permission === "granted") {
-      notifyEnabled = true;
-      return;
-    }
-    if (Notification.permission === "denied") {
-      notifyEnabled = false;
-      return;
-    }
-    const result = await Notification.requestPermission();
-    notifyEnabled = result === "granted";
+    notifyEnabled = await ensureDesktopNotificationPermission();
   }
 
   /** @param {string} mode */
@@ -834,9 +837,45 @@
    * @param {number} leadMinutes
    */
   async function notifyTaskStart(task, leadMinutes) {
-    if (!notifyEnabled) return;
     const { title, body } = buildTaskStartNotification({ task, leadMinutes, strings });
-    await sendDesktopNotification(title, body);
+    showTaskStartReminderNotice({ title, body });
+    if (notifyEnabled) {
+      await sendDesktopNotification(title, body);
+    }
+  }
+
+  function triggerTaskStartReminderTest() {
+    const defaultLeadMinutes = clampInt(safeConfig.taskStartReminderLeadMinutes, 10, 1, 60);
+    const leadMinutes = clampInt(draftTaskStartReminderLeadMinutes, defaultLeadMinutes, 1, 60);
+    const taskTitle = String(
+      draftTitle || selectedTask?.title || strings.pomodoroTaskTitle || strings.pomodoroNoTaskSelected || "Task",
+    );
+    const startTime = String(draftStartTime || selectedTask?.startTime || "00:00");
+    notifyTaskStart({ title: taskTitle, startTime }, leadMinutes).catch((error) =>
+      console.error("focus trigger task reminder test", error),
+    );
+  }
+
+  /**
+   * @param {{ title: string; body: string }} notice
+   */
+  function showTaskStartReminderNotice(notice) {
+    taskStartReminderNotice = {
+      title: String(notice.title || ""),
+      body: String(notice.body || ""),
+      ts: Date.now(),
+    };
+    if (taskStartReminderNoticeTimer) clearTimeout(taskStartReminderNoticeTimer);
+    taskStartReminderNoticeTimer = window.setTimeout(() => {
+      taskStartReminderNotice = null;
+      taskStartReminderNoticeTimer = 0;
+    }, 18000);
+  }
+
+  function dismissTaskStartReminderNotice() {
+    taskStartReminderNotice = null;
+    if (taskStartReminderNoticeTimer) clearTimeout(taskStartReminderNoticeTimer);
+    taskStartReminderNoticeTimer = 0;
   }
 
   /**
@@ -1007,12 +1046,15 @@
     focusTimerController.restoreTimerRuntimeFromCache();
     timerRuntimeRestored = true;
     try {
-      if (typeof window === "undefined" || typeof Notification === "undefined") return;
       notifyChecked = true;
-      notifyEnabled = Notification.permission === "granted";
+      notifyEnabled = await hasDesktopNotificationPermission();
     } catch (error) {
       console.error("focus notification bootstrap", error);
     }
+  });
+
+  onDestroy(() => {
+    if (taskStartReminderNoticeTimer) clearTimeout(taskStartReminderNoticeTimer);
   });
 
   onMount(() => {
@@ -1169,6 +1211,8 @@
   bind:draftEndTime
   bind:draftRecurrence
   bind:draftWeekdays
+  bind:draftTaskStartReminderEnabled
+  bind:draftTaskStartReminderLeadMinutes
   bind:showBreakPanel
   bind:showStats
   {pomodoroTimerText}
@@ -1185,6 +1229,7 @@
   independentLongBreakEveryMinutes={safeConfig.independentLongBreakEveryMinutes}
   miniBreakDurationSeconds={safeConfig.miniBreakDurationSeconds}
   longBreakDurationMinutes={safeConfig.longBreakDurationMinutes}
+  taskStartReminderLeadMinutes={safeConfig.taskStartReminderLeadMinutes}
   {plannerTasks}
   activeTaskStarted={hasStarted}
   activeTaskRunning={taskTimingActive}
@@ -1217,6 +1262,9 @@
   onTriggerBreakSoon={scheduleBreakSoon}
   onPostponeBreak={postponeBreak}
   onSkipBreak={skipBreak}
+  {taskStartReminderNotice}
+  onDismissTaskStartReminderNotice={dismissTaskStartReminderNotice}
+  onTriggerTaskStartReminderTest={triggerTaskStartReminderTest}
   onAddTask={taskDraftController.addTask}
   onToggleWeekday={taskDraftController.toggleDraftWeekday}
   onStartTask={taskDraftController.startTaskFocus}

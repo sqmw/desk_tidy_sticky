@@ -162,6 +162,7 @@ export function removeTaskFromState(tasks, stats, taskId) {
  * recurrence?: string;
  * weekdays?: number[];
  * taskStartReminderEnabled?: boolean;
+ * taskStartReminderLeadMinutes?: number;
  * }} patch
  */
 export function updateTaskInState(tasks, taskId, patch) {
@@ -262,6 +263,8 @@ export function applyFocusCompleted(stats, todayKey, selectedTaskId, selectedTas
  * endTime: string;
  * recurrence: string;
  * weekdays: number[];
+ * taskStartReminderEnabled?: boolean;
+ * taskStartReminderLeadMinutes?: number;
  * }} draft
  */
 export function buildFocusTaskFromDraft(draft) {
@@ -274,6 +277,8 @@ export function buildFocusTaskFromDraft(draft) {
     endTime: draft.endTime,
     recurrence: draft.recurrence,
     weekdays: draft.weekdays,
+    taskStartReminderEnabled: draft.taskStartReminderEnabled === true,
+    taskStartReminderLeadMinutes: draft.taskStartReminderLeadMinutes,
     enabled: true,
     createdAt: new Date().toISOString(),
   });

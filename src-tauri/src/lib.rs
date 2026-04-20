@@ -50,6 +50,7 @@ pub fn run() {
             show_preferred_panel_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             #[cfg(desktop)]
             {

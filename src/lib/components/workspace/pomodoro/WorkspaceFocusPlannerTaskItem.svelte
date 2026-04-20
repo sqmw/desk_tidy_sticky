@@ -12,6 +12,7 @@
     task,
     startedTask = false,
     runningTask = false,
+    defaultTaskStartReminderLeadMinutes = 10,
     donePomodoros = 0,
     effectiveSeconds = 0,
     targetSeconds = 0,
@@ -31,6 +32,14 @@
   let editRecurrence = $state("none");
   let editWeekdays = $state([1, 2, 3, 4, 5]);
   let editTaskStartReminderEnabled = $state(false);
+  let editTaskStartReminderLeadMinutes = $state(10);
+
+  /** @param {unknown} value */
+  function clampReminderLeadMinutes(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 10;
+    return Math.max(1, Math.min(60, Math.round(n)));
+  }
 
   function beginEdit() {
     editTitle = String(task?.title || "");
@@ -41,6 +50,9 @@
     editRecurrence = String(task?.recurrence || recurrence.NONE);
     editWeekdays = Array.isArray(task?.weekdays) ? [...task.weekdays] : [1, 2, 3, 4, 5];
     editTaskStartReminderEnabled = task?.taskStartReminderEnabled === true;
+    editTaskStartReminderLeadMinutes = clampReminderLeadMinutes(
+      task?.taskStartReminderLeadMinutes ?? defaultTaskStartReminderLeadMinutes,
+    );
     editing = true;
   }
 
@@ -72,6 +84,7 @@
       recurrence: nextRecurrence,
       weekdays: nextRecurrence === recurrence.CUSTOM ? editWeekdays : [],
       taskStartReminderEnabled: editTaskStartReminderEnabled,
+      taskStartReminderLeadMinutes: clampReminderLeadMinutes(editTaskStartReminderLeadMinutes),
     });
     editing = false;
   }
@@ -112,56 +125,75 @@
   style={`--task-active-progress:${progressPercent}%`}
 >
   {#if editing}
-    <div class="task-edit-grid">
-      <input class="field-title" type="text" bind:value={editTitle} placeholder={strings.pomodoroTaskTitle} />
-      <select class="field-mode" bind:value={editTaskMode}>
-        <option value={taskModeTimeWindow}>{strings.pomodoroTaskModeTimeWindow || "Time window"}</option>
-        <option value={taskModeDuration}>{strings.pomodoroTaskModeDuration || "Duration"}</option>
-      </select>
-      {#if editTaskMode === taskModeDuration}
-        <input
-          class="field-target"
-          type="number"
-          min="1"
-          max="1440"
-          step="1"
-          bind:value={editTargetMinutes}
-          placeholder={strings.pomodoroTaskTargetMinutes || "Target minutes"}
-        />
-        <div class="field-duration-hint">{strings.pomodoroTaskFlexibleSchedule || "Flexible schedule"}</div>
-      {:else}
-        <input class="field-start" type="time" bind:value={editStartTime} />
-        <input class="field-end" type="time" bind:value={editEndTime} />
-      {/if}
-      <select class="field-recur" bind:value={editRecurrence}>
-        <option value={recurrence.NONE}>{strings.recurrenceNone}</option>
-        <option value={recurrence.DAILY}>{strings.recurrenceDaily}</option>
-        <option value={recurrence.WORKDAY}>{strings.recurrenceWorkday}</option>
-        <option value={recurrence.CUSTOM}>{strings.recurrenceCustom}</option>
-      </select>
-    </div>
-    {#if editRecurrence === recurrence.CUSTOM}
-      <div class="weekday-picker">
-        {#each weekdays as day}
-          <button
-            type="button"
-            class="day-chip"
-            class:active={editWeekdays.includes(day)}
-            onclick={() => toggleEditWeekday(day)}
-          >
-            {weekdayLabel(day)}
-          </button>
-        {/each}
+    <div class="task-edit-layout">
+      <div class="task-edit-grid task-edit-primary-row">
+        <input class="field-title" type="text" bind:value={editTitle} placeholder={strings.pomodoroTaskTitle} />
+        <select class="field-mode" bind:value={editTaskMode}>
+          <option value={taskModeTimeWindow}>{strings.pomodoroTaskModeTimeWindow || "Time window"}</option>
+          <option value={taskModeDuration}>{strings.pomodoroTaskModeDuration || "Duration"}</option>
+        </select>
       </div>
-    {/if}
-    <label class="edit-toggle-row">
-      <span>{strings.pomodoroTaskStartReminderToggle || "Task start reminder"}</span>
-      <input type="checkbox" bind:checked={editTaskStartReminderEnabled} />
-    </label>
-    <div class="task-actions">
-      <button type="button" class="btn tiny primary" onclick={() => saveEdit()}>{strings.saveNote}</button>
-      <button type="button" class="btn tiny" onclick={() => cancelEdit()}>{strings.cancel}</button>
-      <button type="button" class="btn tiny" onclick={() => onRemoveTask(task.id)}>{strings.delete}</button>
+      <div class="task-edit-grid task-edit-schedule-row">
+        {#if editTaskMode === taskModeDuration}
+          <input
+            class="field-target"
+            type="number"
+            min="1"
+            max="1440"
+            step="1"
+            bind:value={editTargetMinutes}
+            placeholder={strings.pomodoroTaskTargetMinutes || "Target minutes"}
+          />
+          <div class="field-duration-hint">{strings.pomodoroTaskFlexibleSchedule || "Flexible schedule"}</div>
+        {:else}
+          <input class="field-start" type="time" bind:value={editStartTime} />
+          <input class="field-end" type="time" bind:value={editEndTime} />
+        {/if}
+        <select class="field-recur" bind:value={editRecurrence}>
+          <option value={recurrence.NONE}>{strings.recurrenceNone}</option>
+          <option value={recurrence.DAILY}>{strings.recurrenceDaily}</option>
+          <option value={recurrence.WORKDAY}>{strings.recurrenceWorkday}</option>
+          <option value={recurrence.CUSTOM}>{strings.recurrenceCustom}</option>
+        </select>
+      </div>
+      {#if editRecurrence === recurrence.CUSTOM}
+        <div class="weekday-picker edit-weekdays">
+          {#each weekdays as day}
+            <button
+              type="button"
+              class="day-chip"
+              class:active={editWeekdays.includes(day)}
+              onclick={() => toggleEditWeekday(day)}
+            >
+              {weekdayLabel(day)}
+            </button>
+          {/each}
+        </div>
+      {/if}
+      <div class="task-edit-footer">
+        <label class="edit-reminder-row">
+          <span class="edit-reminder-toggle">
+            <span>{strings.pomodoroTaskStartReminderToggle || "Task start reminder"}</span>
+            <input type="checkbox" bind:checked={editTaskStartReminderEnabled} />
+          </span>
+          <span class="edit-reminder-lead">
+            <span>{strings.pomodoroTaskStartReminderLeadMinutes || "Remind before task start (min)"}</span>
+            <input
+              type="number"
+              min="1"
+              max="60"
+              step="1"
+              bind:value={editTaskStartReminderLeadMinutes}
+              disabled={!editTaskStartReminderEnabled}
+            />
+          </span>
+        </label>
+        <div class="task-actions edit-actions">
+          <button type="button" class="btn tiny danger ghost" onclick={() => onRemoveTask(task.id)}>{strings.delete}</button>
+          <button type="button" class="btn tiny" onclick={() => cancelEdit()}>{strings.cancel}</button>
+          <button type="button" class="btn tiny primary" onclick={() => saveEdit()}>{strings.saveNote}</button>
+        </div>
+      </div>
     </div>
   {:else}
     <div class="task-main">
@@ -208,6 +240,10 @@
     border: 1px solid var(--ws-border-soft, #dbe4ef);
     border-radius: 10px;
     padding: 7px 8px;
+    width: 100%;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    justify-self: stretch;
     display: flex;
     justify-content: space-between;
     gap: 8px;
@@ -261,30 +297,72 @@
 
   .task-item.editing {
     display: grid;
-    gap: 8px;
     align-items: stretch;
+    padding: 10px;
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--ws-accent, #1d4ed8) 5%, var(--ws-card-bg, #fff)) 0%,
+        color-mix(in srgb, var(--ws-card-bg, #fff) 96%, #f8fafc) 100%
+      );
+    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 18%, var(--ws-border-soft, #dbe4ef));
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent),
+      0 8px 20px color-mix(in srgb, #0f172a 8%, transparent);
   }
 
-  .edit-toggle-row {
+  .task-edit-layout {
+    --task-edit-control-height: clamp(34px, 2.25vw, 40px);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .edit-reminder-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.9fr) minmax(200px, 1.1fr);
+    gap: 8px;
     align-items: center;
-    min-height: 40px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #dbe4ef) 82%, transparent);
-    border-radius: 10px;
-    padding: 8px 10px;
-    background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent);
     color: var(--ws-text, #334155);
     font-size: 12px;
     font-weight: 600;
   }
 
-  .edit-toggle-row input[type="checkbox"] {
+  .edit-reminder-toggle,
+  .edit-reminder-lead {
+    min-height: var(--task-edit-control-height);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #dbe4ef) 82%, transparent);
+    border-radius: 10px;
+    padding: 0 10px;
+    background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .edit-reminder-toggle input[type="checkbox"] {
     width: 18px;
     height: 18px;
     accent-color: var(--ws-accent, #1d4ed8);
     cursor: pointer;
+  }
+
+  .edit-reminder-lead input {
+    width: 76px;
+    height: 28px;
+    border: 1px solid var(--ws-border-soft, #d6e0ee);
+    border-radius: 8px;
+    background: var(--ws-card-bg, #fff);
+    color: var(--ws-text, #334155);
+    font-size: 12px;
+    padding: 0 8px;
+    outline: none;
+  }
+
+  .edit-reminder-lead input:disabled {
+    opacity: 0.52;
+    cursor: not-allowed;
   }
 
   .task-main {
@@ -336,14 +414,16 @@
 
   .task-edit-grid {
     display: grid;
-    grid-template-columns:
-      minmax(160px, 1.5fr)
-      minmax(112px, 0.96fr)
-      minmax(92px, 0.85fr)
-      minmax(92px, 0.85fr)
-      minmax(108px, 0.96fr);
     gap: 6px;
     align-items: stretch;
+  }
+
+  .task-edit-primary-row {
+    grid-template-columns: minmax(240px, 1fr) minmax(140px, 180px);
+  }
+
+  .task-edit-schedule-row {
+    grid-template-columns: repeat(3, minmax(130px, 1fr));
   }
 
   .task-edit-grid input,
@@ -354,13 +434,13 @@
     color: var(--ws-text, #334155);
     font-size: clamp(12px, 0.72vw, 14px);
     padding: 6px 8px;
-    height: clamp(32px, 2.2vw, 38px);
+    height: var(--task-edit-control-height);
     outline: none;
     box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
   }
 
   .field-duration-hint {
-    height: clamp(32px, 2.2vw, 38px);
+    height: var(--task-edit-control-height);
     border: 1px dashed var(--ws-border-soft, #d6e0ee);
     border-radius: 9px;
     background: color-mix(in srgb, var(--ws-card-bg, #fff) 88%, transparent);
@@ -373,10 +453,21 @@
     white-space: nowrap;
   }
 
+  .task-edit-footer {
+    display: grid;
+    grid-template-columns: minmax(420px, 0.62fr) minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+  }
+
   .weekday-picker {
     display: flex;
     gap: 4px;
     flex-wrap: wrap;
+  }
+
+  .edit-weekdays {
+    padding: 2px 0;
   }
 
   .day-chip {
@@ -401,6 +492,12 @@
     justify-self: end;
   }
 
+  .edit-actions {
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+  }
+
   .btn {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 9px;
@@ -414,9 +511,9 @@
   }
 
   .btn.tiny {
-    height: 26px;
+    height: 28px;
     font-size: 11px;
-    padding: 0 8px;
+    padding: 0 10px;
   }
 
   .btn.primary {
@@ -434,17 +531,26 @@
     cursor: default;
   }
 
+  .btn.danger {
+    border-color: color-mix(in srgb, #ef4444 24%, var(--ws-border-soft, #d6e0ee));
+    color: color-mix(in srgb, #dc2626 84%, var(--ws-text, #334155));
+  }
+
+  .btn.ghost {
+    background: transparent;
+  }
+
   @media (max-width: 1600px) {
-    .task-edit-grid {
+    .task-edit-primary-row {
+      grid-template-columns: minmax(200px, 1fr) minmax(130px, 170px);
+    }
+
+    .task-edit-schedule-row {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    .field-title {
-      grid-column: span 2;
-    }
-
-    .field-recur {
-      grid-column: span 2;
+    .task-edit-footer {
+      grid-template-columns: minmax(360px, 0.62fr) minmax(0, 1fr);
     }
   }
 
@@ -458,14 +564,15 @@
       flex-wrap: wrap;
     }
 
-    .task-edit-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+    .task-edit-primary-row,
+    .task-edit-schedule-row,
+    .task-edit-footer,
+    .edit-reminder-row {
+      grid-template-columns: 1fr;
     }
 
-    .field-title,
-    .field-recur {
-      grid-column: 1 / -1;
+    .edit-actions {
+      justify-content: flex-start;
     }
-
   }
 </style>

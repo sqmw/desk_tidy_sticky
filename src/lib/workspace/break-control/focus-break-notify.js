@@ -1,12 +1,36 @@
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from "@tauri-apps/plugin-notification";
+
+export async function ensureDesktopNotificationPermission() {
+  try {
+    if (await isPermissionGranted()) return true;
+    return (await requestPermission()) === "granted";
+  } catch (error) {
+    console.error("ensureDesktopNotificationPermission", error);
+    return false;
+  }
+}
+
+export async function hasDesktopNotificationPermission() {
+  try {
+    return await isPermissionGranted();
+  } catch (error) {
+    console.error("hasDesktopNotificationPermission", error);
+    return false;
+  }
+}
+
 /**
  * @param {string} title
  * @param {string} body
  */
 export async function sendDesktopNotification(title, body) {
   try {
-    if (typeof window === "undefined" || typeof Notification === "undefined") return false;
-    if (Notification.permission !== "granted") return false;
-    new Notification(title, { body });
+    if (!(await isPermissionGranted())) return false;
+    sendNotification({ title, body });
     return true;
   } catch (error) {
     console.error("sendDesktopNotification", error);

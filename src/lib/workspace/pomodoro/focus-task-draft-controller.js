@@ -30,6 +30,9 @@ import { toggleDraftWeekdayValue } from "$lib/workspace/pomodoro/focus-task-cont
  *   getDraftEndTime: () => string;
  *   getDraftRecurrence: () => string;
  *   getDraftWeekdays: () => number[];
+ *   getDraftTaskStartReminderEnabled: () => boolean;
+ *   getDraftTaskStartReminderLeadMinutes: () => number;
+ *   getDefaultTaskStartReminderLeadMinutes: () => number;
  *   setFocusRuntime: (patch: Record<string, any>) => void;
  *   setDraftState: (patch: Record<string, any>) => void;
  *   pauseActiveTaskSession: (
@@ -108,6 +111,7 @@ export function createFocusTaskDraftController(input) {
    *   recurrence?: string;
    *   weekdays?: number[];
    *   taskStartReminderEnabled?: boolean;
+   *   taskStartReminderLeadMinutes?: number;
    * }} patch
    */
   function updateTask(taskId, patch) {
@@ -122,6 +126,12 @@ export function createFocusTaskDraftController(input) {
   function addTask() {
     const title = input.getDraftTitle().trim();
     if (!title) return;
+    const taskStartReminderEnabled = input.getDraftTaskStartReminderEnabled() === true;
+    if (taskStartReminderEnabled) {
+      Promise.resolve(input.ensureNotificationPermissionFromUserGesture()).catch((error) =>
+        console.error("focus request notification permission for new task reminder", error),
+      );
+    }
     const safeTaskMode = input.getDraftTaskMode() === FOCUS_TASK_MODE_DURATION
       ? FOCUS_TASK_MODE_DURATION
       : FOCUS_TASK_MODE_TIME_WINDOW;
@@ -133,12 +143,21 @@ export function createFocusTaskDraftController(input) {
       endTime: input.getDraftEndTime(),
       recurrence: input.getDraftRecurrence(),
       weekdays: input.getDraftRecurrence() === RECURRENCE.CUSTOM ? input.getDraftWeekdays() : [],
+      taskStartReminderEnabled,
+      taskStartReminderLeadMinutes: clampInt(
+        input.getDraftTaskStartReminderLeadMinutes(),
+        clampInt(input.getDefaultTaskStartReminderLeadMinutes(), 10, 1, 60),
+        1,
+        60,
+      ),
     });
     input.emitTasks([...input.getTasks(), next]);
     input.setDraftState({
       draftTitle: "",
       draftTaskMode: FOCUS_TASK_MODE_TIME_WINDOW,
       draftTargetMinutes: 120,
+      draftTaskStartReminderEnabled: false,
+      draftTaskStartReminderLeadMinutes: clampInt(input.getDefaultTaskStartReminderLeadMinutes(), 10, 1, 60),
     });
     if (!input.getSelectedTaskId()) input.setFocusRuntime({ selectedTaskId: next.id });
   }

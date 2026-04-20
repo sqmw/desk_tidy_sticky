@@ -18,6 +18,8 @@
     draftEndTime = $bindable("10:00"),
     draftRecurrence = $bindable("none"),
     draftWeekdays = $bindable([1, 2, 3, 4, 5]),
+    draftTaskStartReminderEnabled = $bindable(false),
+    draftTaskStartReminderLeadMinutes = $bindable(10),
     pomodoroTimerText,
     nextMiniBreakCountdownText,
     nextLongBreakCountdownText,
@@ -34,6 +36,7 @@
     independentLongBreakEveryMinutes = 30,
     miniBreakDurationSeconds = 20,
     longBreakDurationMinutes = 5,
+    taskStartReminderLeadMinutes = 10,
     plannerTasks = [],
     activeTaskStarted = false,
     activeTaskRunning = false,
@@ -60,12 +63,15 @@
     onTriggerBreakSoon = () => {},
     onPostponeBreak = () => {},
     onSkipBreak = () => {},
+    taskStartReminderNotice = null,
+    onDismissTaskStartReminderNotice = () => {},
     onAddTask = () => {},
     onToggleWeekday = () => {},
     onStartTask = () => {},
     onToggleTask = () => {},
     onRemoveTask = () => {},
     onUpdateTask = () => {},
+    onTriggerTaskStartReminderTest = () => {},
     weekdayLabel = () => "",
   } = $props();
 </script>
@@ -123,10 +129,13 @@
         bind:draftEndTime
         bind:draftRecurrence
         bind:draftWeekdays
+        bind:draftTaskStartReminderEnabled
+        bind:draftTaskStartReminderLeadMinutes
         tasks={plannerTasks}
         {selectedTaskId}
         {activeTaskStarted}
         {activeTaskRunning}
+        {taskStartReminderLeadMinutes}
         showingAllTasks={plannerShowingAllTasks}
         {todayTaskCount}
         todayStats={plannerTodayStats}
@@ -136,10 +145,24 @@
         {onToggleTask}
         {onRemoveTask}
         {onUpdateTask}
+        {onTriggerTaskStartReminderTest}
         {weekdayLabel}
       />
     </div>
   </div>
+
+  {#if taskStartReminderNotice}
+    <section class="task-start-notice" role="status" aria-live="polite">
+      <div class="task-start-notice-mark" aria-hidden="true">!</div>
+      <div class="task-start-notice-copy">
+        <strong>{taskStartReminderNotice.title}</strong>
+        <span>{taskStartReminderNotice.body}</span>
+      </div>
+      <button type="button" class="task-start-notice-close" onclick={() => onDismissTaskStartReminderNotice()}>
+        {strings.cancel || "Dismiss"}
+      </button>
+    </section>
+  {/if}
 
   <section class="stats-shell">
     <button type="button" class="stats-toggle" onclick={() => (showStats = !showStats)}>
@@ -199,6 +222,64 @@
   .focus-slot {
     min-width: 0;
     min-height: 0;
+  }
+
+  .task-start-notice {
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 28%, var(--ws-border, #dbe5f2));
+    border-radius: 14px;
+    background:
+      radial-gradient(circle at 0 0, color-mix(in srgb, var(--ws-accent, #1d4ed8) 15%, transparent), transparent 36%),
+      color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.92)) 96%, #ffffff);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent),
+      0 10px 24px color-mix(in srgb, #0f172a 10%, transparent);
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .task-start-notice-mark {
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 18%, #fff);
+    color: var(--ws-accent, #1d4ed8);
+    font-weight: 900;
+    display: grid;
+    place-items: center;
+  }
+
+  .task-start-notice-copy {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .task-start-notice-copy strong {
+    color: var(--ws-text-strong, #0f172a);
+    font-size: 13px;
+  }
+
+  .task-start-notice-copy span {
+    color: var(--ws-muted, #64748b);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .task-start-notice-close {
+    border: 1px solid var(--ws-border-soft, #d6e0ee);
+    border-radius: 999px;
+    background: var(--ws-btn-bg, #fff);
+    color: var(--ws-text, #334155);
+    min-height: 28px;
+    padding: 0 10px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
   }
 
   .timer-slot {
@@ -303,6 +384,15 @@
       grid-template-areas:
         "timer"
         "planner";
+    }
+
+    .task-start-notice {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .task-start-notice-close {
+      grid-column: 2;
+      justify-self: start;
     }
   }
 </style>
