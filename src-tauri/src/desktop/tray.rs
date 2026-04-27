@@ -3,7 +3,7 @@ use crate::runtime::GlobalControlState;
 use std::collections::HashMap;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Emitter, Manager};
 
 struct TrayMenuState {
@@ -95,7 +95,17 @@ pub fn build_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let tray_builder = TrayIconBuilder::new()
         .icon(tray_icon)
         .menu(&menu)
-        .show_menu_on_left_click(true)
+        .show_menu_on_left_click(false)
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                show_preferred_panel_window(tray.app_handle());
+            }
+        })
         .on_menu_event(|app, event| {
             if event.id.as_ref() == "show" {
                 show_preferred_panel_window(app);
