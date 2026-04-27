@@ -18,6 +18,7 @@
     fontSize = "medium",
     sidebarLayoutMode = "auto",
     themePreset = "light",
+    themeTransitionShape = "circle",
     themePresetOptions = [],
     toggleAutostart = async () => {},
     onSavePrefs = async () => {},
@@ -27,6 +28,7 @@
     themeCustomCss = "",
     onChangeLanguage = () => {},
     onChangeThemePreset = () => {},
+    onChangeThemeTransitionShape = async () => {},
     onExportThemeCss = () => {},
     onImportThemeCss = async () => ({ ok: false }),
     onCopyDefaultThemeTemplate = async () => ({ ok: false }),
@@ -139,12 +141,14 @@
         <WorkspaceSettingsThemeSection
           {strings}
           {themePreset}
+          {themeTransitionShape}
           {themePresetOptions}
           {themeCustomCss}
           {themeImportStatus}
           {themeImportFailed}
           bind:themeImportInputEl
           onThemePresetClick={handleThemePresetClick}
+          {onChangeThemeTransitionShape}
           onOpenThemeImportPicker={openThemeImportPicker}
           onCopyDefaultThemeTemplate={handleCopyDefaultThemeTemplate}
           onResetThemeCustomCss={onResetThemeCustomCss}

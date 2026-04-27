@@ -747,7 +747,6 @@
       {strings}
       theme={workspaceThemeDark ? "dark" : "light"}
       isMaximized={windowMaximized}
-      {themeTransitionShape}
       compact={stageLayout.windowBarCompact}
       showWindowControls={!isMac}
       onDragStart={startWorkspaceDragPointer}
@@ -757,7 +756,6 @@
       onToggleTheme={toggleTheme}
       onOpenSettings={() => (showWorkspaceSettings = true)}
       onHide={hideWindow}
-      onChangeThemeTransitionShape={changeThemeTransitionShape}
     />
 
     {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
@@ -859,6 +857,7 @@
   taskStartReminderLeadMinutes={pomodoroConfig.taskStartReminderLeadMinutes}
   pomodoroFocusMinutes={pomodoroConfig.focusMinutes}
   themePreset={workspaceTheme}
+  {themeTransitionShape}
   themePresetOptions={workspaceThemePresetOptions}
   themeCustomCss={workspaceCustomCss}
   zoomOption={workspaceZoomOption}
@@ -881,6 +880,7 @@
       focusMinutes: nextMinutes,
     })}
   onChangeThemePreset={handleWorkspaceThemePresetChange}
+  onChangeThemeTransitionShape={changeThemeTransitionShape}
   onExportThemeCss={exportWorkspaceThemeCss}
   onImportThemeCss={importWorkspaceThemeCss}
   onCopyDefaultThemeTemplate={copyWorkspaceDefaultThemeTemplate}
