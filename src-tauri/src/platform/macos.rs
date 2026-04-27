@@ -69,9 +69,15 @@ fn log_level(tag: &str, window: &NSWindow) {
 }
 
 fn desktop_sticky_collection_behavior() -> NSWindowCollectionBehavior {
-    NSWindowCollectionBehavior::Stationary
+    // Keep pinned sticky windows eligible for fullscreen Spaces even while
+    // they are visually placed in the desktop band. Removing this membership
+    // during a bottom-layer transition can prevent AppKit from reattaching the
+    // same window to already-existing fullscreen Spaces when it becomes
+    // topmost again.
+    NSWindowCollectionBehavior::CanJoinAllSpaces
+        | NSWindowCollectionBehavior::Stationary
         | NSWindowCollectionBehavior::IgnoresCycle
-        | NSWindowCollectionBehavior::FullScreenNone
+        | NSWindowCollectionBehavior::FullScreenAuxiliary
 }
 
 fn break_overlay_collection_behavior() -> NSWindowCollectionBehavior {

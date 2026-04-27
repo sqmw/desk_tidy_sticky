@@ -73,7 +73,6 @@ pub(super) fn apply_note_window_layer_with_interaction_by_label(
     #[cfg(target_os = "macos")]
     {
         if force_global_top || is_always_on_top {
-            run_macos_window_op(&w, "macos_detach_from_desktop", macos::detach_from_worker_w)?;
             run_macos_window_op(&w, "macos_set_topmost_true", |ptr| {
                 macos::set_topmost_no_activate(ptr, true)
             })?;
