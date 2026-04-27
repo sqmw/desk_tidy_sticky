@@ -122,9 +122,13 @@
   const NOTE_MIN_SIZE_PX = 220;
   const WINDOW_SIZE_PERSIST_DEBOUNCE_MS = 180;
   const WINDOW_SIZE_POLL_MS = 900;
+  const TOOLBAR_MANAGED_RESIZE_TOLERANCE_PX = 2;
+  const TOOLBAR_MANAGED_RESIZE_HOLD_MS = 700;
   let windowSizePersistTimer = /** @type {ReturnType<typeof setTimeout> | null} */ (null);
   let windowSizePollTimer = /** @type {ReturnType<typeof setInterval> | null} */ (null);
   let lastPersistedWindowSizeKey = "";
+  let toolbarManagedResizeTargetHeight = 0;
+  let toolbarManagedResizeHoldUntil = 0;
 
   function getNow() {
     return globalThis.performance?.now?.() ?? Date.now();
@@ -133,6 +137,39 @@
   function getToolbarWindowReserve() {
     if (!showTopmostControls) return 0;
     return Math.max(0, outsideToolbarHeight + OUTSIDE_TOOLBAR_GAP_PX);
+  }
+
+  /**
+   * @param {number} targetHeight
+   * @param {number} [stableCollapsedHeight]
+   */
+  function beginToolbarManagedResize(targetHeight, stableCollapsedHeight = 0) {
+    toolbarManagedResizeTargetHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(targetHeight));
+    toolbarManagedResizeHoldUntil = Date.now() + TOOLBAR_MANAGED_RESIZE_HOLD_MS;
+    if (stableCollapsedHeight > 0) {
+      collapsedWindowHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(stableCollapsedHeight));
+    }
+  }
+
+  function clearToolbarManagedResize() {
+    toolbarManagedResizeTargetHeight = 0;
+    toolbarManagedResizeHoldUntil = 0;
+  }
+
+  /** @param {number} currentHeight */
+  function shouldSkipPersistenceForToolbarManagedResize(currentHeight) {
+    if (toolbarManagedResizeTargetHeight <= 0) return false;
+    const withinTolerance =
+      Math.abs(currentHeight - toolbarManagedResizeTargetHeight) <= TOOLBAR_MANAGED_RESIZE_TOLERANCE_PX;
+    const withinHold = Date.now() <= toolbarManagedResizeHoldUntil;
+    if (!withinTolerance && !withinHold) {
+      clearToolbarManagedResize();
+      return false;
+    }
+    if (withinTolerance) {
+      clearToolbarManagedResize();
+    }
+    return true;
   }
 
   /** @param {number} nextHeight */
@@ -154,7 +191,9 @@
         return;
       }
       toolbarWindowExpanded = false;
-      await resizeWindowHeight(collapsedWindowHeight || currentHeight);
+      const collapsedTarget = Math.max(NOTE_MIN_SIZE_PX, collapsedWindowHeight || currentHeight);
+      beginToolbarManagedResize(collapsedTarget, collapsedTarget);
+      await resizeWindowHeight(collapsedTarget);
       return;
     }
 
@@ -163,19 +202,20 @@
     if (!toolbarWindowExpanded) {
       collapsedWindowHeight = currentHeight;
     }
-    const expandedHeight = Math.max(NOTE_MIN_SIZE_PX, collapsedWindowHeight || currentHeight) + reserve;
+    const collapsedBaseHeight = Math.max(NOTE_MIN_SIZE_PX, collapsedWindowHeight || currentHeight);
+    const expandedHeight = collapsedBaseHeight + reserve;
     if (Math.abs(currentHeight - expandedHeight) < 1) {
       toolbarWindowExpanded = true;
       return;
     }
     toolbarWindowExpanded = true;
+    beginToolbarManagedResize(expandedHeight, collapsedBaseHeight);
     await resizeWindowHeight(expandedHeight);
   }
 
   function handleViewportResize() {
     const currentHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
     if (toolbarWindowExpanded && showTopmostControls) {
-      collapsedWindowHeight = Math.max(NOTE_MIN_SIZE_PX, currentHeight - getToolbarWindowReserve());
       return;
     }
     collapsedWindowHeight = currentHeight;
@@ -257,6 +297,10 @@
   }
 
   function handleWindowResizePersistence() {
+    const currentHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
+    if (shouldSkipPersistenceForToolbarManagedResize(currentHeight)) {
+      return;
+    }
     handleViewportResize();
     scheduleWindowSizePersist();
   }
