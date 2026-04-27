@@ -20,8 +20,8 @@ import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
  *   setNewNoteTags?: (next: string[]) => void;
  *   getSelectedTag?: () => string;
  *   getInspectorNote: () => any | null;
- *   getPendingLongDocDraft: () => { id: string } | null;
- *   setPendingLongDocDraft: (next: { id: string } | null) => void;
+ *   getPendingEditorDraft: () => { id: string } | null;
+ *   setPendingEditorDraft: (next: { id: string } | null) => void;
  *   setInspectorOpen: (open: boolean) => void;
  *   setInspectorNoteId: (id: string | null) => void;
  *   setInspectorMode: (mode: string) => void;
@@ -58,24 +58,24 @@ export function createWorkspaceInspectorActions(deps) {
   /**
    * @param {string} noteId
    */
-  async function discardPendingLongDocDraft(noteId) {
+  async function discardPendingEditorDraft(noteId) {
     try {
       await deps.invoke("permanently_delete_note", { id: noteId });
       await deps.loadNotes();
       await deps.syncWindows();
     } catch (e) {
-      console.error("discardPendingLongDocDraft(workspace)", e);
+      console.error("discardPendingEditorDraft(workspace)", e);
     } finally {
-      deps.setPendingLongDocDraft(null);
+      deps.setPendingEditorDraft(null);
       closeInspector();
     }
   }
 
   async function handleInspectorClose() {
     const inspectorNote = deps.getInspectorNote();
-    const pendingLongDocDraft = deps.getPendingLongDocDraft();
-    if (inspectorNote && pendingLongDocDraft && pendingLongDocDraft.id === String(inspectorNote.id)) {
-      await discardPendingLongDocDraft(String(inspectorNote.id));
+    const pendingEditorDraft = deps.getPendingEditorDraft();
+    if (inspectorNote && pendingEditorDraft && pendingEditorDraft.id === String(inspectorNote.id)) {
+      await discardPendingEditorDraft(String(inspectorNote.id));
       return;
     }
     closeInspector();
@@ -91,9 +91,9 @@ export function createWorkspaceInspectorActions(deps) {
   async function cancelInspectorEdit() {
     const inspectorNote = deps.getInspectorNote();
     if (!inspectorNote) return;
-    const pendingLongDocDraft = deps.getPendingLongDocDraft();
-    if (pendingLongDocDraft && pendingLongDocDraft.id === String(inspectorNote.id)) {
-      await discardPendingLongDocDraft(String(inspectorNote.id));
+    const pendingEditorDraft = deps.getPendingEditorDraft();
+    if (pendingEditorDraft && pendingEditorDraft.id === String(inspectorNote.id)) {
+      await discardPendingEditorDraft(String(inspectorNote.id));
       return;
     }
     deps.setInspectorMode("view");
@@ -114,18 +114,19 @@ export function createWorkspaceInspectorActions(deps) {
       await deps.loadNotes();
       deps.setInspectorMode("view");
       deps.setInspectorDraftText(nextText);
-      const pendingLongDocDraft = deps.getPendingLongDocDraft();
-      if (pendingLongDocDraft && pendingLongDocDraft.id === String(inspectorNote.id)) {
-        deps.setPendingLongDocDraft(null);
+      const pendingEditorDraft = deps.getPendingEditorDraft();
+      if (pendingEditorDraft && pendingEditorDraft.id === String(inspectorNote.id)) {
+        deps.setPendingEditorDraft(null);
       }
     } catch (e) {
       console.error("saveInspectorEdit(workspace)", e);
     }
   }
 
-  async function createLongDocument() {
+  async function createNoteFromWorkspaceComposer() {
     const raw = deps.getNewNoteText().trim();
-    const text = raw || (deps.getLocale() === "zh" ? "# 新文档\n\n" : "# New document\n\n");
+    const shouldOpenEditor = !raw;
+    const text = raw || (deps.getLocale() === "zh" ? "# 新笔记\n\n" : "# New note\n\n");
     const beforeIds = new Set(deps.getNotes().map((n) => String(n.id)));
     const selectedTag = String(deps.getSelectedTag?.() ?? "").trim();
     const baseTags = deps.getNewNoteTags?.() ?? [];
@@ -151,8 +152,8 @@ export function createWorkspaceInspectorActions(deps) {
       const created = [...source]
         .filter((n) => !beforeIds.has(String(n.id)))
         .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")))[0];
-      if (created) {
-        deps.setPendingLongDocDraft({ id: String(created.id) });
+      if (created && shouldOpenEditor) {
+        deps.setPendingEditorDraft({ id: String(created.id) });
         openInspectorEdit(created);
       }
       deps.setNewNoteText("");
@@ -162,7 +163,7 @@ export function createWorkspaceInspectorActions(deps) {
         await deps.setMainTab(deps.notesTabKey);
       }
     } catch (e) {
-      console.error("createLongDocument(workspace)", e);
+      console.error("createNoteFromWorkspaceComposer(workspace)", e);
     }
   }
 
@@ -174,6 +175,6 @@ export function createWorkspaceInspectorActions(deps) {
     startInspectorEdit,
     cancelInspectorEdit,
     saveInspectorEdit,
-    createLongDocument,
+    createNoteFromWorkspaceComposer,
   };
 }

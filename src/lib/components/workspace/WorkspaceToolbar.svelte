@@ -11,8 +11,7 @@
     newNoteTags = $bindable(/** @type {string[]} */ ([])),
     noteTagOptions = /** @type {string[]} */ ([]),
     searchQuery = $bindable(),
-    onSave,
-    onCreateLongDoc = () => {},
+    onCreateNote = () => {},
   } = $props();
 </script>
 
@@ -25,8 +24,7 @@
     bind:newNotePriority
     bind:newNoteTags
     {noteTagOptions}
-    onSave={onSave}
-    onCreateLongDoc={onCreateLongDoc}
+    {onCreateNote}
   />
   <WorkspaceQueryBar {strings} {compact} bind:searchQuery />
 </div>

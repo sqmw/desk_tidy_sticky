@@ -89,7 +89,7 @@ Windows development and sync notes live in `AGENTS.md`.
 Contributions are welcome, especially around:
 
 - Desktop sticky layering, transparency, blur, dragging, mouse interaction, and cross-platform behavior.
-- Workstation notes, tags, search, long documents, themes, and layout.
+- Workstation notes, tags, search, editor workflow, themes, and layout.
 - Focus tasks, break control, reminders, and statistics.
 - Documentation, screenshots, reproduction notes, and platform test records.
 

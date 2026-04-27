@@ -9,8 +9,7 @@
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
     newNoteTags = $bindable(/** @type {string[]} */ ([])),
     noteTagOptions = /** @type {string[]} */ ([]),
-    onSave = () => {},
-    onCreateLongDoc = () => {},
+    onCreateNote = () => {},
   } = $props();
 
 </script>
@@ -21,7 +20,7 @@
     class="add-input"
     placeholder={strings.workspaceQuickNoteHint || strings.inputHint}
     bind:value={newNoteText}
-    onkeydown={(e) => e.key === "Enter" && onSave()}
+    onkeydown={(e) => e.key === "Enter" && onCreateNote()}
   />
 
   <NoteTagsEditor
@@ -34,11 +33,9 @@
   />
 
   <div class="create-actions">
-    <button type="button" class="primary-btn" onclick={() => onSave()}>
+    <button type="button" class="primary-btn" onclick={() => onCreateNote()}>
+      <span class="primary-btn-icon" aria-hidden="true">+</span>
       {strings.workspaceCreateNote || strings.saveNote}
-    </button>
-    <button type="button" class="ghost-btn" onclick={() => onCreateLongDoc()}>
-      {strings.workspaceCreateLongDoc || strings.edit}
     </button>
   </div>
 </div>
@@ -100,26 +97,29 @@
     border-radius: 12px;
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--ws-accent, #1d4ed8) 12%, #ffffff) 0%,
-      color-mix(in srgb, var(--ws-accent, #1d4ed8) 18%, #f7faff) 100%
+      color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, #ffffff) 0%,
+      color-mix(in srgb, var(--ws-accent, #1d4ed8) 15%, #f8fbff) 100%
     );
     color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 68%, #1e293b);
-    padding: 8px 14px;
+    padding: 8px 12px;
     font-size: 13px;
     cursor: pointer;
     font-weight: 700;
-    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.08);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.06);
     transition:
       transform 0.15s ease,
       border-color 0.16s ease,
       background 0.16s ease,
       box-shadow 0.16s ease;
-    min-width: 94px;
+    min-width: 0;
     white-space: nowrap;
   }
 
-  .create-bar.compact .primary-btn,
-  .create-bar.compact .ghost-btn {
+  .create-bar.compact .primary-btn {
     min-height: 36px;
     padding: 8px 12px;
   }
@@ -129,35 +129,26 @@
     border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 32%, var(--ws-border-soft, #d6e0ee));
     background: linear-gradient(
       180deg,
-      color-mix(in srgb, var(--ws-accent, #1d4ed8) 16%, #ffffff) 0%,
-      color-mix(in srgb, var(--ws-accent, #1d4ed8) 24%, #f4f8ff) 100%
+      color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, #ffffff) 0%,
+      color-mix(in srgb, var(--ws-accent, #1d4ed8) 20%, #f4f8ff) 100%
     );
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
   }
 
-  .ghost-btn {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 12px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text, #334155);
-    padding: 8px 12px;
-    font-size: 13px;
-    cursor: pointer;
-    font-weight: 600;
-    min-width: 96px;
-    white-space: nowrap;
-    transition:
-      border-color 0.16s ease,
-      background 0.16s ease,
-      transform 0.15s ease;
+  .primary-btn-icon {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 16%, white);
+    color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 78%, #1e293b);
+    font-size: 14px;
+    line-height: 1;
+    font-weight: 800;
+    flex-shrink: 0;
   }
-
-  .ghost-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
-    transform: translateY(-1px);
-  }
-
   @media (max-width: 920px) {
     .create-bar :global(.tags-editor.compact) {
       flex-basis: 100%;

@@ -29,8 +29,8 @@
  *   setSortModeState?: (next: string) => void;
  *   setLocaleState?: (next: string) => void;
  *   getInspectorNote: () => any | null;
- *   getPendingLongDocDraft: () => { id: string } | null;
- *   setPendingLongDocDraft: (next: { id: string } | null) => void;
+ *   getPendingEditorDraft: () => { id: string } | null;
+ *   setPendingEditorDraft: (next: { id: string } | null) => void;
  *   setInspectorOpen: (open: boolean) => void;
  *   setInspectorNoteId: (id: string | null) => void;
  *   setInspectorMode: (mode: string) => void;
@@ -83,8 +83,8 @@ export function createWorkspaceRouteNoteBridge(input) {
       setNewNoteTags: input.setNewNoteTags,
       getSelectedTag: input.getSelectedTag,
       getInspectorNote: input.getInspectorNote,
-      getPendingLongDocDraft: input.getPendingLongDocDraft,
-      setPendingLongDocDraft: input.setPendingLongDocDraft,
+      getPendingEditorDraft: input.getPendingEditorDraft,
+      setPendingEditorDraft: input.setPendingEditorDraft,
       setInspectorOpen: input.setInspectorOpen,
       setInspectorNoteId: input.setInspectorNoteId,
       setInspectorMode: input.setInspectorMode,

@@ -98,7 +98,7 @@
   let inspectorMode = $state("view");
   let inspectorDraftText = $state("");
   /** @type {{ id: string } | null} */
-  let pendingLongDocDraft = $state(null);
+  let pendingEditorDraft = $state(null);
   let inspectorWidth = $state(430);
   let inspectorListCollapsed = $state(false);
   let sidebarWidth = $state(260);
@@ -252,9 +252,9 @@
     closeNoteWindow: windowSync.closeNoteWindow,
     getCurrentWindow,
     getInspectorNote: () => inspectorNote,
-    getPendingLongDocDraft: () => pendingLongDocDraft,
-    setPendingLongDocDraft: (next) => {
-      pendingLongDocDraft = next;
+    getPendingEditorDraft: () => pendingEditorDraft,
+    setPendingEditorDraft: (next) => {
+      pendingEditorDraft = next;
     },
     setInspectorOpen: (open) => {
       inspectorOpen = open;
@@ -293,7 +293,6 @@
 
   const {
     loadNotes,
-    saveNote,
     togglePin,
     toggleZOrder,
     toggleWallpaperLayer,
@@ -351,7 +350,7 @@
     startInspectorEdit,
     cancelInspectorEdit,
     saveInspectorEdit,
-    createLongDocument,
+    createNoteFromWorkspaceComposer,
   } = inspectorActions;
 
   const routeWorkspaceBridge = createWorkspaceRouteWorkspaceBridge({
@@ -768,8 +767,7 @@
         bind:newNoteTags
         {noteTagOptions}
         bind:searchQuery
-        onSave={() => saveNote(false)}
-        onCreateLongDoc={createLongDocument}
+        onCreateNote={createNoteFromWorkspaceComposer}
       />
 
       <div
