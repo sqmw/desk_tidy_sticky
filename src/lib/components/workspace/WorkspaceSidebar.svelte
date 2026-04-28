@@ -21,8 +21,6 @@
     mainTab = /** @type {string} */ (WORKSPACE_MAIN_TAB_NOTES),
     viewModes,
     viewMode,
-    sortMode = "custom",
-    sortModes = [],
     initialViewMode = "last",
     noteViewCounts = {},
     collapsed = false,
@@ -36,7 +34,6 @@
     onDragStart,
     onSetMainTab,
     onSetViewMode,
-    onSetSortMode = () => {},
     onSetSelectedTag = () => {},
     onSetInitialViewMode = () => {},
     stickiesVisible,
@@ -261,8 +258,6 @@
         sectionCollapsed={noteFiltersCollapsed}
         {viewModes}
         {viewMode}
-        {sortMode}
-        {sortModes}
         {initialViewMode}
         {noteViewCounts}
         {noteTags}
@@ -270,7 +265,6 @@
         {taggedNoteCount}
         onToggleSectionCollapsed={() => (noteFiltersCollapsed = !noteFiltersCollapsed)}
         {onSetViewMode}
-        {onSetSortMode}
         {onSetSelectedTag}
         {onSetInitialViewMode}
       />

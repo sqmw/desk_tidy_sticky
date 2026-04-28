@@ -721,12 +721,9 @@
     onDragStart={startWorkspaceDragPointer}
     onSetMainTab={setMainTab}
     onSetViewMode={setViewMode}
-    onSetSortMode={setSortMode}
     onSetSelectedTag={setSelectedTag}
     onSetInitialViewMode={setInitialViewMode}
     {showMacTrafficLights}
-    {sortMode}
-    sortModes={SORT_MODES}
     {noteViewCounts}
     noteTags={noteTagEntries}
     {selectedTag}

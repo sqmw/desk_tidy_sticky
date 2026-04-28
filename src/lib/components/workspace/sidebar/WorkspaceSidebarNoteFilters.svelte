@@ -19,8 +19,6 @@
     sectionCollapsed = false,
     viewModes = [],
     viewMode,
-    sortMode = "custom",
-    sortModes = [],
     initialViewMode = "last",
     noteViewCounts = {},
     noteTags = [],
@@ -28,7 +26,6 @@
     taggedNoteCount = 0,
     onToggleSectionCollapsed = () => {},
     onSetViewMode = () => {},
-    onSetSortMode = () => {},
     onSetSelectedTag = () => {},
     onSetInitialViewMode = () => {},
   } = $props();
@@ -53,12 +50,6 @@
     return value ? "▸" : "▾";
   }
 
-  /** @param {string} mode */
-  function sortModeLabel(mode) {
-    if (mode === "newest") return strings.sortByNewest;
-    if (mode === "oldest") return strings.sortByOldest;
-    return strings.sortByCustom;
-  }
 </script>
 
 <div
@@ -120,19 +111,6 @@
           >
             {#each WORKSPACE_INITIAL_VIEW_MODES as mode (mode)}
               <option value={mode}>{getWorkspaceInitialViewModeLabel(strings, mode)}</option>
-            {/each}
-          </select>
-        </div>
-        <div class="sort-control">
-          <label class="initial-view-label" for="workspace-sort-mode">{strings.sortMode}</label>
-          <select
-            id="workspace-sort-mode"
-            class="initial-view-select"
-            value={sortMode}
-            onchange={(event) => onSetSortMode(/** @type {HTMLSelectElement} */ (event.currentTarget).value)}
-          >
-            {#each sortModes as mode (mode)}
-              <option value={mode}>{sortModeLabel(mode)}</option>
             {/each}
           </select>
         </div>
@@ -307,7 +285,6 @@
   }
 
   .initial-view,
-  .sort-control,
   .tag-filter {
     display: grid;
     gap: 6px;
