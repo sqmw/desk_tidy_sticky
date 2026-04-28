@@ -26,6 +26,7 @@
     onSaveShortcutSettings = async () => {},
     onChangeTaskStartReminderLeadMinutes = async () => {},
     onChangePomodoroFocusMinutes = async () => {},
+    onRecoverPinnedStickies = async () => {},
     themeCustomCss = "",
     onChangeLanguage = () => {},
     onChangeThemePreset = () => {},
@@ -136,6 +137,7 @@
           {onSaveShortcutSettings}
           {onChangeTaskStartReminderLeadMinutes}
           {onChangePomodoroFocusMinutes}
+          {onRecoverPinnedStickies}
           {onChangeLanguage}
         />
 

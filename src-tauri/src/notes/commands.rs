@@ -1,6 +1,6 @@
 use crate::desktop::apply_note_window_frost;
 use crate::notes::{assets as note_assets, service as notes_service, Note, NoteSortMode};
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, LogicalPosition, Manager};
 
 fn emit_notes_changed(app: &tauri::AppHandle) {
     let _ = app.emit("notes_changed", ());
@@ -287,6 +287,85 @@ pub fn empty_trash(app: tauri::AppHandle) -> Result<(), String> {
     notes_service::empty_trash()?;
     emit_notes_changed(&app);
     Ok(())
+}
+
+fn resolve_primary_monitor_bounds(app: &tauri::AppHandle) -> Result<(f64, f64, f64, f64), String> {
+    let monitor = app
+        .primary_monitor()
+        .map_err(|e| e.to_string())?
+        .or_else(|| app.available_monitors().ok().and_then(|mut items| items.drain(..).next()))
+        .ok_or_else(|| "no monitor available".to_string())?;
+    let scale = {
+        let raw = monitor.scale_factor();
+        if raw.is_finite() && raw > 0.0 {
+            raw
+        } else {
+            1.0
+        }
+    };
+    let position = monitor.position();
+    let size = monitor.size();
+    Ok((
+        position.x as f64 / scale,
+        position.y as f64 / scale,
+        size.width as f64 / scale,
+        size.height as f64 / scale,
+    ))
+}
+
+#[tauri::command]
+pub fn reset_pinned_note_positions(app: tauri::AppHandle) -> Result<usize, String> {
+    let (screen_x, screen_y, screen_width, screen_height) = resolve_primary_monitor_bounds(&app)?;
+    let margin = 36.0;
+    let gap = 18.0;
+    let default_width = 300.0;
+    let default_height = 300.0;
+    let min_size = 220.0;
+    let max_width = (screen_width - margin * 2.0).max(min_size);
+    let max_height = (screen_height - margin * 2.0).max(min_size);
+    let mut next_x = screen_x + margin;
+    let mut next_y = screen_y + margin;
+    let mut row_height = 0.0;
+
+    let notes = notes_service::reset_pinned_note_positions(|note| {
+        let width = note.width.unwrap_or(default_width).clamp(min_size, max_width);
+        let height = note.height.unwrap_or(default_height).clamp(min_size, max_height);
+
+        if next_x + width > screen_x + screen_width - margin {
+            next_x = screen_x + margin;
+            next_y += row_height + gap;
+            row_height = 0.0;
+        }
+
+        if next_y + height > screen_y + screen_height - margin {
+            next_y = screen_y + margin;
+        }
+
+        let position = (next_x, next_y);
+        next_x += width + gap;
+        row_height = row_height.max(height);
+        position
+    })?;
+
+    let recovered_count = notes
+        .iter()
+        .filter(|note| note.is_pinned && !note.is_archived && !note.is_deleted)
+        .count();
+
+    for note in notes
+        .iter()
+        .filter(|note| note.is_pinned && !note.is_archived && !note.is_deleted)
+    {
+        let Some(window) = app.get_webview_window(format!("note-{}", note.id).as_str()) else {
+            continue;
+        };
+        let x = note.x.unwrap_or(screen_x + margin);
+        let y = note.y.unwrap_or(screen_y + margin);
+        let _ = window.set_position(LogicalPosition::new(x, y));
+    }
+
+    emit_notes_changed(&app);
+    Ok(recovered_count)
 }
 
 #[derive(serde::Deserialize)]

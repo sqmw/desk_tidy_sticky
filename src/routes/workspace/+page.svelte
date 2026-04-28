@@ -499,6 +499,14 @@
 
   const { initAutostart, toggleAutostart } = startupActions;
 
+  async function recoverPinnedStickies() {
+    try {
+      await invoke("reset_pinned_note_positions");
+    } catch (error) {
+      console.error("recoverPinnedStickies(workspace)", error);
+    }
+  }
+
   async function loadShortcutSettingsState() {
     try {
       shortcutSettings = await getShortcutSettings(invoke);
@@ -875,6 +883,7 @@
       ...pomodoroConfig,
       focusMinutes: nextMinutes,
     })}
+  onRecoverPinnedStickies={recoverPinnedStickies}
   onChangeThemePreset={handleWorkspaceThemePresetChange}
   onChangeThemeTransitionShape={changeThemeTransitionShape}
   onExportThemeCss={exportWorkspaceThemeCss}

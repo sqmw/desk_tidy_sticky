@@ -18,8 +18,21 @@
     onSaveShortcutSettings = async () => {},
     onChangePomodoroFocusMinutes = async () => {},
     onChangeTaskStartReminderLeadMinutes = async () => {},
+    onRecoverPinnedStickies = async () => {},
     onChangeLanguage = () => {},
   } = $props();
+
+  let recoveringStickies = $state(false);
+
+  async function handleRecoverPinnedStickies() {
+    if (recoveringStickies) return;
+    try {
+      recoveringStickies = true;
+      await onRecoverPinnedStickies();
+    } finally {
+      recoveringStickies = false;
+    }
+  }
 </script>
 
 <section class="settings-section compact-section">
@@ -102,6 +115,28 @@
         onCommit={(/** @type {number} */ nextMinutes) => onChangeTaskStartReminderLeadMinutes(nextMinutes)}
       />
     </label>
+
+    <div class="setting-row compact-action-row">
+      <span class="setting-toggle-copy">
+        <span class="setting-toggle-title">
+          {strings.workspaceRecoverPinnedStickiesTitle || "Recover pinned stickies"}
+        </span>
+        <span class="setting-toggle-hint">
+          {strings.workspaceRecoverPinnedStickiesHint ||
+            "If a sticky was dragged off-screen, bring all pinned stickies back into the primary monitor."}
+        </span>
+      </span>
+      <button
+        type="button"
+        class="action-btn"
+        disabled={recoveringStickies}
+        onclick={() => handleRecoverPinnedStickies()}
+      >
+        {recoveringStickies
+          ? (strings.workspaceRecoverPinnedStickiesRunning || "Recovering...")
+          : (strings.workspaceRecoverPinnedStickiesAction || "Recover now")}
+      </button>
+    </div>
   </div>
 </section>
 
@@ -208,6 +243,10 @@
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
+  .compact-action-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
   .setting-toggle-copy {
     display: grid;
     gap: 4px;
@@ -226,6 +265,38 @@
     align-items: center;
     gap: 6px;
     flex-wrap: wrap;
+  }
+
+  .setting-toggle-hint {
+    color: var(--ws-muted, #64748b);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.45;
+  }
+
+  .action-btn {
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    background: var(--ws-btn-bg, #fbfdff);
+    color: var(--ws-text, #334155);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease;
+  }
+
+  .action-btn:hover:enabled {
+    border-color: var(--ws-border-hover, #c6d5e8);
+    background: var(--ws-btn-hover, #f4f8ff);
+    transform: translateY(-1px);
+  }
+
+  .action-btn:disabled {
+    opacity: 0.62;
+    cursor: default;
+    transform: none;
   }
 
   .toggle-switch {

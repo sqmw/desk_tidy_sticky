@@ -135,6 +135,33 @@ pub fn update_note_size(id: &str, width: f64, height: f64) -> Result<(), String>
     Ok(())
 }
 
+pub fn reset_pinned_note_positions<F>(mut next_position: F) -> Result<Vec<Note>, String>
+where
+    F: FnMut(&Note) -> (f64, f64),
+{
+    let mut context = notes_repository::load_notes_context()?;
+
+    if let Err(err) = notes_repository::migrate_legacy_batch(
+        &mut context,
+        notes_repository::LEGACY_MIGRATION_BATCH_SIZE,
+    ) {
+        eprintln!("[note_compat] incremental legacy migration failed: {}", err);
+    }
+
+    for note in context
+        .current_notes
+        .iter_mut()
+        .filter(|note| note.is_pinned && !note.is_archived && !note.is_deleted)
+    {
+        let (x, y) = next_position(note);
+        note.x = Some(x);
+        note.y = Some(y);
+    }
+
+    persist_current_and_verify(&context)?;
+    Ok(merged_notes_from_context(&context))
+}
+
 pub fn update_note_text(
     id: &str,
     text: String,
