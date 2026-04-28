@@ -44,7 +44,10 @@ export function getVisiblePanelNotes(input) {
   const query = String(input.searchQuery || "").trim();
   if (!query) return base;
   return base
-    .map((note) => ({ note, ...matchNote(query, note.text) }))
+    .map((note) => {
+      const tagText = Array.isArray(note.tags) ? note.tags.join(" ") : "";
+      return { note, ...matchNote(query, note.text || "", { tagText }) };
+    })
     .filter((match) => match.matched)
     .sort((left, right) => right.score - left.score)
     .map((match) => match.note);

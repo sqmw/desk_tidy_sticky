@@ -74,7 +74,7 @@ export function getVisibleWorkspaceNotes(input) {
   return base
     .map((note) => {
       const tagText = Array.isArray(note.tags) ? note.tags.join(" ") : "";
-      return { note, ...matchNote(query, `${note.text || ""}\n${tagText}`.trim()) };
+      return { note, ...matchNote(query, note.text || "", { tagText }) };
     })
     .filter((match) => match.matched)
     .sort((left, right) => right.score - left.score)
