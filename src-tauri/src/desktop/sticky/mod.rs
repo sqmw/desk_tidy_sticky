@@ -31,6 +31,7 @@ pub fn pin_window_to_desktop(
     app: tauri::AppHandle,
     window: tauri::WebviewWindow,
 ) -> Result<(), String> {
+    let _ = &app;
     #[cfg(target_os = "windows")]
     {
         let Some(hwnd_isize) = window_hwnd_isize(&window)? else {

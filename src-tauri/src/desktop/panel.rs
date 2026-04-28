@@ -25,10 +25,12 @@ pub fn apply_macos_runtime_dock_icon(app: &tauri::AppHandle) {
 }
 
 pub fn sync_panel_window_shell_state(app: &tauri::AppHandle) {
+    #[cfg(target_os = "macos")]
     let mut any_visible_panel = false;
     for label in PANEL_WINDOW_LABELS {
         if let Some(window) = app.get_webview_window(label) {
             let visible = window.is_visible().unwrap_or(false);
+            #[cfg(target_os = "macos")]
             if visible {
                 any_visible_panel = true;
             }

@@ -6,9 +6,11 @@ mod preferences;
 mod runtime;
 
 use breaks::{
-    apply_break_overlay_window_traits, process_break_reminder_due, set_break_overlay_presentation,
-    start_break_reminder_watchdog, sync_break_reminder_watchdog,
+    apply_break_overlay_window_traits, set_break_overlay_presentation, start_break_reminder_watchdog,
+    sync_break_reminder_watchdog,
 };
+#[cfg(target_os = "macos")]
+use breaks::process_break_reminder_due;
 #[cfg(not(target_os = "macos"))]
 use desktop::ensure_hidden_workspace_runtime_window;
 #[cfg(target_os = "macos")]

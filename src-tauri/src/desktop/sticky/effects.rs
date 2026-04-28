@@ -1,9 +1,11 @@
 use crate::notes::{service as notes_service, NoteSortMode};
 use tauri::{
     utils::config::WindowEffectsConfig,
-    window::{Color, Effect, EffectState, EffectsBuilder},
+    window::{Color, Effect, EffectsBuilder},
     Manager,
 };
+#[cfg(target_os = "macos")]
+use tauri::window::EffectState;
 
 const NATIVE_FROST_THRESHOLD: f64 = 0.02;
 const TRANSPARENT: Color = Color(0, 0, 0, 0);

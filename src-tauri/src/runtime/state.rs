@@ -79,15 +79,18 @@ impl BreakReminderWatchState {
     }
 }
 
+#[cfg(target_os = "macos")]
 #[derive(Debug, Clone, Default)]
 struct BreakOverlayPresentationInner {
     restore_regular_policy: bool,
     captured: bool,
 }
 
+#[cfg(target_os = "macos")]
 #[derive(Clone, Default)]
 pub struct BreakOverlayPresentationState(Arc<Mutex<BreakOverlayPresentationInner>>);
 
+#[cfg(target_os = "macos")]
 impl BreakOverlayPresentationState {
     pub fn capture(&self, restore_regular_policy: bool) -> Result<(), String> {
         let mut guard = self
@@ -112,6 +115,10 @@ impl BreakOverlayPresentationState {
         Ok(Some(value))
     }
 }
+
+#[cfg(not(target_os = "macos"))]
+#[derive(Clone, Default)]
+pub struct BreakOverlayPresentationState;
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]

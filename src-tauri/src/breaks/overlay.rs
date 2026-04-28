@@ -2,6 +2,7 @@
 use crate::desktop::{apply_macos_runtime_dock_icon, PANEL_WINDOW_LABELS};
 #[cfg(target_os = "macos")]
 use crate::platform::{macos, run_macos_window_op};
+#[cfg(target_os = "macos")]
 use crate::runtime::BreakOverlayPresentationState;
 #[cfg(target_os = "macos")]
 use tauri::Manager;
@@ -26,7 +27,7 @@ pub fn apply_break_overlay_window_traits(
     #[cfg(not(target_os = "macos"))]
     {
         let _ = (app, label);
-        Ok(())
+        return Ok(());
     }
 }
 
@@ -81,6 +82,6 @@ pub fn set_break_overlay_presentation(app: tauri::AppHandle, active: bool) -> Re
     #[cfg(not(target_os = "macos"))]
     {
         let _ = (app, active);
-        Ok(())
+        return Ok(());
     }
 }
