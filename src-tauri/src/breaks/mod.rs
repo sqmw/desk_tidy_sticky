@@ -1,5 +1,4 @@
 #[cfg(target_os = "macos")]
-pub(crate) use overlay::ensure_break_overlay_windows_native;
 pub(crate) use overlay::{apply_break_overlay_window_traits, set_break_overlay_presentation};
 pub(crate) use reminder::{
     process_break_reminder_due, start_break_reminder_watchdog, sync_break_reminder_watchdog,

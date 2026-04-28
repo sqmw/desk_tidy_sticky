@@ -47,10 +47,6 @@ pub fn process_break_reminder_due(
         return Ok(false);
     }
     ensure_hidden_workspace_runtime_window(app_handle);
-    #[cfg(target_os = "macos")]
-    if let Err(error) = crate::breaks::ensure_break_overlay_windows_native(app_handle) {
-        eprintln!("ensure native break overlay windows failed: {}", error);
-    }
     let payload = BreakReminderDuePayload { kind, due_at_ms };
     app_handle
         .emit("focus_break_due", payload)
