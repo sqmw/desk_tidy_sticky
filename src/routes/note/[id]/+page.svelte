@@ -564,7 +564,7 @@
     if (target?.closest(CONTROL_MODE_TRIGGER_BLOCKED_SELECTOR)) {
       return;
     }
-    enterControlMode();
+    void enterEditMode();
   }
 
   /** @param {KeyboardEvent} event */
