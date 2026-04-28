@@ -9,6 +9,7 @@
     isEnabled as autostartIsEnabled,
   } from "@tauri-apps/plugin-autostart";
 
+  import { resolveAppLocale } from "$lib/i18n/locale.js";
   import { getStrings } from "$lib/strings.js";
   import { broadcastPreferencesChanged, listenPreferencesChanged } from "$lib/preferences/preferences-sync.js";
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
@@ -87,7 +88,7 @@
   let searchQuery = $state("");
   let selectedTag = $state("");
   /** @type {string} */
-  let locale = $state("en");
+  let locale = $state(resolveAppLocale());
   let newNoteText = $state("");
   let newNotePriority = $state(/** @type {number | null} */ (null));
   let newNoteTags = $state(/** @type {string[]} */ ([]));

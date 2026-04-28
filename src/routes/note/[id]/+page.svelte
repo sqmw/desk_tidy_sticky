@@ -5,6 +5,7 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { emit, listen } from "@tauri-apps/api/event";
   import { page } from "$app/stores";
+  import { resolveAppLocale } from "$lib/i18n/locale.js";
   import { getStrings } from "$lib/strings.js";
   import NotePreview from "$lib/components/note/NotePreview.svelte";
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
@@ -38,7 +39,7 @@
   let text = $state("");
   let globalControlDisabled = $state(false);
   /** @type {string} */
-  let locale = $state("en");
+  let locale = $state(resolveAppLocale());
   let showPalette = $state(false);
   let showTextColorPalette = $state(false);
   let showOpacityPanel = $state(false);
@@ -332,7 +333,7 @@
   async function loadLocale() {
     try {
       const prefs = await invoke("get_preferences");
-      locale = prefs?.language || "en";
+      locale = resolveAppLocale(prefs?.language);
     } catch (e) {
       console.error("loadLocale", e);
     }

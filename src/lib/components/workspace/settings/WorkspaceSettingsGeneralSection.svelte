@@ -3,9 +3,10 @@
   import HelpTip from "$lib/components/workspace/ui/HelpTip.svelte";
   import ShortcutSettingsSection from "$lib/components/common/ShortcutSettingsSection.svelte";
 
+  import { resolveAppLocale } from "$lib/i18n/locale.js";
   let {
     strings,
-    locale = "en",
+    locale = resolveAppLocale(),
     isAutostartEnabled = false,
     showPanelOnStartup = false,
     shortcutSettings,

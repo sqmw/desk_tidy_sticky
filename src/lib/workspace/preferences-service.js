@@ -3,6 +3,7 @@ import { normalizeFocusStats, normalizeFocusTasks } from "$lib/workspace/pomodor
 import { normalizeBreakSession } from "$lib/workspace/break-control/focus-break-session.js";
 import { normalizeWorkspaceThemePreset } from "$lib/workspace/theme/theme-presets.js";
 import { normalizeWorkspaceCustomCss } from "$lib/workspace/theme/theme-custom-css.js";
+import { APP_DEFAULT_LOCALE, resolveAppLocale } from "$lib/i18n/locale.js";
 import {
   BREAK_REMINDER_MODE_PANEL,
   normalizeBreakReminderMode,
@@ -22,7 +23,7 @@ export { normalizeWorkspaceCustomCss };
 
 const DEFAULT_VIEW_MODE = "active";
 const DEFAULT_SORT_MODE = "custom";
-const DEFAULT_LOCALE = "en";
+const DEFAULT_LOCALE = APP_DEFAULT_LOCALE;
 const DEFAULT_WORKSPACE_ZOOM = 1;
 const DEFAULT_WORKSPACE_ZOOM_MODE = "manual";
 const DEFAULT_WORKSPACE_FONT_SIZE = "medium";
@@ -241,7 +242,7 @@ export async function loadWorkspacePreferences(invoke) {
       normalizeWorkspaceViewMode(prefs.viewMode || DEFAULT_VIEW_MODE),
     ),
     sortMode: prefs.sortMode || DEFAULT_SORT_MODE,
-    locale: prefs.language || DEFAULT_LOCALE,
+    locale: resolveAppLocale(prefs.language || DEFAULT_LOCALE),
     overlayEnabled: prefs.overlayEnabled ?? true,
     showPanelOnStartup: prefs.showPanelOnStartup ?? false,
     workspaceZoom: normalizeWorkspaceZoom(prefs.workspaceZoom),

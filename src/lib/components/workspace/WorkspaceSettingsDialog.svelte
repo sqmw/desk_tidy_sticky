@@ -4,10 +4,11 @@
   import WorkspaceSettingsThemeSection from "$lib/components/workspace/settings/WorkspaceSettingsThemeSection.svelte";
   import FeedbackQrCard from "$lib/components/common/FeedbackQrCard.svelte";
 
+  import { resolveAppLocale } from "$lib/i18n/locale.js";
   let {
     strings,
     show = $bindable(false),
-    locale = "en",
+    locale = resolveAppLocale(),
     isAutostartEnabled = false,
     showPanelOnStartup = $bindable(false),
     shortcutSettings,

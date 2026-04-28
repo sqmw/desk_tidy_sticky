@@ -9,6 +9,7 @@
   } from "@tauri-apps/plugin-autostart";
   import { listen } from "@tauri-apps/api/event";
 
+  import { resolveAppLocale } from "$lib/i18n/locale.js";
   import { getStrings } from "$lib/strings.js";
   import { broadcastPreferencesChanged, listenPreferencesChanged } from "$lib/preferences/preferences-sync.js";
   import { formatNoteDate } from "$lib/note/note-date-format.js";
@@ -44,7 +45,7 @@
   let searchQuery = $state("");
   let hideAfterSave = $state(true);
   /** @type {string} */
-  let locale = $state("en");
+  let locale = $state(resolveAppLocale());
   let newNoteText = $state("");
   let newNotePriority = $state(/** @type {number | null} */ (null));
   let newNoteTags = $state(/** @type {string[]} */ ([]));
@@ -183,7 +184,7 @@
       hideAfterSave = p.hideAfterSave ?? true;
       viewMode = normalizeCompactViewMode(p.viewMode);
       sortMode = p.sortMode || "custom";
-      locale = p.language || "en";
+      locale = resolveAppLocale(p.language);
       showPanelOnStartup = p.showPanelOnStartup ?? false;
       stickiesVisible = p.overlayEnabled ?? true;
     } catch (e) {
