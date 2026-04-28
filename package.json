@@ -1,6 +1,6 @@
 {
   "name": "desk_tidy_sticky",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Cross-platform desktop stickies and focus workstation (Tauri + SvelteKit).",
   "type": "module",
   "scripts": {
