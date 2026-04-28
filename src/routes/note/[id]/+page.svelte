@@ -388,6 +388,15 @@
     }
   }
 
+  async function disableWindowsNativeShadow() {
+    if (!isWindows) return;
+    try {
+      await getCurrentWindow().setShadow(false);
+    } catch (e) {
+      console.error("disableWindowsNativeShadow", e);
+    }
+  }
+
   async function applyInteractionPolicy() {
     const ignoreCursor = !globalControlDisabled ? false : !(note?.isAlwaysOnTop);
     try {
@@ -855,6 +864,7 @@
       .then(loadGlobalControlState)
       .then(loadNote)
       .then(async () => {
+        await disableWindowsNativeShadow();
         await applyInteractionPolicy();
         await applyZOrderAndParent();
         await notifyNoteWindowReady();

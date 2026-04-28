@@ -170,6 +170,7 @@ export function createWindowSync(deps) {
       alwaysOnTop: false,
       skipTaskbar: true,
       resizable: true,
+      shadow: false,
       maximizable: false,
       visible: false,
       devtools: true,
