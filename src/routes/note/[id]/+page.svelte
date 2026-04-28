@@ -835,8 +835,17 @@
     );
 
     unlistenPromises.push(
-      listen("notes_changed", async () => {
+      listen("notes_changed", async (event) => {
+        const payload = /** @type {{ kind?: unknown; noteId?: unknown; windowLayerChanged?: unknown } | null | undefined } */ (event.payload);
+        const changedNoteId = typeof payload?.noteId === "string" ? payload.noteId : "";
+        const windowLayerChanged = payload?.windowLayerChanged !== false;
+        if (changedNoteId && changedNoteId !== noteId) {
+          return;
+        }
         await loadNote();
+        if (!windowLayerChanged) {
+          return;
+        }
         await applyInteractionPolicy();
         await applyZOrderAndParent();
       }),

@@ -2,8 +2,28 @@ use crate::desktop::apply_note_window_frost;
 use crate::notes::{assets as note_assets, service as notes_service, Note, NoteSortMode};
 use tauri::{Emitter, LogicalPosition, Manager};
 
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NotesChangedEvent {
+    kind: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    note_id: Option<String>,
+    window_layer_changed: bool,
+}
+
 fn emit_notes_changed(app: &tauri::AppHandle) {
-    let _ = app.emit("notes_changed", ());
+    emit_notes_changed_event(
+        app,
+        NotesChangedEvent {
+            kind: "full",
+            note_id: None,
+            window_layer_changed: true,
+        },
+    );
+}
+
+fn emit_notes_changed_event(app: &tauri::AppHandle, payload: NotesChangedEvent) {
+    let _ = app.emit("notes_changed", payload);
 }
 
 fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
@@ -114,7 +134,14 @@ pub fn update_note_text(
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
     let notes = notes_service::update_note_text(&id, text, parse_sort_mode(sort_mode.as_str()))?;
-    emit_notes_changed(&app);
+    emit_notes_changed_event(
+        &app,
+        NotesChangedEvent {
+            kind: "text",
+            note_id: Some(id),
+            window_layer_changed: false,
+        },
+    );
     Ok(notes)
 }
 
