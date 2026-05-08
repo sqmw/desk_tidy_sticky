@@ -1,7 +1,6 @@
 <script>
   import WorkspaceBreakControlBar from "$lib/components/workspace/break-control/WorkspaceBreakControlBar.svelte";
   import WorkspaceFocusPlanner from "$lib/components/workspace/pomodoro/WorkspaceFocusPlanner.svelte";
-  import WorkspaceFocusStats from "$lib/components/workspace/pomodoro/WorkspaceFocusStats.svelte";
   import WorkspaceFocusTimer from "$lib/components/workspace/pomodoro/WorkspaceFocusTimer.svelte";
 
   let {
@@ -26,7 +25,6 @@
     selectedTaskTitle,
     phaseProgress,
     showBreakPanel = $bindable(false),
-    showStats = $bindable(false),
     selectedTaskId = "",
     todayPomodoroScoreText = "",
     breakActive = false,
@@ -57,6 +55,7 @@
     taskDistribution = [],
     taskRollups = [],
     currentMinutes = 0,
+    onOpenReview = () => {},
     onSetBreakReminderEnabled = () => {},
     onChangeIndependentBreakEveryMinutes = () => {},
     onChangeBreakDuration = () => {},
@@ -164,33 +163,21 @@
     </section>
   {/if}
 
-  <section class="stats-shell">
-    <button type="button" class="stats-toggle" onclick={() => (showStats = !showStats)}>
-      {showStats ? "v" : ">"} {strings.pomodoroStats}
-      <span class="stats-quick">
+  <section class="review-summary-shell">
+    <div class="review-summary-copy">
+      <div class="review-summary-title-row">
+        <h3>{strings.workspaceFocusReviewCardTitle}</h3>
+        <button type="button" class="review-link-btn" onclick={() => onOpenReview()}>
+          {strings.workspaceFocusOpenReview}
+        </button>
+      </div>
+      <p>{strings.workspaceFocusReviewCardHint}</p>
+      <div class="review-summary-badges">
         <span>{strings.pomodoroTodayFocusMinutes}: {todayFocusMinutes}m</span>
+        <span>{strings.pomodoroTodayPomodoros}: 🍅 x{todayPomodoros}</span>
         <span>{strings.pomodoroStreakDays}: {streakDays}d</span>
-      </span>
-    </button>
-    {#if showStats}
-      <WorkspaceFocusStats
-        {strings}
-        {todayFocusMinutes}
-        {todayPomodoros}
-        todayTaskCount={todayTaskCountForStats}
-        {todayTaskCycles}
-        {weekFocusMinutes}
-        {weekPomodoros}
-        {weekAverageMinutes}
-        {streakDays}
-        {bestDayDateKey}
-        {bestDayMinutes}
-        {heatmapCells}
-        {taskDistribution}
-        {taskRollups}
-        {currentMinutes}
-      />
-    {/if}
+      </div>
+    </div>
   </section>
 </section>
 
@@ -312,23 +299,19 @@
     color: var(--ws-text, #334155);
   }
 
-  .stats-shell {
+  .review-summary-shell {
     border: 1px solid var(--ws-border, #dbe5f2);
     border-radius: 14px;
     background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 92%, transparent);
-    padding: 8px;
+    padding: 12px 14px;
   }
 
-  .stats-toggle {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text, #334155);
-    font-size: 12px;
-    font-weight: 700;
-    min-height: 34px;
-    padding: 6px 12px;
-    cursor: pointer;
+  .review-summary-copy {
+    display: grid;
+    gap: 10px;
+  }
+
+  .review-summary-title-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -336,33 +319,46 @@
     flex-wrap: wrap;
   }
 
-  .stats-quick {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--ws-muted, #64748b);
+  .review-summary-title-row h3 {
+    margin: 0;
+    color: var(--ws-text-strong, #0f172a);
+    font-size: clamp(14px, 0.88vw, 18px);
   }
 
-  .stats-quick span {
+  .review-link-btn {
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 999px;
-    padding: 2px 8px;
+    background: var(--ws-btn-bg, #fff);
+    color: var(--ws-text, #334155);
+    font-size: 12px;
+    font-weight: 700;
+    min-height: 34px;
+    padding: 0 12px;
+    cursor: pointer;
+  }
+
+  .review-summary-copy p {
+    margin: 0;
+    color: var(--ws-muted, #64748b);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .review-summary-badges {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .review-summary-badges span {
+    border: 1px solid var(--ws-border-soft, #d6e0ee);
+    border-radius: 999px;
+    padding: 4px 10px;
     background: var(--ws-card-bg, #fff);
-  }
-
-  .stats-shell :global(.stats-card) {
-    margin-top: 8px;
-    min-height: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  @media (min-width: 1800px) {
-    .focus-main {
-      grid-template-columns: minmax(360px, 0.95fr) minmax(860px, 2.05fr);
-      grid-template-areas: "timer planner";
-    }
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ws-muted, #64748b);
   }
 
   @media (max-width: 1360px) {
@@ -371,10 +367,6 @@
       grid-template-areas:
         "timer"
         "planner";
-    }
-
-    .stats-shell :global(.stats-card) {
-      grid-template-columns: 1fr 1fr;
     }
   }
 

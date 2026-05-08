@@ -75,7 +75,44 @@ const strings = {
     workspaceModules: 'Navigation',
     workspaceTabNotes: 'Notes',
     workspaceTabFocus: 'Focus',
+    workspaceTabReview: 'Review',
     workspaceNoteFilters: 'Views',
+    workspaceReviewSidebarTitle: 'Review',
+    workspaceReviewSidebarHint:
+      'Review is the results layer for what you finished, when it happened, and how recent focus turns into visible progress.',
+    workspaceReviewTabLog: 'Log',
+    workspaceReviewTabCalendar: 'Calendar',
+    workspaceReviewTabStats: 'Stats',
+    workspaceReviewSummaryTodayFocus: 'Today focus',
+    workspaceReviewSummaryTodayDone: 'Today done',
+    workspaceReviewSummaryWeekDone: 'This week done',
+    workspaceReviewSummaryStreak: 'Record streak',
+    workspaceReviewStageBadge: 'Phase 0',
+    workspaceReviewLogTitle: 'Done log starts here',
+    workspaceReviewLogBody:
+      'This area will host timeline-style records for what you actually finished, with title, completion time, notes, and optional images.',
+    workspaceReviewCalendarTitle: 'Calendar review grows here',
+    workspaceReviewCalendarBody:
+      'The first calendar version will group done logs by completed date, so you can review each day as a visible trail instead of a plain to-do list.',
+    workspaceReviewStatsTitle: 'Stats move here next',
+    workspaceReviewStatsBody:
+      'In the next phase, the full focus statistics panel will move out of Focus and into Review, so execution and retrospection become clearly separated.',
+    workspaceReviewLogInspectorTitle: 'Log details',
+    workspaceReviewLogInspectorBody:
+      'Selected done records will open here with full content, images, tags, and source information.',
+    workspaceReviewCalendarInspectorTitle: 'Day details',
+    workspaceReviewCalendarInspectorBody:
+      'When you click a date on the calendar, this side will show all records from that day for continuous review.',
+    workspaceReviewStatsInspectorTitle: 'Stats notes',
+    workspaceReviewStatsInspectorBody:
+      'This side will explain metric definitions and selected chart dimensions, so stats stay readable instead of becoming a wall of numbers.',
+    workspaceReviewCurrentPhase: 'Current phase',
+    workspaceReviewCurrentPhaseBody:
+      'This round only lands the Review navigation and layout skeleton. Done Log data, calendar aggregation, and full stats migration follow in the next phases.',
+    workspaceFocusReviewCardTitle: 'Review lives here now',
+    workspaceFocusReviewCardHint:
+      'Focus keeps the runtime controls. Full heatmaps, distributions, and retrospective stats move into Review so execution and results stay clearly separated.',
+    workspaceFocusOpenReview: 'Open Review',
     workspaceTodoView: 'Todo (open)',
     workspaceTagsFilter: 'Tag filter',
     workspaceTagsAll: 'All tags',
@@ -385,7 +422,43 @@ const strings = {
     workspaceModules: '导航',
     workspaceTabNotes: '笔记',
     workspaceTabFocus: '专注',
+    workspaceTabReview: '回顾',
     workspaceNoteFilters: '视图',
+    workspaceReviewSidebarTitle: '回顾',
+    workspaceReviewSidebarHint: '回顾是工作台的结果层：看做了什么、哪天做的，以及专注投入如何变成可见成果。',
+    workspaceReviewTabLog: '记录',
+    workspaceReviewTabCalendar: '日历',
+    workspaceReviewTabStats: '统计',
+    workspaceReviewSummaryTodayFocus: '今日专注',
+    workspaceReviewSummaryTodayDone: '今日已办',
+    workspaceReviewSummaryWeekDone: '本周已办',
+    workspaceReviewSummaryStreak: '连续记录',
+    workspaceReviewStageBadge: 'P0 骨架',
+    workspaceReviewLogTitle: '已办记录会从这里开始',
+    workspaceReviewLogBody:
+      '这里后续会承接时间线式的“我做了什么”记录，包含标题、完成时间、感想和可选图片，让工作台拥有明确的结果层。',
+    workspaceReviewCalendarTitle: '日历回看会在这里长出来',
+    workspaceReviewCalendarBody:
+      '第一版日历会按完成时间聚合已办记录，让你能按天回看，而不是只面对一份持续施压的待办清单。',
+    workspaceReviewStatsTitle: '统计会迁到这里',
+    workspaceReviewStatsBody:
+      '下一阶段会把完整专注统计从“专注”页迁到“回顾”页，让执行与复盘真正分层。',
+    workspaceReviewLogInspectorTitle: '记录详情',
+    workspaceReviewLogInspectorBody:
+      '选中的已办记录会在这里展开完整内容、图片、标签和来源信息，方便连续回看与补充。',
+    workspaceReviewCalendarInspectorTitle: '日期详情',
+    workspaceReviewCalendarInspectorBody:
+      '点击日历中的某一天后，这里会展示当天的全部记录，支持继续进入单条内容。',
+    workspaceReviewStatsInspectorTitle: '统计说明',
+    workspaceReviewStatsInspectorBody:
+      '这里会放当前图表口径与选中维度说明，避免统计页变成一面只有数字却不好理解的墙。',
+    workspaceReviewCurrentPhase: '当前阶段',
+    workspaceReviewCurrentPhaseBody:
+      '这一轮只先落下“回顾”的导航和布局骨架。Done Log 数据语义、日历聚合和完整统计迁移会在后续阶段继续接上。',
+    workspaceFocusReviewCardTitle: '完整回顾已经搬过去了',
+    workspaceFocusReviewCardHint:
+      '专注页现在只保留运行控制和轻量摘要。完整热力图、任务分布和复盘统计统一放到“回顾”里查看。',
+    workspaceFocusOpenReview: '打开回顾',
     workspaceTodoView: '待办（未完成）',
     workspaceTagsFilter: '标签筛选',
     workspaceTagsAll: '全部标签',

@@ -1,5 +1,6 @@
 export const WORKSPACE_MAIN_TAB_NOTES = "notes";
 export const WORKSPACE_MAIN_TAB_FOCUS = "focus";
+export const WORKSPACE_MAIN_TAB_REVIEW = "review";
 export const WORKSPACE_NOTE_VIEW_ACTIVE = "active";
 export const WORKSPACE_NOTE_VIEW_TODO = "todo";
 export const WORKSPACE_NOTE_VIEW_QUADRANT = "quadrant";
@@ -13,7 +14,11 @@ export const WORKSPACE_INITIAL_VIEW_MODES = [
   WORKSPACE_NOTE_VIEW_QUADRANT,
 ];
 
-export const WORKSPACE_MAIN_TABS = [WORKSPACE_MAIN_TAB_NOTES, WORKSPACE_MAIN_TAB_FOCUS];
+export const WORKSPACE_MAIN_TABS = [
+  WORKSPACE_MAIN_TAB_NOTES,
+  WORKSPACE_MAIN_TAB_FOCUS,
+  WORKSPACE_MAIN_TAB_REVIEW,
+];
 export const WORKSPACE_NOTE_VIEW_MODES = [
   WORKSPACE_NOTE_VIEW_ACTIVE,
   WORKSPACE_NOTE_VIEW_TODO,
@@ -24,9 +29,9 @@ export const WORKSPACE_NOTE_VIEW_MODES = [
 
 /** @param {unknown} value */
 export function normalizeWorkspaceMainTab(value) {
-  return value === WORKSPACE_MAIN_TAB_FOCUS
-    ? WORKSPACE_MAIN_TAB_FOCUS
-    : WORKSPACE_MAIN_TAB_NOTES;
+  if (value === WORKSPACE_MAIN_TAB_FOCUS) return WORKSPACE_MAIN_TAB_FOCUS;
+  if (value === WORKSPACE_MAIN_TAB_REVIEW) return WORKSPACE_MAIN_TAB_REVIEW;
+  return WORKSPACE_MAIN_TAB_NOTES;
 }
 
 /** @param {unknown} value */
@@ -62,6 +67,7 @@ export function getWorkspaceMainTabDefs(strings) {
   return [
     { key: WORKSPACE_MAIN_TAB_NOTES, label: strings.workspaceTabNotes },
     { key: WORKSPACE_MAIN_TAB_FOCUS, label: strings.workspaceTabFocus },
+    { key: WORKSPACE_MAIN_TAB_REVIEW, label: strings.workspaceTabReview },
   ];
 }
 

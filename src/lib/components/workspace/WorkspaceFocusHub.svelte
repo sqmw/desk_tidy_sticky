@@ -111,6 +111,7 @@
     onBreakSessionChange = () => {},
     onSelectedTaskIdChange = () => {},
     onPomodoroConfigChange = () => {},
+    onOpenReview = () => {},
   } = $props();
 
   let phase = $state(PHASE_FOCUS);
@@ -127,7 +128,6 @@
   let lastSyncedSelectedTaskId = $state("");
   let lastCommandNonce = $state(0);
   let showBreakPanel = $state(false);
-  let showStats = $state(false);
   let nowTick = $state(Date.now());
   let taskSessionStartedAtTs = $state(0);
 
@@ -1214,7 +1214,6 @@
   bind:draftTaskStartReminderEnabled
   bind:draftTaskStartReminderLeadMinutes
   bind:showBreakPanel
-  bind:showStats
   {pomodoroTimerText}
   nextMiniBreakCountdownText={formatTimer(nextMiniBreakCountdown)}
   nextLongBreakCountdownText={formatTimer(nextLongBreakCountdown)}
@@ -1256,6 +1255,7 @@
   taskDistribution={todayTaskDistribution}
   taskRollups={taskTitleRollups}
   {currentMinutes}
+  {onOpenReview}
   onSetBreakReminderEnabled={setBreakReminderEnabled}
   onChangeIndependentBreakEveryMinutes={changeIndependentBreakEveryMinutes}
   onChangeBreakDuration={changeBreakDuration}

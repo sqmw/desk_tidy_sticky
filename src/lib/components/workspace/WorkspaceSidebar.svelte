@@ -1,11 +1,13 @@
 <script>
   import {
     WORKSPACE_MAIN_TAB_NOTES,
+    WORKSPACE_MAIN_TAB_FOCUS,
     getWorkspaceMainTabDefs,
   } from "$lib/workspace/workspace-tabs.js";
   import WorkspaceSidebarDeadlines from "$lib/components/workspace/sidebar/WorkspaceSidebarDeadlines.svelte";
   import WorkspaceSidebarModules from "$lib/components/workspace/sidebar/WorkspaceSidebarModules.svelte";
   import WorkspaceSidebarNoteFilters from "$lib/components/workspace/sidebar/WorkspaceSidebarNoteFilters.svelte";
+  import WorkspaceSidebarReviewOverview from "$lib/components/workspace/sidebar/WorkspaceSidebarReviewOverview.svelte";
   import {
     calcSidebarManualSplitRatioFromPointer,
     DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
@@ -268,7 +270,7 @@
         {onSetSelectedTag}
         {onSetInitialViewMode}
       />
-    {:else}
+    {:else if mainTab === WORKSPACE_MAIN_TAB_FOCUS}
       <WorkspaceSidebarDeadlines
         {strings}
         {collapsed}
@@ -279,6 +281,11 @@
         {focusDeadlines}
         onToggleSectionCollapsed={() => (deadlinesCollapsed = !deadlinesCollapsed)}
         {onDeadlineAction}
+      />
+    {:else}
+      <WorkspaceSidebarReviewOverview
+        {strings}
+        {collapsed}
       />
     {/if}
   </div>

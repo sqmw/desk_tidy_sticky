@@ -41,6 +41,8 @@
   import WorkspaceToolbar from "$lib/components/workspace/WorkspaceToolbar.svelte";
   import WorkspaceNoteInspector from "$lib/components/workspace/WorkspaceNoteInspector.svelte";
   import WorkspaceSettingsDialog from "$lib/components/workspace/WorkspaceSettingsDialog.svelte";
+  import WorkspaceReviewHub from "$lib/components/workspace/review/WorkspaceReviewHub.svelte";
+  import { buildReviewFocusSnapshot } from "$lib/workspace/review/review-focus-stats.js";
   import {
     normalizePomodoroConfig,
   } from "$lib/workspace/preferences-service.js";
@@ -68,6 +70,7 @@
     WORKSPACE_NOTE_VIEW_MODES,
     WORKSPACE_MAIN_TAB_FOCUS,
     WORKSPACE_MAIN_TAB_NOTES,
+    WORKSPACE_MAIN_TAB_REVIEW,
     WORKSPACE_NOTE_VIEW_ACTIVE,
     WORKSPACE_NOTE_VIEW_ARCHIVED,
     WORKSPACE_NOTE_VIEW_QUADRANT,
@@ -92,6 +95,7 @@
   let newNoteText = $state("");
   let newNotePriority = $state(/** @type {number | null} */ (null));
   let newNoteTags = $state(/** @type {string[]} */ ([]));
+  let reviewTab = $state(/** @type {"log" | "calendar" | "stats"} */ ("log"));
 
   let inspectorOpen = $state(false);
   /** @type {string | null} */
@@ -211,6 +215,13 @@
   const renderedNotes = $derived.by(() => getRenderedWorkspaceNotes(visibleNotes));
 
   const noteViewCounts = $derived.by(() => getWorkspaceNoteViewCounts(notes));
+  const reviewFocusSnapshot = $derived.by(() =>
+    buildReviewFocusSnapshot({
+      tasks: focusTasks,
+      stats: focusStats,
+      focusMinutes: Number(pomodoroConfig.focusMinutes || 25),
+    }),
+  );
 
   const inspectorNote = $derived.by(() => getWorkspaceInspectorNote(renderedNotes, inspectorNoteId));
 
@@ -559,6 +570,11 @@
     await savePrefs({ workspaceMainTab: mainTab });
   }
 
+  function openReviewStats() {
+    reviewTab = "stats";
+    void setMainTab(WORKSPACE_MAIN_TAB_REVIEW);
+  }
+
   /** @param {PointerEvent} e */
   async function startWorkspaceDragPointer(e) {
     try {
@@ -844,6 +860,16 @@
         onBreakSessionChange={changeFocusBreakSession}
         onSelectedTaskIdChange={changeFocusSelectedTask}
         onPomodoroConfigChange={changePomodoroConfig}
+        onOpenReview={openReviewStats}
+      />
+    </section>
+
+    <section class="review-pane" class:hidden={mainTab !== WORKSPACE_MAIN_TAB_REVIEW}>
+      <WorkspaceReviewHub
+        {strings}
+        {notes}
+        focusSnapshot={reviewFocusSnapshot}
+        bind:selectedTab={reviewTab}
       />
     </section>
   </main>
@@ -1009,7 +1035,8 @@
     cursor: default;
   }
 
-  .focus-pane {
+  .focus-pane,
+  .review-pane {
     min-height: 0;
     flex: 1;
     overflow: auto;
@@ -1019,21 +1046,25 @@
       var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
   }
 
-  .focus-pane.hidden {
+  .focus-pane.hidden,
+  .review-pane.hidden {
     display: none;
   }
 
-  .focus-pane::-webkit-scrollbar {
+  .focus-pane::-webkit-scrollbar,
+  .review-pane::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
 
-  .focus-pane::-webkit-scrollbar-track {
+  .focus-pane::-webkit-scrollbar-track,
+  .review-pane::-webkit-scrollbar-track {
     background: var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
     border-radius: 999px;
   }
 
-  .focus-pane::-webkit-scrollbar-thumb {
+  .focus-pane::-webkit-scrollbar-thumb,
+  .review-pane::-webkit-scrollbar-thumb {
     background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
     border-radius: 999px;
   }
