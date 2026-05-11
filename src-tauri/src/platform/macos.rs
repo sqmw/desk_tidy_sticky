@@ -19,21 +19,8 @@ fn desktop_window_level() -> isize {
     CGWindowLevelForKey(CGWindowLevelKey::DesktopWindowLevelKey) as isize
 }
 
-fn desktop_icon_window_level() -> isize {
-    CGWindowLevelForKey(CGWindowLevelKey::DesktopIconWindowLevelKey) as isize
-}
-
-fn wallpaper_window_level() -> isize {
-    // Keep sticky windows below desktop icons (Finder items) while remaining in desktop band.
-    desktop_window_level().min(desktop_icon_window_level().saturating_sub(1))
-}
-
 fn normal_window_level() -> isize {
     CGWindowLevelForKey(CGWindowLevelKey::NormalWindowLevelKey) as isize
-}
-
-fn floating_window_level() -> isize {
-    CGWindowLevelForKey(CGWindowLevelKey::FloatingWindowLevelKey) as isize
 }
 
 fn topmost_window_level() -> isize {
@@ -53,19 +40,6 @@ fn assistive_tech_high_window_level() -> isize {
 
 fn desktop_icon_interactive_level() -> isize {
     (CGWindowLevelForKey(CGWindowLevelKey::DesktopIconWindowLevelKey) + 1) as isize
-}
-
-fn log_level(tag: &str, window: &NSWindow) {
-    eprintln!(
-        "[macos-layer] {tag} current={} desktop={} desktop_icon={} normal={} floating={} topmost={} ignore_mouse={}",
-        window.level(),
-        desktop_window_level(),
-        desktop_icon_window_level(),
-        normal_window_level(),
-        floating_window_level(),
-        topmost_window_level(),
-        window.ignoresMouseEvents(),
-    );
 }
 
 fn desktop_sticky_collection_behavior() -> NSWindowCollectionBehavior {
@@ -94,13 +68,6 @@ fn topmost_sticky_collection_behavior() -> NSWindowCollectionBehavior {
         | NSWindowCollectionBehavior::FullScreenAuxiliary
 }
 
-fn apply_desktop_sticky_window_traits(window: &NSWindow) {
-    window.setCanHide(false);
-    window.setHidesOnDeactivate(false);
-    window.setCollectionBehavior(desktop_sticky_collection_behavior());
-    window.setAnimationBehavior(NSWindowAnimationBehavior::None);
-}
-
 fn apply_topmost_sticky_window_traits(window: &NSWindow) {
     window.setCanHide(false);
     window.setHidesOnDeactivate(false);
@@ -127,31 +94,6 @@ fn restore_standard_window_traits(window: &NSWindow) {
     window.setIgnoresMouseEvents(false);
 }
 
-/// Legacy desktop-bottom strategy retained for fallback/experiments.
-/// This path keeps the previous behavior and is intentionally not removed.
-#[allow(dead_code)]
-pub fn attach_to_worker_w(ns_window_ptr: *mut c_void) -> Result<(), String> {
-    let window = cast_ns_window_ptr(ns_window_ptr)?;
-    apply_desktop_sticky_window_traits(window);
-    window.setLevel(desktop_window_level());
-    // Plash-aligned desktop mode: keep sticky windows behind normal app windows
-    // and out of Expose-style cycle behaviors.
-    window.orderBack(None);
-    log_level("attach_to_worker_w(legacy)", window);
-    Ok(())
-}
-
-#[allow(dead_code)]
-pub fn attach_to_wallpaper_layer(ns_window_ptr: *mut c_void) -> Result<(), String> {
-    let window = cast_ns_window_ptr(ns_window_ptr)?;
-    apply_wallpaper_window_traits(window);
-    // Match Plash desktop wallpaper behavior: place on desktop level and keep the window at back.
-    window.setLevel(desktop_window_level());
-    window.orderBack(None);
-    log_level("attach_to_wallpaper_layer", window);
-    Ok(())
-}
-
 pub fn attach_to_wallpaper_layer_with_interaction(
     ns_window_ptr: *mut c_void,
     click_through: bool,
@@ -165,19 +107,11 @@ pub fn attach_to_wallpaper_layer_with_interaction(
         window.setIgnoresMouseEvents(true);
         window.setLevel(desktop_window_level());
         window.orderBack(None);
-        log_level(
-            "attach_to_wallpaper_layer_with_interaction(pass-through)",
-            window,
-        );
     } else {
         window.setIgnoresMouseEvents(false);
         // Plash-like browsing mode: move above desktop icons for direct interaction.
         window.setLevel(desktop_icon_interactive_level());
         window.orderFrontRegardless();
-        log_level(
-            "attach_to_wallpaper_layer_with_interaction(interactive)",
-            window,
-        );
     }
     Ok(())
 }
@@ -196,33 +130,6 @@ pub fn attach_to_desktop_layer_with_interaction(
     window.setIgnoresMouseEvents(click_through);
     window.setLevel(desktop_icon_interactive_level());
     window.orderFrontRegardless();
-    log_level(
-        if click_through {
-            "attach_to_desktop_layer_with_interaction(pass-through)"
-        } else {
-            "attach_to_desktop_layer_with_interaction(interactive)"
-        },
-        window,
-    );
-    Ok(())
-}
-
-/// Legacy strategy retained for fallback/experiments.
-/// This variant keeps the previous desktop-icon-aware level and interactive toggle behavior.
-#[allow(dead_code)]
-pub fn attach_to_wallpaper_layer_legacy(
-    ns_window_ptr: *mut c_void,
-    click_through: bool,
-) -> Result<(), String> {
-    let window = cast_ns_window_ptr(ns_window_ptr)?;
-    window.setCanHide(false);
-    window.setHidesOnDeactivate(false);
-    window.setCollectionBehavior(desktop_sticky_collection_behavior());
-    window.setAnimationBehavior(NSWindowAnimationBehavior::None);
-    window.setIgnoresMouseEvents(click_through);
-    window.setLevel(wallpaper_window_level());
-    window.orderBack(None);
-    log_level("attach_to_wallpaper_layer_legacy", window);
     Ok(())
 }
 
@@ -230,7 +137,6 @@ pub fn detach_from_worker_w(ns_window_ptr: *mut c_void) -> Result<(), String> {
     let window = cast_ns_window_ptr(ns_window_ptr)?;
     restore_standard_window_traits(window);
     window.setLevel(normal_window_level());
-    log_level("detach_from_worker_w", window);
     Ok(())
 }
 
@@ -240,10 +146,8 @@ pub fn set_topmost_no_activate(ns_window_ptr: *mut c_void, topmost: bool) -> Res
         apply_topmost_sticky_window_traits(window);
         window.setLevel(topmost_window_level());
         window.orderFrontRegardless();
-        log_level("set_topmost_no_activate(true)", window);
     } else {
         window.setLevel(normal_window_level());
-        log_level("set_topmost_no_activate(false)", window);
     }
     Ok(())
 }
@@ -259,7 +163,6 @@ pub fn apply_break_overlay_window_traits(ns_window_ptr: *mut c_void) -> Result<(
     window.setLevel(assistive_tech_high_window_level());
     window.makeKeyAndOrderFront(None);
     window.orderFrontRegardless();
-    log_level("apply_break_overlay_window_traits", window);
     Ok(())
 }
 

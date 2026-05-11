@@ -69,6 +69,28 @@ export function createNoteCommands(deps) {
     }
   }
 
+  /**
+   * @param {string} text
+   * @param {string[]} [tags]
+   * @param {string | null} [completedAt]
+   */
+  async function saveDoneLog(text, tags = [], completedAt = null) {
+    const content = expandNoteCommands(String(text || "").trim()).trim();
+    if (!content) return;
+    try {
+      const sortMode = deps.getSortMode();
+      await deps.invoke("add_done_log", {
+        text: content,
+        sortMode,
+        tags,
+        completedAt: completedAt ? String(completedAt) : null,
+      });
+      await loadNotes();
+    } catch (e) {
+      console.error("saveDoneLog", e);
+    }
+  }
+
   /** @param {any} note */
   async function togglePin(note) {
     try {
@@ -244,6 +266,7 @@ export function createNoteCommands(deps) {
   return {
     loadNotes,
     saveNote,
+    saveDoneLog,
     togglePin,
     toggleZOrder,
     toggleWallpaperLayer,

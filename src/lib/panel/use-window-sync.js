@@ -20,6 +20,13 @@ export function createWindowSync(deps) {
   let syncInFlight = null;
   let syncRequested = false;
 
+  function shouldDisableNativeShadow() {
+    return (
+      typeof navigator !== "undefined" &&
+      /win/i.test(String(navigator.userAgent || navigator.platform || ""))
+    );
+  }
+
   /** @param {unknown} value */
   function isFiniteNumber(value) {
     return typeof value === "number" && Number.isFinite(value);
@@ -63,6 +70,18 @@ export function createWindowSync(deps) {
       });
     } catch (error) {
       console.error("persist_note_window_size", error);
+    }
+  }
+
+  /** @param {string | undefined | null} label */
+  async function closeNoteWindowByLabel(label) {
+    const safeLabel = String(label || "").trim();
+    if (!safeLabel) return;
+    try {
+      await persistNoteWindowSizeByLabel(safeLabel);
+      await deps.invoke("dismiss_note_window_by_label", { label: safeLabel });
+    } catch (error) {
+      console.error("closeNoteWindowByLabel", error);
     }
   }
 
@@ -157,7 +176,7 @@ export function createWindowSync(deps) {
       return;
     }
 
-    const webview = new WebviewWindow(label, {
+    const windowOptions = /** @type {any} */ ({
       url: `/note/${noteId}`,
       title: "Sticky Note",
       width: isFiniteNumber(note?.width) ? Math.max(220, note.width) : 300,
@@ -170,16 +189,21 @@ export function createWindowSync(deps) {
       alwaysOnTop: false,
       skipTaskbar: true,
       resizable: true,
-      shadow: false,
       maximizable: false,
       visible: false,
       devtools: true,
     });
+    if (shouldDisableNativeShadow()) {
+      windowOptions.shadow = false;
+    }
+
+    const webview = new WebviewWindow(label, windowOptions);
 
     const creatingPromise = new Promise((resolve) => {
       webview.once("tauri://created", async function () {
         try {
           await applyNoSnapWhenReady(deps.invoke, label);
+          await deps.invoke("configure_note_panel_window", { label });
           await showNoteWindowAfterLayerReady(webview, note, { waitForReady: true });
         } catch (error) {
           console.error("openNoteWindow(created)", error);
@@ -211,11 +235,7 @@ export function createWindowSync(deps) {
   /** @param {string | number} noteId */
   async function closeNoteWindow(noteId) {
     const label = `note-${noteId}`;
-    const w = await WebviewWindow.getByLabel(label);
-    if (w) {
-      await persistNoteWindowSizeByLabel(label);
-      await w.close();
-    }
+    await closeNoteWindowByLabel(label);
   }
 
   async function runSyncIteration() {
@@ -224,8 +244,7 @@ export function createWindowSync(deps) {
       const noteWins = wins.filter((w) => w.label.startsWith("note-"));
       await runWindowTasks(noteWins, async (w) => {
         try {
-          await persistNoteWindowSizeByLabel(w.label);
-          await w.close();
+          await closeNoteWindowByLabel(w.label);
         } catch (e) {
           console.error("syncWindows(close-hidden)", e);
         }
@@ -244,8 +263,7 @@ export function createWindowSync(deps) {
       const staleWins = all.filter((w) => w.label?.startsWith("note-") && !shouldExist.has(w.label));
       await runWindowTasks(staleWins, async (w) => {
         try {
-          await persistNoteWindowSizeByLabel(w.label);
-          await w.close();
+          await closeNoteWindowByLabel(w.label);
         } catch (e) {
           console.error("syncWindows(close-stale)", e);
         }

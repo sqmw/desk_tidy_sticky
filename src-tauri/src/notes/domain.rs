@@ -1,4 +1,4 @@
-use crate::notes::Note;
+use crate::notes::{Note, RECORD_KIND_DONE_LOG, RECORD_KIND_NOTE};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -63,4 +63,46 @@ pub(crate) fn normalize_tags(input: Vec<String>) -> Vec<String> {
         out.push(normalized);
     }
     out
+}
+
+pub(crate) fn normalize_note_review_semantics(note: &mut Note) -> bool {
+    let mut changed = false;
+
+    let normalized_kind = if note.record_kind == RECORD_KIND_DONE_LOG {
+        RECORD_KIND_DONE_LOG
+    } else {
+        RECORD_KIND_NOTE
+    };
+    if note.record_kind != normalized_kind {
+        note.record_kind = normalized_kind.to_string();
+        changed = true;
+    }
+
+    if note.is_done {
+        if note
+            .completed_at
+            .as_deref()
+            .map(|value| value.trim().is_empty())
+            .unwrap_or(true)
+        {
+            let fallback = if !note.updated_at.trim().is_empty() {
+                note.updated_at.clone()
+            } else {
+                note.created_at.clone()
+            };
+            note.completed_at = Some(fallback);
+            changed = true;
+        }
+    } else {
+        if note.completed_at.is_some() {
+            note.completed_at = None;
+            changed = true;
+        }
+        if note.record_kind == RECORD_KIND_DONE_LOG {
+            note.record_kind = RECORD_KIND_NOTE.to_string();
+            changed = true;
+        }
+    }
+
+    changed
 }

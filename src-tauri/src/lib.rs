@@ -5,32 +5,33 @@ mod platform;
 mod preferences;
 mod runtime;
 
-use breaks::{
-    apply_break_overlay_window_traits, set_break_overlay_presentation, start_break_reminder_watchdog,
-    sync_break_reminder_watchdog,
-};
 #[cfg(target_os = "macos")]
 use breaks::process_break_reminder_due;
+use breaks::{
+    apply_break_overlay_window_traits, set_break_overlay_presentation,
+    start_break_reminder_watchdog, sync_break_reminder_watchdog,
+};
 #[cfg(not(target_os = "macos"))]
 use desktop::ensure_hidden_workspace_runtime_window;
 #[cfg(target_os = "macos")]
 use desktop::{apply_macos_runtime_dock_icon, ensure_hidden_workspace_runtime_window};
 use desktop::{
     apply_note_window_frost, apply_note_window_layer, apply_window_no_snap_by_label,
-    get_overlay_interaction, get_shortcut_settings,
-    hide_panel_window, initialize_shortcut_settings, minimize_panel_window,
-    move_note_window_without_activation, pin_window_to_desktop, show_preferred_panel_window,
-    sync_all_note_window_layers, sync_note_window_layer, sync_panel_window_shell_state,
-    toggle_overlay_interaction,
+    configure_note_panel_window, dismiss_note_window_by_label, get_overlay_interaction,
+    get_shortcut_settings, hide_panel_window, initialize_shortcut_settings,
+    minimize_panel_window, move_note_window_without_activation, pin_window_to_desktop,
+    show_preferred_panel_window, sync_all_note_window_layers, sync_note_window_layer,
+    sync_panel_window_shell_state, toggle_overlay_interaction,
     toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply, unpin_window_from_desktop,
     update_shortcut_settings, update_tray_texts,
 };
 use notes::{
-    add_note, clear_note_priority, delete_note, empty_trash, load_notes, permanently_delete_note,
-    persist_note_window_size, reorder_notes, reset_pinned_note_positions, restore_note,
-    save_clipboard_image, toggle_archive, toggle_done, toggle_pin, update_note, update_note_color,
-    update_note_frost, update_note_opacity, update_note_position, update_note_priority,
-    update_note_size, update_note_tags, update_note_text, update_note_text_color,
+    add_done_log, add_note, clear_note_priority, delete_note, empty_trash, load_notes,
+    permanently_delete_note, persist_note_window_size, reorder_notes, reset_pinned_note_positions,
+    restore_note, save_clipboard_image, toggle_archive, toggle_done, toggle_pin, update_note,
+    update_note_color, update_note_frost, update_note_opacity, update_note_position,
+    update_note_priority, update_note_size, update_note_tags, update_note_text,
+    update_note_text_color,
 };
 #[cfg(target_os = "windows")]
 use platform::window_hwnd_isize;
@@ -43,7 +44,7 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(GlobalControlState::default())
         .manage(BreakReminderWatchState::default())
         .manage(BreakOverlayPresentationState::default())
@@ -52,7 +53,15 @@ pub fn run() {
             show_preferred_panel_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_notification::init());
+
+    #[cfg(target_os = "macos")]
+    let builder = builder.plugin(tauri_nspanel::init());
+
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder;
+
+    let app = builder
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -101,6 +110,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_notes,
             add_note,
+            add_done_log,
             update_note,
             update_note_position,
             update_note_size,
@@ -131,6 +141,8 @@ pub fn run() {
             update_shortcut_settings,
             pin_window_to_desktop,
             unpin_window_from_desktop,
+            configure_note_panel_window,
+            dismiss_note_window_by_label,
             apply_note_window_layer,
             apply_note_window_frost,
             sync_note_window_layer,

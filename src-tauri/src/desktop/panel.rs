@@ -1,6 +1,6 @@
 use crate::preferences;
-use tauri::Manager;
 use tauri::utils::config::BackgroundThrottlingPolicy;
+use tauri::Manager;
 
 pub const PANEL_WINDOW_LABELS: [&str; 2] = ["main", "workspace"];
 

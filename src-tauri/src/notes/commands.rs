@@ -60,6 +60,24 @@ pub fn add_note(
 }
 
 #[tauri::command]
+pub fn add_done_log(
+    app: tauri::AppHandle,
+    text: String,
+    sort_mode: String,
+    tags: Option<Vec<String>>,
+    completed_at: Option<String>,
+) -> Result<Vec<Note>, String> {
+    let notes = notes_service::add_done_log(
+        text,
+        parse_sort_mode(sort_mode.as_str()),
+        tags,
+        completed_at,
+    )?;
+    emit_notes_changed(&app);
+    Ok(notes)
+}
+
+#[tauri::command]
 pub fn update_note(
     app: tauri::AppHandle,
     note: Note,
@@ -320,7 +338,11 @@ fn resolve_primary_monitor_bounds(app: &tauri::AppHandle) -> Result<(f64, f64, f
     let monitor = app
         .primary_monitor()
         .map_err(|e| e.to_string())?
-        .or_else(|| app.available_monitors().ok().and_then(|mut items| items.drain(..).next()))
+        .or_else(|| {
+            app.available_monitors()
+                .ok()
+                .and_then(|mut items| items.drain(..).next())
+        })
         .ok_or_else(|| "no monitor available".to_string())?;
     let scale = {
         let raw = monitor.scale_factor();
@@ -355,8 +377,14 @@ pub fn reset_pinned_note_positions(app: tauri::AppHandle) -> Result<usize, Strin
     let mut row_height = 0.0;
 
     let notes = notes_service::reset_pinned_note_positions(|note| {
-        let width = note.width.unwrap_or(default_width).clamp(min_size, max_width);
-        let height = note.height.unwrap_or(default_height).clamp(min_size, max_height);
+        let width = note
+            .width
+            .unwrap_or(default_width)
+            .clamp(min_size, max_width);
+        let height = note
+            .height
+            .unwrap_or(default_height)
+            .clamp(min_size, max_height);
 
         if next_x + width > screen_x + screen_width - margin {
             next_x = screen_x + margin;

@@ -7,7 +7,6 @@
   import WorkspaceSidebarDeadlines from "$lib/components/workspace/sidebar/WorkspaceSidebarDeadlines.svelte";
   import WorkspaceSidebarModules from "$lib/components/workspace/sidebar/WorkspaceSidebarModules.svelte";
   import WorkspaceSidebarNoteFilters from "$lib/components/workspace/sidebar/WorkspaceSidebarNoteFilters.svelte";
-  import WorkspaceSidebarReviewOverview from "$lib/components/workspace/sidebar/WorkspaceSidebarReviewOverview.svelte";
   import {
     calcSidebarManualSplitRatioFromPointer,
     DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
@@ -281,11 +280,6 @@
         {focusDeadlines}
         onToggleSectionCollapsed={() => (deadlinesCollapsed = !deadlinesCollapsed)}
         {onDeadlineAction}
-      />
-    {:else}
-      <WorkspaceSidebarReviewOverview
-        {strings}
-        {collapsed}
       />
     {/if}
   </div>

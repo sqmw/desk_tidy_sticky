@@ -379,6 +379,12 @@
   async function applyZOrderAndParent() {
     if (!note) return;
     try {
+      console.log("[note-layer]", {
+        noteId,
+        isAlwaysOnTop: !!note.isAlwaysOnTop,
+        isWallpaper: !!note.isWallpaper,
+        globalControlDisabled,
+      });
       await invoke("apply_note_window_layer", {
         isAlwaysOnTop: !!note.isAlwaysOnTop,
         isWallpaper: !!note.isWallpaper,

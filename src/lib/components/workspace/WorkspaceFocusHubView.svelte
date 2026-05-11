@@ -64,6 +64,11 @@
     onSkipBreak = () => {},
     taskStartReminderNotice = null,
     onDismissTaskStartReminderNotice = () => {},
+    focusCompletedReviewPrompt = null,
+    focusCompletedReviewSaving = false,
+    onDismissFocusCompletedReviewPrompt = () => {},
+    onChangeFocusCompletedReviewDraft = () => {},
+    onSaveFocusCompletedReviewPrompt = () => {},
     onAddTask = () => {},
     onToggleWeekday = () => {},
     onStartTask = () => {},
@@ -160,6 +165,30 @@
       <button type="button" class="task-start-notice-close" onclick={() => onDismissTaskStartReminderNotice()}>
         {strings.cancel || "Dismiss"}
       </button>
+    </section>
+  {/if}
+
+  {#if focusCompletedReviewPrompt}
+    <section class="task-start-notice focus-complete-notice" role="status" aria-live="polite">
+      <div class="task-start-notice-mark" aria-hidden="true">✓</div>
+      <div class="task-start-notice-copy focus-complete-copy">
+        <strong>{strings.workspaceFocusDoneLogPromptTitle}</strong>
+        <span>{focusCompletedReviewPrompt.title}</span>
+        <span class="focus-complete-hint">{strings.workspaceFocusDoneLogPromptHint}</span>
+        <textarea
+          class="focus-complete-input"
+          value={focusCompletedReviewPrompt.draft}
+          oninput={(event) => onChangeFocusCompletedReviewDraft(event.currentTarget.value)}
+        ></textarea>
+      </div>
+      <div class="focus-complete-actions">
+        <button type="button" class="focus-complete-btn primary" onclick={() => onSaveFocusCompletedReviewPrompt()}>
+          {focusCompletedReviewSaving ? strings.shortcutSaving || "Saving..." : strings.workspaceReviewCreateAction}
+        </button>
+        <button type="button" class="focus-complete-btn" onclick={() => onDismissFocusCompletedReviewPrompt()}>
+          {strings.cancel || "Dismiss"}
+        </button>
+      </div>
     </section>
   {/if}
 
@@ -267,6 +296,56 @@
     cursor: pointer;
     font-size: 12px;
     font-weight: 700;
+  }
+
+  .focus-complete-notice {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .focus-complete-copy {
+    gap: 6px;
+  }
+
+  .focus-complete-hint {
+    font-size: 12px;
+    color: color-mix(in srgb, var(--ws-text-2, #6b7280) 92%, transparent);
+  }
+
+  .focus-complete-input {
+    width: 100%;
+    min-height: 96px;
+    border-radius: 12px;
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    background: var(--ws-card-bg, #fff);
+    color: var(--ws-text, #334155);
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 10px 12px;
+    resize: vertical;
+    outline: none;
+  }
+
+  .focus-complete-actions {
+    display: grid;
+    gap: 8px;
+  }
+
+  .focus-complete-btn {
+    min-height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    background: var(--ws-btn-bg, #fbfdff);
+    color: var(--ws-text, #334155);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .focus-complete-btn.primary {
+    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 22%, var(--ws-border-soft, #d9e2ef));
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, #fff);
+    color: var(--ws-accent, #1d4ed8);
   }
 
   .timer-slot {

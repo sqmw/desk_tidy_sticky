@@ -4,7 +4,7 @@ use crate::notes::repository::{
     self as notes_repository, merged_notes_from_context, persist_current_and_verify,
     persist_legacy_file, upsert_current_note,
 };
-use crate::notes::Note;
+use crate::notes::{Note, RECORD_KIND_DONE_LOG, RECORD_KIND_NOTE};
 
 pub use crate::notes::domain::NoteSortMode;
 
@@ -85,6 +85,36 @@ pub fn add_note(
     }
     let mut note = Note::new(text, is_pinned);
     note.priority = priority.map(|v| v.clamp(1, 4));
+    note.tags = normalize_tags(tags.unwrap_or_default());
+    note.custom_order = Some(0);
+    notes.insert(0, note);
+    sort_notes(&mut notes, sort_mode);
+    save_notes_to_file(&notes)?;
+    Ok(notes)
+}
+
+pub fn add_done_log(
+    text: String,
+    sort_mode: NoteSortMode,
+    tags: Option<Vec<String>>,
+    completed_at: Option<String>,
+) -> Result<Vec<Note>, String> {
+    let mut notes = load_notes_from_file()?;
+    if sort_mode == NoteSortMode::Custom {
+        for n in notes.iter_mut() {
+            n.custom_order = Some(n.custom_order.unwrap_or(0) + 1);
+        }
+    }
+    let now = chrono_now();
+    let completed_at = completed_at
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| now.clone());
+    let mut note = Note::new(text, false);
+    note.is_done = true;
+    note.record_kind = RECORD_KIND_DONE_LOG.to_string();
+    note.completed_at = Some(completed_at);
+    note.updated_at = now;
     note.tags = normalize_tags(tags.unwrap_or_default());
     note.custom_order = Some(0);
     notes.insert(0, note);
@@ -264,7 +294,17 @@ pub fn toggle_wallpaper_layer(id: &str, _sort_mode: NoteSortMode) -> Result<Vec<
 
 pub fn toggle_done(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
     mutate_note(id, Some(sort_mode), |n| {
+        let now = chrono_now();
         n.is_done = !n.is_done;
+        if n.is_done {
+            n.completed_at = Some(now.clone());
+        } else {
+            n.completed_at = None;
+            if n.record_kind == RECORD_KIND_DONE_LOG {
+                n.record_kind = RECORD_KIND_NOTE.to_string();
+            }
+        }
+        n.updated_at = now;
     })
 }
 

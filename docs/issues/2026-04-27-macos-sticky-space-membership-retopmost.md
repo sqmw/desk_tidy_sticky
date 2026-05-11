@@ -46,6 +46,42 @@
 - 2026-04-27 用户在 macOS 上按原复现路径测试通过。
 - 结论：保留桌面层贴纸的 fullscreen Space membership，并取消回顶层前的 `detach_from_worker_w` 中间态，可以修复该回归。
 
+## 2026-05-11 重构方向：改为 panel-backed sticky
+- 经过多轮验证后，问题被收窄为：
+  - `置顶 -> 置底 -> 置顶` 正常
+  - `取消钉住 -> 再钉住` 失败
+- 这说明核心问题不在普通 z-order 切换，而在 **pinned sticky 的窗口生命周期**。
+- 原有 `NSWindow` 方案在“取消钉住后关闭窗口，再钉住后重建同 label 窗口”这条链上，不能稳定恢复 fullscreen overlay 资格。
+
+### 参考实现调研结论
+- `keyviz`：
+  - 只是单一 overlay 窗口，mac 侧主要依赖 `setLevel_ + CanJoinAllSpaces`
+  - 生命周期简单，不覆盖“贴纸反复 pin/unpin 重建”的复杂场景
+- `tauri-nspanel fullscreen example`：
+  - 明确把 `WebviewWindow` swizzle 成 `NSPanel`
+  - 使用：
+    - `NSWindowStyleMaskNonActivatingPanel`
+    - `FullScreenAuxiliary`
+    - `CanJoinAllSpaces`
+  - 官方示例明确面向“可显示在 fullscreen window 上方”的场景
+
+### 当前方案
+- macOS pinned sticky 创建后立即转成 `NSPanel`
+- 之后仍沿用现有 level / interaction / wallpaper 分层策略
+- `取消钉住` 时不销毁这扇 panel-backed sticky，而是直接隐藏
+- `再钉住` 时复用同一扇已是 `NSPanel` 的窗口再展示
+
+### 为什么这样收口
+- `NSPanel` 更适合做跨 Space、非激活、可覆盖 fullscreen 的浮层窗口。
+- 真正的问题不是“置顶能力”本身，而是“取消钉住时销毁，再钉住时重建”这条生命周期链。
+- 改为 panel-backed sticky 后，不再依赖普通 `NSWindow` 在 desktop layer / topmost layer / closed 之间来回切换还能恢复资格。
+- `取消钉住` 改为隐藏而非销毁，也避开了 `NSPanel` 关闭释放时的 ObjC 异常风险。
+
+### 方案意义
+- 把 pinned sticky 从“普通 NSWindow 强行模拟 overlay”切换为“AppKit 原生 panel 角色”
+- 让 pinned sticky 从首次创建开始就具备正确的 fullscreen overlay 语义
+- 避免继续依赖旧 `NSWindow` 生命周期去承担不稳定的全屏 Space 恢复职责
+
 ## 回归关注
 - `贴在底部` 状态不应出现在全屏窗口上方。
 - `贴在底部` 状态应继续位于普通 app 窗口下方。

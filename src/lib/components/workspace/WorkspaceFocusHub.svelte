@@ -20,6 +20,7 @@
   } from "$lib/workspace/pomodoro/focus-analytics.js";
   import {
     buildTaskTitleRollups,
+    formatFocusDuration,
     getTaskCycleSnapshot,
   } from "$lib/workspace/pomodoro/focus-pomodoro-metrics.js";
   import WorkspaceFocusHubView from "$lib/components/workspace/WorkspaceFocusHubView.svelte";
@@ -112,6 +113,7 @@
     onSelectedTaskIdChange = () => {},
     onPomodoroConfigChange = () => {},
     onOpenReview = () => {},
+    onCreateDoneLog = async () => {},
   } = $props();
 
   let phase = $state(PHASE_FOCUS);
@@ -151,6 +153,11 @@
   let notifyChecked = $state(false);
   let taskStartReminderNotice = $state(/** @type {{ title: string; body: string; ts: number } | null} */ (null));
   let taskStartReminderNoticeTimer = 0;
+  let focusCompletedReviewPrompt = $state(
+    /** @type {{ title: string; draft: string; settleTs: number; taskId: string; pomodoros: number; promptKey: string } | null} */ (null)
+  );
+  let focusCompletedReviewSaving = $state(false);
+  let lastDismissedFocusCompletedReviewPromptKey = $state("");
   let timerRuntimeRestored = false;
   /** @type {Set<string>} */
   let sentTaskStartReminderKeys = new Set();
@@ -896,17 +903,121 @@
 
   function onFocusCompleted() {
     const settledAtTs = focusDeadlineTs > 0 ? focusDeadlineTs : Date.now();
+    const completedTaskId = String(selectedTaskId || "");
+    const completedTaskTitle = String(selectedTask?.title || "");
+    const completedTaskTargetSeconds = Math.max(0, Number(selectedTask?.targetSeconds || 0));
+    const previousDayKey = getDateKey(new Date(settledAtTs));
+    const previousTaskEffectiveSeconds = Number(stats?.[previousDayKey]?.taskEffectiveSeconds?.[completedTaskId] || 0);
     const nextStats = buildFocusCompletedStats({
       stats,
       settleUntilTs: settledAtTs,
-      selectedTaskId,
-      selectedTaskTitle: String(selectedTask?.title || ""),
+      selectedTaskId: completedTaskId,
+      selectedTaskTitle: completedTaskTitle,
       allTasksById,
       taskSessionStartedAtTs,
     });
     emitStats(nextStats);
+    if (completedTaskId) {
+      const dayKey = getDateKey(new Date(settledAtTs));
+      const nextTaskEffectiveSeconds = Number(nextStats?.[dayKey]?.taskEffectiveSeconds?.[completedTaskId] || 0);
+      const taskPomodoros = Number(nextStats?.[dayKey]?.taskPomodoros?.[completedTaskId] || 0);
+      const reachedTaskTarget = completedTaskTargetSeconds > 0 &&
+        previousTaskEffectiveSeconds < completedTaskTargetSeconds &&
+        nextTaskEffectiveSeconds >= completedTaskTargetSeconds;
+      const promptKey = `${completedTaskId}:${dayKey}:${taskPomodoros}:${Math.floor(nextTaskEffectiveSeconds)}`;
+      if (reachedTaskTarget && promptKey !== lastDismissedFocusCompletedReviewPromptKey) {
+        focusCompletedReviewPrompt = {
+          title: completedTaskTitle || strings.pomodoroNoTaskSelected || "Focus task",
+          draft: buildFocusCompletionDoneLogDraft({
+            taskTitle: completedTaskTitle,
+            focusMinutes: safeConfig.focusMinutes,
+            totalPomodoros: taskPomodoros,
+            totalTaskFocusSeconds: nextTaskEffectiveSeconds,
+            taskWindow: buildFocusTaskWindowLabel(selectedTask, strings),
+            strings,
+          }),
+          settleTs: settledAtTs,
+          taskId: completedTaskId,
+          pomodoros: taskPomodoros,
+          promptKey,
+        };
+      } else {
+        focusCompletedReviewPrompt = null;
+      }
+    }
     taskTimingActive = false;
     taskSessionStartedAtTs = 0;
+  }
+
+  /**
+   * @param {{
+   *   taskTitle: string;
+   *   focusMinutes: number;
+   *   totalPomodoros: number;
+   *   totalTaskFocusSeconds: number;
+   *   taskWindow: string;
+   *   strings: Record<string, any>;
+   * }} input
+   */
+  function buildFocusCompletionDoneLogDraft(input) {
+    const safeTitle = String(input.taskTitle || input.strings.pomodoroNoTaskSelected || "Focus task");
+    const focusMinutes = Math.max(1, Math.floor(Number(input.focusMinutes || 25)));
+    const pomodoros = Math.max(1, Math.floor(Number(input.totalPomodoros || 1)));
+    const totalTaskFocus = formatFocusDuration(input.totalTaskFocusSeconds || 0);
+    const taskWindow = String(input.taskWindow || "").trim();
+    const lines = [
+      safeTitle,
+      "",
+      input.strings.workspaceFocusDoneLogDraftLine || "Completed one focus session.",
+      `${input.strings.workspaceFocusDoneLogDraftMinutes || "Focus minutes"}: ${focusMinutes}m`,
+      `${input.strings.workspaceFocusDoneLogDraftPomodoros || "Task pomodoros today"}: ${pomodoros}`,
+      `${input.strings.workspaceFocusDoneLogDraftTaskFocus || "Task focus total"}: ${totalTaskFocus}`,
+    ];
+    if (taskWindow) {
+      lines.push(`${input.strings.workspaceFocusDoneLogDraftTaskWindow || "Task window"}: ${taskWindow}`);
+    }
+    return lines.join("\n");
+  }
+
+  /**
+   * @param {{ startTime?: string; endTime?: string } | null} task
+   * @param {Record<string, any>} strings
+   */
+  function buildFocusTaskWindowLabel(task, strings) {
+    const start = String(task?.startTime || "").trim();
+    const end = String(task?.endTime || "").trim();
+    if (!start || !end) return "";
+    const separator = strings.workspaceFocusDoneLogDraftTaskWindowSeparator || " - ";
+    return `${start}${separator}${end}`;
+  }
+
+  function dismissFocusCompletedReviewPrompt() {
+    if (focusCompletedReviewPrompt?.promptKey) {
+      lastDismissedFocusCompletedReviewPromptKey = focusCompletedReviewPrompt.promptKey;
+    }
+    focusCompletedReviewPrompt = null;
+  }
+
+  /** @param {string} next */
+  function changeFocusCompletedReviewDraft(next) {
+    if (!focusCompletedReviewPrompt) return;
+    focusCompletedReviewPrompt = { ...focusCompletedReviewPrompt, draft: next };
+  }
+
+  async function saveFocusCompletedReviewPrompt() {
+    if (!focusCompletedReviewPrompt || focusCompletedReviewSaving) return;
+    const draft = String(focusCompletedReviewPrompt.draft || "").trim();
+    if (!draft) return;
+    focusCompletedReviewSaving = true;
+    try {
+      await onCreateDoneLog(draft, []);
+      lastDismissedFocusCompletedReviewPromptKey = "";
+      focusCompletedReviewPrompt = null;
+    } catch (error) {
+      console.error("saveFocusCompletedReviewPrompt", error);
+    } finally {
+      focusCompletedReviewSaving = false;
+    }
   }
 
   $effect(() => {
@@ -1264,6 +1375,11 @@
   onSkipBreak={skipBreak}
   {taskStartReminderNotice}
   onDismissTaskStartReminderNotice={dismissTaskStartReminderNotice}
+  {focusCompletedReviewPrompt}
+  focusCompletedReviewSaving={focusCompletedReviewSaving}
+  onDismissFocusCompletedReviewPrompt={dismissFocusCompletedReviewPrompt}
+  onChangeFocusCompletedReviewDraft={changeFocusCompletedReviewDraft}
+  onSaveFocusCompletedReviewPrompt={saveFocusCompletedReviewPrompt}
   onTriggerTaskStartReminderTest={triggerTaskStartReminderTest}
   onAddTask={taskDraftController.addTask}
   onToggleWeekday={taskDraftController.toggleDraftWeekday}

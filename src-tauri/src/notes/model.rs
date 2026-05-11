@@ -4,6 +4,8 @@ use uuid::Uuid;
 pub const DEFAULT_NOTE_OPACITY: f64 = 1.0;
 pub const DEFAULT_NOTE_FROST: f64 = 0.22;
 pub const DEFAULT_NOTE_TEXT_COLOR: &str = "#1f2937";
+pub const RECORD_KIND_NOTE: &str = "note";
+pub const RECORD_KIND_DONE_LOG: &str = "done_log";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -19,6 +21,10 @@ pub struct Note {
     pub is_always_on_top: bool,
     #[serde(default)]
     pub is_wallpaper: bool,
+    #[serde(default = "default_record_kind")]
+    pub record_kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<u8>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -58,6 +64,8 @@ impl Note {
             // New notes start at desktop-bottom layer by default.
             is_always_on_top: false,
             is_wallpaper: false,
+            record_kind: default_record_kind(),
+            completed_at: None,
             priority: None,
             tags: vec![],
             bg_color: None,
@@ -71,6 +79,10 @@ impl Note {
             height: None,
         }
     }
+}
+
+pub fn default_record_kind() -> String {
+    RECORD_KIND_NOTE.to_string()
 }
 
 pub fn chrono_now() -> String {

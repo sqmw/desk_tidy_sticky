@@ -3,7 +3,9 @@ use std::str::FromStr;
 use crate::{
     desktop::{show_preferred_panel_window, sync_panel_window_shell_state, PANEL_WINDOW_LABELS},
     preferences::{read_preferences, write_preferences},
-    runtime::{GlobalControlState, ShortcutBindingSnapshot, ShortcutRuntimeState, ShortcutSettingsSnapshot},
+    runtime::{
+        GlobalControlState, ShortcutBindingSnapshot, ShortcutRuntimeState, ShortcutSettingsSnapshot,
+    },
 };
 use tauri::{Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
@@ -33,7 +35,8 @@ struct DesiredShortcutBinding {
 pub fn get_shortcut_settings(app: tauri::AppHandle) -> Result<ShortcutSettingsSnapshot, String> {
     if let Some(state) = app.try_state::<ShortcutRuntimeState>() {
         let snapshot = state.snapshot()?;
-        if !snapshot.panel_binding.status.is_empty() || !snapshot.overlay_binding.status.is_empty() {
+        if !snapshot.panel_binding.status.is_empty() || !snapshot.overlay_binding.status.is_empty()
+        {
             return Ok(snapshot);
         }
     }
@@ -53,7 +56,9 @@ pub fn update_shortcut_settings(
     apply_shortcut_preferences(&app)
 }
 
-pub fn initialize_shortcut_settings(app: &tauri::AppHandle) -> Result<ShortcutSettingsSnapshot, String> {
+pub fn initialize_shortcut_settings(
+    app: &tauri::AppHandle,
+) -> Result<ShortcutSettingsSnapshot, String> {
     apply_shortcut_preferences(app)
 }
 
@@ -145,18 +150,20 @@ fn register_binding(app: &tauri::AppHandle, binding: &mut DesiredShortcutBinding
 
     let register_result = match binding.action {
         ShortcutAction::TogglePanel => {
-            app.global_shortcut().on_shortcut(shortcut, move |app, _, event| {
-                if event.state == ShortcutState::Pressed {
-                    handle_panel_shortcut(app);
-                }
-            })
+            app.global_shortcut()
+                .on_shortcut(shortcut, move |app, _, event| {
+                    if event.state == ShortcutState::Pressed {
+                        handle_panel_shortcut(app);
+                    }
+                })
         }
         ShortcutAction::ToggleOverlay => {
-            app.global_shortcut().on_shortcut(shortcut, move |app, _, event| {
-                if event.state == ShortcutState::Pressed {
-                    handle_overlay_shortcut(app);
-                }
-            })
+            app.global_shortcut()
+                .on_shortcut(shortcut, move |app, _, event| {
+                    if event.state == ShortcutState::Pressed {
+                        handle_overlay_shortcut(app);
+                    }
+                })
         }
     };
 

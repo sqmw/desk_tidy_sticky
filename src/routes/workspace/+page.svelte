@@ -43,6 +43,8 @@
   import WorkspaceSettingsDialog from "$lib/components/workspace/WorkspaceSettingsDialog.svelte";
   import WorkspaceReviewHub from "$lib/components/workspace/review/WorkspaceReviewHub.svelte";
   import { buildReviewFocusSnapshot } from "$lib/workspace/review/review-focus-stats.js";
+  import { getReviewRecords } from "$lib/workspace/review/review-records.js";
+  import { enableReviewDevFixtures } from "$lib/runtime/dev-flags.js";
   import {
     normalizePomodoroConfig,
   } from "$lib/workspace/preferences-service.js";
@@ -96,6 +98,11 @@
   let newNotePriority = $state(/** @type {number | null} */ (null));
   let newNoteTags = $state(/** @type {string[]} */ ([]));
   let reviewTab = $state(/** @type {"log" | "calendar" | "stats"} */ ("log"));
+  let reviewDevFixtures = $state(/** @type {{ enabled: boolean; notes: any[]; focusSnapshot: Record<string, any> | undefined }} */ ({
+    enabled: false,
+    notes: [],
+    focusSnapshot: undefined,
+  }));
 
   let inspectorOpen = $state(false);
   /** @type {string | null} */
@@ -215,12 +222,36 @@
   const renderedNotes = $derived.by(() => getRenderedWorkspaceNotes(visibleNotes));
 
   const noteViewCounts = $derived.by(() => getWorkspaceNoteViewCounts(notes));
-  const reviewFocusSnapshot = $derived.by(() =>
+  const baseReviewFocusSnapshot = $derived.by(() =>
     buildReviewFocusSnapshot({
       tasks: focusTasks,
       stats: focusStats,
       focusMinutes: Number(pomodoroConfig.focusMinutes || 25),
     }),
+  );
+  const reviewRecordsCount = $derived.by(() => getReviewRecords(notes).length);
+  const shouldUseReviewDevNotes = $derived.by(
+    () => reviewDevFixtures.enabled && reviewRecordsCount === 0 && reviewDevFixtures.notes.length > 0,
+  );
+  const shouldUseReviewDevStats = $derived.by(() => {
+    if (!reviewDevFixtures.enabled || !reviewDevFixtures.focusSnapshot) return false;
+    const snapshot = baseReviewFocusSnapshot;
+    const noSummary =
+      Number(snapshot?.todayFocusMinutes || 0) === 0 &&
+      Number(snapshot?.todayPomodoros || 0) === 0 &&
+      Number(snapshot?.weekFocusMinutes || 0) === 0 &&
+      Number(snapshot?.weekPomodoros || 0) === 0;
+    const noCharts =
+      (!Array.isArray(snapshot?.heatmapCells) || snapshot.heatmapCells.length === 0) &&
+      (!Array.isArray(snapshot?.taskDistribution) || snapshot.taskDistribution.length === 0) &&
+      (!Array.isArray(snapshot?.taskRollups) || snapshot.taskRollups.length === 0);
+    return noSummary && noCharts;
+  });
+  const reviewNotes = $derived.by(() =>
+    shouldUseReviewDevNotes ? [...reviewDevFixtures.notes, ...notes] : notes,
+  );
+  const reviewFocusSnapshot = $derived.by(() =>
+    shouldUseReviewDevStats ? reviewDevFixtures.focusSnapshot : baseReviewFocusSnapshot,
   );
 
   const inspectorNote = $derived.by(() => getWorkspaceInspectorNote(renderedNotes, inspectorNoteId));
@@ -305,6 +336,7 @@
 
   const {
     loadNotes,
+    saveDoneLog,
     togglePin,
     toggleZOrder,
     toggleWallpaperLayer,
@@ -575,6 +607,23 @@
     void setMainTab(WORKSPACE_MAIN_TAB_REVIEW);
   }
 
+  /**
+   * @param {string} text
+   * @param {string[]} [tags]
+   * @param {string | null} [completedAt]
+   */
+  function createReviewDoneLog(text, tags = [], completedAt = null) {
+    return saveDoneLog(text, tags, completedAt);
+  }
+
+  /** @param {any} note */
+  function openReviewNote(note) {
+    if (!note?.id) return;
+    void setMainTab(WORKSPACE_MAIN_TAB_NOTES).then(() => {
+      openInspectorView(note);
+    });
+  }
+
   /** @param {PointerEvent} e */
   async function startWorkspaceDragPointer(e) {
     try {
@@ -641,6 +690,22 @@
     runtimeLifecycle.syncGlobalControlState();
     initAutostart();
     loadShortcutSettingsState();
+    if (enableReviewDevFixtures) {
+      void import("$lib/dev/review-dev-fixtures.js")
+        .then(({ buildReviewDevFixtures }) => {
+          const fixtures = buildReviewDevFixtures({
+            focusMinutes: Number(pomodoroConfig.focusMinutes || 25),
+          });
+          reviewDevFixtures = {
+            enabled: true,
+            notes: Array.isArray(fixtures?.notes) ? fixtures.notes : [],
+            focusSnapshot: fixtures?.focusSnapshot || undefined,
+          };
+        })
+        .catch((error) => {
+          console.error("loadReviewDevFixtures", error);
+        });
+    }
     let cleanup = /** @type {(() => void) | null} */ (null);
     let unlistenPrefs = /** @type {(() => void) | null} */ (null);
     let unlistenShortcutSettings = /** @type {(() => void) | null} */ (null);
@@ -861,14 +926,18 @@
         onSelectedTaskIdChange={changeFocusSelectedTask}
         onPomodoroConfigChange={changePomodoroConfig}
         onOpenReview={openReviewStats}
+        onCreateDoneLog={createReviewDoneLog}
       />
     </section>
 
     <section class="review-pane" class:hidden={mainTab !== WORKSPACE_MAIN_TAB_REVIEW}>
       <WorkspaceReviewHub
         {strings}
-        {notes}
+        notes={reviewNotes}
         focusSnapshot={reviewFocusSnapshot}
+        onCreateDoneLog={createReviewDoneLog}
+        onOpenNote={openReviewNote}
+        onToggleDone={toggleDone}
         bind:selectedTab={reviewTab}
       />
     </section>

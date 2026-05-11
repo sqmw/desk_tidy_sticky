@@ -1,4 +1,4 @@
-use crate::notes::{compat::flutter_legacy, Note};
+use crate::notes::{compat::flutter_legacy, domain::normalize_note_review_semantics, Note};
 use crate::runtime::paths;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -67,7 +67,16 @@ fn load_current_notes(path: &Path) -> Vec<Note> {
         return vec![];
     }
     match read_notes_from_path(path) {
-        Ok(notes) => notes,
+        Ok(mut notes) => {
+            let mut changed = false;
+            for note in &mut notes {
+                changed |= normalize_note_review_semantics(note);
+            }
+            if changed {
+                let _ = write_notes_to_path(path, &notes);
+            }
+            notes
+        }
         Err(err) => {
             eprintln!(
                 "[note_compat] failed to read current notes from {}: {}",
@@ -148,11 +157,12 @@ fn migrate_legacy_note_to_current(
     legacy_file_index: usize,
     legacy_note_index: usize,
 ) -> Result<(), String> {
-    let note = context.legacy_files[legacy_file_index]
+    let mut note = context.legacy_files[legacy_file_index]
         .notes
         .get(legacy_note_index)
         .cloned()
         .ok_or_else(|| "legacy note not found during migration".to_string())?;
+    normalize_note_review_semantics(&mut note);
 
     if !context
         .current_notes
