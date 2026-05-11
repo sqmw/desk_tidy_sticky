@@ -2,6 +2,7 @@
   let {
     strings,
     records = [],
+    isFiltered = false,
     selectedRecordId = "",
     onSelect = () => {},
     onOpenNote = () => {},
@@ -11,8 +12,8 @@
 <section class="log-list">
   {#if records.length === 0}
     <div class="empty-state">
-      <h3>{strings.workspaceReviewLogEmptyTitle}</h3>
-      <p>{strings.workspaceReviewLogEmptyBody}</p>
+      <h3>{isFiltered ? strings.workspaceReviewLogFilteredEmptyTitle : strings.workspaceReviewLogEmptyTitle}</h3>
+      <p>{isFiltered ? strings.workspaceReviewLogFilteredEmptyBody : strings.workspaceReviewLogEmptyBody}</p>
     </div>
   {:else}
     {#each records as record (record.id)}

@@ -1,6 +1,7 @@
 <script>
   import WorkspaceFocusStats from "$lib/components/workspace/pomodoro/WorkspaceFocusStats.svelte";
   import WorkspaceReviewCalendar from "$lib/components/workspace/review/WorkspaceReviewCalendar.svelte";
+  import WorkspaceReviewFilters from "$lib/components/workspace/review/WorkspaceReviewFilters.svelte";
   import WorkspaceReviewLogList from "$lib/components/workspace/review/WorkspaceReviewLogList.svelte";
   import HelpTip from "$lib/components/workspace/ui/HelpTip.svelte";
   import {
@@ -11,6 +12,15 @@
     getDateKey,
     getReviewRecords,
   } from "$lib/workspace/review/review-records.js";
+  import {
+    buildReviewTagOptions,
+    filterReviewRecords,
+    REVIEW_RANGE_ALL,
+    REVIEW_RANGE_LAST_30_DAYS,
+    REVIEW_RANGE_LAST_7_DAYS,
+    REVIEW_RANGE_THIS_MONTH,
+    REVIEW_RANGE_TODAY,
+  } from "$lib/workspace/review/review-record-selectors.js";
 
   const REVIEW_TAB_LOG = "log";
   const REVIEW_TAB_CALENDAR = "calendar";
@@ -32,12 +42,23 @@
   let isCreatingDoneLog = $state(false);
   let draftDoneLogText = $state("");
   let draftDoneLogCompletedAt = $state("");
+  let selectedRangeKey = $state(REVIEW_RANGE_ALL);
+  let selectedTag = $state("");
+  let searchText = $state("");
 
   const todayDateKey = $derived(getDateKey(new Date()));
   const weekDateKeys = $derived(getRecentDateKeys(new Date(), 7));
   const doneLogs = $derived.by(() => getReviewRecords(notes));
+  const reviewTagOptions = $derived.by(() => buildReviewTagOptions(doneLogs));
+  const filteredDoneLogs = $derived.by(() =>
+    filterReviewRecords(doneLogs, {
+      rangeKey: selectedRangeKey,
+      tag: selectedTag,
+      searchText,
+    }),
+  );
   const hydratedRecords = $derived.by(() =>
-    doneLogs.map((record) => ({
+    filteredDoneLogs.map((record) => ({
       ...record,
       completedLabel: formatReviewDateTime(record.completedAt),
       dayLabel: formatReviewDayLabel(record.completedAt),
@@ -68,6 +89,16 @@
   const calendarMonthLabel = $derived.by(() => formatReviewMonthLabel(calendarCursor));
   const selectedCalendarRecords = $derived.by(() =>
     hydratedRecords.filter((record) => record.dateKey === selectedCalendarDateKey),
+  );
+  const rangeOptions = $derived([
+    { value: REVIEW_RANGE_ALL, label: strings.workspaceReviewFiltersRangeAll },
+    { value: REVIEW_RANGE_TODAY, label: strings.workspaceReviewFiltersRangeToday },
+    { value: REVIEW_RANGE_LAST_7_DAYS, label: strings.workspaceReviewFiltersRangeLast7Days },
+    { value: REVIEW_RANGE_LAST_30_DAYS, label: strings.workspaceReviewFiltersRangeLast30Days },
+    { value: REVIEW_RANGE_THIS_MONTH, label: strings.workspaceReviewFiltersRangeThisMonth },
+  ]);
+  const hasActiveFilters = $derived.by(
+    () => selectedRangeKey !== REVIEW_RANGE_ALL || !!selectedTag || !!String(searchText || "").trim(),
   );
   const selectedCalendarLabel = $derived.by(() => {
     if (selectedCalendarRecords.length > 0) {
@@ -197,6 +228,36 @@
     await onCreateDoneLog(text, [], completedAt);
     cancelDoneLogDraft();
   }
+
+  function clearFilters() {
+    selectedRangeKey = REVIEW_RANGE_ALL;
+    selectedTag = "";
+    searchText = "";
+  }
+
+  $effect(() => {
+    const records = hydratedRecords;
+    if (records.length === 0) {
+      selectedRecordId = "";
+      return;
+    }
+    if (!records.some((record) => record.id === selectedRecordId)) {
+      selectedRecordId = records[0].id;
+    }
+  });
+
+  $effect(() => {
+    const records = hydratedRecords;
+    if (records.length === 0) {
+      selectedCalendarDateKey = todayDateKey;
+      return;
+    }
+    if (!records.some((record) => record.dateKey === selectedCalendarDateKey)) {
+      const nextDateKey = records[0].dateKey;
+      selectedCalendarDateKey = nextDateKey;
+      calendarCursor = new Date(`${nextDateKey}T12:00:00`);
+    }
+  });
 </script>
 
 <section class="review-hub" data-no-drag="true">
@@ -233,6 +294,22 @@
       </button>
     {/each}
   </div>
+
+  {#if selectedTab !== REVIEW_TAB_STATS}
+    <WorkspaceReviewFilters
+      {strings}
+      {rangeOptions}
+      selectedRange={selectedRangeKey}
+      {selectedTag}
+      tagOptions={reviewTagOptions}
+      {searchText}
+      matchedCount={hydratedRecords.length}
+      onSelectRange={(/** @type {string} */ value) => (selectedRangeKey = value)}
+      onSelectTag={(/** @type {string} */ value) => (selectedTag = value)}
+      onChangeSearch={(/** @type {string} */ value) => (searchText = value)}
+      onClear={clearFilters}
+    />
+  {/if}
 
   <div class="review-shell" class:stats-mode={selectedTab === REVIEW_TAB_STATS}>
     <section class="review-main-card">
@@ -290,6 +367,7 @@
           <WorkspaceReviewLogList
             {strings}
             records={hydratedRecords}
+            isFiltered={hasActiveFilters}
             {selectedRecordId}
             onSelect={(/** @type {string} */ id) => (selectedRecordId = id)}
             {onOpenNote}

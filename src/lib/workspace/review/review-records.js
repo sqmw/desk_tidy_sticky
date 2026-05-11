@@ -154,7 +154,7 @@ function buildRecordPreview(text) {
     .map((line) => line.trim())
     .filter(Boolean);
   const title = lines[0] || "Untitled";
-  const excerpt = (lines.slice(1).join(" ") || title).slice(0, 220);
+  const excerpt = (lines.slice(1, 3).join(" ") || title).slice(0, 220);
   return { title, excerpt };
 }
 
