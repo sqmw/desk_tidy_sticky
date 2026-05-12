@@ -56,12 +56,17 @@ export function buildReviewCalendarMonth(records, monthDate) {
     date.setDate(firstDay.getDate() + index);
     const dateKey = getDateKey(date);
     const dayRecords = recordMap.get(dateKey) || [];
+    const previewTitle = dayRecords.length === 1 ? String(dayRecords[0]?.title || "").trim() : "";
     return {
       date,
       dateKey,
+      weekIndex: Math.floor(index / 7),
+      columnIndex: index % 7,
       dayNumber: date.getDate(),
       inCurrentMonth: date.getMonth() === monthIndex,
       count: dayRecords.length,
+      previewTitle,
+      heatLevel: resolveCalendarHeatLevel(dayRecords.length),
       records: dayRecords,
     };
   });
@@ -74,6 +79,55 @@ export function formatReviewDateTime(isoString) {
   const date = safeDate(isoString);
   if (!date) return "";
   return new Intl.DateTimeFormat(undefined, {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+/**
+ * @param {string} isoString
+ * @param {Date} [now]
+ */
+export function formatReviewTimelineDateTime(isoString, now = new Date()) {
+  const date = safeDate(isoString);
+  if (!date) return "";
+
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  const sameDay = isSameDay(date, now);
+  const sameYear = date.getFullYear() === now.getFullYear();
+
+  if (sameDay && diffMs >= 0 && diffHours < 6) {
+    const minutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
+    if (minutes < 60) {
+      return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(-minutes, "minute");
+    }
+    const hours = Math.max(1, Math.round(diffHours));
+    return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(-hours, "hour");
+  }
+
+  if (sameDay) {
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(date);
+  }
+
+  if (sameYear) {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
     month: "numeric",
     day: "numeric",
     hour: "2-digit",
@@ -154,7 +208,7 @@ function buildRecordPreview(text) {
     .map((line) => line.trim())
     .filter(Boolean);
   const title = lines[0] || "Untitled";
-  const excerpt = (lines.slice(1, 3).join(" ") || title).slice(0, 220);
+  const excerpt = lines.slice(1, 3).join(" ").slice(0, 220);
   return { title, excerpt };
 }
 
@@ -166,4 +220,27 @@ function safeDate(isoString) {
   if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/**
+ * @param {number} count
+ */
+function resolveCalendarHeatLevel(count) {
+  if (count >= 4) return 4;
+  if (count === 3) return 3;
+  if (count === 2) return 2;
+  if (count === 1) return 1;
+  return 0;
+}
+
+/**
+ * @param {Date} left
+ * @param {Date} right
+ */
+function isSameDay(left, right) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
 }

@@ -9,6 +9,7 @@
     formatReviewDateTime,
     formatReviewDayLabel,
     formatReviewMonthLabel,
+    formatReviewTimelineDateTime,
     getDateKey,
     getReviewRecords,
   } from "$lib/workspace/review/review-records.js";
@@ -36,7 +37,6 @@
     selectedTab = $bindable(/** @type {"log" | "calendar" | "stats"} */ (REVIEW_TAB_LOG)),
   } = $props();
 
-  let selectedRecordId = $state("");
   let calendarCursor = $state(new Date());
   let selectedCalendarDateKey = $state(getDateKey(new Date()));
   let isCreatingDoneLog = $state(false);
@@ -60,7 +60,8 @@
   const hydratedRecords = $derived.by(() =>
     filteredDoneLogs.map((record) => ({
       ...record,
-      completedLabel: formatReviewDateTime(record.completedAt),
+      completedLabel: formatReviewTimelineDateTime(record.completedAt),
+      completedExactLabel: formatReviewDateTime(record.completedAt),
       dayLabel: formatReviewDayLabel(record.completedAt),
     })),
   );
@@ -73,10 +74,7 @@
   });
   const recordStreakDays = $derived.by(() => computeRecordStreakDays(doneLogs, todayDateKey));
   const todayFocusMinutes = $derived.by(() => Number(focusSnapshot?.todayFocusMinutes || 0));
-  const selectedRecord = $derived.by(
-    () => hydratedRecords.find((record) => record.id === selectedRecordId) || hydratedRecords[0] || null,
-  );
-  const calendarMonthCells = $derived.by(() => buildReviewCalendarMonth(doneLogs, calendarCursor));
+  const calendarMonthCells = $derived.by(() => buildReviewCalendarMonth(filteredDoneLogs, calendarCursor));
   const calendarWeekdayLabels = $derived([
     strings.weekdaySun,
     strings.weekdayMon,
@@ -100,6 +98,7 @@
   const hasActiveFilters = $derived.by(
     () => selectedRangeKey !== REVIEW_RANGE_ALL || !!selectedTag || !!String(searchText || "").trim(),
   );
+  const resultsSummary = $derived.by(() => `${hydratedRecords.length} ${strings.workspaceReviewFiltersResultCountSuffix}`);
   const selectedCalendarLabel = $derived.by(() => {
     if (selectedCalendarRecords.length > 0) {
       return selectedCalendarRecords[0].dayLabel;
@@ -107,7 +106,6 @@
     if (!selectedCalendarDateKey) return strings.workspaceReviewCalendarInspectorEmptyTitle;
     return formatReviewDayLabel(`${selectedCalendarDateKey}T12:00:00`);
   });
-
   const reviewTabs = $derived([
     { key: REVIEW_TAB_LOG, label: strings.workspaceReviewTabLog },
     { key: REVIEW_TAB_CALENDAR, label: strings.workspaceReviewTabCalendar },
@@ -121,7 +119,7 @@
         : strings.workspaceReviewCalendarInspectorEmptyTitle;
     }
     if (selectedTab === REVIEW_TAB_STATS) return strings.workspaceReviewStatsInspectorTitle;
-    return selectedRecord?.title || strings.workspaceReviewLogInspectorTitle;
+    return strings.workspaceReviewCalendarInspectorTitle;
   });
 
   const inspectorBody = $derived.by(() => {
@@ -131,7 +129,7 @@
         : strings.workspaceReviewCalendarInspectorBody;
     }
     if (selectedTab === REVIEW_TAB_STATS) return strings.workspaceReviewStatsInspectorBody;
-    return selectedRecord?.excerpt || strings.workspaceReviewLogInspectorBody;
+    return strings.workspaceReviewCalendarInspectorBody;
   });
 
   /**
@@ -235,16 +233,12 @@
     searchText = "";
   }
 
-  $effect(() => {
-    const records = hydratedRecords;
-    if (records.length === 0) {
-      selectedRecordId = "";
-      return;
-    }
-    if (!records.some((record) => record.id === selectedRecordId)) {
-      selectedRecordId = records[0].id;
-    }
-  });
+  /** @param {string} tag */
+  function handleSelectTagFromCard(tag) {
+    const next = String(tag || "").trim();
+    if (!next) return;
+    selectedTag = selectedTag === next ? "" : next;
+  }
 
   $effect(() => {
     const records = hydratedRecords;
@@ -303,7 +297,6 @@
       {selectedTag}
       tagOptions={reviewTagOptions}
       {searchText}
-      matchedCount={hydratedRecords.length}
       onSelectRange={(/** @type {string} */ value) => (selectedRangeKey = value)}
       onSelectTag={(/** @type {string} */ value) => (selectedTag = value)}
       onChangeSearch={(/** @type {string} */ value) => (searchText = value)}
@@ -311,22 +304,30 @@
     />
   {/if}
 
-  <div class="review-shell" class:stats-mode={selectedTab === REVIEW_TAB_STATS}>
+  <div
+    class="review-shell"
+    class:single-pane={selectedTab === REVIEW_TAB_LOG || selectedTab === REVIEW_TAB_STATS}
+  >
     <section class="review-main-card">
       {#if selectedTab === REVIEW_TAB_LOG}
         <div class="review-log-stage">
           <div class="done-log-composer">
             <div class="composer-head">
               <div class="composer-copy">
-                <div class="section-badge">{strings.workspaceReviewLogBadge}</div>
-                <div>
+                <div class="section-badge-row">
+                  <div class="section-badge">{strings.workspaceReviewLogBadge}</div>
+                  <span class="results-summary">{resultsSummary}</span>
+                </div>
+                <div class="section-title-row">
                   <h3>{strings.workspaceReviewLogTitle}</h3>
-                  <p>{strings.workspaceReviewLogBody}</p>
+                  <button type="button" class="composer-btn inline" onclick={() => startDoneLogDraft()}>
+                    {strings.workspaceReviewCreateAction}
+                  </button>
+                  {#if hasActiveFilters}
+                    <span class="active-filter-chip">{strings.workspaceReviewFiltersActive}</span>
+                  {/if}
                 </div>
               </div>
-              <button type="button" class="composer-btn" onclick={() => startDoneLogDraft()}>
-                {strings.workspaceReviewCreateAction}
-              </button>
             </div>
           </div>
           {#if isCreatingDoneLog}
@@ -368,9 +369,11 @@
             {strings}
             records={hydratedRecords}
             isFiltered={hasActiveFilters}
-            {selectedRecordId}
-            onSelect={(/** @type {string} */ id) => (selectedRecordId = id)}
+            onOpenCalendarDay={openCalendarForDateKey}
             {onOpenNote}
+            {onToggleDone}
+            {selectedTag}
+            onSelectTag={handleSelectTagFromCard}
           />
         </div>
       {:else if selectedTab === REVIEW_TAB_CALENDAR}
@@ -420,59 +423,25 @@
       {/if}
     </section>
 
-    {#if selectedTab !== REVIEW_TAB_STATS}
+    {#if selectedTab === REVIEW_TAB_CALENDAR}
       <aside class="review-inspector-card">
         <div class="inspector-head">
           <span class="inspector-kicker">{strings.details}</span>
           <h3>{inspectorTitle}</h3>
         </div>
-        {#if selectedTab === REVIEW_TAB_LOG && selectedRecord}
-          <p>{inspectorBody}</p>
-          <div class="inspector-record-meta">
-            <span>{selectedRecord.dayLabel}</span>
-            <span>{selectedRecord.completedLabel}</span>
-          </div>
-          {#if selectedRecord.tags.length > 0}
-            <div class="inspector-tags">
-              {#each selectedRecord.tags as tag (tag)}
-                <span>{tag}</span>
-              {/each}
-            </div>
+        <p>{inspectorBody}</p>
+        <div class="calendar-inspector-list">
+          {#if selectedCalendarRecords.length === 0}
+            <div class="calendar-empty">{strings.workspaceReviewCalendarInspectorEmptyBody}</div>
+          {:else}
+            {#each selectedCalendarRecords as record (record.id)}
+              <button type="button" class="calendar-record" onclick={() => onOpenNote(record.note)}>
+                <strong>{record.title}</strong>
+                <span>{record.completedLabel}</span>
+              </button>
+            {/each}
           {/if}
-          <div class="inspector-actions">
-            <button
-              type="button"
-              class="inspector-btn"
-              onclick={() => openCalendarForDateKey(selectedRecord.dateKey)}
-            >
-              {strings.workspaceReviewOpenCalendarDay}
-            </button>
-            <button type="button" class="inspector-btn primary" onclick={() => onOpenNote(selectedRecord.note)}>
-              {strings.workspaceReviewOpenSource}
-            </button>
-            <button type="button" class="inspector-btn" onclick={() => onToggleDone(selectedRecord.note)}>
-              {strings.markUndone}
-            </button>
-          </div>
-        {:else if selectedTab === REVIEW_TAB_LOG}
-          <div class="inspector-empty-card">
-            <p>{strings.workspaceReviewLogInspectorBody}</p>
-          </div>
-        {:else}
-          <p>{inspectorBody}</p>
-          <div class="calendar-inspector-list">
-            {#if selectedCalendarRecords.length === 0}
-              <div class="calendar-empty">{strings.workspaceReviewCalendarInspectorEmptyBody}</div>
-            {:else}
-              {#each selectedCalendarRecords as record (record.id)}
-                <button type="button" class="calendar-record" onclick={() => onOpenNote(record.note)}>
-                  <strong>{record.title}</strong>
-                  <span>{record.completedLabel}</span>
-                </button>
-              {/each}
-            {/if}
-          </div>
-        {/if}
+        </div>
       </aside>
     {/if}
   </div>
@@ -487,8 +456,8 @@
   }
 
   .review-summary {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
   }
 
@@ -507,20 +476,26 @@
   }
 
   .summary-card {
-    padding: 12px 14px;
-    display: grid;
-    gap: 6px;
+    flex: 1 1 180px;
+    min-height: 58px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
   }
 
   .summary-card span {
     font-size: 12px;
-    color: var(--ws-muted, #64748b);
+    font-weight: 700;
+    line-height: 1.2;
+    color: color-mix(in srgb, var(--ws-text, #334155) 82%, var(--ws-muted, #64748b));
   }
 
   .summary-card strong {
-    font-size: clamp(20px, 1.5vw, 26px);
-    color: var(--ws-text-strong, #0f172a);
-    line-height: 1;
+    font-size: clamp(18px, 1.35vw, 24px);
+    color: var(--ws-accent-strong, #163ea8);
+    line-height: 1.1;
   }
 
   .review-tabs {
@@ -579,7 +554,7 @@
     gap: 8px;
   }
 
-  .review-shell.stats-mode {
+  .review-shell.single-pane {
     grid-template-columns: minmax(0, 1fr);
   }
 
@@ -616,31 +591,49 @@
   }
 
   .composer-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
-  }
-
-  .composer-copy {
     display: grid;
     gap: 10px;
   }
 
-  .composer-copy h3,
-  .composer-copy p {
+  .composer-copy {
+    display: grid;
+    gap: 8px;
+  }
+
+  .composer-copy h3 {
     margin: 0;
   }
 
   .composer-copy h3 {
-    font-size: 19px;
+    font-size: 18px;
     color: var(--ws-text-strong, #0f172a);
   }
 
-  .composer-copy p {
+  .section-badge-row,
+  .section-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .results-summary {
     color: var(--ws-muted, #64748b);
-    font-size: 13px;
-    line-height: 1.6;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .active-filter-chip {
+    min-height: 24px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 16%, var(--ws-border-soft, #d9e2ef));
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 8%, #fff);
+    color: var(--ws-accent, #1d4ed8);
+    font-size: 11px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
   }
 
   .done-log-draft-card {
@@ -728,6 +721,12 @@
     font-weight: 800;
   }
 
+  .composer-btn.inline {
+    min-height: 34px;
+    padding: 0 14px;
+    margin-left: auto;
+  }
+
   .draft-card-actions {
     display: flex;
     justify-content: flex-end;
@@ -742,8 +741,7 @@
 
   @media (max-width: 720px) {
     .composer-head {
-      flex-direction: column;
-      align-items: stretch;
+      gap: 10px;
     }
   }
 
@@ -791,13 +789,6 @@
     gap: 14px;
   }
 
-  .inspector-empty-card {
-    padding: 14px 16px;
-    border-radius: 14px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 96%, transparent);
-  }
-
   .inspector-head {
     display: grid;
     gap: 6px;
@@ -808,36 +799,6 @@
     letter-spacing: 0.05em;
     font-size: 11px;
     font-weight: 700;
-  }
-
-  .inspector-record-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    color: var(--ws-muted, #64748b);
-    font-size: 12px;
-  }
-
-  .inspector-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .inspector-tags span {
-    border-radius: 999px;
-    padding: 4px 9px;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--ws-accent, #1d4ed8);
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, #fff);
-    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 18%, var(--ws-border-soft, #d9e2ef));
-  }
-
-  .inspector-actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
   }
 
   .inspector-btn {

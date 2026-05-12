@@ -6,7 +6,6 @@
     selectedTag = "",
     tagOptions = [],
     searchText = "",
-    matchedCount = 0,
     onSelectRange = () => {},
     onSelectTag = () => {},
     onChangeSearch = () => {},
@@ -54,14 +53,13 @@
     </label>
   </div>
 
-  <div class="filters-meta">
-    <span class="result-count">{matchedCount} {strings.workspaceReviewFiltersResultCountSuffix}</span>
-    {#if hasActiveFilters}
+  {#if hasActiveFilters}
+    <div class="filters-meta">
       <button type="button" class="clear-btn" onclick={() => onClear()}>
         {strings.workspaceReviewFiltersClear}
       </button>
-    {/if}
-  </div>
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -125,14 +123,8 @@
   .filters-meta {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 12px;
-  }
-
-  .result-count {
-    color: var(--ws-muted, #64748b);
-    font-size: 12px;
-    font-weight: 700;
   }
 
   .clear-btn {
@@ -152,8 +144,7 @@
     }
 
     .filters-meta {
-      align-items: flex-start;
-      flex-direction: column;
+      justify-content: flex-start;
     }
   }
 </style>
