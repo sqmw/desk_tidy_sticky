@@ -348,8 +348,12 @@
 
   .note-text.done {
     text-decoration: line-through;
-    text-decoration-thickness: 1.5px;
-    text-decoration-color: #9aa3af;
+    text-decoration-thickness: 2.5px;
+    text-decoration-color: #4b5563;
+    color: #8a92a0;
+  }
+
+  .note-text.done :global(*) {
     color: #8a92a0;
   }
 
@@ -383,7 +387,14 @@
 
   .action-btn.reorder-handle {
     cursor: grab;
-    color: #8a94a3;
+    color: #475569;
+    height: 34px;
+    opacity: 0.9;
+  }
+
+  .action-btn.reorder-handle :global(svg) {
+    width: 18px;
+    height: 18px;
   }
 
   .action-btn.reorder-handle:active {

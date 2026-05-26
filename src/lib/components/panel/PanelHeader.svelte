@@ -17,7 +17,7 @@
     sortMode,
     isSortMenuOpen = $bindable(),
     searchQuery = $bindable(),
-    hideAfterSave = $bindable(),
+    proMode,
     startWindowDragPointer,
     hideWindow,
     minimizeWindow,
@@ -26,7 +26,6 @@
     setViewMode,
     setSortMode,
     emptyTrash,
-    onHideAfterSaveChange,
   } = $props();
 
   const isMac =
@@ -132,16 +131,10 @@
     </div>
 
     <div class="tabs-actions">
-      <label class="toggle-switch" title={strings.hideAfterSave}>
-        <input type="checkbox" bind:checked={hideAfterSave} onchange={onHideAfterSaveChange} />
-        <span class="slider round"></span>
-      </label>
-
-
     </div>
   </div>
 
-  <SearchBar {strings} bind:searchQuery />
+  <SearchBar {strings} bind:searchQuery {proMode} />
 </header>
 
 <style>

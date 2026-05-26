@@ -19,6 +19,9 @@
     toggleStickiesVisibility,
     globalControlDisabled,
     toggleGlobalControl,
+    hideAfterSave = $bindable(),
+    onHideAfterSaveChange,
+    proMode = $bindable(),
   } = $props();
 
   async function openGithubRepo() {
@@ -128,6 +131,38 @@
                 type="checkbox"
                 checked={!globalControlDisabled}
                 onchange={toggleGlobalControl}
+              />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="setting-item">
+            <span class="setting-label">{strings.hideAfterSave}</span>
+            <div class="toggle-switch">
+              <input
+                type="checkbox"
+                checked={hideAfterSave}
+                onchange={(e) => {
+                  const checked = /** @type {HTMLInputElement} */ (e.target).checked;
+                  hideAfterSave = checked;
+                  onHideAfterSaveChange();
+                }}
+              />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="setting-item">
+            <span class="setting-label">{strings.proMode}</span>
+            <div class="toggle-switch">
+              <input
+                type="checkbox"
+                checked={proMode}
+                onchange={(e) => {
+                  const checked = /** @type {HTMLInputElement} */ (e.target).checked;
+                  proMode = checked;
+                  savePrefs({ proMode: checked });
+                }}
               />
               <span class="slider"></span>
             </div>

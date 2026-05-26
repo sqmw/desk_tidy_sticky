@@ -54,6 +54,7 @@
   let editingNote = $state(null);
   let editText = $state("");
   let showSettings = $state(false);
+  let proMode = $state(false);
   let isAutostartEnabled = $state(false);
   let showPanelOnStartup = $state(false);
   let shortcutSettings = $state(createDefaultShortcutSettings());
@@ -187,6 +188,7 @@
       locale = resolveAppLocale(p.language);
       showPanelOnStartup = p.showPanelOnStartup ?? false;
       stickiesVisible = p.overlayEnabled ?? true;
+      proMode = p.proMode ?? false;
     } catch (e) {
       console.error("loadPrefs", e);
     }
@@ -488,10 +490,10 @@
       {noteTagOptions}
       bind:noteInputEl
       {viewMode}
+      {proMode}
       {sortMode}
       bind:isSortMenuOpen
       bind:searchQuery
-      bind:hideAfterSave
       {startWindowDragPointer}
       {hideWindow}
       {minimizeWindow}
@@ -500,7 +502,6 @@
       {setViewMode}
       {setSortMode}
       {emptyTrash}
-      onHideAfterSaveChange={() => savePrefs({ hideAfterSave })}
     />
 
     <NotesSection
@@ -551,6 +552,9 @@
   {toggleStickiesVisibility}
   {globalControlDisabled}
   {toggleGlobalControl}
+  bind:hideAfterSave
+  onHideAfterSaveChange={() => savePrefs({ hideAfterSave })}
+  bind:proMode
 />
 
 <style>
