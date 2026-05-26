@@ -246,14 +246,14 @@
 
 {#snippet iconDragHandle()}
   <svg viewBox="0 0 24 32" width="18" height="24" fill="currentColor">
-    <rect x="8.5" y="1" width="3" height="5" rx="1.5" />
-    <rect x="14.5" y="1" width="3" height="5" rx="1.5" />
-    <rect x="8.5" y="9" width="3" height="5" rx="1.5" />
-    <rect x="14.5" y="9" width="3" height="5" rx="1.5" />
-    <rect x="8.5" y="17" width="3" height="5" rx="1.5" />
-    <rect x="14.5" y="17" width="3" height="5" rx="1.5" />
-    <rect x="8.5" y="25" width="3" height="5" rx="1.5" />
-    <rect x="14.5" y="25" width="3" height="5" rx="1.5" />
+    <rect x="7.5" y="1.5" width="3" height="5" rx="1.5" />
+    <rect x="13.5" y="1.5" width="3" height="5" rx="1.5" />
+    <rect x="7.5" y="9.5" width="3" height="5" rx="1.5" />
+    <rect x="13.5" y="9.5" width="3" height="5" rx="1.5" />
+    <rect x="7.5" y="17.5" width="3" height="5" rx="1.5" />
+    <rect x="13.5" y="17.5" width="3" height="5" rx="1.5" />
+    <rect x="7.5" y="25.5" width="3" height="5" rx="1.5" />
+    <rect x="13.5" y="25.5" width="3" height="5" rx="1.5" />
   </svg>
 {/snippet}
 
