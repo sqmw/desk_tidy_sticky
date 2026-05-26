@@ -13,6 +13,12 @@
     toggleAutostart,
     savePrefs,
     onSaveShortcutSettings = async () => {},
+    locale = $bindable(),
+    onChangeLanguage,
+    stickiesVisible,
+    toggleStickiesVisibility,
+    globalControlDisabled,
+    toggleGlobalControl,
   } = $props();
 
   async function openGithubRepo() {
@@ -83,6 +89,45 @@
                   showPanelOnStartup = checked;
                   savePrefs({ showPanelOnStartup: checked });
                 }}
+              />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="setting-item">
+            <span class="setting-label">{strings.language}</span>
+            <select
+              class="settings-select"
+              value={locale}
+              onchange={async (e) => {
+                const target = /** @type {HTMLSelectElement} */ (e.target);
+                await onChangeLanguage(target.value);
+              }}
+            >
+              <option value="zh">简体中文</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+
+          <label class="setting-item">
+            <span class="setting-label">{strings.overlay}</span>
+            <div class="toggle-switch">
+              <input
+                type="checkbox"
+                checked={stickiesVisible}
+                onchange={toggleStickiesVisibility}
+              />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="setting-item">
+            <span class="setting-label">{strings.overlayClickThrough}</span>
+            <div class="toggle-switch">
+              <input
+                type="checkbox"
+                checked={!globalControlDisabled}
+                onchange={toggleGlobalControl}
               />
               <span class="slider"></span>
             </div>
@@ -216,6 +261,21 @@
   .setting-label {
     font-size: 14px;
     color: var(--neutral);
+  }
+
+  .settings-select {
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #dcdfe6;
+    background: #fff;
+    outline: none;
+    font-size: 13px;
+    color: var(--neutral);
+    cursor: pointer;
+  }
+
+  .settings-select:focus {
+    border-color: var(--primary);
   }
 
   .dialog-footer {

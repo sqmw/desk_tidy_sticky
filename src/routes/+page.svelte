@@ -273,9 +273,10 @@
     editingNote = null;
   }
 
-  async function toggleLanguage() {
-    locale = locale === "en" ? "zh" : "en";
-    await savePrefs({ language: locale });
+  /** @param {string} nextLang */
+  async function changeLanguage(nextLang) {
+    locale = nextLang;
+    await savePrefs({ language: nextLang });
     updateTrayMenu();
   }
 
@@ -491,10 +492,7 @@
       bind:isSortMenuOpen
       bind:searchQuery
       bind:hideAfterSave
-      {stickiesVisible}
-      {globalControlDisabled}
       {startWindowDragPointer}
-      {toggleLanguage}
       {hideWindow}
       {minimizeWindow}
       {switchToWorkspace}
@@ -502,8 +500,6 @@
       {setViewMode}
       {setSortMode}
       {emptyTrash}
-      {toggleStickiesVisibility}
-      {toggleGlobalControl}
       onHideAfterSaveChange={() => savePrefs({ hideAfterSave })}
     />
 
@@ -549,6 +545,12 @@
   {shortcutSettings}
   {shortcutSettingsSaving}
   onSaveShortcutSettings={saveShortcutSettings}
+  bind:locale
+  onChangeLanguage={changeLanguage}
+  {stickiesVisible}
+  {toggleStickiesVisibility}
+  {globalControlDisabled}
+  {toggleGlobalControl}
 />
 
 <style>

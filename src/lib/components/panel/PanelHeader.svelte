@@ -18,10 +18,7 @@
     isSortMenuOpen = $bindable(),
     searchQuery = $bindable(),
     hideAfterSave = $bindable(),
-    stickiesVisible,
-    globalControlDisabled,
     startWindowDragPointer,
-    toggleLanguage,
     hideWindow,
     minimizeWindow,
     switchToWorkspace,
@@ -29,8 +26,6 @@
     setViewMode,
     setSortMode,
     emptyTrash,
-    toggleStickiesVisibility,
-    toggleGlobalControl,
     onHideAfterSaveChange,
   } = $props();
 
@@ -71,7 +66,6 @@
     <HeaderActions
       {strings}
       showWindowControls={!isMac}
-      {toggleLanguage}
       {hideWindow}
       {minimizeWindow}
       {switchToWorkspace}
@@ -143,44 +137,7 @@
         <span class="slider round"></span>
       </label>
 
-      <button
-        type="button"
-        class="icon-btn"
-        class:active={stickiesVisible}
-        title={stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
-        onclick={toggleStickiesVisibility}
-      >
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          {#if stickiesVisible}
-            <path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
-          {:else}
-            <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="13" rx="2" />
-              <path d="M12 16v4 M8 20h8" />
-            </g>
-          {/if}
-        </svg>
-      </button>
 
-      <button
-        type="button"
-        class="icon-btn"
-        class:active={!globalControlDisabled}
-        title={strings.trayInteraction}
-        onclick={toggleGlobalControl}
-      >
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          {#if !globalControlDisabled}
-            <path d="M13 1.1V9h7.4c0-3.9-3.1-7.1-6.8-7.8l-.6-.1zm-2 0C7.1 1.6 4.1 4.8 4.1 8.7V9H11V1.1zm-7.1 9.9v4.5C3.9 19.9 7.5 23.5 12 23.5S20 19.9 20 15.5V11H3.9z" />
-          {:else}
-            <path
-              fill-rule="evenodd"
-              clip-rule="evenodd"
-              d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zm0-6H7V9c0-2.76 2.24-5 5-5s5 2.24 5 5v0zm-4.5-5h1v5h-1V4z"
-            />
-          {/if}
-        </svg>
-      </button>
     </div>
   </div>
 
