@@ -37,6 +37,12 @@
       ? strings.inputHint.replace(/([（(]回车保存[）)])|([（(]Enter to save[）)])/, "").trim()
       : strings.inputHint
   );
+
+  const appTitle = $derived(
+    proMode
+      ? strings.appName.replace(/便签|便笺|Sticky/i, "").trim().toUpperCase()
+      : strings.appName.toUpperCase()
+  );
 </script>
 
 <header class="panel-header">
@@ -65,7 +71,7 @@
           </button>
         </div>
       {/if}
-      <span class="app-title">{strings.appName.toUpperCase()}</span>
+      <span class="app-title">{appTitle}</span>
     </div>
 
     <HeaderActions
