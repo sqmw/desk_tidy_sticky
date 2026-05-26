@@ -245,10 +245,15 @@
 {/snippet}
 
 {#snippet iconDragHandle()}
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-    <path
-      d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2S7 7.1 7 6s.9-2 2-2 2 .9 2 2zm6 12c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2z"
-    />
+  <svg viewBox="0 0 24 32" width="18" height="24" fill="currentColor">
+    <rect x="8.5" y="1" width="3" height="5" rx="1.5" />
+    <rect x="14.5" y="1" width="3" height="5" rx="1.5" />
+    <rect x="8.5" y="9" width="3" height="5" rx="1.5" />
+    <rect x="14.5" y="9" width="3" height="5" rx="1.5" />
+    <rect x="8.5" y="17" width="3" height="5" rx="1.5" />
+    <rect x="14.5" y="17" width="3" height="5" rx="1.5" />
+    <rect x="8.5" y="25" width="3" height="5" rx="1.5" />
+    <rect x="14.5" y="25" width="3" height="5" rx="1.5" />
   </svg>
 {/snippet}
 
@@ -388,13 +393,13 @@
   .action-btn.reorder-handle {
     cursor: grab;
     color: #475569;
-    height: 34px;
+    height: 40px;
     opacity: 0.9;
   }
 
   .action-btn.reorder-handle :global(svg) {
     width: 18px;
-    height: 18px;
+    height: 24px;
   }
 
   .action-btn.reorder-handle:active {
