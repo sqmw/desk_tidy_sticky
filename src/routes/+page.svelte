@@ -55,6 +55,7 @@
   let editText = $state("");
   let showSettings = $state(false);
   let proMode = $state(false);
+  let showStickyToggleOnHome = $state(true);
   let isAutostartEnabled = $state(false);
   let showPanelOnStartup = $state(false);
   let shortcutSettings = $state(createDefaultShortcutSettings());
@@ -189,6 +190,7 @@
       showPanelOnStartup = p.showPanelOnStartup ?? false;
       stickiesVisible = p.overlayEnabled ?? true;
       proMode = p.proMode ?? false;
+      showStickyToggleOnHome = p.showStickyToggleOnHome ?? true;
     } catch (e) {
       console.error("loadPrefs", e);
     }
@@ -502,6 +504,9 @@
       {setViewMode}
       {setSortMode}
       {emptyTrash}
+      {showStickyToggleOnHome}
+      {stickiesVisible}
+      {toggleStickiesVisibility}
     />
 
     <NotesSection
@@ -555,6 +560,7 @@
   bind:hideAfterSave
   onHideAfterSaveChange={() => savePrefs({ hideAfterSave })}
   bind:proMode
+  bind:showStickyToggleOnHome
 />
 
 <style>

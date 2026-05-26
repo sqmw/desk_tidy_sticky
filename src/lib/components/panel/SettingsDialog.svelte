@@ -22,6 +22,7 @@
     hideAfterSave = $bindable(),
     onHideAfterSaveChange,
     proMode = $bindable(),
+    showStickyToggleOnHome = $bindable(),
   } = $props();
 
   async function openGithubRepo() {
@@ -162,6 +163,22 @@
                   const checked = /** @type {HTMLInputElement} */ (e.target).checked;
                   proMode = checked;
                   savePrefs({ proMode: checked });
+                }}
+              />
+              <span class="slider"></span>
+            </div>
+          </label>
+
+          <label class="setting-item">
+            <span class="setting-label">{strings.showStickyToggleOnHome}</span>
+            <div class="toggle-switch">
+              <input
+                type="checkbox"
+                checked={showStickyToggleOnHome}
+                onchange={(e) => {
+                  const checked = /** @type {HTMLInputElement} */ (e.target).checked;
+                  showStickyToggleOnHome = checked;
+                  savePrefs({ showStickyToggleOnHome: checked });
                 }}
               />
               <span class="slider"></span>

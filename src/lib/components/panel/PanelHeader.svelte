@@ -18,6 +18,9 @@
     isSortMenuOpen = $bindable(),
     searchQuery = $bindable(),
     proMode,
+    showStickyToggleOnHome,
+    stickiesVisible,
+    toggleStickiesVisibility,
     startWindowDragPointer,
     hideWindow,
     minimizeWindow,
@@ -143,6 +146,26 @@
     </div>
 
     <div class="tabs-actions">
+      {#if showStickyToggleOnHome}
+        <button
+          type="button"
+          class="icon-btn"
+          class:active={stickiesVisible}
+          title={stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
+          onclick={toggleStickiesVisibility}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            {#if stickiesVisible}
+              <path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+            {:else}
+              <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="13" rx="2" />
+                <path d="M12 16v4 M8 20h8" />
+              </g>
+            {/if}
+          </svg>
+        </button>
+      {/if}
     </div>
   </div>
 
