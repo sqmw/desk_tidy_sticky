@@ -31,6 +31,12 @@
   const isMac =
     typeof navigator !== "undefined" &&
     /mac/i.test(String(navigator.userAgent || navigator.platform || ""));
+
+  const inputPlaceholder = $derived(
+    proMode
+      ? strings.inputHint.replace(/([（(]回车保存[）)])|([（(]Enter to save[）)])/, "").trim()
+      : strings.inputHint
+  );
 </script>
 
 <header class="panel-header">
@@ -76,7 +82,7 @@
     <input
       type="text"
       class="note-input"
-      placeholder={strings.inputHint}
+      placeholder={inputPlaceholder}
       bind:value={newNoteText}
       bind:this={noteInputEl}
       onkeydown={(e) => e.key === "Enter" && saveNote(false)}

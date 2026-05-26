@@ -7,7 +7,7 @@
 
   const searchPlaceholder = $derived(
     proMode
-      ? strings.searchHint.replace(/（支持拼音）|\(pinyin supported\)/, "").trim()
+      ? strings.searchHint.replace(/([（(]支持拼音[）)])|([（(]pinyin supported[）)])/, "").trim()
       : strings.searchHint
   );
 </script>
