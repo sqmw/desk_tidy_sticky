@@ -38,6 +38,9 @@ export function createWorkspaceRoutePreferences(input) {
         focusStats: next.focusStats,
         focusBreakSession: next.focusBreakSession,
         pomodoroConfig: next.pomodoroConfig,
+        markdownStorageMode: next.markdownStorageMode,
+        markdownStorageRoot: next.markdownStorageRoot,
+        markdownStorageSnapshot: next.markdownStorageSnapshot,
       });
     } catch (e) {
       console.error("loadPrefs(workspace)", e);

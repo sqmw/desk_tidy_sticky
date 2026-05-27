@@ -8,8 +8,10 @@ Desktop.ini
 $RECYCLE.BIN/
 
 # Node
+.git/
 node_modules/
 build/
+dist/
 .svelte-kit/
 package/
 .npm/

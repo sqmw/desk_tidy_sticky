@@ -14,5 +14,9 @@ pub(crate) use commands::{
     update_note_priority, update_note_size, update_note_tags, update_note_text,
     update_note_text_color,
 };
-pub(crate) use model::{chrono_now, Note, RECORD_KIND_DONE_LOG, RECORD_KIND_NOTE};
+pub(crate) use domain::{normalize_note_review_semantics, normalize_tags};
+pub(crate) use model::{
+    chrono_now, Note, DEFAULT_NOTE_FROST, DEFAULT_NOTE_OPACITY, DEFAULT_NOTE_TEXT_COLOR,
+    RECORD_KIND_DONE_LOG, RECORD_KIND_NOTE,
+};
 pub(crate) use service::NoteSortMode;

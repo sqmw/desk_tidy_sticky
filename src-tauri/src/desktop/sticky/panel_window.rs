@@ -4,8 +4,8 @@ use tauri::Manager;
 #[cfg(target_os = "macos")]
 #[allow(deprecated)]
 use tauri_nspanel::{
-    cocoa::appkit::NSWindowCollectionBehavior,
-    ManagerExt as PanelManagerExt, WebviewWindowExt as PanelWebviewWindowExt,
+    cocoa::appkit::NSWindowCollectionBehavior, ManagerExt as PanelManagerExt,
+    WebviewWindowExt as PanelWebviewWindowExt,
 };
 
 #[cfg(target_os = "macos")]

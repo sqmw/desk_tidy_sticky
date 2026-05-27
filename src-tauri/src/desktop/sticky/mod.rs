@@ -11,10 +11,10 @@ mod layer;
 mod panel_window;
 
 pub use effects::apply_note_window_frost;
-pub use panel_window::{configure_note_panel_window, dismiss_note_window_by_label};
 use effects::{apply_note_window_frost_by_label, sync_note_window_frost_by_id};
 pub use layer::apply_overlay_input_state;
 use layer::{apply_note_window_layer_with_interaction_by_label, get_overlay_interaction_disabled};
+pub use panel_window::{configure_note_panel_window, dismiss_note_window_by_label};
 
 fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
     match sort_mode {

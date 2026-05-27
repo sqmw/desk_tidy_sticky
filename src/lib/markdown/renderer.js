@@ -52,6 +52,7 @@ function isSafeUrl(raw, options = {}) {
     return true;
   }
   if (/^https?:\/\/[^\s]+$/i.test(value)) return true;
+  if (/^file:\/\/[^\s]+$/i.test(value)) return true;
   if (/^asset:\/\/[^\s]+$/i.test(value)) return true;
   if (options.allowRelative && /^(?:\/|\.\/|\.\.\/|[a-zA-Z0-9._-]+\/)[^\s]*$/.test(value)) return true;
   return false;

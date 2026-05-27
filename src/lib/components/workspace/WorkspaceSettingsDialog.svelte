@@ -1,6 +1,7 @@
 <script>
   import WorkspaceSettingsDisplaySection from "$lib/components/workspace/settings/WorkspaceSettingsDisplaySection.svelte";
   import WorkspaceSettingsGeneralSection from "$lib/components/workspace/settings/WorkspaceSettingsGeneralSection.svelte";
+  import WorkspaceSettingsStorageSection from "$lib/components/workspace/settings/WorkspaceSettingsStorageSection.svelte";
   import WorkspaceSettingsThemeSection from "$lib/components/workspace/settings/WorkspaceSettingsThemeSection.svelte";
   import FeedbackQrCard from "$lib/components/common/FeedbackQrCard.svelte";
 
@@ -13,6 +14,12 @@
     showPanelOnStartup = $bindable(false),
     shortcutSettings,
     shortcutSettingsSaving = false,
+    storageMode = /** @type {"app_default" | "custom_directory"} */ ("app_default"),
+    storageRoot = "",
+    storageSnapshot = null,
+    storageSaving = false,
+    storageExporting = false,
+    storageImporting = false,
     taskStartReminderLeadMinutes = 10,
     pomodoroFocusMinutes = 25,
     zoomOption = "auto",
@@ -27,6 +34,10 @@
     onChangeTaskStartReminderLeadMinutes = async () => {},
     onChangePomodoroFocusMinutes = async () => {},
     onRecoverPinnedStickies = async () => {},
+    onApplyMarkdownStorage = async () => ({ ok: false }),
+    onExportMarkdownStorage = async () => ({ ok: false }),
+    onImportPreviewMarkdownStorage = async () => ({ ok: false }),
+    onImportMarkdownStorage = async () => ({ ok: false }),
     themeCustomCss = "",
     onChangeLanguage = () => {},
     onChangeThemePreset = () => {},
@@ -139,6 +150,20 @@
           {onChangePomodoroFocusMinutes}
           {onRecoverPinnedStickies}
           {onChangeLanguage}
+        />
+
+        <WorkspaceSettingsStorageSection
+          {strings}
+          {storageMode}
+          {storageRoot}
+          storageSnapshot={storageSnapshot}
+          saving={storageSaving}
+          exporting={storageExporting}
+          importing={storageImporting}
+          onApply={onApplyMarkdownStorage}
+          onExport={onExportMarkdownStorage}
+          onImportPreview={onImportPreviewMarkdownStorage}
+          onImport={onImportMarkdownStorage}
         />
 
         <WorkspaceSettingsThemeSection

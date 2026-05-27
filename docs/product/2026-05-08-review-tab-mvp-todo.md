@@ -9,6 +9,7 @@
 - [已办记录 / Done Log 蓝图](/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/product/2026-05-05-done-log-blueprint.md)
 - [工作台里“记录做了什么”应该放在哪：信息架构蓝图](/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/product/2026-05-08-workstation-done-log-placement-blueprint.md)
 - [回顾页下一阶段：检索、关联与洞察蓝图](/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/product/2026-05-11-review-retrieval-association-insight-blueprint.md)
+- [Markdown 互操作蓝图（2026-05-12）](/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/product/2026-05-12-markdown-interoperability-blueprint.md)
 
 ---
 
@@ -459,7 +460,7 @@
 - P2：进行中（字段与命令已落地，迁移策略待补）
 - P3：进行中（时间线与时间语义完整的补记入口已落地）
 - P4：进行中（首版月历已落地）
-- P5：待实现
+- P5：进行中（首版完成后提示已落地，频控与用户级开关待补）
 
 ---
 
@@ -498,6 +499,11 @@
    - 环比
    - 时间分配聚合
    - `On This Day` / 自动周报月报
+4. 互操作能力
+   - Markdown 导出
+   - Markdown 导入
+   - 与 Obsidian / Typora / Notion 的最小 Markdown 兼容
+   - 先保证 Markdown 可交换，再谈更深层集成
 
 ### 9.3 当前不建议先做
 
@@ -511,3 +517,19 @@
 这一阶段的详细拆分、交互蓝图与建议开工顺序，统一见：
 
 - [回顾页下一阶段：检索、关联与洞察蓝图](/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/product/2026-05-11-review-retrieval-association-insight-blueprint.md)
+- [Markdown 互操作蓝图（2026-05-12）](/Users/sunqin/study/language/rust/code/desk_tidy_sticky/docs/product/2026-05-12-markdown-interoperability-blueprint.md)
+
+### 9.5 当前最小收尾清单（2026-05-12）
+
+如果以“先让回顾 / workstation 进入稳定可长期使用状态”为目标，当前最值得继续收的尾巴是：
+
+1. `P2 数据层`
+   - 把 `done_log / note / isDone` 的历史迁移策略正式补齐，减少过渡口径长期滞留。
+2. `P5 专注 -> 已办闭环`
+   - 增加更细粒度的频控策略和用户级开关，避免提醒逻辑长期停留在首版启发式规则。
+3. `互操作能力`
+   - `storage root` 配置模型与首版 Markdown 导入 / 导出已落地。
+   - Markdown 图片的首版附件搬运已落地：导出会复制到 `attachments/`，导入会恢复到应用资产目录。
+   - 导入预检与确认已落地：导入前会先提示新增/更新/附件/缺少 `note_id` 的数量。
+   - 当前首版仍是非破坏性互操作：不会清理旧文件，也不做路径级去重。
+   - 下一步优先补旧文件清理与更细粒度的冲突处理。

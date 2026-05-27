@@ -1,5 +1,6 @@
 mod breaks;
 mod desktop;
+mod markdown_storage;
 mod notes;
 mod platform;
 mod preferences;
@@ -18,12 +19,16 @@ use desktop::{apply_macos_runtime_dock_icon, ensure_hidden_workspace_runtime_win
 use desktop::{
     apply_note_window_frost, apply_note_window_layer, apply_window_no_snap_by_label,
     configure_note_panel_window, dismiss_note_window_by_label, get_overlay_interaction,
-    get_shortcut_settings, hide_panel_window, initialize_shortcut_settings,
-    minimize_panel_window, move_note_window_without_activation, pin_window_to_desktop,
-    show_preferred_panel_window, sync_all_note_window_layers, sync_note_window_layer,
-    sync_panel_window_shell_state, toggle_overlay_interaction,
-    toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply, unpin_window_from_desktop,
-    update_shortcut_settings, update_tray_texts,
+    get_shortcut_settings, hide_panel_window, initialize_shortcut_settings, minimize_panel_window,
+    move_note_window_without_activation, pin_window_to_desktop, show_preferred_panel_window,
+    sync_all_note_window_layers, sync_note_window_layer, sync_panel_window_shell_state,
+    toggle_overlay_interaction, toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply,
+    unpin_window_from_desktop, update_shortcut_settings, update_tray_texts,
+};
+use markdown_storage::{
+    export_current_notes_to_markdown, get_markdown_storage_snapshot,
+    import_markdown_from_storage_root, preview_markdown_import_from_storage_root,
+    set_markdown_storage_preferences,
 };
 use notes::{
     add_done_log, add_note, clear_note_priority, delete_note, empty_trash, load_notes,
@@ -137,6 +142,11 @@ pub fn run() {
             reset_pinned_note_positions,
             get_preferences,
             set_preferences,
+            get_markdown_storage_snapshot,
+            set_markdown_storage_preferences,
+            export_current_notes_to_markdown,
+            preview_markdown_import_from_storage_root,
+            import_markdown_from_storage_root,
             get_shortcut_settings,
             update_shortcut_settings,
             pin_window_to_desktop,

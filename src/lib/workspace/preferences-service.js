@@ -18,6 +18,11 @@ import {
   resolveWorkspaceStartupViewMode,
   normalizeWorkspaceViewMode,
 } from "$lib/workspace/workspace-tabs.js";
+import {
+  getMarkdownStorageSnapshot,
+  normalizeMarkdownStorageMode,
+  normalizeMarkdownStorageRoot,
+} from "$lib/workspace/storage/markdown-storage-service.js";
 
 export { normalizeWorkspaceCustomCss };
 
@@ -234,6 +239,7 @@ export async function loadWorkspacePreferences(invoke) {
       taskTitle: "",
     };
   }
+  const markdownStorageSnapshot = await getMarkdownStorageSnapshot(invoke);
   return {
     mainTab: normalizeWorkspaceMainTab(prefs.workspaceMainTab),
     initialViewMode: normalizeWorkspaceInitialViewMode(prefs.workspaceInitialViewMode),
@@ -259,6 +265,9 @@ export async function loadWorkspacePreferences(invoke) {
     focusTasks,
     focusStats,
     focusBreakSession,
+    markdownStorageMode: normalizeMarkdownStorageMode(prefs.markdownStorageMode),
+    markdownStorageRoot: normalizeMarkdownStorageRoot(prefs.markdownStorageRoot),
+    markdownStorageSnapshot,
   };
 }
 

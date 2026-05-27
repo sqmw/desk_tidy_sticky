@@ -5,6 +5,9 @@
  *   setAutostartEnabled: (next: boolean) => void;
  *   setStickiesVisible: (next: boolean) => void;
  *   syncWindows: () => Promise<void>;
+ *   setMarkdownStorageMode?: (next: string) => void;
+ *   setMarkdownStorageRoot?: (next: string) => void;
+ *   refreshMarkdownStorage?: () => Promise<void>;
  * }} deps
  */
 export function createWorkspacePreferenceSync(deps) {
@@ -22,6 +25,14 @@ export function createWorkspacePreferenceSync(deps) {
       if (typeof updates.overlayEnabled === "boolean") {
         deps.setStickiesVisible(updates.overlayEnabled);
         await deps.syncWindows();
+      }
+      if (typeof updates.markdownStorageMode === "string") {
+        deps.setMarkdownStorageMode?.(updates.markdownStorageMode);
+        await deps.refreshMarkdownStorage?.();
+      }
+      if (typeof updates.markdownStorageRoot === "string") {
+        deps.setMarkdownStorageRoot?.(updates.markdownStorageRoot);
+        await deps.refreshMarkdownStorage?.();
       }
     });
   }

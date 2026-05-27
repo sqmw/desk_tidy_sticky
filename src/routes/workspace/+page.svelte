@@ -24,6 +24,7 @@
   import { createWorkspaceRouteWorkspaceBridge } from "$lib/workspace/controllers/workspace-route-workspace-bridge.js";
   import { createWorkspaceRuntimeLifecycle } from "$lib/workspace/controllers/workspace-runtime-lifecycle.js";
   import { createWorkspaceSettingsActions } from "$lib/workspace/controllers/workspace-settings-actions.js";
+import { createWorkspaceStorageActions } from "$lib/workspace/controllers/workspace-storage-actions.js";
   import { createWorkspaceStartupActions } from "$lib/workspace/controllers/workspace-startup-actions.js";
   import { createWorkspaceWindowActions } from "$lib/workspace/controllers/workspace-window-actions.js";
   import {
@@ -133,6 +134,12 @@
   let themeTransitionShape = $state("circle");
   let isAutostartEnabled = $state(false);
   let showPanelOnStartup = $state(false);
+  let markdownStorageMode = $state("app_default");
+  let markdownStorageRoot = $state("");
+  let markdownStorageSnapshot = $state(null);
+  let markdownStorageSaving = $state(false);
+  let markdownStorageExporting = $state(false);
+  let markdownStorageImporting = $state(false);
   let shortcutSettings = $state(createDefaultShortcutSettings());
   let shortcutSettingsSaving = $state(false);
   /** @type {any[]} */
@@ -376,6 +383,9 @@
     if ("focusStats" in patch) focusStats = patch.focusStats;
     if ("focusBreakSession" in patch) focusBreakSession = patch.focusBreakSession;
     if ("pomodoroConfig" in patch) pomodoroConfig = patch.pomodoroConfig;
+    if ("markdownStorageMode" in patch) markdownStorageMode = patch.markdownStorageMode;
+    if ("markdownStorageRoot" in patch) markdownStorageRoot = patch.markdownStorageRoot;
+    if ("markdownStorageSnapshot" in patch) markdownStorageSnapshot = patch.markdownStorageSnapshot;
   }
 
   const routePreferences = createWorkspaceRoutePreferences({
@@ -383,6 +393,37 @@
     setState: setWorkspaceRouteState,
   });
   const { loadPrefs, savePrefs } = routePreferences;
+
+  const workspaceStorageActions = createWorkspaceStorageActions({
+    invoke,
+    setMarkdownStorageMode: (next) => {
+      markdownStorageMode = next;
+    },
+    setMarkdownStorageRoot: (next) => {
+      markdownStorageRoot = next;
+    },
+    setMarkdownStorageSnapshot: (next) => {
+      markdownStorageSnapshot = next;
+    },
+    setMarkdownStorageSaving: (next) => {
+      markdownStorageSaving = next;
+    },
+    setMarkdownStorageExporting: (next) => {
+      markdownStorageExporting = next;
+    },
+    setMarkdownStorageImporting: (next) => {
+      markdownStorageImporting = next;
+    },
+  });
+
+  const {
+    refreshMarkdownStorage,
+    applyMarkdownStorage,
+    exportMarkdownStorage,
+    previewMarkdownImportStorage,
+    importMarkdownStorage,
+  } =
+    workspaceStorageActions;
 
   const inspectorActions = createWorkspaceInspectorActions(routeNoteBridge.createInspectorActionsConfig());
 
@@ -661,6 +702,15 @@
       stickiesVisible = next;
     },
     syncWindows: windowSync.syncWindows,
+    setMarkdownStorageMode: (next) => {
+      markdownStorageMode = next;
+    },
+    setMarkdownStorageRoot: (next) => {
+      markdownStorageRoot = next;
+    },
+    refreshMarkdownStorage: async () => {
+      await refreshMarkdownStorage();
+    },
   });
 
   const routeResizeBridge = createWorkspaceRouteResizeBridge({
@@ -688,6 +738,9 @@
     runtimeLifecycle.bootstrap();
     syncWindowPresentationState();
     runtimeLifecycle.syncGlobalControlState();
+    refreshMarkdownStorage().catch((error) => {
+      console.error("refreshMarkdownStorage(workspace)", error);
+    });
     initAutostart();
     loadShortcutSettingsState();
     if (enableReviewDevFixtures) {
@@ -953,6 +1006,12 @@
   {locale}
   {isAutostartEnabled}
   bind:showPanelOnStartup
+  storageMode={markdownStorageMode}
+  storageRoot={markdownStorageRoot}
+  storageSnapshot={markdownStorageSnapshot}
+  storageSaving={markdownStorageSaving}
+  storageExporting={markdownStorageExporting}
+  storageImporting={markdownStorageImporting}
   taskStartReminderLeadMinutes={pomodoroConfig.taskStartReminderLeadMinutes}
   pomodoroFocusMinutes={pomodoroConfig.focusMinutes}
   themePreset={workspaceTheme}
@@ -965,6 +1024,9 @@
   onChangeLanguage={setLanguage}
   {toggleAutostart}
   onSavePrefs={savePrefs}
+  onExportMarkdownStorage={exportMarkdownStorage}
+  onImportPreviewMarkdownStorage={previewMarkdownImportStorage}
+  onImportMarkdownStorage={importMarkdownStorage}
   {shortcutSettings}
   {shortcutSettingsSaving}
   onSaveShortcutSettings={saveShortcutSettings}
@@ -979,6 +1041,7 @@
       focusMinutes: nextMinutes,
     })}
   onRecoverPinnedStickies={recoverPinnedStickies}
+  onApplyMarkdownStorage={applyMarkdownStorage}
   onChangeThemePreset={handleWorkspaceThemePresetChange}
   onChangeThemeTransitionShape={changeThemeTransitionShape}
   onExportThemeCss={exportWorkspaceThemeCss}

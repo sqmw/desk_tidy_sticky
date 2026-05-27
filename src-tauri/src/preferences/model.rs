@@ -1,3 +1,4 @@
+use crate::markdown_storage::{default_storage_mode, default_storage_root};
 use crate::runtime::paths;
 use serde::{Deserialize, Serialize};
 
@@ -95,6 +96,10 @@ pub struct PanelPreferences {
     pub focus_stats_json: String,
     #[serde(default = "default_focus_break_session_json")]
     pub focus_break_session_json: String,
+    #[serde(default = "default_storage_mode")]
+    pub markdown_storage_mode: String,
+    #[serde(default = "default_storage_root")]
+    pub markdown_storage_root: String,
 }
 
 fn default_true() -> bool {
