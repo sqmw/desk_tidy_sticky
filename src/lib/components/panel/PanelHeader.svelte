@@ -17,11 +17,11 @@
     sortMode,
     isSortMenuOpen = $bindable(),
     searchQuery = $bindable(),
-    hideAfterSave = $bindable(),
+    proMode,
+    showStickyToggleOnHome,
     stickiesVisible,
-    globalControlDisabled,
+    toggleStickiesVisibility,
     startWindowDragPointer,
-    toggleLanguage,
     hideWindow,
     minimizeWindow,
     switchToWorkspace,
@@ -29,14 +29,23 @@
     setViewMode,
     setSortMode,
     emptyTrash,
-    toggleStickiesVisibility,
-    toggleGlobalControl,
-    onHideAfterSaveChange,
   } = $props();
 
   const isMac =
     typeof navigator !== "undefined" &&
     /mac/i.test(String(navigator.userAgent || navigator.platform || ""));
+
+  const inputPlaceholder = $derived(
+    proMode
+      ? strings.inputHint.replace(/([（(]回车保存[）)])|([（(]Enter to save[）)])/, "").trim()
+      : strings.inputHint
+  );
+
+  const appTitle = $derived(
+    proMode
+      ? strings.appName.replace(/便签|便笺|Sticky/i, "").trim().toUpperCase()
+      : strings.appName.toUpperCase()
+  );
 </script>
 
 <header class="panel-header">
@@ -65,13 +74,12 @@
           </button>
         </div>
       {/if}
-      <span class="app-title">{strings.appName.toUpperCase()}</span>
+      <span class="app-title">{appTitle}</span>
     </div>
 
     <HeaderActions
       {strings}
       showWindowControls={!isMac}
-      {toggleLanguage}
       {hideWindow}
       {minimizeWindow}
       {switchToWorkspace}
@@ -83,7 +91,7 @@
     <input
       type="text"
       class="note-input"
-      placeholder={strings.inputHint}
+      placeholder={inputPlaceholder}
       bind:value={newNoteText}
       bind:this={noteInputEl}
       onkeydown={(e) => e.key === "Enter" && saveNote(false)}
@@ -138,53 +146,30 @@
     </div>
 
     <div class="tabs-actions">
-      <label class="toggle-switch" title={strings.hideAfterSave}>
-        <input type="checkbox" bind:checked={hideAfterSave} onchange={onHideAfterSaveChange} />
-        <span class="slider round"></span>
-      </label>
-
-      <button
-        type="button"
-        class="icon-btn"
-        class:active={stickiesVisible}
-        title={stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
-        onclick={toggleStickiesVisibility}
-      >
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          {#if stickiesVisible}
-            <path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
-          {:else}
-            <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="13" rx="2" />
-              <path d="M12 16v4 M8 20h8" />
-            </g>
-          {/if}
-        </svg>
-      </button>
-
-      <button
-        type="button"
-        class="icon-btn"
-        class:active={!globalControlDisabled}
-        title={strings.trayInteraction}
-        onclick={toggleGlobalControl}
-      >
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          {#if !globalControlDisabled}
-            <path d="M13 1.1V9h7.4c0-3.9-3.1-7.1-6.8-7.8l-.6-.1zm-2 0C7.1 1.6 4.1 4.8 4.1 8.7V9H11V1.1zm-7.1 9.9v4.5C3.9 19.9 7.5 23.5 12 23.5S20 19.9 20 15.5V11H3.9z" />
-          {:else}
-            <path
-              fill-rule="evenodd"
-              clip-rule="evenodd"
-              d="M12 2c-3.87 0-7 3.13-7 7v6c0 3.87 3.13 7 7 7s7-3.13 7-7V9c0-3.87-3.13-7-7-7zm5 13c0 2.76-2.24 5-5 5s-5-2.24-5-5v-4h10v4zm0-6H7V9c0-2.76 2.24-5 5-5s5 2.24 5 5v0zm-4.5-5h1v5h-1V4z"
-            />
-          {/if}
-        </svg>
-      </button>
+      {#if showStickyToggleOnHome}
+        <button
+          type="button"
+          class="icon-btn"
+          class:active={stickiesVisible}
+          title={stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}
+          onclick={toggleStickiesVisibility}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            {#if stickiesVisible}
+              <path d="M21 2H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h7v2H8v2h8v-2h-2v-2h7c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+            {:else}
+              <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="13" rx="2" />
+                <path d="M12 16v4 M8 20h8" />
+              </g>
+            {/if}
+          </svg>
+        </button>
+      {/if}
     </div>
   </div>
 
-  <SearchBar {strings} bind:searchQuery />
+  <SearchBar {strings} bind:searchQuery {proMode} />
 </header>
 
 <style>
@@ -365,52 +350,6 @@
     color: var(--primary);
   }
 
-  .toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 36px;
-    height: 20px;
-    flex-shrink: 0;
-  }
-
-  .toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-
-  .slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #dcdfe6;
-    transition: 0.3s;
-    border-radius: 20px;
-  }
-
-  .slider:before {
-    position: absolute;
-    content: "";
-    height: 16px;
-    width: 16px;
-    left: 2px;
-    bottom: 2px;
-    background-color: white;
-    transition: 0.3s;
-    border-radius: 50%;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-  }
-
-  input:checked + .slider {
-    background-color: var(--primary);
-  }
-
-  input:checked + .slider:before {
-    transform: translateX(16px);
-  }
 
   .tabs-main::-webkit-scrollbar {
     height: 4px;

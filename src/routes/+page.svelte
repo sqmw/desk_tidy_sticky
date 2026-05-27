@@ -54,6 +54,8 @@
   let editingNote = $state(null);
   let editText = $state("");
   let showSettings = $state(false);
+  let proMode = $state(false);
+  let showStickyToggleOnHome = $state(true);
   let isAutostartEnabled = $state(false);
   let showPanelOnStartup = $state(false);
   let shortcutSettings = $state(createDefaultShortcutSettings());
@@ -187,6 +189,8 @@
       locale = resolveAppLocale(p.language);
       showPanelOnStartup = p.showPanelOnStartup ?? false;
       stickiesVisible = p.overlayEnabled ?? true;
+      proMode = p.proMode ?? false;
+      showStickyToggleOnHome = p.showStickyToggleOnHome ?? true;
     } catch (e) {
       console.error("loadPrefs", e);
     }
@@ -273,9 +277,10 @@
     editingNote = null;
   }
 
-  async function toggleLanguage() {
-    locale = locale === "en" ? "zh" : "en";
-    await savePrefs({ language: locale });
+  /** @param {string} nextLang */
+  async function changeLanguage(nextLang) {
+    locale = nextLang;
+    await savePrefs({ language: nextLang });
     updateTrayMenu();
   }
 
@@ -487,14 +492,11 @@
       {noteTagOptions}
       bind:noteInputEl
       {viewMode}
+      {proMode}
       {sortMode}
       bind:isSortMenuOpen
       bind:searchQuery
-      bind:hideAfterSave
-      {stickiesVisible}
-      {globalControlDisabled}
       {startWindowDragPointer}
-      {toggleLanguage}
       {hideWindow}
       {minimizeWindow}
       {switchToWorkspace}
@@ -502,9 +504,9 @@
       {setViewMode}
       {setSortMode}
       {emptyTrash}
+      {showStickyToggleOnHome}
+      {stickiesVisible}
       {toggleStickiesVisibility}
-      {toggleGlobalControl}
-      onHideAfterSaveChange={() => savePrefs({ hideAfterSave })}
     />
 
     <NotesSection
@@ -549,6 +551,16 @@
   {shortcutSettings}
   {shortcutSettingsSaving}
   onSaveShortcutSettings={saveShortcutSettings}
+  bind:locale
+  onChangeLanguage={changeLanguage}
+  {stickiesVisible}
+  {toggleStickiesVisibility}
+  {globalControlDisabled}
+  {toggleGlobalControl}
+  bind:hideAfterSave
+  onHideAfterSaveChange={() => savePrefs({ hideAfterSave })}
+  bind:proMode
+  bind:showStickyToggleOnHome
 />
 
 <style>

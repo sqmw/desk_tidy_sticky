@@ -11,6 +11,10 @@ pub struct PanelPreferences {
     #[serde(default = "default_true")]
     pub hide_after_save: bool,
     #[serde(default)]
+    pub pro_mode: bool,
+    #[serde(default = "default_true")]
+    pub show_sticky_toggle_on_home: bool,
+    #[serde(default)]
     pub view_mode: String,
     #[serde(default)]
     pub language: String,

@@ -245,10 +245,15 @@
 {/snippet}
 
 {#snippet iconDragHandle()}
-  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-    <path
-      d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2S7 7.1 7 6s.9-2 2-2 2 .9 2 2zm6 12c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm0-6c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2z"
-    />
+  <svg viewBox="0 0 24 32" width="18" height="24" fill="currentColor">
+    <rect x="7.5" y="1.5" width="3" height="5" rx="1.5" />
+    <rect x="13.5" y="1.5" width="3" height="5" rx="1.5" />
+    <rect x="7.5" y="9.5" width="3" height="5" rx="1.5" />
+    <rect x="13.5" y="9.5" width="3" height="5" rx="1.5" />
+    <rect x="7.5" y="17.5" width="3" height="5" rx="1.5" />
+    <rect x="13.5" y="17.5" width="3" height="5" rx="1.5" />
+    <rect x="7.5" y="25.5" width="3" height="5" rx="1.5" />
+    <rect x="13.5" y="25.5" width="3" height="5" rx="1.5" />
   </svg>
 {/snippet}
 
@@ -348,8 +353,12 @@
 
   .note-text.done {
     text-decoration: line-through;
-    text-decoration-thickness: 1.5px;
-    text-decoration-color: #9aa3af;
+    text-decoration-thickness: 2.5px;
+    text-decoration-color: #4b5563;
+    color: #8a92a0;
+  }
+
+  .note-text.done :global(*) {
     color: #8a92a0;
   }
 
@@ -383,7 +392,14 @@
 
   .action-btn.reorder-handle {
     cursor: grab;
-    color: #8a94a3;
+    color: #475569;
+    height: 40px;
+    opacity: 0.9;
+  }
+
+  .action-btn.reorder-handle :global(svg) {
+    width: 18px;
+    height: 24px;
   }
 
   .action-btn.reorder-handle:active {
