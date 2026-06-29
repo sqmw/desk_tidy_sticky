@@ -48,6 +48,7 @@ Detailed command mapping: `docs/build/make-commands.md`.
 
 Use these focused documents before scanning the full historical `docs/` tree:
 
+- Current project TODO: `docs/TODO.md`.
 - Note Todo blocks: `docs/product/2026-06-29-note-todo-blocks.md`.
 - Single active block editor design: `docs/architecture/2026-06-29-single-active-block-editor.md`.
 
