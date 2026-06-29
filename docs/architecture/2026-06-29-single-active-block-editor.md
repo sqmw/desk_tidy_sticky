@@ -1,7 +1,9 @@
 # 单活跃块编辑架构调研与方案
 
-日期：2026-06-29  
-状态：方案文档，待实现  
+日期：2026-06-29
+
+状态：Phase 1 已落地，Phase 2 待实现
+
 范围：便笺窗口、工作台笔记 inspector、Markdown 渲染与编辑架构
 
 ## Situation
@@ -50,13 +52,20 @@
 
 | 缺口 | 影响 |
 |---|---|
-| 没有 `parseMarkdownBlocks(text)` | 无法稳定知道一篇 note 有哪些 block |
-| 没有 block id / range facade | UI 无法只激活某一块 |
-| renderer 没有以 block 为输入 | 渲染与编辑边界不一致 |
+| 没有持久化 block id | 第一阶段 block id 仍是派生值，外部同步修改时需要 range 校验 |
 | 页面层只有整篇 `mode=view/edit` | 不能表达“只编辑当前 block” |
-| Todo block 只是渲染期 HTML | 它是块级 UI，不是完整块模型 |
+| 还没有 `BlockNoteContent` | UI 仍未进入“单活跃块编辑”阶段 |
 
-因此本轮设计的核心不是“把已有 block editor 接起来”，而是先补一层从 Markdown 派生出来的 block facade。
+2026-06-29 Phase 1 已经补齐：
+
+| 能力 | 当前位置 | 说明 |
+|---|---|---|
+| `parseMarkdownBlocks(text)` | `src/lib/markdown/blocks/block-parser.js` | 从 Markdown 派生单层 block list |
+| `renderMarkdownBlocks(blocks)` | `src/lib/markdown/blocks/block-renderer.js` | 保持 `renderNoteMarkdown` 对外 HTML 行为 |
+| block range ops | `src/lib/markdown/blocks/block-ops.js` | 提供 `replaceBlockMarkdown` / `blockRangeMatches` |
+| 笔记渲染编排 | `src/lib/markdown/note-renderer.js` | `expandNoteCommands -> parseMarkdownBlocks -> renderMarkdownBlocks` |
+
+因此当前实现已经有派生 block facade，但页面层还没有接入单块编辑 UI。
 
 ## 调研结论
 
@@ -436,6 +445,8 @@ compact
 
 ### Phase 1：Block parser + 渲染等价
 
+状态：已完成（2026-06-29）
+
 目标：
 
 - 新增 `parseMarkdownBlocks(text)`。
@@ -447,6 +458,13 @@ compact
 - 现有 Markdown 渲染输出尽量保持一致。
 - Todo block 仍可勾选和追加。
 - `make check` / `make build` 通过。
+
+当前实现说明：
+
+- `renderNoteMarkdown(text, options)` 公共 API 保持不变。
+- Todo checkbox / append 的 `data-task-line` 继续使用整篇 Markdown 的绝对行号。
+- `hr` 第一阶段标记为 `editable: false`。
+- block id 仍是 `type:startLine:endLine:hash(markdown)` 派生值，不写入 Markdown。
 
 ### Phase 2：工作台 inspector 单活跃块编辑
 

@@ -1,10 +1,9 @@
-import { expandNoteCommands } from "$lib/markdown/command-expander.js";
 import { parseTaskLine } from "$lib/markdown/task-list.js";
 
 /**
  * @param {string} text
  */
-function escapeHtml(text) {
+export function escapeHtml(text) {
   return String(text)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
@@ -44,7 +43,7 @@ function isSafeLineHeight(value) {
  * @param {string} raw
  * @param {{ allowRelative?: boolean; allowDataImage?: boolean }} [options]
  */
-function isSafeUrl(raw, options = {}) {
+export function isSafeUrl(raw, options = {}) {
   const value = String(raw ?? "").trim();
   if (!value) return false;
   const lower = value.toLowerCase();
@@ -104,7 +103,7 @@ function parseImageMeta(raw) {
 /**
  * @param {{ alt: string; src: string; title?: string; meta?: string }} options
  */
-function buildImageTag(options) {
+export function buildImageTag(options) {
   const safeAlt = escapeHtml(options.alt ?? "");
   const safeSrc = escapeHtml(options.src ?? "");
   const titleAttr = options.title ? ` title="${escapeHtml(options.title)}"` : "";
@@ -241,7 +240,7 @@ function renderInlineCore(inline, allowSafeSpan) {
 /**
  * @param {string} inline
  */
-function renderInline(inline) {
+export function renderInline(inline) {
   return renderInlineCore(inline, true);
 }
 
@@ -249,7 +248,7 @@ function renderInline(inline) {
  * @param {string[]} lines
  * @param {number} i
  */
-function tryRenderTable(lines, i) {
+export function tryRenderTable(lines, i) {
   const header = lines[i] ?? "";
   const splitter = lines[i + 1] ?? "";
   if (!header.includes("|")) return null;
@@ -294,10 +293,11 @@ function tryRenderTable(lines, i) {
 /**
  * @param {string[]} lines
  * @param {number} i
- * @param {{ interactiveTasks: boolean }} options
+ * @param {{ interactiveTasks: boolean; lineOffset?: number }} options
  */
-function tryRenderTaskList(lines, i, options) {
+export function tryRenderTaskList(lines, i, options) {
   if (!parseTaskLine(lines[i] ?? "")) return null;
+  const lineOffset = Number(options.lineOffset) || 0;
   /** @type {string[]} */
   const items = [];
   let cursor = i;
@@ -309,8 +309,9 @@ function tryRenderTaskList(lines, i, options) {
     const checkedAttr = checked ? " checked" : "";
     const disabledAttr = options.interactiveTasks ? "" : " disabled";
     const taskClass = checked ? "task-item is-done" : "task-item";
+    const sourceLine = cursor + lineOffset;
     items.push(
-      `<li class="${taskClass}" data-task-line="${cursor}"><label class="task-row"><input type="checkbox" data-task-action="toggle" data-task-line="${cursor}"${checkedAttr}${disabledAttr}/> <span class="task-text">${content || "&nbsp;"}</span></label></li>`,
+      `<li class="${taskClass}" data-task-line="${sourceLine}"><label class="task-row"><input type="checkbox" data-task-action="toggle" data-task-line="${sourceLine}"${checkedAttr}${disabledAttr}/> <span class="task-text">${content || "&nbsp;"}</span></label></li>`,
     );
     cursor += 1;
   }
@@ -320,125 +321,9 @@ function tryRenderTaskList(lines, i, options) {
       nextIndex: cursor,
     };
   }
-  const appendControl = `<button type="button" class="task-add" data-task-action="append" data-task-line="${cursor - 1}" aria-label="Add todo">+</button>`;
+  const appendControl = `<button type="button" class="task-add" data-task-action="append" data-task-line="${cursor - 1 + lineOffset}" aria-label="Add todo">+</button>`;
   return {
     html: `<div class="task-block"><ul class="task-list">${items.join("")}</ul>${appendControl}</div>`,
     nextIndex: cursor,
   };
-}
-
-/**
- * @param {string} input
- * @param {{ interactiveTasks?: boolean }} [options]
- */
-export function renderNoteMarkdown(input, options = {}) {
-  const renderOptions = { interactiveTasks: !!options.interactiveTasks };
-  const text = expandNoteCommands(input ?? "");
-  const lines = text.replaceAll("\r\n", "\n").split("\n");
-  /** @type {string[]} */
-  const chunks = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    if (!line.trim()) {
-      i += 1;
-      continue;
-    }
-
-    if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(line.trim())) {
-      chunks.push("<hr/>");
-      i += 1;
-      continue;
-    }
-
-    const table = tryRenderTable(lines, i);
-    if (table) {
-      chunks.push(table.html);
-      i = table.nextIndex;
-      continue;
-    }
-
-    const taskList = tryRenderTaskList(lines, i, renderOptions);
-    if (taskList) {
-      chunks.push(taskList.html);
-      i = taskList.nextIndex;
-      continue;
-    }
-
-    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
-    if (heading) {
-      const level = heading[1].length;
-      chunks.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
-      i += 1;
-      continue;
-    }
-
-    const image = /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)(?:\{([^}]*)\})?\s*$/.exec(line);
-    if (image) {
-      if (!isSafeUrl(image[2], { allowRelative: true, allowDataImage: true })) {
-        chunks.push(`<p>${renderInline(line)}</p>`);
-        i += 1;
-        continue;
-      }
-      chunks.push(`<p>${buildImageTag({ alt: image[1], src: image[2], title: image[3], meta: image[4] })}</p>`);
-      i += 1;
-      continue;
-    }
-
-    if (/^>\s+/.test(line)) {
-      chunks.push(`<blockquote>${renderInline(line.replace(/^>\s+/, ""))}</blockquote>`);
-      i += 1;
-      continue;
-    }
-
-    if (/^[-*]\s+/.test(line)) {
-      /** @type {string[]} */
-      const items = [];
-      while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^[-*]\s+/, ""));
-        i += 1;
-      }
-      chunks.push(`<ul>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</ul>`);
-      continue;
-    }
-
-    if (/^\d+\.\s+/.test(line)) {
-      /** @type {string[]} */
-      const items = [];
-      while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\d+\.\s+/, ""));
-        i += 1;
-      }
-      chunks.push(`<ol>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</ol>`);
-      continue;
-    }
-
-    if (/^```/.test(line)) {
-      const codeLines = [];
-      i += 1;
-      while (i < lines.length && !/^```/.test(lines[i])) {
-        codeLines.push(lines[i]);
-        i += 1;
-      }
-      if (i < lines.length) i += 1;
-      chunks.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
-      continue;
-    }
-
-    const para = [];
-    while (
-      i < lines.length &&
-      lines[i].trim() &&
-      !/^(#{1,6}\s+|>\s+|[-*]\s+|\d+\.\s+|```|!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)|(-{3,}|\*{3,}|_{3,})\s*$)/.test(
-        lines[i],
-      )
-    ) {
-      para.push(lines[i]);
-      i += 1;
-    }
-    chunks.push(`<p>${para.map((p) => renderInline(p)).join("<br/>")}</p>`);
-  }
-
-  return chunks.join("\n");
 }
