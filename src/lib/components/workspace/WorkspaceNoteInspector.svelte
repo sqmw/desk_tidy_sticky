@@ -43,6 +43,7 @@
         text={draftText}
         compact
         interactiveTasks
+        editTrigger="click"
         placeholder={strings.noteEditorPlaceholder}
         onTextChange={onBlockTextChange}
         onToggleTask={onToggleTask}

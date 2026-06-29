@@ -971,6 +971,7 @@
             text={text || note?.text || ""}
             interactiveTasks={canInteract}
             readonly={!canInteract}
+            editTrigger="click"
             placeholder={strings.noteEditorPlaceholder}
             onBeginEdit={enterBlockEditSurface}
             onTextChange={updateTextFromPreview}

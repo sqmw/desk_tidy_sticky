@@ -24,7 +24,7 @@
 | 阶段 | 状态 | 验收 |
 |---|---|---|
 | Phase 1：Block parser + 渲染等价 | done | `renderNoteMarkdown` 行为基本等价，Todo block 交互不回退 |
-| Phase 2：工作台 inspector 单活跃块编辑 | done | 点击 block 仅该 block 编辑，其他 block 渲染 |
+| Phase 2：工作台 inspector 单活跃块编辑 | done | 单击 block 仅该 block 编辑，其他 block 渲染 |
 | Phase 3：便笺窗口接入 | done | 复用同一块内容组件，避免拖拽 / 置顶 / 穿透冲突 |
 | Phase 4：块操作增强 | pending | 插入、拆分、合并、类型切换按需补齐 |
 
@@ -40,6 +40,14 @@
 - 不恢复旧 `contenteditable BlockEditor`，避免历史 caret 跳动问题回归。
 
 ## Done
+
+### 2026-06-29：Explicit single-click block editing in workspace and sticky
+
+结果：工作台 inspector 与便笺窗口都显式传入 `editTrigger="click"`，块编辑入口不再依赖 `BlockNoteContent` 默认值；两处都保持单击 block 进入当前块编辑态。
+
+验证：`make check`，`git diff --check`。
+
+提交：本轮提交；具体 hash 以 `git log` 为准。
 
 ### 2026-06-29：Match active block editor typography
 
