@@ -1,4 +1,5 @@
 import { expandNoteCommands } from "$lib/markdown/command-expander.js";
+import { parseTaskLine } from "$lib/markdown/task-list.js";
 
 /**
  * @param {string} text
@@ -293,33 +294,45 @@ function tryRenderTable(lines, i) {
 /**
  * @param {string[]} lines
  * @param {number} i
+ * @param {{ interactiveTasks: boolean }} options
  */
-function tryRenderTaskList(lines, i) {
-  if (!/^[-*]\s+\[( |x|X)\]\s+/.test(lines[i] ?? "")) return null;
+function tryRenderTaskList(lines, i, options) {
+  if (!parseTaskLine(lines[i] ?? "")) return null;
   /** @type {string[]} */
   const items = [];
   let cursor = i;
-  while (cursor < lines.length && /^[-*]\s+\[( |x|X)\]\s+/.test(lines[cursor])) {
-    const m = /^[-*]\s+\[( |x|X)\]\s+(.*)$/.exec(lines[cursor]);
-    if (m) {
-      const checked = m[1].toLowerCase() === "x";
-      const content = renderInline(m[2]);
-      items.push(
-        `<li class="task-item"><input type="checkbox" disabled ${checked ? "checked" : ""}/> <span>${content}</span></li>`,
-      );
-    }
+  while (cursor < lines.length && parseTaskLine(lines[cursor])) {
+    const parsed = parseTaskLine(lines[cursor]);
+    if (!parsed) break;
+    const checked = parsed.checked;
+    const content = renderInline(parsed.content);
+    const checkedAttr = checked ? " checked" : "";
+    const disabledAttr = options.interactiveTasks ? "" : " disabled";
+    const taskClass = checked ? "task-item is-done" : "task-item";
+    items.push(
+      `<li class="${taskClass}" data-task-line="${cursor}"><label class="task-row"><input type="checkbox" data-task-action="toggle" data-task-line="${cursor}"${checkedAttr}${disabledAttr}/> <span class="task-text">${content || "&nbsp;"}</span></label></li>`,
+    );
     cursor += 1;
   }
+  if (!options.interactiveTasks) {
+    return {
+      html: `<ul class="task-list">${items.join("")}</ul>`,
+      nextIndex: cursor,
+    };
+  }
+  const appendControl = `<button type="button" class="task-add" data-task-action="append" data-task-line="${cursor - 1}" aria-label="Add todo">+</button>`;
   return {
-    html: `<ul class="task-list">${items.join("")}</ul>`,
+    html: `<div class="task-block"><ul class="task-list">${items.join("")}</ul>${appendControl}</div>`,
     nextIndex: cursor,
   };
 }
 
 /**
  * @param {string} input
+ * @param {{ interactiveTasks?: boolean }} [options]
  */
-export function renderNoteMarkdown(input) {
+export function renderNoteMarkdown(input, options = {}) {
+  const renderOptions = { interactiveTasks: !!options.interactiveTasks };
   const text = expandNoteCommands(input ?? "");
   const lines = text.replaceAll("\r\n", "\n").split("\n");
   /** @type {string[]} */
@@ -346,7 +359,7 @@ export function renderNoteMarkdown(input) {
       continue;
     }
 
-    const taskList = tryRenderTaskList(lines, i);
+    const taskList = tryRenderTaskList(lines, i, renderOptions);
     if (taskList) {
       chunks.push(taskList.html);
       i = taskList.nextIndex;

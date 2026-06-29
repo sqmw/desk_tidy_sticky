@@ -66,7 +66,7 @@ export function createNoteEditorActions(input) {
       input.setCommandQuery("");
       return;
     }
-    input.setCommandQuery(token.query);
+    input.setCommandQuery(`${token.trigger}${token.query}`);
     input.setShowCommandSuggestions(true);
     input.setCommandActiveIndex(0);
   }

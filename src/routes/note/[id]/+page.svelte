@@ -12,7 +12,11 @@
   import NoteToolbar from "$lib/components/note/NoteToolbar.svelte";
   import SourceEditorPane from "$lib/components/note/SourceEditorPane.svelte";
   import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
-  import { renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
+  import {
+    appendTaskLineAfterBlock,
+    renderNoteMarkdown,
+    toggleTaskLineAt,
+  } from "$lib/markdown/note-markdown.js";
   import {
     findNoteById,
     invokeNoteCommand,
@@ -83,7 +87,7 @@
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
   const cssFrostBlur = $derived((hasNativeWindowFrost ? noteFrost * 4 : noteFrostBlur));
   const noteWindowRadius = $derived(isWindows ? "0px" : "12px");
-  const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || ""));
+  const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || "", { interactiveTasks: true }));
   const canInteract = $derived(!globalControlDisabled || !!note?.isAlwaysOnTop);
   const isEffectiveTopmost = $derived(!!note?.isAlwaysOnTop || !globalControlDisabled);
   const showTopmostControls = $derived(isEffectiveTopmost && (isControlMode || isEditing));
@@ -431,6 +435,28 @@
     } catch (e) {
       console.error("save", e);
     }
+  }
+
+  /** @param {string} nextText */
+  async function updateTextFromPreview(nextText) {
+    if (!note || typeof nextText !== "string") return;
+    text = nextText;
+    await tick();
+    await save();
+  }
+
+  /** @param {number} lineIndex */
+  async function togglePreviewTask(lineIndex) {
+    const nextText = toggleTaskLineAt(text || note?.text || "", lineIndex);
+    if (nextText == null) return;
+    await updateTextFromPreview(nextText);
+  }
+
+  /** @param {number} lineIndex */
+  async function appendPreviewTask(lineIndex) {
+    const nextText = appendTaskLineAfterBlock(text || note?.text || "", lineIndex);
+    if (nextText == null) return;
+    await updateTextFromPreview(nextText);
   }
 
   async function enterEditMode() {
@@ -997,7 +1023,12 @@
             onApplyCommandSuggestion={noteEditorActions.applyCommandSuggestion}
           />
         {:else}
-          <NotePreview html={renderedMarkdown} />
+          <NotePreview
+            html={renderedMarkdown}
+            interactiveTasks={canInteract}
+            onToggleTask={togglePreviewTask}
+            onAppendTask={appendPreviewTask}
+          />
         {/if}
 
         {#if noteCenterHudText}

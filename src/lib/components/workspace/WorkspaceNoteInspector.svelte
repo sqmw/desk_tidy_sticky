@@ -1,12 +1,15 @@
 <script>
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
+  import NotePreview from "$lib/components/note/NotePreview.svelte";
   import SourceEditorPane from "$lib/components/note/SourceEditorPane.svelte";
+  import { renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
 
   let {
     strings,
     note = null,
     mode = "view",
     draftText = $bindable(""),
+    editorEl = $bindable(null),
     tagSuggestions = /** @type {string[]} */ ([]),
     formatDate,
     onClose = () => {},
@@ -15,7 +18,20 @@
     onSave = () => {},
     onChangePriority = () => {},
     onChangeTags = () => {},
+    onToggleTask = () => {},
+    onAppendTask = () => {},
+    showCommandSuggestions = false,
+    commandSuggestionItems = [],
+    commandActiveIndex = 0,
+    onEditorInput = () => {},
+    onEditorPaste = () => {},
+    onEditorKeydown = () => {},
+    onApplyCommandSuggestion = () => {},
   } = $props();
+
+  const renderedInteractiveHtml = $derived(
+    renderNoteMarkdown(note?.text || "", { interactiveTasks: true }),
+  );
 
   /** @param {KeyboardEvent} e */
   function onInspectorKeydown(e) {
@@ -62,10 +78,29 @@
     />
 
     {#if mode === "view"}
-      <div class="content markdown">{@html note.renderedHtml}</div>
+      <div class="content markdown">
+        <NotePreview
+          html={renderedInteractiveHtml}
+          interactiveTasks
+          onToggleTask={onToggleTask}
+          onAppendTask={onAppendTask}
+        />
+      </div>
     {:else}
       <div class="content editor-content">
-        <SourceEditorPane bind:text={draftText} compact placeholder={strings.noteEditorPlaceholder} />
+        <SourceEditorPane
+          bind:text={draftText}
+          bind:editorEl
+          compact
+          placeholder={strings.noteEditorPlaceholder}
+          {showCommandSuggestions}
+          {commandSuggestionItems}
+          {commandActiveIndex}
+          onInput={onEditorInput}
+          onPaste={onEditorPaste}
+          onKeydown={onEditorKeydown}
+          onApplyCommandSuggestion={onApplyCommandSuggestion}
+        />
         <div class="hint">Ctrl/Cmd + Enter · Esc</div>
       </div>
     {/if}
@@ -178,6 +213,12 @@
 
   .markdown :global(*) {
     max-width: 100%;
+  }
+
+  .markdown :global(.preview-text) {
+    padding: 0;
+    overflow: visible;
+    user-select: text;
   }
 
   .markdown :global(h1),

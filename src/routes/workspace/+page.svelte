@@ -24,7 +24,10 @@
   import { createWorkspaceRouteWorkspaceBridge } from "$lib/workspace/controllers/workspace-route-workspace-bridge.js";
   import { createWorkspaceRuntimeLifecycle } from "$lib/workspace/controllers/workspace-runtime-lifecycle.js";
   import { createWorkspaceSettingsActions } from "$lib/workspace/controllers/workspace-settings-actions.js";
-import { createWorkspaceStorageActions } from "$lib/workspace/controllers/workspace-storage-actions.js";
+  import { createWorkspaceStorageActions } from "$lib/workspace/controllers/workspace-storage-actions.js";
+  import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
+  import { appendTaskLineAfterBlock, toggleTaskLineAt } from "$lib/markdown/note-markdown.js";
+  import { createNoteEditorActions } from "$lib/note/note-editor-actions.js";
   import { createWorkspaceStartupActions } from "$lib/workspace/controllers/workspace-startup-actions.js";
   import { createWorkspaceWindowActions } from "$lib/workspace/controllers/workspace-window-actions.js";
   import {
@@ -110,6 +113,10 @@ import { createWorkspaceStorageActions } from "$lib/workspace/controllers/worksp
   let inspectorNoteId = $state(null);
   let inspectorMode = $state("view");
   let inspectorDraftText = $state("");
+  let inspectorEditorEl = $state(/** @type {HTMLTextAreaElement | null} */ (null));
+  let inspectorShowCommandSuggestions = $state(false);
+  let inspectorCommandQuery = $state("");
+  let inspectorCommandActiveIndex = $state(0);
   /** @type {{ id: string } | null} */
   let pendingEditorDraft = $state(null);
   let inspectorWidth = $state(430);
@@ -262,6 +269,10 @@ import { createWorkspaceStorageActions } from "$lib/workspace/controllers/worksp
   );
 
   const inspectorNote = $derived.by(() => getWorkspaceInspectorNote(renderedNotes, inspectorNoteId));
+  const inspectorCommandSuggestions = $derived(filterNoteCommands(inspectorCommandQuery));
+  const inspectorCommandSuggestionItems = $derived(
+    inspectorCommandSuggestions.map((cmd) => ({ ...cmd, preview: getNoteCommandPreview(cmd) })),
+  );
 
   const windowSync = createWindowSync({
     getNotes: () => notes,
@@ -437,6 +448,57 @@ import { createWorkspaceStorageActions } from "$lib/workspace/controllers/worksp
     saveInspectorEdit,
     createNoteFromWorkspaceComposer,
   } = inspectorActions;
+
+  const inspectorEditorActions = createNoteEditorActions({
+    invoke,
+    tick: () => Promise.resolve(),
+    save: saveInspectorEdit,
+    getNote: () => inspectorNote,
+    getNoteId: () => String(inspectorNoteId || ""),
+    getText: () => inspectorDraftText,
+    setText: (next) => {
+      inspectorDraftText = next;
+    },
+    getEditorEl: () => inspectorEditorEl,
+    getShowCommandSuggestions: () => inspectorShowCommandSuggestions,
+    getCommandSuggestions: () => inspectorCommandSuggestions,
+    getCommandActiveIndex: () => inspectorCommandActiveIndex,
+    setShowCommandSuggestions: (visible) => {
+      inspectorShowCommandSuggestions = visible;
+    },
+    setCommandQuery: (query) => {
+      inspectorCommandQuery = query;
+    },
+    setCommandActiveIndex: (index) => {
+      inspectorCommandActiveIndex = index;
+    },
+  });
+
+  /** @param {string} nextText */
+  async function updateInspectorNoteText(nextText) {
+    if (!inspectorNote || typeof nextText !== "string") return;
+    await invoke("update_note_text", {
+      id: inspectorNote.id,
+      text: nextText,
+      sortMode,
+    });
+    await loadNotes();
+    inspectorDraftText = nextText;
+  }
+
+  /** @param {number} lineIndex */
+  async function toggleInspectorTask(lineIndex) {
+    const nextText = toggleTaskLineAt(inspectorNote?.text || "", lineIndex);
+    if (nextText == null) return;
+    await updateInspectorNoteText(nextText);
+  }
+
+  /** @param {number} lineIndex */
+  async function appendInspectorTask(lineIndex) {
+    const nextText = appendTaskLineAfterBlock(inspectorNote?.text || "", lineIndex);
+    if (nextText == null) return;
+    await updateInspectorNoteText(nextText);
+  }
 
   const routeWorkspaceBridge = createWorkspaceRouteWorkspaceBridge({
     normalizePomodoroConfig,
@@ -958,6 +1020,16 @@ import { createWorkspaceStorageActions } from "$lib/workspace/controllers/worksp
             onSave={saveInspectorEdit}
             onChangePriority={handleInspectorPriorityChange}
             onChangeTags={handleInspectorTagsChange}
+            onToggleTask={toggleInspectorTask}
+            onAppendTask={appendInspectorTask}
+            bind:editorEl={inspectorEditorEl}
+            showCommandSuggestions={inspectorShowCommandSuggestions}
+            commandSuggestionItems={inspectorCommandSuggestionItems}
+            commandActiveIndex={inspectorCommandActiveIndex}
+            onEditorInput={inspectorEditorActions.handleInput}
+            onEditorPaste={inspectorEditorActions.onEditorPaste}
+            onEditorKeydown={inspectorEditorActions.onEditorKeydown}
+            onApplyCommandSuggestion={inspectorEditorActions.applyCommandSuggestion}
           />
         {/if}
       </div>

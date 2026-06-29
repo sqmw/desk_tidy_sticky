@@ -1,4 +1,4 @@
-const COMMAND_TOKEN_PATTERN = /(^|\s)@([a-zA-Z]*)$/;
+const COMMAND_TOKEN_PATTERN = /(^|\s)([@/])([a-zA-Z]*)$/;
 
 /**
  * @param {string} text
@@ -11,9 +11,10 @@ export function findSourceCommandToken(text, caret) {
   const matched = COMMAND_TOKEN_PATTERN.exec(beforeCaret);
   if (!matched) return null;
   return {
-    query: matched[2] || "",
+    trigger: matched[2] || "@",
+    query: matched[3] || "",
     beforeCaret,
-    tokenLength: (matched[2] || "").length + 1,
+    tokenLength: (matched[3] || "").length + 1,
     caret: safeCaret,
   };
 }

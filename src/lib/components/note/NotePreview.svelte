@@ -1,8 +1,46 @@
 <script>
-  let { html = "" } = $props();
+  let {
+    html = "",
+    interactiveTasks = false,
+    onToggleTask = () => {},
+    onAppendTask = () => {},
+  } = $props();
+
+  /** @param {MouseEvent} event */
+  function handleClick(event) {
+    if (!interactiveTasks) return;
+    const target = /** @type {HTMLElement | null} */ (event.target);
+    const actionEl = target?.closest?.("[data-task-action]");
+    if (!actionEl) return;
+    const action = actionEl.getAttribute("data-task-action");
+    const line = Number(actionEl.getAttribute("data-task-line"));
+    if (!Number.isFinite(line)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (action === "toggle") {
+      onToggleTask(line);
+    } else if (action === "append") {
+      onAppendTask(line);
+    }
+  }
+
+  /** @param {KeyboardEvent} event */
+  function handleKeydown(event) {
+    if (event.key === " " || event.key === "Enter") {
+      handleClick(/** @type {any} */ (event));
+    }
+  }
 </script>
 
-<div class="preview-text preview-markdown">{@html html}</div>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class="preview-text preview-markdown"
+  class:interactive-tasks={interactiveTasks}
+  onclick={handleClick}
+  onkeydown={handleKeydown}
+>
+  {@html html}
+</div>
 
 <style>
   .preview-text {
@@ -136,19 +174,78 @@
     text-align: left;
   }
 
+  .preview-markdown :global(.task-block) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 6px;
+    margin: 0 0 12px;
+    padding: 7px 8px;
+    border: 1px solid color-mix(in srgb, var(--note-text-color, #1f2937) 14%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, white 42%, transparent);
+  }
+
   .preview-markdown :global(ul.task-list) {
     list-style: none;
-    margin-left: 0;
+    margin: 0;
+    padding: 0;
   }
 
   .preview-markdown :global(li.task-item) {
-    display: flex;
-    align-items: flex-start;
-    gap: 6px;
+    min-height: 26px;
   }
 
-  .preview-markdown :global(li.task-item input[type="checkbox"]) {
-    margin-top: 2px;
+  .preview-markdown :global(.task-row) {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: start;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .preview-markdown :global(.task-row input[type="checkbox"]) {
+    width: 15px;
+    height: 15px;
+    margin: 4px 0 0;
     accent-color: #0f4c81;
+  }
+
+  .preview-markdown :global(.task-text) {
+    min-width: 0;
+    line-height: 1.58;
+  }
+
+  .preview-markdown :global(.task-item.is-done .task-text) {
+    opacity: 0.68;
+    text-decoration: line-through;
+  }
+
+  .preview-markdown :global(.task-add) {
+    width: 24px;
+    height: 24px;
+    border: 1px solid color-mix(in srgb, var(--note-text-color, #1f2937) 16%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, white 58%, transparent);
+    color: var(--note-text-color, #1f2937);
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    padding: 0;
+  }
+
+  .preview-markdown :global(.task-add:hover) {
+    background: color-mix(in srgb, #0f4c81 12%, white);
+    border-color: color-mix(in srgb, #0f4c81 36%, transparent);
+  }
+
+  .preview-markdown:not(.interactive-tasks) :global(.task-add) {
+    display: none;
+  }
+
+  .preview-markdown.interactive-tasks :global(.task-row input[type="checkbox"]) {
+    cursor: pointer;
   }
 </style>

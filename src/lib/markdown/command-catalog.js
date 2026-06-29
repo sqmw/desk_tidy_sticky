@@ -9,6 +9,7 @@ export const NOTE_COMMAND_CATALOG = [
   { name: "@hr", format: "@hr", insert: "@hr", summary: "Insert divider" },
   { name: "@todo", format: "@todo task", insert: "@todo ", summary: "Insert todo checkbox" },
   { name: "@done", format: "@done task", insert: "@done ", summary: "Insert done checkbox" },
+  { name: "/todo", format: "/todo", insert: "- [ ] ", summary: "Create todo block" },
 ];
 
 /**
@@ -34,6 +35,7 @@ function previewFromCommand(command) {
     case "@hr":
       return "---";
     case "@todo":
+    case "/todo":
       return "- [ ] todo";
     case "@done":
       return "- [x] done";
@@ -46,9 +48,14 @@ function previewFromCommand(command) {
  * @param {string} query
  */
 export function filterNoteCommands(query) {
-  const q = String(query ?? "").trim().toLowerCase();
-  if (!q) return NOTE_COMMAND_CATALOG;
-  return NOTE_COMMAND_CATALOG.filter((c) => c.name.slice(1).startsWith(q));
+  const raw = String(query ?? "").trim().toLowerCase();
+  const trigger = raw.startsWith("/") ? "/" : raw.startsWith("@") ? "@" : "";
+  const q = trigger ? raw.slice(1) : raw;
+  return NOTE_COMMAND_CATALOG.filter((c) => {
+    if (trigger && !c.name.startsWith(trigger)) return false;
+    if (!q) return !trigger || c.name.startsWith(trigger);
+    return c.name.slice(1).startsWith(q);
+  });
 }
 
 /**
