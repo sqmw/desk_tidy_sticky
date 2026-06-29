@@ -69,20 +69,33 @@
 - Rust stable
 - Tauri 2 所需系统依赖
 
+推荐统一走 `make` 入口，macOS 和 Windows 使用相同目标名：
+
 ```bash
-pnpm install
-pnpm tauri dev
-pnpm tauri build
+make install
+make dev
+make package
 ```
 
 常用检查：
 
 ```bash
-pnpm check
-cargo check --manifest-path src-tauri/Cargo.toml
+make check
 ```
 
-Windows 开发与同步约定见：`AGENTS.md`
+常用目标：
+
+| 命令 | 用途 |
+|---|---|
+| `make dev` / `make start` | 启动 Tauri 桌面开发模式 |
+| `make frontend-dev` | 只启动 Vite/Svelte 前端服务 |
+| `make check` | 执行前端 `svelte-check` 与 Rust `cargo check` |
+| `make build` | 生成 release 可执行文件，不打平台安装包 |
+| `make package` | 生成当前平台 Tauri bundle |
+| `make package-portable` | Windows 生成便携 zip，不主动结束运行中的程序 |
+| `make package-portable-stop` | Windows 生成便携 zip，并先结束运行中的 `desk_tidy_sticky.exe` |
+
+Windows 开发、同步与打包细节见：`AGENTS.md`、`docs/build/make-commands.md`
 
 ## 参与开发
 

@@ -28,3 +28,27 @@ This project supports Syncthing-based sync with a repository-level ignore file:
 - **Root `.stignore`** mirrors `.gitignore` + `src-tauri/.gitignore` to avoid syncing build artifacts and temp files.
 - **Manual setup guide**: see `docs/sync/syncthing.md`.
   - Recommended default: **Send Only** on the primary device, **Receive Only** on other devices to reduce conflicts.
+
+## Command Entry Points
+
+The repository uses `Makefile` as the stable command entry point for macOS and Windows:
+
+- `make dev` / `make start`: run `pnpm tauri dev`.
+- `make check`: run frontend and Rust checks.
+- `make build`: build the release executable without bundling.
+- `make package`: build the current platform Tauri bundle.
+- `make package-portable`: build the Windows portable zip.
+
+Detailed command mapping: `docs/build/make-commands.md`.
+
+`package.json` pins `packageManager` to `pnpm@10.28.2`.
+`pnpm-workspace.yaml` allows the `esbuild` install build script so non-interactive `make check` / CI runs do not stop at pnpm approval prompts.
+
+## Documentation Structure Review
+
+2026-06-29 review:
+
+- Trigger: documentation file count is far above 10% of source/config file count.
+- Current conclusion: keep the existing structure for this task because this repository is a mature cross-platform desktop app with many historical issue, refactor, UI, and platform regression records.
+- Current risk: default context cost is high if future agents scan `docs/` broadly.
+- Routing rule: use `README.md`, `docs/project_configuration.md`, and task-specific `docs/build/*.md` first for build/start/package work; avoid bulk-reading historical `docs/issues/`, `docs/refactor/`, and `docs/ui/` unless the current bug requires that history.

@@ -15,7 +15,7 @@
 
 原因：
 
-1. `pnpm tauri build -- --no-bundle` 已经会生成可直接运行的：
+1. `pnpm tauri build --no-bundle` 已经会生成可直接运行的：
    - `src-tauri/target/release/desk_tidy_sticky.exe`
 2. 当前 release 目录下没有额外必须一起分发的运行时 DLL 依赖。
 3. 因此 portable zip 只需要围绕 release exe 做二次打包即可。
@@ -28,36 +28,43 @@
 
 默认行为：
 
-1. 停掉正在运行的 `desk_tidy_sticky.exe`
-2. 执行：
+1. 执行：
 
 ```powershell
-pnpm tauri build -- --no-bundle
+pnpm tauri build --no-bundle
 ```
 
-3. 组装便携目录：
+2. 组装便携目录：
    - `desk_tidy_sticky.exe`
    - `README.md`
    - `README.en.md`
    - `README-Portable.txt`
-4. 生成 zip：
+3. 生成 zip：
 
 ```text
 src-tauri/target/release/bundle/portable/Desk Tidy Sticky_<version>_x64_portable.zip
 ```
+
+如果确认为本轮临时运行产物占用了 exe，可以显式追加 `-StopRunning`，脚本会先停掉正在运行的 `desk_tidy_sticky.exe`。
 
 ## 用法
 
 在 Windows 项目根目录执行：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/windows/build-portable-zip.ps1
+make package-portable
 ```
 
 如果已经提前完成 release 构建，也可以跳过构建步骤：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/windows/build-portable-zip.ps1 -SkipBuild
+```
+
+如果需要先结束正在运行的程序再打包：
+
+```powershell
+make package-portable-stop
 ```
 
 ## 便携版说明

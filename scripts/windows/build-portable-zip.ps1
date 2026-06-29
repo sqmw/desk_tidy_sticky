@@ -1,5 +1,6 @@
 param(
   [switch]$SkipBuild,
+  [switch]$StopRunning,
   [string]$Version
 )
 
@@ -24,10 +25,12 @@ $zipPath = Join-Path $portableRoot "$portableName.zip"
 $portableReadme = Join-Path $stageDir "README-Portable.txt"
 
 if (-not $SkipBuild) {
-  Get-Process desk_tidy_sticky -ErrorAction SilentlyContinue | Stop-Process -Force
-  & pnpm tauri build -- --no-bundle
+  if ($StopRunning) {
+    Get-Process desk_tidy_sticky -ErrorAction SilentlyContinue | Stop-Process -Force
+  }
+  & pnpm tauri build --no-bundle
   if ($LASTEXITCODE -ne 0) {
-    throw "pnpm tauri build -- --no-bundle failed with exit code $LASTEXITCODE"
+    throw "pnpm tauri build --no-bundle failed with exit code $LASTEXITCODE"
   }
 }
 
