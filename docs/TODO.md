@@ -47,7 +47,7 @@
 
 验证：`make check`。
 
-提交：待提交。
+提交：`c757e02 Remove workspace note edit buttons`。
 
 ### 2026-06-29：Fix workspace block editor inline UX
 
