@@ -48,6 +48,7 @@
   let showFrostValue = $state(false);
   let isEditing = $state(false);
   let isControlMode = $state(false);
+  let blockNoteContentApi = $state(/** @type {any} */ (null));
   let outsideToolbarSlotEl = $state(/** @type {HTMLDivElement | null} */ (null));
   let outsideToolbarHeight = $state(0);
   let collapsedWindowHeight = $state(0);
@@ -689,10 +690,31 @@
     onUnpin: unpinNote,
     onMoveToTrash: moveToTrash,
     onSetBackgroundColor: noteStyleActions.setBackgroundColor,
-    onSetTextColor: noteStyleActions.setTextColor,
+    onSetTextColor: setSelectedOrDefaultTextColor,
     onBackgroundColorPickerChange: noteStyleActions.onBackgroundColorPickerChange,
-    onTextColorPickerChange: noteStyleActions.onTextColorPickerChange,
+    onTextColorPickerChange: onSelectedOrDefaultTextColorPickerChange,
   });
+
+  /**
+   * @param {string} color
+   * @param {{ closePopover?: boolean }} [options]
+   */
+  async function setSelectedOrDefaultTextColor(color, options = {}) {
+    const appliedToSelection = await blockNoteContentApi?.applySelectedTextColor?.(color);
+    if (appliedToSelection) {
+      if (options.closePopover ?? true) {
+        showTextColorPalette = false;
+      }
+      return;
+    }
+    await noteStyleActions.setTextColor(color, options);
+  }
+
+  /** @param {Event} event */
+  function onSelectedOrDefaultTextColorPickerChange(event) {
+    const target = /** @type {HTMLInputElement} */ (event.currentTarget);
+    void setSelectedOrDefaultTextColor(target.value, { closePopover: false });
+  }
 
   async function toggleDone() {
     if (!note) return;
@@ -968,6 +990,7 @@
 
         <div class="note-block-surface">
           <BlockNoteContent
+            bind:this={blockNoteContentApi}
             text={text || note?.text || ""}
             interactiveTasks={canInteract}
             readonly={!canInteract}

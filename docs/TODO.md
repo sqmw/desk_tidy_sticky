@@ -41,6 +41,14 @@
 
 ## Done
 
+### 2026-06-29：Apply sticky text color to selected text
+
+结果：便笺工具栏 `A` 文字色按钮不再只能修改整张贴纸默认文字色。当前 active block 有选中文字时，颜色会写入 Markdown 正文的安全 `<span style="color: ...">...</span>` 并提交当前块；没有选区时仍 fallback 到原有 `textColor` 字段，保留整体默认文字色能力。
+
+验证：`make check`，`git diff --check`。
+
+提交：本轮提交，见 `git log`。
+
 ### 2026-06-29：Add block Backspace merge behavior
 
 结果：修正 active block 在开头继续 Backspace 无法回到上一块的问题。当前块为空时，Backspace 会删除该空块并打开上一块到末尾；当前块非空且光标在开头时，Backspace 会把当前 Markdown slice 合并到上一块后面，并保持唯一 active block。合并前会校验当前块和上一块的原始 range，避免覆盖外部同步修改。

@@ -42,6 +42,11 @@
     onBackgroundColorPickerChange = () => {},
     onTextColorPickerChange = () => {},
   } = $props();
+
+  /** @param {PointerEvent} event */
+  function keepEditorSelection(event) {
+    event.preventDefault();
+  }
 </script>
 
 {#if placement === "inside"}
@@ -161,6 +166,7 @@
 
     <button
       class="tool-btn text-color-trigger"
+      onpointerdown={keepEditorSelection}
       onclick={() => onToggleTextColorPalette()}
       title={strings.textColor}
     >
@@ -288,6 +294,7 @@
           class:active={c === noteTextColor}
           style="background:{c};"
           title={c}
+          onpointerdown={keepEditorSelection}
           onclick={() => onSetTextColor(c)}
         ></button>
       {/each}

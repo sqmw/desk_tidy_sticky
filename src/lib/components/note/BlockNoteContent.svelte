@@ -8,6 +8,7 @@
     removeBlockMarkdown,
     replaceBlockMarkdown,
     splitBlockMarkdown,
+    wrapMarkdownSelectionWithColor,
   } from "$lib/markdown/note-markdown.js";
   import { renderMarkdownBlocks } from "$lib/markdown/blocks/block-renderer.js";
 
@@ -39,6 +40,8 @@
   let pendingCaretAtEnd = $state(false);
   /** @type {number | null} */
   let pendingCaretOffset = $state(null);
+  /** @type {{ start: number; end: number } | null} */
+  let activeSelectionRange = $state(null);
 
   const blocks = $derived(parseMarkdownBlocks(text || "", { preserveBlankBlocks: true }));
 
@@ -91,6 +94,7 @@
     activeBlockId = block.id;
     activeBlockDraft = block.markdown;
     activeBlockOriginal = block;
+    activeSelectionRange = null;
     await tick();
     resizeEditor();
     editorEl?.focus?.();
@@ -115,6 +119,7 @@
     }
     editingEmpty = true;
     emptyDraft = text || "";
+    activeSelectionRange = null;
     await tick();
     resizeEditor();
     editorEl?.focus?.();
@@ -134,6 +139,7 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
+    activeSelectionRange = null;
     if (nextText !== text) {
       await onTextChange(nextText);
     }
@@ -152,6 +158,7 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
+    activeSelectionRange = null;
     pendingActiveStartLine = inserted.nextStartLine;
     await onTextChange(inserted.text);
     return true;
@@ -185,9 +192,33 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
+    activeSelectionRange = null;
     pendingActiveStartLine = inserted.nextStartLine + insert.activeLineOffset;
     pendingCaretAtEnd = true;
     await onTextChange(inserted.text);
+    return true;
+  }
+
+  /**
+   * @param {string} color
+   */
+  export async function applySelectedTextColor(color) {
+    if (readonly || editingEmpty || !activeBlockOriginal || !editorEl) return false;
+    const currentStart = editorEl.selectionStart ?? 0;
+    const currentEnd = editorEl.selectionEnd ?? currentStart;
+    const selectionStart = currentStart !== currentEnd ? currentStart : (activeSelectionRange?.start ?? currentStart);
+    const selectionEnd = currentStart !== currentEnd ? currentEnd : (activeSelectionRange?.end ?? currentEnd);
+    if (selectionStart === selectionEnd) return false;
+
+    const wrapped = wrapMarkdownSelectionWithColor(activeBlockDraft, selectionStart, selectionEnd, color);
+    if (!wrapped) return false;
+
+    activeBlockDraft = wrapped.markdown;
+    await tick();
+    resizeEditor();
+    editorEl?.focus?.();
+    editorEl?.setSelectionRange?.(wrapped.selectionStart, wrapped.selectionEnd);
+    await commitActiveBlock();
     return true;
   }
 
@@ -214,6 +245,7 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
+    activeSelectionRange = null;
     pendingActiveStartLine = next.startLine;
     pendingCaretOffset = next.caretOffset;
     pendingCaretAtEnd = currentIsEmpty;
@@ -352,7 +384,16 @@
   }
 
   function handleEditorInput() {
+    rememberEditorSelection();
     resizeEditor();
+  }
+
+  function rememberEditorSelection() {
+    if (!editorEl || editingEmpty) return;
+    const start = editorEl.selectionStart ?? 0;
+    const end = editorEl.selectionEnd ?? start;
+    if (start === end) return;
+    activeSelectionRange = { start, end };
   }
 
   /** @param {FocusEvent} event */
@@ -502,6 +543,9 @@
             rows={Math.max(1, block.rawLines.length)}
             spellcheck="false"
             oninput={handleEditorInput}
+            onselect={rememberEditorSelection}
+            onkeyup={rememberEditorSelection}
+            onclick={rememberEditorSelection}
             onkeydown={handleEditorKeydown}
             onblur={handleEditorBlur}
           ></textarea>

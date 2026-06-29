@@ -1,4 +1,5 @@
 import { parseTaskLine } from "$lib/markdown/task-list.js";
+import { isSafeInlineColor } from "$lib/markdown/inline-style.js";
 
 /**
  * @param {string} text
@@ -10,18 +11,6 @@ export function escapeHtml(text) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
-}
-
-/**
- * @param {string} value
- */
-function isSafeColor(value) {
-  const v = value.trim();
-  return (
-    /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v) ||
-    /^rgba?\(\s*(\d{1,3}\s*,\s*){2}\d{1,3}(\s*,\s*(0|0?\.\d+|1))?\s*\)$/.test(v) ||
-    /^[a-zA-Z]{3,20}$/.test(v)
-  );
 }
 
 /**
@@ -152,7 +141,7 @@ function sanitizeSpanAttributes(raw) {
       // tolerate common typos and common alias for better UX
       if (prop === "backgroud") prop = "background";
       if (prop === "background") prop = "background-color";
-      if ((prop === "color" || prop === "background-color") && isSafeColor(value)) {
+      if ((prop === "color" || prop === "background-color") && isSafeInlineColor(value)) {
         safePairs.push(`${prop}: ${value}`);
         continue;
       }

@@ -26,6 +26,7 @@
  - `class`
  - `style` 允许：`color`、`background-color`、`background`、`font-weight`、`font-style`、`text-decoration`、`font-size`、`line-height`
  - 兼容常见误写：`backgroud` 会按 `background` 处理
+ - 便笺工具栏对选中文字设置字体颜色时，会生成 `<span style="color: ...">...</span>` 并由同一白名单渲染
 
 ## 未支持 / 暂不支持
 1. 原生任意 HTML 标签直通（仅 `span` 做白名单透传）
