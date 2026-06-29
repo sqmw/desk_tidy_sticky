@@ -73,7 +73,7 @@ Todo 能力不能成为便笺专属模型，否则同一篇笔记在两个入口
 
 ### 块编辑边界
 
-Todo 块在渲染态可以直接勾选和点 `+` 追加任务；双击 Todo 块时进入该连续 task list 的 Markdown slice 编辑态。
+Todo 块在渲染态可以直接勾选和点 `+` 追加任务；单击 Todo 块正文时进入该连续 task list 的 Markdown slice 编辑态。
 
 当前普通 `Enter` 的策略是：
 
@@ -83,9 +83,9 @@ Todo 块在渲染态可以直接勾选和点 `+` 追加任务；双击 Todo 块�
 
 ### 入口
 
-- 便笺窗口：`NotePreview` 处理 Todo 勾选和追加。
-- 工作台 inspector：复用 `NotePreview`，并接入同一套行级回写。
-- 工作台 inspector 编辑态：接入与便笺源码编辑器相同的 command suggestion。
+- 便笺窗口：复用 `BlockNoteContent`，Todo 勾选和追加仍按整篇 Markdown 行号回写。
+- 工作台 inspector：复用 `BlockNoteContent`，接入同一套行级回写。
+- active block textarea：当前先编辑 Markdown slice；`/` 命令建议和图片粘贴后续再迁移到局部块编辑能力。
 
 ## Result
 

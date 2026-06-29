@@ -25,15 +25,14 @@
 |---|---|---|
 | Phase 1：Block parser + 渲染等价 | done | `renderNoteMarkdown` 行为基本等价，Todo block 交互不回退 |
 | Phase 2：工作台 inspector 单活跃块编辑 | done | 点击 block 仅该 block 编辑，其他 block 渲染 |
-| Phase 3：便笺窗口接入 | pending | 复用同一块内容组件，避免拖拽 / 置顶 / 穿透冲突 |
+| Phase 3：便笺窗口接入 | done | 复用同一块内容组件，避免拖拽 / 置顶 / 穿透冲突 |
 | Phase 4：块操作增强 | pending | 插入、拆分、合并、类型切换按需补齐 |
 
 当前下一步：
 
 1. 在块 textarea 中恢复 `/` 命令建议和图片粘贴能力。
-2. 接入便笺窗口单活跃块编辑。
-3. 继续补齐块级 Backspace 合并、空块类型退回段落、块下方显式 `+` 插入入口。
-4. 跑 `make build` 验证工作台详情和便笺详情回归。
+2. 继续补齐块级 Backspace 合并、空块类型退回段落、块下方显式 `+` 插入入口。
+3. 跑 `make build` 验证工作台详情和便笺详情回归。
 
 风险：
 
@@ -41,6 +40,14 @@
 - 不恢复旧 `contenteditable BlockEditor`，避免历史 caret 跳动问题回归。
 
 ## Done
+
+### 2026-06-29：Connect sticky note window to block editor
+
+结果：便笺窗口正文接入 `BlockNoteContent`，不再用整篇 `SourceEditorPane` / `NotePreview` 分支；工作台与便笺都复用同一套 Markdown-first 单活跃块编辑。块进入编辑改为单击，拖拽后的短暂 click 抑制可阻止误打开编辑态，Todo 勾选和追加继续按 Markdown 行级回写。
+
+验证：`make check`，`git diff --check`。
+
+提交：本轮提交；具体 hash 以 `git log` 为准。
 
 ### 2026-06-29：Restore heading preview in note cards
 
@@ -76,7 +83,7 @@
 
 ### 2026-06-29：Remove workspace note edit/save buttons
 
-结果：工作台 inspector 去掉整篇编辑 / 保存按钮；正文始终按块渲染，块通过双击进入编辑态。块外不再有可见容器边框，编辑区也不再呈现成一个独立小面板。
+结果：工作台 inspector 去掉整篇编辑 / 保存按钮；正文始终按块渲染，块通过单击进入编辑态。块外不再有可见容器边框，编辑区也不再呈现成一个独立小面板。
 
 验证：`make check`。
 

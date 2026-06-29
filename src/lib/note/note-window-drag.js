@@ -171,7 +171,7 @@ export function createNoteWindowDragController(input) {
     const inShell = !!target?.closest(".note-shell");
     const inWindow = !!target?.closest(".note-window");
     const inToolbar = !!target?.closest(".toolbar");
-    const inPreview = !!target?.closest(".preview-text");
+    const inPreview = !!target?.closest(".preview-text, .note-block-surface");
     if (input.getIsEditing()) {
       if (!isAlwaysOnTop && !inToolbar) return;
       if (isAlwaysOnTop && !inWindow && !inToolbar && !inShell) return;

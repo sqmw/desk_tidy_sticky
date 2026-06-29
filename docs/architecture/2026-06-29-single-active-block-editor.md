@@ -2,7 +2,7 @@
 
 日期：2026-06-29
 
-状态：Phase 1 已落地，Phase 2 工作台首版已落地，Phase 3 待实现
+状态：Phase 1 已落地，Phase 2 工作台首版已落地，Phase 3 便笺窗口首版已落地
 
 范围：便笺窗口、工作台笔记 inspector、Markdown 渲染与编辑架构
 
@@ -31,30 +31,30 @@
 
 ## 当前项目状态
 
-当前项目还不是完整 block editor。
+当前项目已经具备 Markdown-first 的单活跃块编辑首版，但还不是完整 block editor。
 
 现状更准确地说是：
 
-> 单文档 Markdown textarea + 自研 Markdown renderer + 少量渲染期块级 UI。
+> Markdown text source of truth + derived block facade + single active block textarea editor。
 
 ### 已经具备的能力
 
 | 能力 | 当前位置 | 说明 |
 |---|---|---|
-| Markdown source 编辑 | `src/lib/components/note/SourceEditorPane.svelte` | 编辑态是整篇 `textarea` |
+| Markdown source 编辑 | `src/lib/components/note/BlockNoteContent.svelte` | 编辑态是当前 block 的 Markdown slice textarea |
 | Markdown 渲染 | `src/lib/markdown/renderer.js` | 自研 line scanner，把 Markdown 转成 HTML |
-| 预览容器 | `src/lib/components/note/NotePreview.svelte` | 接收 HTML，用 `{@html html}` 渲染 |
+| block facade | `src/lib/markdown/blocks/*` | 从 Markdown 派生 block list，并按 range 回写 |
 | Todo 行解析与回写 | `src/lib/markdown/task-list.js` | 基于行号 toggle / append |
-| 工作台详情 | `src/lib/components/workspace/WorkspaceNoteInspector.svelte` | `mode=view` 整篇预览，`mode=edit` 整篇编辑 |
-| 便笺详情页 | `src/routes/note/[id]/+page.svelte` | 同样是整篇预览 / 整篇编辑切换 |
+| 工作台详情 | `src/lib/components/workspace/WorkspaceNoteInspector.svelte` | 复用 `BlockNoteContent` |
+| 便笺详情页 | `src/routes/note/[id]/+page.svelte` | 复用 `BlockNoteContent`，额外处理拖拽 / 置顶 / 穿透 |
 
 ### 还没有的能力
 
 | 缺口 | 影响 |
 |---|---|
 | 没有持久化 block id | 第一阶段 block id 仍是派生值，外部同步修改时需要 range 校验 |
-| 便笺窗口仍是整篇 `mode=view/edit` | 独立便笺还没有接入单活跃块编辑 |
-| 块内 `/` 命令建议未迁移 | 工作台 block textarea 首版只支持源码编辑、保存、取消 |
+| 块内 `/` 命令建议未迁移 | active block textarea 首版只支持源码编辑、保存、取消 |
+| 图片粘贴未迁移到 active block | 旧整篇 `SourceEditorPane` 路径支持图片粘贴，块编辑路径待补齐 |
 
 2026-06-29 Phase 1 已经补齐：
 
@@ -64,9 +64,9 @@
 | `renderMarkdownBlocks(blocks)` | `src/lib/markdown/blocks/block-renderer.js` | 保持 `renderNoteMarkdown` 对外 HTML 行为 |
 | block range ops | `src/lib/markdown/blocks/block-ops.js` | 提供 `replaceBlockMarkdown` / `blockRangeMatches` |
 | 笔记渲染编排 | `src/lib/markdown/note-renderer.js` | `expandNoteCommands -> parseMarkdownBlocks -> renderMarkdownBlocks` |
-| 工作台单块编辑 | `src/lib/components/note/BlockNoteContent.svelte` | 工作台 inspector 编辑态最多只有一个 block textarea |
+| 工作台/便笺单块编辑 | `src/lib/components/note/BlockNoteContent.svelte` | 最多只有一个 block textarea |
 
-因此当前实现已经有派生 block facade，且工作台 inspector 已经接入单块编辑 UI；便笺窗口仍待接入。
+因此当前实现已经有派生 block facade，且工作台 inspector 与便笺窗口均已接入单块编辑 UI。
 
 ## 调研结论
 
@@ -440,7 +440,7 @@ compact
 | `src/lib/components/note/NotePreview.svelte` | 可先作为纯 HTML preview 保留；单块编辑阶段由 `BlockNoteContent` 接管 block 点击 |
 | `src/lib/components/note/SourceEditorPane.svelte` | 保留为整篇源码 fallback 和 block textarea 的样式/行为参考 |
 | `src/lib/components/workspace/WorkspaceNoteInspector.svelte` | Phase 2 先从整篇 `mode=edit` 改为 `BlockNoteContent` |
-| `src/routes/note/[id]/+page.svelte` | Phase 3 接入同一个 `BlockNoteContent`，额外处理拖拽与桌面层交互 |
+| `src/routes/note/[id]/+page.svelte` | 已接入同一个 `BlockNoteContent`，额外处理拖拽与桌面层交互 |
 
 ## 落地阶段
 
@@ -478,15 +478,15 @@ compact
 
 验收：
 
-- 点击 block，仅该 block 进入编辑态。
+- 单击 block，仅该 block 进入编辑态。
 - 其他 block 保持渲染态。
 - `Esc` 取消，`Ctrl/Cmd + Enter` 保存。
 - 点击另一 block 时最多只有一个编辑器。
 
 当前实现说明：
 
-- 工作台 inspector 的 edit 模式改为 `BlockNoteContent`。
-- 2026-06-29 修正：工作台不再保留整篇编辑 / 保存按钮，正文始终是块渲染，双击某块才进入该块的 Markdown slice textarea。
+- 工作台 inspector 的正文改为 `BlockNoteContent`。
+- 2026-06-29 修正：工作台不再保留整篇编辑 / 保存按钮，正文始终是块渲染，单击某块进入该块的 Markdown slice textarea。
 - blur 或 `Ctrl/Cmd + Enter` 通过 `replaceBlockMarkdown` 回写整篇 note。
 - 2026-06-29 修正：普通 `Enter` 会提交当前块并在下方创建新 paragraph block，新块保持编辑态；`Shift+Enter` 才保留为块内换行。普通 paragraph / heading 按光标位置拆成“当前块 + 下一块”；Todo/list/code/table 等结构块先保持当前块完整，再在块后插入空 paragraph，避免破坏 Markdown 结构。
 - 2026-06-29 修正：`BlockNoteContent` 的编辑态回到朴素单状态：`activeBlockId + activeBlockOriginal + activeBlockDraft`。模板只允许 `activeBlockId` 对应的一个 block 渲染 textarea，其他 block 始终渲染为 HTML。
@@ -499,14 +499,25 @@ compact
 
 ### Phase 3：便笺窗口接入单活跃块编辑
 
-接入同一个 `BlockNoteContent.svelte`。
+状态：首版已完成（2026-06-29）
+
+接入同一个 `BlockNoteContent.svelte`，不再走整篇 `SourceEditorPane` / `NotePreview` 分支。
+
+当前实现说明：
+
+- 便笺正文外层保留原有阅读边距和整篇滚动，block 本身不显示额外容器边框。
+- 单击可编辑 block 时进入该 block 的 Markdown slice textarea，并通知便笺容器进入编辑 / 操作态。
+- 拖动窗口仍由外层 `note-window-drag` 管理；拖拽完成后的短暂 click 抑制会阻止误打开 block 编辑态。
+- 桌面层 / 鼠标穿透导致 `canInteract=false` 时，`BlockNoteContent` 以 readonly 方式渲染，不能进入编辑态。
+- Todo checkbox / `+` 仍走行级 Markdown 回写，不触发块编辑。
 
 额外关注：
 
-- 点击 checkbox 不触发窗口拖拽。
+- 点击 checkbox 不触发窗口拖拽，也不进入 block 编辑。
 - 点击 block 文本进入编辑态。
 - 桌面层 / 鼠标穿透状态下不可编辑。
 - 小窗口内 active block 编辑器不能撑破布局。
+- 块内 `/` 命令建议和图片粘贴暂未迁移，后续需要做成 active block textarea 的局部能力。
 
 ### Phase 4：块操作增强
 

@@ -7,14 +7,11 @@
   import { page } from "$app/stores";
   import { resolveAppLocale } from "$lib/i18n/locale.js";
   import { getStrings } from "$lib/strings.js";
-  import NotePreview from "$lib/components/note/NotePreview.svelte";
+  import BlockNoteContent from "$lib/components/note/BlockNoteContent.svelte";
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
   import NoteToolbar from "$lib/components/note/NoteToolbar.svelte";
-  import SourceEditorPane from "$lib/components/note/SourceEditorPane.svelte";
-  import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
   import {
     appendTaskLineAfterBlock,
-    renderNoteMarkdown,
     toggleTaskLineAt,
   } from "$lib/markdown/note-markdown.js";
   import {
@@ -25,7 +22,6 @@
   } from "$lib/note/note-window-actions.js";
   import { createNoteWindowDragController } from "$lib/note/note-window-drag.js";
   import { createNoteStyleActions } from "$lib/note/note-style-actions.js";
-  import { createNoteEditorActions } from "$lib/note/note-editor-actions.js";
   import { applyNoteWindowNativeEffects } from "$lib/note/note-native-effects.js";
   import {
     DEFAULT_NOTE_COLOR,
@@ -57,15 +53,10 @@
   let collapsedWindowHeight = $state(0);
   let toolbarWindowExpanded = $state(false);
   let suppressPointerActivationUntil = $state(0);
-  let showCommandSuggestions = $state(false);
-  let commandQuery = $state("");
-  let commandActiveIndex = $state(0);
   let tagSuggestions = $state(/** @type {string[]} */ ([]));
   let hasNativeWindowFrost = $state(false);
   let opacityDraft = $state(DEFAULT_NOTE_OPACITY);
   let frostDraft = $state(DEFAULT_NOTE_FROST);
-  /** @type {HTMLTextAreaElement | null} */
-  let editorEl = $state(null);
   const strings = $derived(getStrings(locale));
   const noteBgColor = $derived(note?.bgColor || DEFAULT_NOTE_COLOR);
   const noteTextColor = $derived(note?.textColor || DEFAULT_NOTE_TEXT_COLOR);
@@ -87,7 +78,6 @@
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
   const cssFrostBlur = $derived((hasNativeWindowFrost ? noteFrost * 4 : noteFrostBlur));
   const noteWindowRadius = $derived(isWindows ? "0px" : "12px");
-  const renderedMarkdown = $derived(renderNoteMarkdown(text || note?.text || "", { interactiveTasks: true }));
   const canInteract = $derived(!globalControlDisabled || !!note?.isAlwaysOnTop);
   const isEffectiveTopmost = $derived(!!note?.isAlwaysOnTop || !globalControlDisabled);
   const showTopmostControls = $derived(isEffectiveTopmost && (isControlMode || isEditing));
@@ -101,10 +91,6 @@
     }
     return "";
   });
-  const commandSuggestions = $derived(filterNoteCommands(commandQuery));
-  const commandSuggestionItems = $derived(
-    commandSuggestions.map((cmd) => ({ ...cmd, preview: getNoteCommandPreview(cmd) })),
-  );
   const CONTROL_MODE_TRIGGER_BLOCKED_SELECTOR = [
     "button",
     "input",
@@ -114,7 +100,7 @@
     "label",
     "summary",
     "[contenteditable=\"true\"]",
-    ".command-popover",
+    ".block-note-content",
     ".note-tag-editor",
     ".toolbar",
     ".color-popover",
@@ -459,8 +445,9 @@
     await updateTextFromPreview(nextText);
   }
 
-  async function enterEditMode() {
-    if (!canInteract) return;
+  function enterBlockEditSurface() {
+    if (shouldSuppressPointerActivation()) return false;
+    if (!canInteract) return false;
     if (isEffectiveTopmost) {
       isControlMode = true;
     }
@@ -469,15 +456,12 @@
     showTextColorPalette = false;
     showOpacityPanel = false;
     showFrostPanel = false;
-    await tick();
-    editorEl?.focus();
-    editorEl?.setSelectionRange(text.length, text.length);
+    return true;
   }
 
   async function exitEditMode() {
     await save();
     isEditing = false;
-    showCommandSuggestions = false;
   }
 
   function enterControlMode() {
@@ -541,11 +525,6 @@
 
   /** @param {HTMLElement | null} target */
   function dismissFloatingPanelsOnPointerDown(target) {
-    const targetInPopover = !!target?.closest(".command-popover");
-    if (showCommandSuggestions && !targetInPopover) {
-      showCommandSuggestions = false;
-    }
-
     if (
       showPalette &&
       !target?.closest(".color-popover") &&
@@ -605,7 +584,7 @@
     if (target?.closest(CONTROL_MODE_TRIGGER_BLOCKED_SELECTOR)) {
       return;
     }
-    void enterEditMode();
+    enterBlockEditSurface();
   }
 
   /** @param {KeyboardEvent} event */
@@ -613,10 +592,6 @@
     if (event.key !== "Escape") return;
     if (!isEffectiveTopmost) return;
     if (!isControlMode && !isEditing) return;
-    if (showCommandSuggestions) {
-      showCommandSuggestions = false;
-      return;
-    }
     event.preventDefault();
     void exitControlMode();
   }
@@ -676,23 +651,6 @@
     defaultFrost: DEFAULT_NOTE_FROST,
   });
 
-  const noteEditorActions = createNoteEditorActions({
-    invoke,
-    tick,
-    save,
-    getNote: () => note,
-    getNoteId: () => noteId,
-    getText: () => text,
-    setText: (next) => (text = next),
-    getEditorEl: () => editorEl,
-    getShowCommandSuggestions: () => showCommandSuggestions,
-    getCommandSuggestions: () => commandSuggestions,
-    getCommandActiveIndex: () => commandActiveIndex,
-    setShowCommandSuggestions: (visible) => (showCommandSuggestions = visible),
-    setCommandQuery: (query) => (commandQuery = query),
-    setCommandActiveIndex: (index) => (commandActiveIndex = index),
-  });
-
   const noteToolbarProps = $derived({
     strings,
     isEditing,
@@ -712,7 +670,7 @@
     textPickerValue,
     noteColors: NOTE_COLORS,
     noteTextColors: NOTE_TEXT_COLORS,
-    onToggleEdit: () => (isEditing ? exitEditMode() : enterEditMode()),
+    onToggleEdit: () => (isEditing ? exitEditMode() : enterBlockEditSurface()),
     onExitControlMode: exitControlMode,
     onToggleTopmost: toggleTopmost,
     onToggleWallpaper: toggleWallpaperLayer,
@@ -917,7 +875,6 @@
       }
       noteWindowDrag.endManualWindowDrag();
       noteStyleActions.dispose();
-      noteEditorActions.dispose();
     };
   });
 
@@ -1009,27 +966,18 @@
           onChangeTags={setNoteTags}
         />
 
-        {#if isEditing}
-          <SourceEditorPane
-            bind:text
-            bind:editorEl
-            placeholder={strings.noteEditorPlaceholder}
-            {showCommandSuggestions}
-            {commandSuggestionItems}
-            {commandActiveIndex}
-            onInput={noteEditorActions.handleInput}
-            onPaste={noteEditorActions.onEditorPaste}
-            onKeydown={noteEditorActions.onEditorKeydown}
-            onApplyCommandSuggestion={noteEditorActions.applyCommandSuggestion}
-          />
-        {:else}
-          <NotePreview
-            html={renderedMarkdown}
+        <div class="note-block-surface">
+          <BlockNoteContent
+            text={text || note?.text || ""}
             interactiveTasks={canInteract}
+            readonly={!canInteract}
+            placeholder={strings.noteEditorPlaceholder}
+            onBeginEdit={enterBlockEditSurface}
+            onTextChange={updateTextFromPreview}
             onToggleTask={togglePreviewTask}
             onAppendTask={appendPreviewTask}
           />
-        {/if}
+        </div>
 
         {#if noteCenterHudText}
           <div class="note-center-hud">{noteCenterHudText}</div>
@@ -1130,6 +1078,23 @@
   .note-content > * {
     position: relative;
     z-index: 1;
+  }
+
+  .note-block-surface {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 20px 20px 28px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    user-select: none;
+    cursor: default;
+  }
+
+  .note-block-surface::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 
   .note-center-hud {

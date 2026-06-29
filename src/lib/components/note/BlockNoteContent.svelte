@@ -13,7 +13,9 @@
     compact = false,
     interactiveTasks = false,
     readonly = false,
+    editTrigger = "click",
     placeholder = "",
+    onBeginEdit = () => {},
     onTextChange = async () => {},
     onToggleTask = () => {},
     onAppendTask = () => {},
@@ -64,6 +66,7 @@
    */
   async function openBlock(block) {
     if (readonly || !block.editable) return;
+    if (onBeginEdit() === false) return;
     if (editingEmpty) {
       await commitEmptyEditor();
     }
@@ -81,6 +84,7 @@
 
   async function openEmptyEditor() {
     if (readonly) return;
+    if (onBeginEdit() === false) return;
     if (activeBlockId) {
       const saved = await commitActiveEditor();
       if (!saved) return;
@@ -244,7 +248,7 @@
    * @param {MouseEvent} event
    * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
    */
-  function handleBlockDoubleClick(event, block) {
+  function handleBlockPointerEdit(event, block) {
     if (readonly) return;
     const target = /** @type {HTMLElement | null} */ (event.target);
     if (target?.closest?.("[data-task-action], button, input, select, textarea, a")) return;
@@ -315,7 +319,8 @@
           role="button"
           tabindex={readonly || !block.editable ? -1 : 0}
           aria-disabled={readonly || !block.editable}
-          ondblclick={(event) => handleBlockDoubleClick(event, block)}
+          onclick={(event) => editTrigger === "click" && handleBlockPointerEdit(event, block)}
+          ondblclick={(event) => editTrigger === "dblclick" && handleBlockPointerEdit(event, block)}
           onkeydown={(event) => handleBlockKeydown(event, block)}
         >
           <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
