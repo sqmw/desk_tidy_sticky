@@ -525,7 +525,7 @@ compact
 
 后续再做：
 
-- block 下方 `+` 插入新 block。
+- 2026-06-29 已完成：active block 右下角 `+` 插入同类型空白内容；Todo/list/quote 在当前结构块内追加空行，paragraph/heading/code/table/image 在当前块后插入同类空块；全程不复制已有文本。
 - `/` 命令切换当前空 block 类型。
 - Backspace 合并空 block。
 - 结构块内部更细粒度拆分，例如 Todo 单行拆分、list item 拆分。

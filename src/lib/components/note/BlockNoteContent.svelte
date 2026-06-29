@@ -3,6 +3,7 @@
   import {
     blockRangeMatches,
     parseMarkdownBlocks,
+    parseTaskLine,
     replaceBlockMarkdown,
     splitBlockMarkdown,
   } from "$lib/markdown/note-markdown.js";
@@ -33,13 +34,17 @@
   let emptyDraft = $state("");
   /** @type {number | null} */
   let pendingActiveStartLine = $state(null);
+  let pendingCaretAtEnd = $state(false);
 
   const blocks = $derived(parseMarkdownBlocks(text || "", { preserveBlankBlocks: true }));
 
   $effect(() => {
     if (pendingActiveStartLine == null) return;
     const nextBlock = blocks.find((block) => block.startLine === pendingActiveStartLine);
-    if (!nextBlock) return;
+    if (!nextBlock) {
+      pendingCaretAtEnd = false;
+      return;
+    }
     pendingActiveStartLine = null;
     openBlock(nextBlock);
   });
@@ -80,6 +85,11 @@
     await tick();
     resizeEditor();
     editorEl?.focus?.();
+    if (pendingCaretAtEnd) {
+      pendingCaretAtEnd = false;
+      const caret = activeBlockDraft.length;
+      editorEl?.setSelectionRange?.(caret, caret);
+    }
   }
 
   async function openEmptyEditor() {
@@ -131,6 +141,102 @@
     pendingActiveStartLine = inserted.nextStartLine;
     await onTextChange(inserted.text);
     return true;
+  }
+
+  async function addSameBlockAfterActive() {
+    if (!activeBlockOriginal) return false;
+    if (activeBlockOriginal.type === "task_block") {
+      appendTaskLineToActiveDraft();
+      return true;
+    }
+    if (activeBlockOriginal.type === "bullet_list") {
+      appendLineToActiveDraft(`${getBulletMarker(activeBlockOriginal.rawLines[0] ?? "")} `);
+      return true;
+    }
+    if (activeBlockOriginal.type === "ordered_list") {
+      appendLineToActiveDraft(`${getNextOrderedMarker(activeBlockDraft)}. `);
+      return true;
+    }
+    if (activeBlockOriginal.type === "blockquote") {
+      appendLineToActiveDraft("> ");
+      return true;
+    }
+    if (!blockRangeMatches(text, activeBlockOriginal)) {
+      cancelActiveBlock();
+      onConflict();
+      return false;
+    }
+    const insert = getSameBlockInsert(activeBlockOriginal);
+    const inserted = splitBlockMarkdown(text, activeBlockOriginal, activeBlockDraft, insert.markdown);
+    activeBlockId = null;
+    activeBlockOriginal = null;
+    activeBlockDraft = "";
+    pendingActiveStartLine = inserted.nextStartLine + insert.activeLineOffset;
+    pendingCaretAtEnd = true;
+    await onTextChange(inserted.text);
+    return true;
+  }
+
+  function appendTaskLineToActiveDraft() {
+    const draft = String(activeBlockDraft ?? "");
+    const lines = draft.split("\n");
+    const sourceLine = [...lines].reverse().find((line) => parseTaskLine(line)) ?? lines[0] ?? "";
+    const parsed = parseTaskLine(sourceLine);
+    const indent = parsed?.indent ?? "";
+    const marker = parsed?.marker ?? "-";
+    appendLineToActiveDraft(`${indent}${marker} [ ] `);
+  }
+
+  /** @param {string} line */
+  function appendLineToActiveDraft(line) {
+    const draft = String(activeBlockDraft ?? "");
+    activeBlockDraft = `${draft.replace(/\n$/, "")}\n${line}`;
+    void tick().then(() => {
+      resizeEditor();
+      const caret = activeBlockDraft.length;
+      editorEl?.focus?.();
+      editorEl?.setSelectionRange?.(caret, caret);
+    });
+  }
+
+  /**
+   * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
+   */
+  function getSameBlockInsert(block) {
+    switch (block.type) {
+      case "heading":
+        return { markdown: `${getHeadingMarker(block.rawLines[0] ?? "")} `, activeLineOffset: 0 };
+      case "code_block":
+        return { markdown: "```\n\n```", activeLineOffset: 0 };
+      case "table":
+        return { markdown: "|  |  |\n|---|---|\n|  |  |", activeLineOffset: 0 };
+      case "image":
+        return { markdown: "![]()", activeLineOffset: 0 };
+      case "paragraph":
+      default:
+        return { markdown: "", activeLineOffset: 0 };
+    }
+  }
+
+  /** @param {string} line */
+  function getHeadingMarker(line) {
+    const matched = /^ {0,3}(#{1,6})\s+/.exec(String(line ?? ""));
+    return matched?.[1] ?? "#";
+  }
+
+  /** @param {string} line */
+  function getBulletMarker(line) {
+    const matched = /^(\s*)([-*])\s+/.exec(String(line ?? ""));
+    return `${matched?.[1] ?? ""}${matched?.[2] ?? "-"}`;
+  }
+
+  /** @param {string} markdown */
+  function getNextOrderedMarker(markdown) {
+    const lines = String(markdown ?? "").split("\n");
+    const lastNumber = [...lines].reverse()
+      .map((line) => /^(\s*)(\d+)\.\s+/.exec(line))
+      .find(Boolean)?.[2];
+    return Math.max(1, Number(lastNumber || 0) + 1);
   }
 
   async function commitEmptyEditor() {
@@ -273,6 +379,19 @@
       onAppendTask(line);
     }
   }
+
+  /** @param {MouseEvent} event */
+  function handleAddSameBlockClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    void addSameBlockAfterActive();
+  }
+
+  /** @param {PointerEvent} event */
+  function keepEditorFocus(event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
 </script>
 
 <div class="block-note-content" class:compact data-no-drag="true">
@@ -310,6 +429,16 @@
             onkeydown={handleEditorKeydown}
             onblur={handleEditorBlur}
           ></textarea>
+          <button
+            type="button"
+            class="block-add-button"
+            aria-label="Add same block"
+            title="Add same block"
+            onpointerdown={keepEditorFocus}
+            onclick={handleAddSameBlockClick}
+          >
+            +
+          </button>
         </div>
       {:else}
         <div
@@ -369,6 +498,7 @@
   }
 
   .note-block.editing {
+    position: relative;
     background: transparent;
   }
 
@@ -431,6 +561,33 @@
     width: 0;
     height: 0;
     display: none;
+  }
+
+  .block-add-button {
+    position: absolute;
+    right: 0;
+    bottom: -2px;
+    width: 20px;
+    height: 20px;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-card-bg, white) 82%, transparent);
+    color: inherit;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    font: inherit;
+    font-size: 14px;
+    line-height: 1;
+    opacity: 0.58;
+  }
+
+  .block-add-button:hover,
+  .block-add-button:focus-visible {
+    opacity: 1;
+    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 36%, transparent);
+    outline: none;
   }
 
   .empty-block {

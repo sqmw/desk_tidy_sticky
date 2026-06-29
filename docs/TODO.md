@@ -31,7 +31,7 @@
 当前下一步：
 
 1. 在块 textarea 中恢复 `/` 命令建议和图片粘贴能力。
-2. 继续补齐块级 Backspace 合并、空块类型退回段落、块下方显式 `+` 插入入口。
+2. 继续补齐块级 Backspace 合并、空块类型退回段落。
 3. 跑 `make build` 验证工作台详情和便笺详情回归。
 
 风险：
@@ -40,6 +40,14 @@
 - 不恢复旧 `contenteditable BlockEditor`，避免历史 caret 跳动问题回归。
 
 ## Done
+
+### 2026-06-29：Add active block same-type insert button
+
+结果：active block 右下角新增悬浮 `+`，不参与正文布局；点击后不会复制当前内容，而是按当前 block 类型插入空白同类内容并让新内容进入编辑态。Todo block 追加一条空 `- [ ] ` 行，bullet / ordered / quote 追加同类空行，paragraph / heading / code / table / image 则在当前块后插入同类空块。
+
+验证：`make check`，`git diff --check`。
+
+提交：本轮提交；具体 hash 以 `git log` 为准。
 
 ### 2026-06-29：Prevent active block editor from adding blank space
 
