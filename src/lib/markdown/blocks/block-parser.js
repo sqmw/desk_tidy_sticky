@@ -1,9 +1,6 @@
 import { splitMarkdownLines, parseTaskLine } from "$lib/markdown/task-list.js";
 import { tryRenderTable } from "$lib/markdown/renderer.js";
 
-const BLOCK_START_PATTERN =
-  /^(#{1,6}\s+|>\s+|[-*]\s+|\d+\.\s+|```|!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)|(-{3,}|\*{3,}|_{3,})\s*$)/;
-
 /**
  * @typedef {"paragraph" | "heading" | "task_block" | "bullet_list" | "ordered_list" | "blockquote" | "code_block" | "table" | "image" | "hr"} MarkdownBlockType
  */
@@ -58,17 +55,13 @@ function isBulletLine(line) {
 }
 
 /**
- * @param {string} line
- */
-function isParagraphBoundary(line) {
-  return BLOCK_START_PATTERN.test(line);
-}
-
-/**
  * @param {string} text
+ * @param {{ preserveBlankBlocks?: boolean }} [options]
  * @returns {MarkdownBlock[]}
  */
-export function parseMarkdownBlocks(text) {
+export function parseMarkdownBlocks(text, options = {}) {
+  if (String(text ?? "") === "") return [];
+
   const lines = splitMarkdownLines(text);
   /** @type {MarkdownBlock[]} */
   const blocks = [];
@@ -77,6 +70,9 @@ export function parseMarkdownBlocks(text) {
   while (i < lines.length) {
     const line = lines[i] ?? "";
     if (line === "") {
+      if (options.preserveBlankBlocks) {
+        blocks.push(createBlock("paragraph", i, i, [line]));
+      }
       i += 1;
       continue;
     }
@@ -157,10 +153,8 @@ export function parseMarkdownBlocks(text) {
       continue;
     }
 
-    while (i < lines.length && lines[i].trim() && !isParagraphBoundary(lines[i])) {
-      i += 1;
-    }
-    blocks.push(createBlock("paragraph", startLine, i - 1, lines.slice(startLine, i)));
+    blocks.push(createBlock("paragraph", startLine, i, [line]));
+    i += 1;
   }
 
   return blocks;

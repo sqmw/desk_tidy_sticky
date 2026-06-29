@@ -230,10 +230,10 @@ CodeMirror 6 的核心启发是“文本变更是 transaction / changes”。官
 5. task list 是连续 task 行，形成一个 `task_block`。
 6. 普通 list 是连续 list 行，形成一个 list block。
 
-### 第一阶段边界细节
+### 当前边界细节
 
-1. 连续普通文本行视为一个 `paragraph` block；换句话说，一段就是一块。
-2. 空行不单独形成可编辑 block，除非后续为了插入位置需要引入 `spacer` / `empty` facade。
+1. 普通文本按“一行一个 `paragraph` block”处理。原因是当前交互目标已经改成普通 `Enter` 立刻产生下一块，旧块渲染、新块编辑。
+2. 渲染态 `parseMarkdownBlocks(text)` 继续跳过空行，保持 Markdown 阅读语义；编辑态 `BlockNoteContent` 使用 `parseMarkdownBlocks(text, { preserveBlankBlocks: true })`，把空行作为可激活的空 paragraph 占位。
 3. 嵌套 list 第一阶段先并入所属 list block，不拆子 block。
 4. code fence 内部不再解析 Markdown，也不识别 task line。
 5. table 只识别当前 renderer 已支持的 pipe table，不先追求完整 GFM table。
@@ -488,7 +488,8 @@ compact
 - 工作台 inspector 的 edit 模式改为 `BlockNoteContent`。
 - 2026-06-29 修正：工作台不再保留整篇编辑 / 保存按钮，正文始终是块渲染，双击某块才进入该块的 Markdown slice textarea。
 - blur 或 `Ctrl/Cmd + Enter` 通过 `replaceBlockMarkdown` 回写整篇 note。
-- 2026-06-29 修正：普通 `Enter` 会提交当前块并在下方创建新 paragraph block，新块保持编辑态；`Shift+Enter` 才保留为块内换行。
+- 2026-06-29 修正：普通 `Enter` 会提交当前块并在下方创建新 paragraph block，新块保持编辑态；`Shift+Enter` 才保留为块内换行。普通 paragraph / heading 按光标位置拆成“当前块 + 下一块”；Todo/list/code/table 等结构块先保持当前块完整，再在块后插入空 paragraph，避免破坏 Markdown 结构。
+- 2026-06-29 修正：`BlockNoteContent` 的编辑态回到朴素单状态：`activeBlockId + activeBlockOriginal + activeBlockDraft`。模板只允许 `activeBlockId` 对应的一个 block 渲染 textarea，其他 block 始终渲染为 HTML。
 - `Esc` 取消当前 block draft。
 - Todo checkbox / `+` 仍可在渲染态交互，不强制进入编辑态。
 - 2026-06-29 修正：active block 必须是正文内联 Markdown 源码编辑，不允许做成独立滚动 / 可拖拽 resize 的小容器；滚动只保留在整篇 inspector 内容区。
@@ -512,8 +513,8 @@ compact
 
 - block 下方 `+` 插入新 block。
 - `/` 命令切换当前空 block 类型。
-- Enter 拆分 paragraph。
 - Backspace 合并空 block。
+- 结构块内部更细粒度拆分，例如 Todo 单行拆分、list item 拆分。
 - block 拖拽排序。
 - Todo block 内任务拖拽排序。
 

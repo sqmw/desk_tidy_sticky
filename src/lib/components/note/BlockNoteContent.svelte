@@ -2,9 +2,9 @@
   import { tick } from "svelte";
   import {
     blockRangeMatches,
-    insertBlockAfter,
     parseMarkdownBlocks,
     replaceBlockMarkdown,
+    splitBlockMarkdown,
   } from "$lib/markdown/note-markdown.js";
   import { renderMarkdownBlocks } from "$lib/markdown/blocks/block-renderer.js";
 
@@ -32,7 +32,7 @@
   /** @type {number | null} */
   let pendingActiveStartLine = $state(null);
 
-  const blocks = $derived(parseMarkdownBlocks(text || ""));
+  const blocks = $derived(parseMarkdownBlocks(text || "", { preserveBlankBlocks: true }));
 
   $effect(() => {
     if (pendingActiveStartLine == null) return;
@@ -40,6 +40,14 @@
     if (!nextBlock) return;
     pendingActiveStartLine = null;
     openBlock(nextBlock);
+  });
+
+  $effect(() => {
+    if (activeBlockId) {
+      const nextBlock = blocks.find((block) => block.id === activeBlockId);
+      if (!nextBlock) cancelActiveBlock();
+    }
+    if (editingEmpty && blocks.length > 0) cancelEmptyEditor();
   });
 
   /**
@@ -56,8 +64,11 @@
    */
   async function openBlock(block) {
     if (readonly || !block.editable) return;
+    if (editingEmpty) {
+      await commitEmptyEditor();
+    }
     if (activeBlockId && activeBlockId !== block.id) {
-      const saved = await commitActiveBlock();
+      const saved = await commitActiveEditor();
       if (!saved) return;
     }
     activeBlockId = block.id;
@@ -70,6 +81,10 @@
 
   async function openEmptyEditor() {
     if (readonly) return;
+    if (activeBlockId) {
+      const saved = await commitActiveEditor();
+      if (!saved) return;
+    }
     editingEmpty = true;
     emptyDraft = text || "";
     await tick();
@@ -104,12 +119,12 @@
       onConflict();
       return false;
     }
-    const committedText = replaceBlockMarkdown(text, activeBlockOriginal, activeBlockDraft);
-    const inserted = insertBlockAfter(committedText, activeBlockOriginal, " ");
+    const split = getEnterSplit(activeBlockOriginal);
+    const inserted = splitBlockMarkdown(text, activeBlockOriginal, split.before, split.after);
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
-    pendingActiveStartLine = inserted.startLine;
+    pendingActiveStartLine = inserted.nextStartLine;
     await onTextChange(inserted.text);
     return true;
   }
@@ -123,6 +138,11 @@
     }
   }
 
+  async function commitActiveEditor() {
+    if (editingEmpty) return commitEmptyEditor();
+    return commitActiveBlock();
+  }
+
   function cancelActiveBlock() {
     activeBlockId = null;
     activeBlockOriginal = null;
@@ -134,6 +154,27 @@
     emptyDraft = "";
   }
 
+  /**
+   * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
+   */
+  function getEnterSplit(block) {
+    if (block.type !== "paragraph" && block.type !== "heading") {
+      return { before: String(activeBlockDraft ?? "").replace(/\n$/, ""), after: "" };
+    }
+    return getDraftSplitAtCursor();
+  }
+
+  function getDraftSplitAtCursor() {
+    const draft = String(activeBlockDraft ?? "");
+    const cursor = Math.max(0, Math.min(editorEl?.selectionStart ?? draft.length, draft.length));
+    const before = draft.slice(0, cursor);
+    const after = draft.slice(cursor);
+    return {
+      before: before.endsWith("\n") ? before.slice(0, -1) : before,
+      after: after.startsWith("\n") ? after.slice(1) : after,
+    };
+  }
+
   function resizeEditor() {
     if (!editorEl) return;
     editorEl.style.height = "auto";
@@ -142,6 +183,18 @@
 
   function handleEditorInput() {
     resizeEditor();
+  }
+
+  /** @param {FocusEvent} event */
+  async function handleEditorBlur(event) {
+    if (event.currentTarget !== editorEl) return;
+    await commitActiveBlock();
+  }
+
+  /** @param {FocusEvent} event */
+  async function handleEmptyEditorBlur(event) {
+    if (event.currentTarget !== editorEl) return;
+    await commitEmptyEditor();
   }
 
   /** @param {KeyboardEvent} event */
@@ -231,7 +284,7 @@
           spellcheck="false"
           oninput={handleEditorInput}
           onkeydown={handleEditorKeydown}
-          onblur={() => commitEmptyEditor()}
+          onblur={handleEmptyEditorBlur}
         ></textarea>
       </div>
     {:else}
@@ -251,7 +304,7 @@
             spellcheck="false"
             oninput={handleEditorInput}
             onkeydown={handleEditorKeydown}
-            onblur={() => commitActiveBlock()}
+            onblur={handleEditorBlur}
           ></textarea>
         </div>
       {:else}

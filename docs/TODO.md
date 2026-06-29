@@ -32,7 +32,8 @@
 
 1. 在块 textarea 中恢复 `/` 命令建议和图片粘贴能力。
 2. 接入便笺窗口单活跃块编辑。
-3. 跑 `make check` / `make build` 验证工作台详情和便笺详情回归。
+3. 继续补齐块级 Backspace 合并、空块类型退回段落、块下方显式 `+` 插入入口。
+4. 跑 `make build` 验证工作台详情和便笺详情回归。
 
 风险：
 
@@ -40,6 +41,14 @@
 - 不恢复旧 `contenteditable BlockEditor`，避免历史 caret 跳动问题回归。
 
 ## Done
+
+### 2026-06-29：Tighten single active block and Enter split
+
+结果：把 `BlockNoteContent` 的编辑态收敛为 `activeBlockId + activeBlockOriginal + activeBlockDraft`，避免 `$state` union 推断失败和多编辑器漂移；块编辑解析开启 `preserveBlankBlocks`，渲染态继续跳过空行；普通段落和标题按光标位置拆分，结构块如 Todo/list/code/table 则先提交当前块并在块后创建空 paragraph，新块成为唯一编辑态。
+
+验证：`make check-frontend`、`make check`、Node smoke 样例验证段落 Enter、Todo block 后插入空段落、渲染态跳过空行。
+
+提交：本轮提交；具体 hash 以 `git log` 为准。
 
 ### 2026-06-29：Make Enter create next editable block
 

@@ -71,6 +71,16 @@ Todo 能力不能成为便笺专属模型，否则同一篇笔记在两个入口
 
 持久化继续走现有 `update_note_text`。
 
+### 块编辑边界
+
+Todo 块在渲染态可以直接勾选和点 `+` 追加任务；双击 Todo 块时进入该连续 task list 的 Markdown slice 编辑态。
+
+当前普通 `Enter` 的策略是：
+
+- 在普通 paragraph / heading 内：按光标位置拆成当前块和下一块，下一块成为唯一编辑态。
+- 在 Todo/list/code/table 等结构块内：先保留当前结构块完整，再在块后创建空 paragraph，避免把连续 task list 或 fenced code 拆坏。
+- `Shift+Enter` 才表示块内换行。
+
 ### 入口
 
 - 便笺窗口：`NotePreview` 处理 Todo 勾选和追加。

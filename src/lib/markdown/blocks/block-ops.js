@@ -39,3 +39,23 @@ export function insertBlockAfter(noteText, block, nextMarkdown = "") {
     startLine: insertAt,
   };
 }
+
+/**
+ * @param {string} noteText
+ * @param {{ startLine: number; endLine: number }} block
+ * @param {string} currentMarkdown
+ * @param {string} nextMarkdown
+ */
+export function splitBlockMarkdown(noteText, block, currentMarkdown, nextMarkdown = "") {
+  const lines = splitMarkdownLines(noteText);
+  const startLine = Math.max(0, Math.min(Number(block.startLine) || 0, lines.length));
+  const endLine = Math.max(startLine, Math.min(Number(block.endLine) || startLine, lines.length - 1));
+  const currentLines = splitMarkdownLines(currentMarkdown);
+  const nextLines = splitMarkdownLines(nextMarkdown);
+  const nextStartLine = startLine + currentLines.length;
+  lines.splice(startLine, endLine - startLine + 1, ...currentLines, ...nextLines);
+  return {
+    text: lines.join("\n"),
+    nextStartLine,
+  };
+}
