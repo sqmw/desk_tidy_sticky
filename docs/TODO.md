@@ -47,7 +47,7 @@
 
 验证：`make check-frontend`、`make check`、`make build`。
 
-提交：待提交。
+提交：`63702b7 Add workspace block editing`。
 
 ### 2026-06-29：Implement Markdown block parser foundation
 
