@@ -47,7 +47,7 @@
 
 验证：`make check`。
 
-提交：待提交。
+提交：`23a0bb6 Fix workspace block editor inline UX`。
 
 ### 2026-06-29：Implement workspace single active block editing
 
