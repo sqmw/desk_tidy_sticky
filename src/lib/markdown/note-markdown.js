@@ -8,6 +8,8 @@ export { parseMarkdownBlocks } from "$lib/markdown/blocks/block-parser.js";
 export {
   blockRangeMatches,
   insertBlockAfter,
+  mergeBlockIntoPreviousMarkdown,
+  removeBlockMarkdown,
   replaceBlockMarkdown,
   splitBlockMarkdown,
 } from "$lib/markdown/blocks/block-ops.js";

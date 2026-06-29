@@ -284,6 +284,9 @@ export function renderNoteMarkdown(text, options = {}) {
 推荐默认行为：
 
 - 点击其他 block：先 commit 当前 draft，再打开新 block。
+- `Enter`：提交 / 拆分当前 block，并让下一个 block 成为唯一编辑态。
+- `Shift + Enter`：在当前 block 内换行。
+- `Backspace`：光标位于当前 block 开头时回到上一块；空 block 会被删除，非空 block 会合并到上一块后面。
 - `Esc`：取消当前 block draft。
 - `Ctrl/Cmd + Enter`：commit 当前 block draft。
 - blur：commit 当前 block draft。
@@ -296,6 +299,8 @@ idle
 
 editing(blockId)
   input -> editing(blockId, dirty)
+  Enter -> split current block -> editing(nextBlockId)
+  Backspace at block start -> merge/delete current block -> editing(previousBlockId)
   Ctrl/Cmd+Enter -> commit -> idle
   Esc -> cancel -> idle
   click another block -> commit current -> editing(nextBlockId)
@@ -489,6 +494,7 @@ compact
 - 2026-06-29 修正：工作台不再保留整篇编辑 / 保存按钮，正文始终是块渲染，单击某块进入该块的 Markdown slice textarea。
 - blur 或 `Ctrl/Cmd + Enter` 通过 `replaceBlockMarkdown` 回写整篇 note。
 - 2026-06-29 修正：普通 `Enter` 会提交当前块并在下方创建新 paragraph block，新块保持编辑态；`Shift+Enter` 才保留为块内换行。普通 paragraph / heading 按光标位置拆成“当前块 + 下一块”；Todo/list/code/table 等结构块先保持当前块完整，再在块后插入空 paragraph，避免破坏 Markdown 结构。
+- 2026-06-29 修正：`Backspace` 在 active block 开头会回到上一块。当前块为空时删除空块并把上一块打开到末尾；当前块非空时把当前 Markdown slice 接到上一块后面，caret 停在合并边界。合并前必须同时校验当前块和上一块 range，避免外部同步后误覆盖。
 - 2026-06-29 修正：`BlockNoteContent` 的编辑态回到朴素单状态：`activeBlockId + activeBlockOriginal + activeBlockDraft`。模板只允许 `activeBlockId` 对应的一个 block 渲染 textarea，其他 block 始终渲染为 HTML。
 - `Esc` 取消当前 block draft。
 - Todo checkbox / `+` 仍可在渲染态交互，不强制进入编辑态。
@@ -526,8 +532,8 @@ compact
 后续再做：
 
 - 2026-06-29 已完成：active block 右下角 `+` 插入同类型空白内容；Todo/list/quote 在当前结构块内追加空行，paragraph/heading/code/table/image 在当前块后插入同类空块；全程不复制已有文本。
+- 2026-06-29 已完成：active block 开头 `Backspace` 合并 / 删除当前块并回到上一块，解决删空后无法继续退回上一行的问题。
 - `/` 命令切换当前空 block 类型。
-- Backspace 合并空 block。
 - 结构块内部更细粒度拆分，例如 Todo 单行拆分、list item 拆分。
 - block 拖拽排序。
 - Todo block 内任务拖拽排序。

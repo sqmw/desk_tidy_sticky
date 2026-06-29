@@ -31,7 +31,7 @@
 当前下一步：
 
 1. 在块 textarea 中恢复 `/` 命令建议和图片粘贴能力。
-2. 继续补齐块级 Backspace 合并、空块类型退回段落。
+2. 继续补齐空块类型退回段落。
 3. 跑 `make build` 验证工作台详情和便笺详情回归。
 
 风险：
@@ -40,6 +40,14 @@
 - 不恢复旧 `contenteditable BlockEditor`，避免历史 caret 跳动问题回归。
 
 ## Done
+
+### 2026-06-29：Add block Backspace merge behavior
+
+结果：修正 active block 在开头继续 Backspace 无法回到上一块的问题。当前块为空时，Backspace 会删除该空块并打开上一块到末尾；当前块非空且光标在开头时，Backspace 会把当前 Markdown slice 合并到上一块后面，并保持唯一 active block。合并前会校验当前块和上一块的原始 range，避免覆盖外部同步修改。
+
+验证：`make check`，`git diff --check`。
+
+提交：本轮提交，见 `git log`。
 
 ### 2026-06-29：Add active block same-type insert button
 

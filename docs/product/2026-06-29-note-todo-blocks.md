@@ -80,6 +80,7 @@ Todo 块在渲染态可以直接勾选和点 `+` 追加任务；单击 Todo 块�
 - 在普通 paragraph / heading 内：按光标位置拆成当前块和下一块，下一块成为唯一编辑态。
 - 在 Todo/list/code/table 等结构块内：先保留当前结构块完整，再在块后创建空 paragraph，避免把连续 task list 或 fenced code 拆坏。
 - `Shift+Enter` 才表示块内换行。
+- `Backspace` 在 active block 开头会回到上一块；空块会被删除，非空块会合并到上一块后面。
 
 ### 入口
 

@@ -2,8 +2,10 @@
   import { tick } from "svelte";
   import {
     blockRangeMatches,
+    mergeBlockIntoPreviousMarkdown,
     parseMarkdownBlocks,
     parseTaskLine,
+    removeBlockMarkdown,
     replaceBlockMarkdown,
     splitBlockMarkdown,
   } from "$lib/markdown/note-markdown.js";
@@ -35,18 +37,24 @@
   /** @type {number | null} */
   let pendingActiveStartLine = $state(null);
   let pendingCaretAtEnd = $state(false);
+  /** @type {number | null} */
+  let pendingCaretOffset = $state(null);
 
   const blocks = $derived(parseMarkdownBlocks(text || "", { preserveBlankBlocks: true }));
 
   $effect(() => {
     if (pendingActiveStartLine == null) return;
-    const nextBlock = blocks.find((block) => block.startLine === pendingActiveStartLine);
-    if (!nextBlock) {
-      pendingCaretAtEnd = false;
-      return;
-    }
-    pendingActiveStartLine = null;
-    openBlock(nextBlock);
+    void tick().then(() => {
+      if (pendingActiveStartLine == null) return;
+      const nextBlock = blocks.find((block) => block.startLine === pendingActiveStartLine);
+      if (!nextBlock) {
+        pendingCaretAtEnd = false;
+        pendingCaretOffset = null;
+        return;
+      }
+      pendingActiveStartLine = null;
+      openBlock(nextBlock, { fromPending: true });
+    });
   });
 
   $effect(() => {
@@ -68,8 +76,9 @@
 
   /**
    * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
+   * @param {{ fromPending?: boolean }} [options]
    */
-  async function openBlock(block) {
+  async function openBlock(block, options = {}) {
     if (readonly || !block.editable) return;
     if (onBeginEdit() === false) return;
     if (editingEmpty) {
@@ -85,7 +94,12 @@
     await tick();
     resizeEditor();
     editorEl?.focus?.();
-    if (pendingCaretAtEnd) {
+    if (options.fromPending && pendingCaretOffset != null) {
+      const caret = Math.max(0, Math.min(pendingCaretOffset, activeBlockDraft.length));
+      pendingCaretOffset = null;
+      pendingCaretAtEnd = false;
+      editorEl?.setSelectionRange?.(caret, caret);
+    } else if (options.fromPending && pendingCaretAtEnd) {
       pendingCaretAtEnd = false;
       const caret = activeBlockDraft.length;
       editorEl?.setSelectionRange?.(caret, caret);
@@ -175,6 +189,52 @@
     pendingCaretAtEnd = true;
     await onTextChange(inserted.text);
     return true;
+  }
+
+  async function mergeActiveBlockBackward() {
+    if (!activeBlockOriginal) return false;
+    const previousBlock = getPreviousEditableBlock(activeBlockOriginal);
+    if (!previousBlock) return false;
+    if (!blockRangeMatches(text, activeBlockOriginal) || !blockRangeMatches(text, previousBlock)) {
+      cancelActiveBlock();
+      onConflict();
+      return true;
+    }
+
+    const draft = String(activeBlockDraft ?? "");
+    const currentIsEmpty = draft.trim() === "";
+    const next = currentIsEmpty
+      ? {
+          text: removeBlockMarkdown(text, activeBlockOriginal),
+          startLine: previousBlock.startLine,
+          caretOffset: previousBlock.markdown.length,
+        }
+      : mergeBlockIntoPreviousMarkdown(text, previousBlock, activeBlockOriginal, draft);
+
+    activeBlockId = null;
+    activeBlockOriginal = null;
+    activeBlockDraft = "";
+    pendingActiveStartLine = next.startLine;
+    pendingCaretOffset = next.caretOffset;
+    pendingCaretAtEnd = currentIsEmpty;
+    await onTextChange(next.text);
+    return true;
+  }
+
+  /**
+   * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
+   */
+  function getPreviousEditableBlock(block) {
+    const index = blocks.findIndex(
+      (candidate) =>
+        candidate.id === block.id ||
+        (candidate.startLine === block.startLine &&
+          candidate.endLine === block.endLine &&
+          candidate.markdown === block.markdown),
+    );
+    if (index <= 0) return null;
+    const previousBlock = blocks[index - 1];
+    return previousBlock?.editable ? previousBlock : null;
   }
 
   function appendTaskLineToActiveDraft() {
@@ -309,6 +369,22 @@
 
   /** @param {KeyboardEvent} event */
   async function handleEditorKeydown(event) {
+    if (event.key === "Backspace" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      const selectionStart = editorEl?.selectionStart ?? 0;
+      const selectionEnd = editorEl?.selectionEnd ?? selectionStart;
+      if (
+        !editingEmpty &&
+        activeBlockOriginal &&
+        selectionStart === 0 &&
+        selectionEnd === 0 &&
+        getPreviousEditableBlock(activeBlockOriginal)
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        await mergeActiveBlockBackward();
+      }
+      return;
+    }
     if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
       event.preventDefault();
       event.stopPropagation();
