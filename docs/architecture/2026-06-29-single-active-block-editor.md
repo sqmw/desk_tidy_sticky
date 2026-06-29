@@ -2,7 +2,7 @@
 
 日期：2026-06-29
 
-状态：Phase 1 已落地，Phase 2 待实现
+状态：Phase 1 已落地，Phase 2 工作台首版已落地，Phase 3 待实现
 
 范围：便笺窗口、工作台笔记 inspector、Markdown 渲染与编辑架构
 
@@ -53,8 +53,8 @@
 | 缺口 | 影响 |
 |---|---|
 | 没有持久化 block id | 第一阶段 block id 仍是派生值，外部同步修改时需要 range 校验 |
-| 页面层只有整篇 `mode=view/edit` | 不能表达“只编辑当前 block” |
-| 还没有 `BlockNoteContent` | UI 仍未进入“单活跃块编辑”阶段 |
+| 便笺窗口仍是整篇 `mode=view/edit` | 独立便笺还没有接入单活跃块编辑 |
+| 块内 `/` 命令建议未迁移 | 工作台 block textarea 首版只支持源码编辑、保存、取消 |
 
 2026-06-29 Phase 1 已经补齐：
 
@@ -64,8 +64,9 @@
 | `renderMarkdownBlocks(blocks)` | `src/lib/markdown/blocks/block-renderer.js` | 保持 `renderNoteMarkdown` 对外 HTML 行为 |
 | block range ops | `src/lib/markdown/blocks/block-ops.js` | 提供 `replaceBlockMarkdown` / `blockRangeMatches` |
 | 笔记渲染编排 | `src/lib/markdown/note-renderer.js` | `expandNoteCommands -> parseMarkdownBlocks -> renderMarkdownBlocks` |
+| 工作台单块编辑 | `src/lib/components/note/BlockNoteContent.svelte` | 工作台 inspector 编辑态最多只有一个 block textarea |
 
-因此当前实现已经有派生 block facade，但页面层还没有接入单块编辑 UI。
+因此当前实现已经有派生 block facade，且工作台 inspector 已经接入单块编辑 UI；便笺窗口仍待接入。
 
 ## 调研结论
 
@@ -468,6 +469,8 @@ compact
 
 ### Phase 2：工作台 inspector 单活跃块编辑
 
+状态：首版已完成（2026-06-29）
+
 先在工作台 inspector 落地，原因：
 
 - 不涉及贴纸窗口拖拽、置顶、穿透策略。
@@ -479,6 +482,15 @@ compact
 - 其他 block 保持渲染态。
 - `Esc` 取消，`Ctrl/Cmd + Enter` 保存。
 - 点击另一 block 时最多只有一个编辑器。
+
+当前实现说明：
+
+- 工作台 inspector 的 edit 模式改为 `BlockNoteContent`。
+- 点击普通 block 进入该 block 的 Markdown slice textarea。
+- blur 或 `Ctrl/Cmd + Enter` 通过 `replaceBlockMarkdown` 回写整篇 note。
+- `Esc` 取消当前 block draft。
+- Todo checkbox / `+` 仍可在渲染态交互，不强制进入编辑态。
+- 块内 `/` 命令建议和图片粘贴暂未迁移，后续可在 `MarkdownBlockEditor` 独立补齐。
 
 ### Phase 3：便笺窗口接入单活跃块编辑
 

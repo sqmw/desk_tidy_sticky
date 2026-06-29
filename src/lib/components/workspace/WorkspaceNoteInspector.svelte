@@ -1,7 +1,7 @@
 <script>
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
+  import BlockNoteContent from "$lib/components/note/BlockNoteContent.svelte";
   import NotePreview from "$lib/components/note/NotePreview.svelte";
-  import SourceEditorPane from "$lib/components/note/SourceEditorPane.svelte";
   import { renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
 
   let {
@@ -20,13 +20,7 @@
     onChangeTags = () => {},
     onToggleTask = () => {},
     onAppendTask = () => {},
-    showCommandSuggestions = false,
-    commandSuggestionItems = [],
-    commandActiveIndex = 0,
-    onEditorInput = () => {},
-    onEditorPaste = () => {},
-    onEditorKeydown = () => {},
-    onApplyCommandSuggestion = () => {},
+    onBlockTextChange = () => {},
   } = $props();
 
   const renderedInteractiveHtml = $derived(
@@ -88,18 +82,14 @@
       </div>
     {:else}
       <div class="content editor-content">
-        <SourceEditorPane
-          bind:text={draftText}
-          bind:editorEl
+        <BlockNoteContent
+          text={draftText}
           compact
+          interactiveTasks
           placeholder={strings.noteEditorPlaceholder}
-          {showCommandSuggestions}
-          {commandSuggestionItems}
-          {commandActiveIndex}
-          onInput={onEditorInput}
-          onPaste={onEditorPaste}
-          onKeydown={onEditorKeydown}
-          onApplyCommandSuggestion={onApplyCommandSuggestion}
+          onTextChange={onBlockTextChange}
+          onToggleTask={onToggleTask}
+          onAppendTask={onAppendTask}
         />
         <div class="hint">Ctrl/Cmd + Enter · Esc</div>
       </div>
@@ -272,8 +262,8 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    padding: 0;
-    overflow: hidden;
+    padding: 12px;
+    overflow: auto;
   }
 
   .hint {
