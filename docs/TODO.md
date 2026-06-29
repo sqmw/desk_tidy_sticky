@@ -47,7 +47,7 @@
 
 验证：`make check`，Node alias loader 样例验证插入空白块后 parser 可前进并生成新 paragraph block。
 
-提交：待提交。
+提交：`ebefe02 Make Enter create next block`。
 
 ### 2026-06-29：Remove workspace note edit/save buttons
 
