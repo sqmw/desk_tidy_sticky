@@ -304,7 +304,7 @@
             bind:this={editorEl}
             bind:value={activeBlockDraft}
             class="block-editor"
-            rows={Math.max(2, block.rawLines.length)}
+            rows={Math.max(1, block.rawLines.length)}
             spellcheck="false"
             oninput={handleEditorInput}
             onkeydown={handleEditorKeydown}

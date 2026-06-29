@@ -496,6 +496,7 @@ compact
 - 2026-06-29 修正：块外不再保留可见容器边框或卡片感，block 是正文的一部分，不是单独面板。
 - 2026-06-29 修正：active block textarea 不再保留额外左侧 padding，避免编辑态文本被误看成 Markdown 缩进；需要表达缩进时只能来自真实 Markdown 文本。
 - 2026-06-29 修正：active block textarea 必须继承正文 `font`，不能使用单独等宽字体或缩小字号，否则编辑态会比渲染态显著更细、更小。
+- 2026-06-29 修正：active block textarea 的 `rows` 必须贴近真实 Markdown 行数，单行 block 不能强制撑成两行，否则编辑态会凭空挤出下方空白。
 - 块内 `/` 命令建议和图片粘贴暂未迁移，后续可在 `MarkdownBlockEditor` 独立补齐。
 
 ### Phase 3：便笺窗口接入单活跃块编辑

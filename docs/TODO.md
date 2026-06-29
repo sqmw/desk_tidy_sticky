@@ -41,6 +41,14 @@
 
 ## Done
 
+### 2026-06-29：Prevent active block editor from adding blank space
+
+结果：修正单行 block 进入编辑态后 textarea 被 `rows=2` 强行撑高的问题；active block 现在按真实 Markdown 行数设置最小行数，避免编辑态凭空把后续内容挤下去。
+
+验证：`make check`，`git diff --check`。
+
+提交：本轮提交；具体 hash 以 `git log` 为准。
+
 ### 2026-06-29：Explicit single-click block editing in workspace and sticky
 
 结果：工作台 inspector 与便笺窗口都显式传入 `editTrigger="click"`，块编辑入口不再依赖 `BlockNoteContent` 默认值；两处都保持单击 block 进入当前块编辑态。
