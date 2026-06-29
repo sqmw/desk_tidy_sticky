@@ -41,6 +41,14 @@
 
 ## Done
 
+### 2026-06-29：Make Enter create next editable block
+
+结果：修正块编辑中的 Enter 行为；普通 Enter 会提交当前块、创建下一个空 paragraph block，并让新块保持编辑态。`Shift+Enter` 保留为块内换行。同步修复 parser 对纯空白行的死循环风险，让空白 paragraph 可作为新块占位。
+
+验证：`make check`，Node alias loader 样例验证插入空白块后 parser 可前进并生成新 paragraph block。
+
+提交：待提交。
+
 ### 2026-06-29：Remove workspace note edit/save buttons
 
 结果：工作台 inspector 去掉整篇编辑 / 保存按钮；正文始终按块渲染，块通过双击进入编辑态。块外不再有可见容器边框，编辑区也不再呈现成一个独立小面板。

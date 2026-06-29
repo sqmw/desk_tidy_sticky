@@ -2,6 +2,7 @@
   import { tick } from "svelte";
   import {
     blockRangeMatches,
+    insertBlockAfter,
     parseMarkdownBlocks,
     replaceBlockMarkdown,
   } from "$lib/markdown/note-markdown.js";
@@ -28,8 +29,18 @@
   let editorEl = $state(null);
   let editingEmpty = $state(false);
   let emptyDraft = $state("");
+  /** @type {number | null} */
+  let pendingActiveStartLine = $state(null);
 
   const blocks = $derived(parseMarkdownBlocks(text || ""));
+
+  $effect(() => {
+    if (pendingActiveStartLine == null) return;
+    const nextBlock = blocks.find((block) => block.startLine === pendingActiveStartLine);
+    if (!nextBlock) return;
+    pendingActiveStartLine = null;
+    openBlock(nextBlock);
+  });
 
   /**
    * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
@@ -86,6 +97,23 @@
     return true;
   }
 
+  async function splitActiveBlockAfter() {
+    if (!activeBlockOriginal) return false;
+    if (!blockRangeMatches(text, activeBlockOriginal)) {
+      cancelActiveBlock();
+      onConflict();
+      return false;
+    }
+    const committedText = replaceBlockMarkdown(text, activeBlockOriginal, activeBlockDraft);
+    const inserted = insertBlockAfter(committedText, activeBlockOriginal, " ");
+    activeBlockId = null;
+    activeBlockOriginal = null;
+    activeBlockDraft = "";
+    pendingActiveStartLine = inserted.startLine;
+    await onTextChange(inserted.text);
+    return true;
+  }
+
   async function commitEmptyEditor() {
     const nextText = emptyDraft;
     editingEmpty = false;
@@ -118,6 +146,16 @@
 
   /** @param {KeyboardEvent} event */
   async function handleEditorKeydown(event) {
+    if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (editingEmpty) {
+        await commitEmptyEditor();
+      } else {
+        await splitActiveBlockAfter();
+      }
+      return;
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "enter") {
       event.preventDefault();
       event.stopPropagation();

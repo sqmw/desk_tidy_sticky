@@ -76,12 +76,18 @@ export function parseMarkdownBlocks(text) {
 
   while (i < lines.length) {
     const line = lines[i] ?? "";
-    if (!line.trim()) {
+    if (line === "") {
       i += 1;
       continue;
     }
 
     const startLine = i;
+
+    if (!line.trim()) {
+      blocks.push(createBlock("paragraph", startLine, i, [line]));
+      i += 1;
+      continue;
+    }
 
     if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(line.trim())) {
       blocks.push(createBlock("hr", startLine, i, [line]));

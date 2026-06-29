@@ -23,3 +23,19 @@ export function blockRangeMatches(noteText, block) {
   const current = lines.slice(block.startLine, block.endLine + 1).join("\n");
   return current === block.markdown;
 }
+
+/**
+ * @param {string} noteText
+ * @param {{ endLine: number }} block
+ * @param {string} nextMarkdown
+ */
+export function insertBlockAfter(noteText, block, nextMarkdown = "") {
+  const lines = splitMarkdownLines(noteText);
+  const insertAt = Math.max(0, Math.min(Number(block.endLine) + 1 || 0, lines.length));
+  const nextLines = splitMarkdownLines(nextMarkdown);
+  lines.splice(insertAt, 0, ...nextLines);
+  return {
+    text: lines.join("\n"),
+    startLine: insertAt,
+  };
+}
