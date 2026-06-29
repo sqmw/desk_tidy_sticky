@@ -26,6 +26,8 @@
   let activeBlockOriginal = $state(null);
   /** @type {HTMLTextAreaElement | null} */
   let editorEl = $state(null);
+  let editingEmpty = $state(false);
+  let emptyDraft = $state("");
 
   const blocks = $derived(parseMarkdownBlocks(text || ""));
 
@@ -51,6 +53,16 @@
     activeBlockDraft = block.markdown;
     activeBlockOriginal = block;
     await tick();
+    resizeEditor();
+    editorEl?.focus?.();
+  }
+
+  async function openEmptyEditor() {
+    if (readonly) return;
+    editingEmpty = true;
+    emptyDraft = text || "";
+    await tick();
+    resizeEditor();
     editorEl?.focus?.();
   }
 
@@ -74,10 +86,34 @@
     return true;
   }
 
+  async function commitEmptyEditor() {
+    const nextText = emptyDraft;
+    editingEmpty = false;
+    emptyDraft = "";
+    if (nextText !== text) {
+      await onTextChange(nextText);
+    }
+  }
+
   function cancelActiveBlock() {
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
+  }
+
+  function cancelEmptyEditor() {
+    editingEmpty = false;
+    emptyDraft = "";
+  }
+
+  function resizeEditor() {
+    if (!editorEl) return;
+    editorEl.style.height = "auto";
+    editorEl.style.height = `${editorEl.scrollHeight}px`;
+  }
+
+  function handleEditorInput() {
+    resizeEditor();
   }
 
   /** @param {KeyboardEvent} event */
@@ -85,13 +121,21 @@
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "enter") {
       event.preventDefault();
       event.stopPropagation();
-      await commitActiveBlock();
+      if (editingEmpty) {
+        await commitEmptyEditor();
+      } else {
+        await commitActiveBlock();
+      }
       return;
     }
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
-      cancelActiveBlock();
+      if (editingEmpty) {
+        cancelEmptyEditor();
+      } else {
+        cancelActiveBlock();
+      }
     }
   }
 
@@ -137,9 +181,25 @@
 
 <div class="block-note-content" class:compact data-no-drag="true">
   {#if blocks.length === 0}
-    <button type="button" class="empty-block" disabled={readonly} onclick={() => {}}>
-      {placeholder}
-    </button>
+    {#if editingEmpty}
+      <div class="note-block editing empty-editing">
+        <textarea
+          bind:this={editorEl}
+          bind:value={emptyDraft}
+          class="block-editor"
+          rows="2"
+          {placeholder}
+          spellcheck="false"
+          oninput={handleEditorInput}
+          onkeydown={handleEditorKeydown}
+          onblur={() => commitEmptyEditor()}
+        ></textarea>
+      </div>
+    {:else}
+      <button type="button" class="empty-block" disabled={readonly} onclick={openEmptyEditor}>
+        {placeholder}
+      </button>
+    {/if}
   {:else}
     {#each blocks as block (block.id)}
       {#if activeBlockId === block.id}
@@ -150,6 +210,7 @@
             class="block-editor"
             rows={Math.max(2, block.rawLines.length)}
             spellcheck="false"
+            oninput={handleEditorInput}
             onkeydown={handleEditorKeydown}
             onblur={() => commitActiveBlock()}
           ></textarea>
@@ -179,7 +240,7 @@
   .block-note-content {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 2px;
     min-height: 100%;
     color: var(--note-text-color, var(--ws-text, #1f2937));
     font-family: "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
@@ -191,16 +252,14 @@
     display: block;
     width: 100%;
     border: 1px solid transparent;
-    border-radius: 8px;
+    border-radius: 4px;
     padding: 0;
     text-align: left;
     color: inherit;
     font: inherit;
     min-width: 0;
     background: transparent;
-    transition:
-      border-color 0.14s ease,
-      background 0.14s ease;
+    transition: border-color 0.14s ease;
   }
 
   .note-block.rendered:not(.readonly) {
@@ -208,14 +267,12 @@
   }
 
   .note-block.rendered:not(.readonly):hover {
-    border-color: var(--ws-border-soft, #dbe4ef);
-    background: color-mix(in srgb, var(--ws-btn-bg, #f8fafc) 46%, transparent);
+    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 20%, transparent);
   }
 
   .note-block.editing {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 52%, var(--ws-border-soft, #dbe4ef));
-    background: color-mix(in srgb, var(--ws-badge-bg, #e8f0ff) 38%, transparent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--ws-accent, #1d4ed8) 12%, transparent);
+    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 38%, transparent);
+    background: transparent;
   }
 
   .block-html {
@@ -257,26 +314,37 @@
   .block-editor {
     display: block;
     width: 100%;
-    min-height: 72px;
-    max-height: min(42vh, 320px);
+    min-height: 0;
     border: none;
     outline: none;
-    resize: vertical;
+    resize: none;
     background: transparent;
     color: inherit;
-    padding: 8px 10px;
-    font: inherit;
-    line-height: inherit;
+    padding: 4px 6px;
+    font-family: "SFMono-Regular", Consolas, "Cascadia Code", monospace;
+    font-size: 0.94em;
+    line-height: 1.62;
     tab-size: 2;
+    overflow: hidden;
+    scrollbar-width: none;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .block-editor::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
 
   .empty-block {
     border: 1px dashed var(--ws-border-soft, #dbe4ef);
-    border-radius: 8px;
+    border-radius: 4px;
     background: transparent;
     color: var(--ws-muted, #64748b);
-    min-height: 84px;
+    min-height: 72px;
     text-align: left;
     padding: 10px;
+    cursor: text;
   }
 </style>

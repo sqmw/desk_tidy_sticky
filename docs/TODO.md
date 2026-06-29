@@ -41,6 +41,14 @@
 
 ## Done
 
+### 2026-06-29：Fix workspace block editor inline UX
+
+结果：修正工作台块编辑首版的反直觉体验；active block 现在以内联 Markdown 源码 textarea 呈现，自动撑高，不再有块内独立滚动条、resize 手柄或卡片式容器感；空笔记也可直接进入块编辑。
+
+验证：`make check`。
+
+提交：待提交。
+
 ### 2026-06-29：Implement workspace single active block editing
 
 结果：新增 `BlockNoteContent.svelte`，工作台 inspector 编辑态改为单活跃块编辑；其他块保持渲染态，Todo 勾选和追加仍可在渲染态交互。

@@ -91,7 +91,6 @@
           onToggleTask={onToggleTask}
           onAppendTask={onAppendTask}
         />
-        <div class="hint">Ctrl/Cmd + Enter · Esc</div>
       </div>
     {/if}
   </aside>
@@ -262,15 +261,8 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    padding: 12px;
+    padding: 10px 12px 0;
     overflow: auto;
   }
 
-  .hint {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-    margin: 0;
-    padding: 6px 12px 8px;
-    border-top: 1px solid var(--ws-border-soft, #dbe4ef);
-  }
 </style>
