@@ -1,69 +1,36 @@
 <script>
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
   import BlockNoteContent from "$lib/components/note/BlockNoteContent.svelte";
-  import NotePreview from "$lib/components/note/NotePreview.svelte";
-  import { renderNoteMarkdown } from "$lib/markdown/note-markdown.js";
 
   let {
     strings,
     note = null,
-    mode = "view",
     draftText = $bindable(""),
-    editorEl = $bindable(null),
     tagSuggestions = /** @type {string[]} */ ([]),
     formatDate,
     onClose = () => {},
-    onStartEdit = () => {},
-    onCancelEdit = () => {},
-    onSave = () => {},
     onChangePriority = () => {},
     onChangeTags = () => {},
     onToggleTask = () => {},
     onAppendTask = () => {},
     onBlockTextChange = () => {},
   } = $props();
-
-  const renderedInteractiveHtml = $derived(
-    renderNoteMarkdown(note?.text || "", { interactiveTasks: true }),
-  );
-
-  /** @param {KeyboardEvent} e */
-  function onInspectorKeydown(e) {
-    if (mode !== "edit") return;
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "enter") {
-      e.preventDefault();
-      onSave();
-      return;
-    }
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onCancelEdit();
-    }
-  }
-
 </script>
 
 {#if note}
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <aside class="inspector" data-no-drag="true" onkeydown={onInspectorKeydown}>
+  <aside class="inspector" data-no-drag="true">
     <header class="inspector-header">
       <div class="header-left">
         <div class="title">{strings.details}</div>
         <div class="meta">{formatDate(note.updatedAt)}</div>
       </div>
       <div class="header-actions">
-        {#if mode === "view"}
-          <button type="button" class="btn primary" onclick={() => onStartEdit()}>{strings.edit}</button>
-        {:else}
-          <button type="button" class="btn primary" onclick={() => onSave()}>{strings.saveNote}</button>
-          <button type="button" class="btn" onclick={() => onCancelEdit()}>{strings.cancel}</button>
-        {/if}
         <button type="button" class="btn danger" onclick={() => onClose()}>{strings.close}</button>
       </div>
     </header>
     <NoteTagBar
       {strings}
-      isEditing={mode === "edit"}
+      isEditing={false}
       priority={note.priority ?? null}
       tags={Array.isArray(note.tags) ? note.tags : []}
       {tagSuggestions}
@@ -71,28 +38,17 @@
       onChangeTags={onChangeTags}
     />
 
-    {#if mode === "view"}
-      <div class="content markdown">
-        <NotePreview
-          html={renderedInteractiveHtml}
-          interactiveTasks
-          onToggleTask={onToggleTask}
-          onAppendTask={onAppendTask}
-        />
-      </div>
-    {:else}
-      <div class="content editor-content">
-        <BlockNoteContent
-          text={draftText}
-          compact
-          interactiveTasks
-          placeholder={strings.noteEditorPlaceholder}
-          onTextChange={onBlockTextChange}
-          onToggleTask={onToggleTask}
-          onAppendTask={onAppendTask}
-        />
-      </div>
-    {/if}
+    <div class="content editor-content">
+      <BlockNoteContent
+        text={draftText}
+        compact
+        interactiveTasks
+        placeholder={strings.noteEditorPlaceholder}
+        onTextChange={onBlockTextChange}
+        onToggleTask={onToggleTask}
+        onAppendTask={onAppendTask}
+      />
+    </div>
   </aside>
 {/if}
 
@@ -150,13 +106,6 @@
     cursor: pointer;
   }
 
-  .btn.primary {
-    border-color: var(--ws-badge-border, #bfd4ff);
-    background: var(--ws-badge-bg, #e8f0ff);
-    color: var(--ws-accent, #1d4ed8);
-    font-weight: 700;
-  }
-
   .btn.danger {
     border-color: var(--ws-border-soft, #dbe4ef);
     background: var(--ws-btn-bg, #fbfdff);
@@ -200,63 +149,6 @@
     border-radius: 999px;
   }
 
-  .markdown :global(*) {
-    max-width: 100%;
-  }
-
-  .markdown :global(.preview-text) {
-    padding: 0;
-    overflow: visible;
-    user-select: text;
-  }
-
-  .markdown :global(h1),
-  .markdown :global(h2),
-  .markdown :global(h3),
-  .markdown :global(h4),
-  .markdown :global(h5),
-  .markdown :global(h6) {
-    margin: 0 0 8px;
-    line-height: 1.28;
-  }
-
-  .markdown :global(h1) {
-    font-size: 1.6rem;
-  }
-
-  .markdown :global(h2) {
-    font-size: 1.35rem;
-  }
-
-  .markdown :global(h3) {
-    font-size: 1.18rem;
-  }
-
-  .markdown :global(h4) {
-    font-size: 1.06rem;
-  }
-
-  .markdown :global(h5) {
-    font-size: 0.96rem;
-  }
-
-  .markdown :global(h6) {
-    font-size: 0.9rem;
-  }
-
-  .markdown :global(pre) {
-    overflow: auto;
-    border-radius: 8px;
-    padding: 8px;
-    background: color-mix(in srgb, var(--ws-btn-bg, #f8fafc) 84%, transparent);
-  }
-
-  .markdown :global(img) {
-    max-width: 100%;
-    border-radius: 8px;
-    border: 1px solid var(--ws-border-soft, #e5eaf2);
-  }
-
   .editor-content {
     display: flex;
     flex-direction: column;
@@ -264,5 +156,4 @@
     padding: 10px 12px 0;
     overflow: auto;
   }
-
 </style>

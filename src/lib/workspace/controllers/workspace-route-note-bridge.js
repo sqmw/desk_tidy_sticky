@@ -33,9 +33,6 @@
  *   setPendingEditorDraft: (next: { id: string } | null) => void;
  *   setInspectorOpen: (open: boolean) => void;
  *   setInspectorNoteId: (id: string | null) => void;
- *   setInspectorMode: (mode: string) => void;
- *   getInspectorDraftText: () => string;
- *   setInspectorDraftText: (text: string) => void;
  *   setInspectorListCollapsed: (collapsed: boolean) => void;
  * }} input
  */
@@ -87,9 +84,6 @@ export function createWorkspaceRouteNoteBridge(input) {
       setPendingEditorDraft: input.setPendingEditorDraft,
       setInspectorOpen: input.setInspectorOpen,
       setInspectorNoteId: input.setInspectorNoteId,
-      setInspectorMode: input.setInspectorMode,
-      getInspectorDraftText: input.getInspectorDraftText,
-      setInspectorDraftText: input.setInspectorDraftText,
       setInspectorListCollapsed: input.setInspectorListCollapsed,
     };
   }

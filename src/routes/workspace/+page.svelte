@@ -109,7 +109,6 @@
   let inspectorOpen = $state(false);
   /** @type {string | null} */
   let inspectorNoteId = $state(null);
-  let inspectorMode = $state("view");
   let inspectorDraftText = $state("");
   /** @type {{ id: string } | null} */
   let pendingEditorDraft = $state(null);
@@ -313,13 +312,6 @@
     setInspectorNoteId: (id) => {
       inspectorNoteId = id;
     },
-    setInspectorMode: (mode) => {
-      inspectorMode = mode;
-    },
-    getInspectorDraftText: () => inspectorDraftText,
-    setInspectorDraftText: (text) => {
-      inspectorDraftText = text;
-    },
     setInspectorListCollapsed: (collapsed) => {
       inspectorListCollapsed = collapsed;
     },
@@ -428,16 +420,8 @@
 
   const inspectorActions = createWorkspaceInspectorActions(routeNoteBridge.createInspectorActionsConfig());
 
-  const {
-    openInspectorView,
-    openInspectorEdit,
-    closeInspector,
-    handleInspectorClose,
-    startInspectorEdit,
-    cancelInspectorEdit,
-    saveInspectorEdit,
-    createNoteFromWorkspaceComposer,
-  } = inspectorActions;
+  const { openInspectorView, openInspectorEdit, closeInspector, handleInspectorClose, createNoteFromWorkspaceComposer } =
+    inspectorActions;
 
   /** @param {string} nextText */
   async function updateInspectorNoteText(nextText) {
@@ -822,9 +806,7 @@
       closeInspector();
       return;
     }
-    if (inspectorMode === "view") {
-      inspectorDraftText = inspectorNote.text || "";
-    }
+    inspectorDraftText = inspectorNote.text || "";
   });
 
   $effect(() => {
@@ -975,14 +957,10 @@
           <WorkspaceNoteInspector
             {strings}
             note={inspectorNote}
-            mode={inspectorMode}
             bind:draftText={inspectorDraftText}
             tagSuggestions={noteTagOptions}
             formatDate={formatWorkspaceNoteDate}
             onClose={handleInspectorClose}
-            onStartEdit={startInspectorEdit}
-            onCancelEdit={cancelInspectorEdit}
-            onSave={saveInspectorEdit}
             onChangePriority={handleInspectorPriorityChange}
             onChangeTags={handleInspectorTagsChange}
             onToggleTask={toggleInspectorTask}

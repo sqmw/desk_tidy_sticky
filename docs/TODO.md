@@ -41,6 +41,14 @@
 
 ## Done
 
+### 2026-06-29：Remove workspace note edit/save buttons
+
+结果：工作台 inspector 去掉整篇编辑 / 保存按钮；正文始终按块渲染，块通过双击进入编辑态。块外不再有可见容器边框，编辑区也不再呈现成一个独立小面板。
+
+验证：`make check`。
+
+提交：待提交。
+
 ### 2026-06-29：Fix workspace block editor inline UX
 
 结果：修正工作台块编辑首版的反直觉体验；active block 现在以内联 Markdown 源码 textarea 呈现，自动撑高，不再有块内独立滚动条、resize 手柄或卡片式容器感；空笔记也可直接进入块编辑。

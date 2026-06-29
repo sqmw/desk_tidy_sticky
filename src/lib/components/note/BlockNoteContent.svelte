@@ -140,22 +140,23 @@
   }
 
   /**
-   * @param {MouseEvent} event
-   * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
-   */
-  function handleBlockClick(event, block) {
-    if (readonly) return;
-    const target = /** @type {HTMLElement | null} */ (event.target);
-    if (target?.closest?.("[data-task-action], button, input, select, textarea, a")) return;
-    openBlock(block);
-  }
-
-  /**
    * @param {KeyboardEvent} event
    * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
    */
   function handleBlockKeydown(event, block) {
-    if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    openBlock(block);
+  }
+
+  /**
+   * @param {MouseEvent} event
+   * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
+   */
+  function handleBlockDoubleClick(event, block) {
+    if (readonly) return;
+    const target = /** @type {HTMLElement | null} */ (event.target);
+    if (target?.closest?.("[data-task-action], button, input, select, textarea, a")) return;
     event.preventDefault();
     openBlock(block);
   }
@@ -223,7 +224,7 @@
           role="button"
           tabindex={readonly || !block.editable ? -1 : 0}
           aria-disabled={readonly || !block.editable}
-          onclick={(event) => handleBlockClick(event, block)}
+          ondblclick={(event) => handleBlockDoubleClick(event, block)}
           onkeydown={(event) => handleBlockKeydown(event, block)}
         >
           <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
@@ -240,7 +241,7 @@
   .block-note-content {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0;
     min-height: 100%;
     color: var(--note-text-color, var(--ws-text, #1f2937));
     font-family: "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
@@ -251,32 +252,32 @@
   .note-block {
     display: block;
     width: 100%;
-    border: 1px solid transparent;
-    border-radius: 4px;
+    border: none;
+    border-radius: 0;
     padding: 0;
     text-align: left;
     color: inherit;
     font: inherit;
     min-width: 0;
     background: transparent;
-    transition: border-color 0.14s ease;
+    outline: none;
   }
 
   .note-block.rendered:not(.readonly) {
-    cursor: text;
+    cursor: default;
   }
 
-  .note-block.rendered:not(.readonly):hover {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 20%, transparent);
+  .note-block.rendered:not(.readonly):focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 34%, transparent);
+    outline-offset: 1px;
   }
 
   .note-block.editing {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 38%, transparent);
     background: transparent;
   }
 
   .block-html {
-    padding: 4px 6px;
+    padding: 0;
     min-width: 0;
   }
 
@@ -320,7 +321,7 @@
     resize: none;
     background: transparent;
     color: inherit;
-    padding: 4px 6px;
+    padding: 0 0 0 6px;
     font-family: "SFMono-Regular", Consolas, "Cascadia Code", monospace;
     font-size: 0.94em;
     line-height: 1.62;
@@ -329,6 +330,7 @@
     scrollbar-width: none;
     white-space: pre-wrap;
     word-break: break-word;
+    user-select: text;
   }
 
   .block-editor::-webkit-scrollbar {

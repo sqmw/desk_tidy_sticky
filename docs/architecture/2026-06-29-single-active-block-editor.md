@@ -486,11 +486,12 @@ compact
 当前实现说明：
 
 - 工作台 inspector 的 edit 模式改为 `BlockNoteContent`。
-- 点击普通 block 进入该 block 的 Markdown slice textarea。
+- 2026-06-29 修正：工作台不再保留整篇编辑 / 保存按钮，正文始终是块渲染，双击某块才进入该块的 Markdown slice textarea。
 - blur 或 `Ctrl/Cmd + Enter` 通过 `replaceBlockMarkdown` 回写整篇 note。
 - `Esc` 取消当前 block draft。
 - Todo checkbox / `+` 仍可在渲染态交互，不强制进入编辑态。
 - 2026-06-29 修正：active block 必须是正文内联 Markdown 源码编辑，不允许做成独立滚动 / 可拖拽 resize 的小容器；滚动只保留在整篇 inspector 内容区。
+- 2026-06-29 修正：块外不再保留可见容器边框或卡片感，block 是正文的一部分，不是单独面板。
 - 块内 `/` 命令建议和图片粘贴暂未迁移，后续可在 `MarkdownBlockEditor` 独立补齐。
 
 ### Phase 3：便笺窗口接入单活跃块编辑

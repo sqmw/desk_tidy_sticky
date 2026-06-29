@@ -1,5 +1,3 @@
-import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
-
 /**
  * @param {{
  *   invoke: typeof import("@tauri-apps/api/core").invoke;
@@ -24,9 +22,6 @@ import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
  *   setPendingEditorDraft: (next: { id: string } | null) => void;
  *   setInspectorOpen: (open: boolean) => void;
  *   setInspectorNoteId: (id: string | null) => void;
- *   setInspectorMode: (mode: string) => void;
- *   setInspectorDraftText: (text: string) => void;
- *   getInspectorDraftText: () => string;
  *   setInspectorListCollapsed: (collapsed: boolean) => void;
  * }} deps
  */
@@ -35,23 +30,17 @@ export function createWorkspaceInspectorActions(deps) {
   function openInspectorView(note) {
     deps.setInspectorOpen(true);
     deps.setInspectorNoteId(note.id);
-    deps.setInspectorMode("view");
-    deps.setInspectorDraftText(note.text || "");
   }
 
   /** @param {any} note */
   function openInspectorEdit(note) {
     deps.setInspectorOpen(true);
     deps.setInspectorNoteId(note.id);
-    deps.setInspectorMode("edit");
-    deps.setInspectorDraftText(note.text || "");
   }
 
   function closeInspector() {
     deps.setInspectorOpen(false);
     deps.setInspectorNoteId(null);
-    deps.setInspectorMode("view");
-    deps.setInspectorDraftText("");
     deps.setInspectorListCollapsed(false);
   }
 
@@ -79,48 +68,6 @@ export function createWorkspaceInspectorActions(deps) {
       return;
     }
     closeInspector();
-  }
-
-  function startInspectorEdit() {
-    const inspectorNote = deps.getInspectorNote();
-    if (!inspectorNote) return;
-    deps.setInspectorMode("edit");
-    deps.setInspectorDraftText(inspectorNote.text || "");
-  }
-
-  async function cancelInspectorEdit() {
-    const inspectorNote = deps.getInspectorNote();
-    if (!inspectorNote) return;
-    const pendingEditorDraft = deps.getPendingEditorDraft();
-    if (pendingEditorDraft && pendingEditorDraft.id === String(inspectorNote.id)) {
-      await discardPendingEditorDraft(String(inspectorNote.id));
-      return;
-    }
-    deps.setInspectorMode("view");
-    deps.setInspectorDraftText(inspectorNote.text || "");
-  }
-
-  async function saveInspectorEdit() {
-    const inspectorNote = deps.getInspectorNote();
-    const rawDraft = String(deps.getInspectorDraftText() || "");
-    const nextText = expandNoteCommands(rawDraft.trim()).trim();
-    if (!inspectorNote || !nextText) return;
-    try {
-      await deps.invoke("update_note_text", {
-        id: inspectorNote.id,
-        text: nextText,
-        sortMode: deps.getSortMode(),
-      });
-      await deps.loadNotes();
-      deps.setInspectorMode("view");
-      deps.setInspectorDraftText(nextText);
-      const pendingEditorDraft = deps.getPendingEditorDraft();
-      if (pendingEditorDraft && pendingEditorDraft.id === String(inspectorNote.id)) {
-        deps.setPendingEditorDraft(null);
-      }
-    } catch (e) {
-      console.error("saveInspectorEdit(workspace)", e);
-    }
   }
 
   async function createNoteFromWorkspaceComposer() {
@@ -172,9 +119,6 @@ export function createWorkspaceInspectorActions(deps) {
     openInspectorEdit,
     closeInspector,
     handleInspectorClose,
-    startInspectorEdit,
-    cancelInspectorEdit,
-    saveInspectorEdit,
     createNoteFromWorkspaceComposer,
   };
 }
