@@ -494,6 +494,7 @@ compact
 - Todo checkbox / `+` 仍可在渲染态交互，不强制进入编辑态。
 - 2026-06-29 修正：active block 必须是正文内联 Markdown 源码编辑，不允许做成独立滚动 / 可拖拽 resize 的小容器；滚动只保留在整篇 inspector 内容区。
 - 2026-06-29 修正：块外不再保留可见容器边框或卡片感，block 是正文的一部分，不是单独面板。
+- 2026-06-29 修正：active block textarea 不再保留额外左侧 padding，避免编辑态文本被误看成 Markdown 缩进；需要表达缩进时只能来自真实 Markdown 文本。
 - 块内 `/` 命令建议和图片粘贴暂未迁移，后续可在 `MarkdownBlockEditor` 独立补齐。
 
 ### Phase 3：便笺窗口接入单活跃块编辑

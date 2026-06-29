@@ -42,6 +42,14 @@
 
 ## Done
 
+### 2026-06-29：Align active block editor text edge
+
+结果：修正 active block textarea 左侧 `6px` padding 导致的“看起来像 Markdown 首行多了两个空格”的视觉回归；编辑态文本现在与渲染态左边缘对齐，真实 Markdown 内容不被额外缩进。
+
+验证：`make check-frontend`。
+
+提交：本轮提交；具体 hash 以 `git log` 为准。
+
 ### 2026-06-29：Tighten single active block and Enter split
 
 结果：把 `BlockNoteContent` 的编辑态收敛为 `activeBlockId + activeBlockOriginal + activeBlockDraft`，避免 `$state` union 推断失败和多编辑器漂移；块编辑解析开启 `preserveBlankBlocks`，渲染态继续跳过空行；普通段落和标题按光标位置拆分，结构块如 Todo/list/code/table 则先提交当前块并在块后创建空 paragraph，新块成为唯一编辑态。

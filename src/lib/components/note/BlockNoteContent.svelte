@@ -412,7 +412,7 @@
     resize: none;
     background: transparent;
     color: inherit;
-    padding: 0 0 0 6px;
+    padding: 0;
     font-family: "SFMono-Regular", Consolas, "Cascadia Code", monospace;
     font-size: 0.94em;
     line-height: 1.62;
