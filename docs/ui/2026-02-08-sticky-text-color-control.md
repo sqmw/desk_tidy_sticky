@@ -13,6 +13,7 @@
 ## 当前行为契约
 - 整体文字色仍由 note 的 `textColor` 字段控制，并通过 `--note-text-color` 作为未单独标色文本的默认颜色。
 - 选区文字色写回 Markdown 正文，格式为安全白名单内的 `<span style="color: ...">选中文字</span>`。
+- active block 进入编辑态时，不向用户展示内部 `<span>` 标签；编辑器显示真实内容文本，并在提交时把颜色区间重新序列化回 Markdown。
 - 选区上色只作用于当前 active block；应用后会提交该 block，让用户立即看到渲染后的颜色效果。
 - 当前未引入富文本 document model，也不新增私有 JSON 字段。
 
@@ -35,8 +36,9 @@
   - 2026-06-29：`onSetTextColor` 优先调用 `BlockNoteContent.applySelectedTextColor(color)`，没有选区时 fallback 到 `update_note_text_color`
 - `src/lib/components/note/BlockNoteContent.svelte`
   - 暴露 `applySelectedTextColor(color)`，对当前 active block 选区包裹安全 `span` 并按 block range 回写
+  - active block 编辑态维护 `纯文本 draft + inline color ranges`，避免把 `<span>` 标签暴露在 textarea 中
 - `src/lib/markdown/inline-style.js`
-  - 统一维护安全颜色校验和选区包裹逻辑
+  - 统一维护安全颜色校验、选区上色、编辑态解析和 Markdown 序列化逻辑
 
 - `src/lib/strings.js`
   - 新增文案 `textColor`（中英文）

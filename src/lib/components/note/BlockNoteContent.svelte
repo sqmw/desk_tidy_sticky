@@ -1,14 +1,17 @@
 <script>
   import { tick } from "svelte";
   import {
+    adjustInlineColorRangesForTextChange,
+    applyInlineColorRange,
     blockRangeMatches,
     mergeBlockIntoPreviousMarkdown,
     parseMarkdownBlocks,
+    parseMarkdownInlineStylesForEditing,
     parseTaskLine,
     removeBlockMarkdown,
     replaceBlockMarkdown,
+    serializeMarkdownInlineStylesFromEditing,
     splitBlockMarkdown,
-    wrapMarkdownSelectionWithColor,
   } from "$lib/markdown/note-markdown.js";
   import { renderMarkdownBlocks } from "$lib/markdown/blocks/block-renderer.js";
 
@@ -42,6 +45,9 @@
   let pendingCaretOffset = $state(null);
   /** @type {{ start: number; end: number } | null} */
   let activeSelectionRange = $state(null);
+  /** @type {Array<{ start: number; end: number; color: string }>} */
+  let activeInlineColorRanges = $state([]);
+  let editorInputPreviousDraft = $state("");
 
   const blocks = $derived(parseMarkdownBlocks(text || "", { preserveBlankBlocks: true }));
 
@@ -92,7 +98,10 @@
       if (!saved) return;
     }
     activeBlockId = block.id;
-    activeBlockDraft = block.markdown;
+    const editable = parseMarkdownInlineStylesForEditing(block.markdown);
+    activeBlockDraft = editable.text;
+    activeInlineColorRanges = editable.ranges;
+    editorInputPreviousDraft = editable.text;
     activeBlockOriginal = block;
     activeSelectionRange = null;
     await tick();
@@ -120,6 +129,8 @@
     editingEmpty = true;
     emptyDraft = text || "";
     activeSelectionRange = null;
+    activeInlineColorRanges = [];
+    editorInputPreviousDraft = "";
     await tick();
     resizeEditor();
     editorEl?.focus?.();
@@ -135,11 +146,14 @@
       onConflict();
       return false;
     }
-    const nextText = replaceBlockMarkdown(text, activeBlockOriginal, activeBlockDraft);
+    const nextMarkdown = getActiveBlockMarkdownDraft();
+    const nextText = replaceBlockMarkdown(text, activeBlockOriginal, nextMarkdown);
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
     activeSelectionRange = null;
+    activeInlineColorRanges = [];
+    editorInputPreviousDraft = "";
     if (nextText !== text) {
       await onTextChange(nextText);
     }
@@ -159,6 +173,8 @@
     activeBlockOriginal = null;
     activeBlockDraft = "";
     activeSelectionRange = null;
+    activeInlineColorRanges = [];
+    editorInputPreviousDraft = "";
     pendingActiveStartLine = inserted.nextStartLine;
     await onTextChange(inserted.text);
     return true;
@@ -188,11 +204,13 @@
       return false;
     }
     const insert = getSameBlockInsert(activeBlockOriginal);
-    const inserted = splitBlockMarkdown(text, activeBlockOriginal, activeBlockDraft, insert.markdown);
+    const inserted = splitBlockMarkdown(text, activeBlockOriginal, getActiveBlockMarkdownDraft(), insert.markdown);
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
     activeSelectionRange = null;
+    activeInlineColorRanges = [];
+    editorInputPreviousDraft = "";
     pendingActiveStartLine = inserted.nextStartLine + insert.activeLineOffset;
     pendingCaretAtEnd = true;
     await onTextChange(inserted.text);
@@ -210,14 +228,20 @@
     const selectionEnd = currentStart !== currentEnd ? currentEnd : (activeSelectionRange?.end ?? currentEnd);
     if (selectionStart === selectionEnd) return false;
 
-    const wrapped = wrapMarkdownSelectionWithColor(activeBlockDraft, selectionStart, selectionEnd, color);
-    if (!wrapped) return false;
+    const nextRanges = applyInlineColorRange(
+      activeInlineColorRanges,
+      selectionStart,
+      selectionEnd,
+      color,
+      activeBlockDraft.length,
+    );
+    if (!nextRanges) return false;
 
-    activeBlockDraft = wrapped.markdown;
+    activeInlineColorRanges = nextRanges;
     await tick();
     resizeEditor();
     editorEl?.focus?.();
-    editorEl?.setSelectionRange?.(wrapped.selectionStart, wrapped.selectionEnd);
+    editorEl?.setSelectionRange?.(selectionStart, selectionEnd);
     await commitActiveBlock();
     return true;
   }
@@ -232,7 +256,7 @@
       return true;
     }
 
-    const draft = String(activeBlockDraft ?? "");
+    const draft = getActiveBlockMarkdownDraft();
     const currentIsEmpty = draft.trim() === "";
     const next = currentIsEmpty
       ? {
@@ -246,6 +270,8 @@
     activeBlockOriginal = null;
     activeBlockDraft = "";
     activeSelectionRange = null;
+    activeInlineColorRanges = [];
+    editorInputPreviousDraft = "";
     pendingActiveStartLine = next.startLine;
     pendingCaretOffset = next.caretOffset;
     pendingCaretAtEnd = currentIsEmpty;
@@ -282,7 +308,14 @@
   /** @param {string} line */
   function appendLineToActiveDraft(line) {
     const draft = String(activeBlockDraft ?? "");
+    const previousDraft = draft;
     activeBlockDraft = `${draft.replace(/\n$/, "")}\n${line}`;
+    editorInputPreviousDraft = activeBlockDraft;
+    activeInlineColorRanges = adjustInlineColorRangesForTextChange(
+      activeInlineColorRanges,
+      previousDraft,
+      activeBlockDraft,
+    );
     void tick().then(() => {
       resizeEditor();
       const caret = activeBlockDraft.length;
@@ -349,6 +382,9 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
+    activeSelectionRange = null;
+    activeInlineColorRanges = [];
+    editorInputPreviousDraft = "";
   }
 
   function cancelEmptyEditor() {
@@ -361,7 +397,7 @@
    */
   function getEnterSplit(block) {
     if (block.type !== "paragraph" && block.type !== "heading") {
-      return { before: String(activeBlockDraft ?? "").replace(/\n$/, ""), after: "" };
+      return { before: getActiveBlockMarkdownDraft().replace(/\n$/, ""), after: "" };
     }
     return getDraftSplitAtCursor();
   }
@@ -371,10 +407,34 @@
     const cursor = Math.max(0, Math.min(editorEl?.selectionStart ?? draft.length, draft.length));
     const before = draft.slice(0, cursor);
     const after = draft.slice(cursor);
+    const beforeText = before.endsWith("\n") ? before.slice(0, -1) : before;
+    const afterOffset = after.startsWith("\n") ? cursor + 1 : cursor;
+    const afterText = after.startsWith("\n") ? after.slice(1) : after;
     return {
-      before: before.endsWith("\n") ? before.slice(0, -1) : before,
-      after: after.startsWith("\n") ? after.slice(1) : after,
+      before: serializeMarkdownInlineStylesFromEditing(
+        beforeText,
+        activeInlineColorRanges
+          .filter((range) => range.start < cursor)
+          .map((range) => ({
+            ...range,
+            end: Math.min(range.end, beforeText.length),
+          })),
+      ),
+      after: serializeMarkdownInlineStylesFromEditing(
+        afterText,
+        activeInlineColorRanges
+          .filter((range) => range.end > afterOffset)
+          .map((range) => ({
+            ...range,
+            start: Math.max(0, range.start - afterOffset),
+            end: Math.max(0, range.end - afterOffset),
+          })),
+      ),
     };
+  }
+
+  function getActiveBlockMarkdownDraft() {
+    return serializeMarkdownInlineStylesFromEditing(activeBlockDraft, activeInlineColorRanges);
   }
 
   function resizeEditor() {
@@ -384,6 +444,13 @@
   }
 
   function handleEditorInput() {
+    const nextDraft = activeBlockDraft;
+    activeInlineColorRanges = adjustInlineColorRangesForTextChange(
+      activeInlineColorRanges,
+      editorInputPreviousDraft,
+      nextDraft,
+    );
+    editorInputPreviousDraft = nextDraft;
     rememberEditorSelection();
     resizeEditor();
   }

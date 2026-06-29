@@ -5,7 +5,11 @@ export {
 } from "$lib/markdown/command-expander.js";
 export { renderNoteMarkdown } from "$lib/markdown/note-renderer.js";
 export {
+  adjustInlineColorRangesForTextChange,
+  applyInlineColorRange,
   isSafeInlineColor,
+  parseMarkdownInlineStylesForEditing,
+  serializeMarkdownInlineStylesFromEditing,
   wrapMarkdownSelectionWithColor,
 } from "$lib/markdown/inline-style.js";
 export { parseMarkdownBlocks } from "$lib/markdown/blocks/block-parser.js";

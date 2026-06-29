@@ -43,7 +43,7 @@
 
 ### 2026-06-29：Apply sticky text color to selected text
 
-结果：便笺工具栏 `A` 文字色按钮不再只能修改整张贴纸默认文字色。当前 active block 有选中文字时，颜色会写入 Markdown 正文的安全 `<span style="color: ...">...</span>` 并提交当前块；没有选区时仍 fallback 到原有 `textColor` 字段，保留整体默认文字色能力。
+结果：便笺工具栏 `A` 文字色按钮不再只能修改整张贴纸默认文字色。当前 active block 有选中文字时，颜色会写入 Markdown 正文的安全 `<span style="color: ...">...</span>` 并提交当前块；没有选区时仍 fallback 到原有 `textColor` 字段，保留整体默认文字色能力。后续修正：active block 编辑态会隐藏我们生成的 color `span` 标签，只显示真实内容文本，提交时再序列化回 Markdown。
 
 验证：`make check`，`git diff --check`。
 
