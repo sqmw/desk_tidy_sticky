@@ -418,9 +418,7 @@
     background: transparent;
     color: inherit;
     padding: 0;
-    font-family: "SFMono-Regular", Consolas, "Cascadia Code", monospace;
-    font-size: 0.94em;
-    line-height: 1.62;
+    font: inherit;
     tab-size: 2;
     overflow: hidden;
     scrollbar-width: none;

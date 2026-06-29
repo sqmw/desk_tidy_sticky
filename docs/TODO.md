@@ -41,6 +41,14 @@
 
 ## Done
 
+### 2026-06-29：Match active block editor typography
+
+结果：修正 active block 编辑态使用等宽字体和缩小字号导致的视觉回归；块 textarea 现在继承正文 `font`，编辑态和渲染态的字体族、字号、行高与重量保持一致。
+
+验证：`make check`，`git diff --check`。
+
+提交：本轮提交；具体 hash 以 `git log` 为准。
+
 ### 2026-06-29：Connect sticky note window to block editor
 
 结果：便笺窗口正文接入 `BlockNoteContent`，不再用整篇 `SourceEditorPane` / `NotePreview` 分支；工作台与便笺都复用同一套 Markdown-first 单活跃块编辑。块进入编辑改为单击，拖拽后的短暂 click 抑制可阻止误打开编辑态，Todo 勾选和追加继续按 Markdown 行级回写。
