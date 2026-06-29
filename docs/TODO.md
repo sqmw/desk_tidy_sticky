@@ -42,6 +42,14 @@
 
 ## Done
 
+### 2026-06-29：Restore heading preview in note cards
+
+结果：修正卡片预览中 `# heading` 看起来没有被识别的问题。根因有两层：工作台卡片预览通配 CSS 把 `h1` 等标题视觉压成普通正文；block parser 也未兼容 Markdown 允许的 0-3 个前导空格标题。现在卡片/列表/四象限预览保留标题粗细与字号差异，parser 与 renderer 也支持合法前导空格标题。
+
+验证：`make check-frontend`，Node smoke 样例验证 `# title` 与前导空格标题都输出 `<h1>`。
+
+提交：本轮提交；具体 hash 以 `git log` 为准。
+
 ### 2026-06-29：Align active block editor text edge
 
 结果：修正 active block textarea 左侧 `6px` padding 导致的“看起来像 Markdown 首行多了两个空格”的视觉回归；编辑态文本现在与渲染态左边缘对齐，真实 Markdown 内容不被额外缩进。

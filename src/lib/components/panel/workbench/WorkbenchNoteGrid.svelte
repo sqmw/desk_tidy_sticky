@@ -313,6 +313,33 @@
     line-height: 1.4;
   }
 
+  .text :global(h1),
+  .text :global(h2),
+  .text :global(h3),
+  .text :global(h4),
+  .text :global(h5),
+  .text :global(h6) {
+    font-weight: 800;
+    color: var(--ws-text-strong, #111827);
+    line-height: 1.22;
+    margin: 0 0 5px;
+  }
+
+  .text :global(h1) {
+    font-size: 16px;
+  }
+
+  .text :global(h2) {
+    font-size: 15px;
+  }
+
+  .text :global(h3),
+  .text :global(h4),
+  .text :global(h5),
+  .text :global(h6) {
+    font-size: 14px;
+  }
+
   .text :global(ul),
   .text :global(ol) {
     padding-left: 16px;

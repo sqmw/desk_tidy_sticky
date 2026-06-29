@@ -107,7 +107,7 @@ export function parseMarkdownBlocks(text, options = {}) {
       continue;
     }
 
-    if (/^(#{1,6})\s+(.*)$/.test(line)) {
+    if (/^ {0,3}(#{1,6})\s+(.*)$/.test(line)) {
       blocks.push(createBlock("heading", startLine, i, [line]));
       i += 1;
       continue;

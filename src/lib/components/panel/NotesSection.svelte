@@ -141,6 +141,32 @@
     color: #1f2937;
   }
 
+  .note-text.rendered :global(h1),
+  .note-text.rendered :global(h2),
+  .note-text.rendered :global(h3),
+  .note-text.rendered :global(h4),
+  .note-text.rendered :global(h5),
+  .note-text.rendered :global(h6) {
+    font-weight: 800;
+    line-height: 1.22;
+    margin: 0 0 3px;
+  }
+
+  .note-text.rendered :global(h1) {
+    font-size: 17px;
+  }
+
+  .note-text.rendered :global(h2) {
+    font-size: 16px;
+  }
+
+  .note-text.rendered :global(h3),
+  .note-text.rendered :global(h4),
+  .note-text.rendered :global(h5),
+  .note-text.rendered :global(h6) {
+    font-size: 15px;
+  }
+
   .note-text.rendered :global(ul),
   .note-text.rendered :global(ol) {
     padding-left: 16px;

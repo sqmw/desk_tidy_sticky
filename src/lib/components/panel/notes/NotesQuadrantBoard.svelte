@@ -200,6 +200,32 @@
     line-height: 1.35;
   }
 
+  .note-text.rendered :global(h1),
+  .note-text.rendered :global(h2),
+  .note-text.rendered :global(h3),
+  .note-text.rendered :global(h4),
+  .note-text.rendered :global(h5),
+  .note-text.rendered :global(h6) {
+    font-weight: 800;
+    line-height: 1.2;
+    margin: 0 0 3px;
+  }
+
+  .note-text.rendered :global(h1) {
+    font-size: 15px;
+  }
+
+  .note-text.rendered :global(h2) {
+    font-size: 14px;
+  }
+
+  .note-text.rendered :global(h3),
+  .note-text.rendered :global(h4),
+  .note-text.rendered :global(h5),
+  .note-text.rendered :global(h6) {
+    font-size: 13px;
+  }
+
   .note-text.rendered :global(ul),
   .note-text.rendered :global(ol) {
     padding-left: 16px;

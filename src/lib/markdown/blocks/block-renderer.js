@@ -26,7 +26,7 @@ function renderBlock(block, options) {
   }
 
   if (block.type === "heading") {
-    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+    const heading = /^ {0,3}(#{1,6})\s+(.*)$/.exec(line);
     if (!heading) return `<p>${renderInline(line)}</p>`;
     const level = heading[1].length;
     return `<h${level}>${renderInline(heading[2])}</h${level}>`;
