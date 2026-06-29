@@ -44,6 +44,13 @@ Detailed command mapping: `docs/build/make-commands.md`.
 `package.json` pins `packageManager` to `pnpm@10.28.2`.
 `pnpm-workspace.yaml` allows the `esbuild` install build script so non-interactive `make check` / CI runs do not stop at pnpm approval prompts.
 
+## Active Architecture Routes
+
+Use these focused documents before scanning the full historical `docs/` tree:
+
+- Note Todo blocks: `docs/product/2026-06-29-note-todo-blocks.md`.
+- Single active block editor design: `docs/architecture/2026-06-29-single-active-block-editor.md`.
+
 ## Documentation Structure Review
 
 2026-06-29 review:

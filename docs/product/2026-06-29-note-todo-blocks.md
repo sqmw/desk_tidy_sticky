@@ -1,5 +1,9 @@
 # 笔记 Todo 块设计与首版落地
 
+关联架构方案：
+
+- `docs/architecture/2026-06-29-single-active-block-editor.md`
+
 ## Situation
 
 便笺窗口和工作台笔记 inspector 共用同一种笔记内容语义，只是容器不同：
