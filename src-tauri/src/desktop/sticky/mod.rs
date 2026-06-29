@@ -35,6 +35,7 @@ pub fn pin_window_to_desktop(
 ) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
+        let _ = app;
         let Some(hwnd_isize) = window_hwnd_isize(&window)? else {
             return Ok(());
         };

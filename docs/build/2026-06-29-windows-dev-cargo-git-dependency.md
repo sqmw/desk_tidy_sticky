@@ -58,6 +58,12 @@ tauri-nspanel = { path = "vendor/tauri-nspanel" }
 - Windows 侧 Cargo 解析不再需要访问 `https://github.com/ahkohd/tauri-nspanel`。
 - macOS 侧仍使用同一版本的 nspanel 源码。
 
+2026-06-29 追加修复：
+
+- Windows 实跑继续暴露 `src/desktop/sticky/panel_window.rs` 非 macOS 分支缺少 `tauri::Manager` trait 导入，导致 `get_webview_window` 不可见。
+- 已将 `use tauri::Manager` 从 macOS-only 导入改为全平台导入。
+- 同轮消除 `src/desktop/sticky/mod.rs` 中 Windows 分支未使用 `app` 参数的 warning。
+
 验证命令：
 
 ```bash
@@ -65,6 +71,14 @@ cargo metadata --manifest-path src-tauri/Cargo.toml --filter-platform x86_64-pc-
 make check
 make build
 ```
+
+macOS 本机曾尝试执行：
+
+```bash
+cargo check --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-msvc --no-default-features --locked --offline
+```
+
+但当前 macOS toolchain 虽列出 `x86_64-pc-windows-msvc`，实际缺少该 target 的 `std`，因此该命令未作为本轮验收依据。
 
 Windows 回归建议：
 
