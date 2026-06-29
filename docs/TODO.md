@@ -47,7 +47,7 @@
 
 验证：`make check-frontend`、`make check`、`make build`，Node alias loader 样例验证 block 类型、Todo 绝对行号、range replace。
 
-提交：待提交。
+提交：`e9b0248 Add markdown block parser foundation`。
 
 ### 2026-06-29：Document single active block editor design
 
