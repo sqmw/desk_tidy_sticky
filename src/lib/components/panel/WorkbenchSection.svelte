@@ -74,8 +74,6 @@
     });
   }
 
-  const totalCount = $derived(renderedNotes.length);
-  const doneCount = $derived(renderedNotes.filter((/** @type {{ isDone?: boolean }} */ n) => !!n.isDone).length);
   const usedTags = $derived.by(() => {
     /** @type {Map<string, { text: string; count: number }>} */
     const buckets = new Map();
@@ -467,12 +465,6 @@
 </script>
 
 <section class="workbench" onscroll={onWorkbenchScroll}>
-  <div class="summary">
-    <div class="summary-chip">{strings.workspaceTitle}</div>
-    <div class="summary-chip">{totalCount} {strings.active.toLowerCase()}</div>
-    <div class="summary-chip">{doneCount} {strings.markDone.toLowerCase()}</div>
-  </div>
-
   {#if viewMode === "quadrant"}
     <WorkbenchQuadrantBoard
       {strings}
@@ -586,20 +578,4 @@
     background: var(--ws-scrollbar-thumb-hover, rgba(51, 65, 85, 0.62));
   }
 
-  .summary {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: center;
-  }
-
-  .summary-chip {
-    font-size: 11px;
-    line-height: 1;
-    color: var(--ws-text, #334155);
-    border: 1px solid var(--ws-border-soft, #d7e1f0);
-    background: var(--ws-btn-bg, linear-gradient(180deg, #fbfdff 0%, #f2f7ff 100%));
-    border-radius: 999px;
-    padding: 7px 10px;
-  }
 </style>

@@ -6,6 +6,23 @@
 
 ## Active
 
+### Workstation UI Cleanup
+
+状态：in_progress
+
+优先级：high
+
+目标：按用户新确认的方向收口 workstation UI，保留左下角高频开关，弱化侧边栏框感，压缩顶部工具条，卡片操作默认隐藏。
+
+关联文档：
+
+- `docs/ui/2026-06-29-workstation-ui-cleanup.md`
+
+当前下一步：
+
+1. 用户确认 workstation 视觉与交互是否符合预期。
+2. 若确认无误，再进入提交。
+
 ### Single Active Block Editor
 
 状态：in_progress

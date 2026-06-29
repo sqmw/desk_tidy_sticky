@@ -43,7 +43,7 @@
 <style>
   .create-bar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
     min-width: 0;
     align-items: center;
@@ -56,9 +56,10 @@
 
   .create-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px;
     align-items: center;
+    flex: 0 0 auto;
   }
 
   .create-bar.compact .create-actions {
@@ -66,7 +67,7 @@
   }
 
   .add-input {
-    flex: 2 1 320px;
+    flex: 1 1 280px;
     border: 1px solid var(--ws-border-soft, #d6e0ee);
     border-radius: 12px;
     background: var(--ws-card-bg, #fff);
@@ -83,12 +84,12 @@
   }
 
   .create-bar :global(.tags-editor.compact) {
-    flex: 1 1 240px;
+    flex: 0 1 220px;
     min-width: 170px;
   }
 
   .create-bar.compact :global(.tags-editor.compact) {
-    flex: 1 1 210px;
+    flex: 0 1 200px;
     min-width: 150px;
   }
 
@@ -121,7 +122,7 @@
 
   .create-bar.compact .primary-btn {
     min-height: 36px;
-    padding: 8px 12px;
+    padding: 8px 10px;
   }
 
   .primary-btn:hover {
@@ -149,7 +150,12 @@
     font-weight: 800;
     flex-shrink: 0;
   }
+
   @media (max-width: 920px) {
+    .create-bar {
+      flex-wrap: wrap;
+    }
+
     .create-bar :global(.tags-editor.compact) {
       flex-basis: 100%;
       min-width: 0;

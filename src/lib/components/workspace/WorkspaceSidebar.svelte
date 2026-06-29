@@ -22,7 +22,6 @@
     mainTab = /** @type {string} */ (WORKSPACE_MAIN_TAB_NOTES),
     viewModes,
     viewMode,
-    initialViewMode = "last",
     noteViewCounts = {},
     collapsed = false,
     compact = false,
@@ -36,7 +35,6 @@
     onSetMainTab,
     onSetViewMode,
     onSetSelectedTag = () => {},
-    onSetInitialViewMode = () => {},
     stickiesVisible,
     globalControlDisabled = false,
     showMacTrafficLights = false,
@@ -45,15 +43,14 @@
     selectedTag = "",
     taggedNoteCount = 0,
     onDeadlineAction = () => {},
-    onToggleStickiesVisibility,
-    onToggleGlobalControl,
+    onToggleStickiesVisibility = () => {},
+    onToggleGlobalControl = () => {},
   } = $props();
 
   const mainTabs = $derived(getWorkspaceMainTabDefs(strings));
 
   let noteFiltersCollapsed = $state(false);
   let deadlinesCollapsed = $state(false);
-  let settingsCollapsed = $state(false);
   let modulesBlockEl = $state(/** @type {HTMLDivElement | null} */ (null));
   let modulesNaturalHeight = $state(0);
   let sidebarBodyEl = $state(/** @type {HTMLDivElement | null} */ (null));
@@ -108,10 +105,6 @@
       ? `--section-max-height:${manualSectionMaxHeight}px;--manual-block-height:${manualBottomCardHeight}px;`
       : `--section-max-height:${deadlineSectionMaxHeight}px;`,
   );
-
-  function globalControlLabel() {
-    return globalControlDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn;
-  }
 
   /** @param {PointerEvent} event */
   function resolveManualRatioFromPointer(event) {
@@ -259,7 +252,6 @@
         sectionCollapsed={noteFiltersCollapsed}
         {viewModes}
         {viewMode}
-        {initialViewMode}
         {noteViewCounts}
         {noteTags}
         {selectedTag}
@@ -267,7 +259,6 @@
         onToggleSectionCollapsed={() => (noteFiltersCollapsed = !noteFiltersCollapsed)}
         {onSetViewMode}
         {onSetSelectedTag}
-        {onSetInitialViewMode}
       />
     {:else if mainTab === WORKSPACE_MAIN_TAB_FOCUS}
       <WorkspaceSidebarDeadlines
@@ -285,39 +276,38 @@
   </div>
 
   <div class="sidebar-actions">
-    <div class="sidebar-block-head">
-      <div class="block-title">{collapsed ? "•" : strings.settings}</div>
-      {#if compact && !collapsed}
-        <button
-          type="button"
-          class="section-toggle"
-          onclick={() => (settingsCollapsed = !settingsCollapsed)}
-          aria-label={strings.settings}
-        >
-          {sectionToggleIcon(settingsCollapsed)}
-        </button>
+    <button
+      type="button"
+      class="footer-toggle"
+      class:active={stickiesVisible}
+      title={stickiesVisible ? strings.trayStickiesShow : strings.trayStickiesClose}
+      aria-label={strings.overlay}
+      onclick={() => onToggleStickiesVisibility()}
+    >
+      <span class="footer-toggle-icon" aria-hidden="true">{stickiesVisible ? "◉" : "○"}</span>
+      {#if !collapsed}
+        <span class="footer-toggle-label">{strings.overlay}</span>
       {/if}
-    </div>
-    {#if !compact || !settingsCollapsed || collapsed}
-      <div class="sidebar-toggle-row">
-        {#if !collapsed}
-          <div class="sidebar-toggle-text">{strings.overlay}</div>
-        {/if}
-        <label class="toggle-switch" title={stickiesVisible ? strings.trayStickiesClose : strings.trayStickiesShow}>
-          <input type="checkbox" checked={stickiesVisible} onchange={onToggleStickiesVisibility} />
-          <span class="slider round"></span>
-        </label>
-      </div>
-      <div class="sidebar-toggle-row">
-        {#if !collapsed}
-          <div class="sidebar-toggle-text">{strings.overlayClickThrough}</div>
-        {/if}
-        <label class="toggle-switch" title={globalControlLabel()}>
-          <input type="checkbox" checked={!globalControlDisabled} onchange={onToggleGlobalControl} />
-          <span class="slider round"></span>
-        </label>
-      </div>
-    {/if}
+      {#if !collapsed}
+        <span class="footer-toggle-state">{stickiesVisible ? "ON" : "OFF"}</span>
+      {/if}
+    </button>
+    <button
+      type="button"
+      class="footer-toggle"
+      class:active={!globalControlDisabled}
+      title={globalControlDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn}
+      aria-label={strings.overlayClickThrough}
+      onclick={() => onToggleGlobalControl()}
+    >
+      <span class="footer-toggle-icon" aria-hidden="true">{globalControlDisabled ? "◌" : "◉"}</span>
+      {#if !collapsed}
+        <span class="footer-toggle-label">{strings.overlayClickThrough}</span>
+      {/if}
+      {#if !collapsed}
+        <span class="footer-toggle-state">{globalControlDisabled ? "OFF" : "ON"}</span>
+      {/if}
+    </button>
   </div>
 </aside>
 
@@ -383,11 +373,6 @@
     scrollbar-width: thin;
     scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
       var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
-  }
-
-  .sidebar:not(.manual-layout) .sidebar-body > .sidebar-block:last-child {
-    margin-bottom: 8px;
-    overflow: hidden;
   }
 
   .sidebar.manual-layout .sidebar-body {
@@ -470,8 +455,8 @@
 
   .sidebar-block {
     border: 1px solid var(--ws-border, #dce5f3);
-    border-radius: 12px;
-    background: var(--ws-card-bg, #fdfefe);
+    border-radius: 8px;
+    background: var(--ws-card-bg, #fcfdff);
     padding: 10px;
     min-height: 0;
     flex: 0 0 auto;
@@ -522,113 +507,67 @@
     padding: 8px 6px;
   }
 
-  .sidebar-block-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-
-  .section-toggle {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 8px;
-    min-width: 22px;
-    height: 22px;
-    padding: 0;
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-muted, #64748b);
-    font-size: 12px;
-    line-height: 1;
-    cursor: pointer;
-  }
-
-  .block-title {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--ws-muted, #64748b);
-    margin: 0 0 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
   .sidebar-actions {
     margin-top: 0;
     display: grid;
     gap: 6px;
     border-top: 1px dashed var(--ws-border-soft, #d8e2ef);
-    padding-top: 12px;
+    padding-top: 10px;
     flex: 0 0 auto;
   }
 
-  .sidebar-toggle-row {
+  .footer-toggle {
+    width: 100%;
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    border-radius: 8px;
+    background: var(--ws-btn-bg, #fbfdff);
+    color: var(--ws-text, #334155);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 6px 8px;
-    border-radius: 10px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: var(--ws-btn-bg, #fdfefe);
-  }
-
-  .sidebar.collapsed .sidebar-toggle-row {
-    justify-content: center;
-    padding: 6px 6px;
-  }
-
-  .sidebar-toggle-text {
-    font-size: 12px;
-    color: var(--ws-text, #334155);
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    user-select: none;
-  }
-
-  .toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 44px;
-    height: 24px;
-    flex-shrink: 0;
-  }
-
-  .toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-
-  .slider {
-    position: absolute;
+    gap: 8px;
     cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #cbd5e1;
-    transition: 0.2s;
-    border-radius: 999px;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      transform 0.15s ease;
   }
 
-  .slider:before {
-    position: absolute;
-    content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    transition: 0.2s;
-    border-radius: 999px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  .footer-toggle:hover {
+    background: var(--ws-btn-hover, #f4f8ff);
+    border-color: var(--ws-border-hover, #c6d5e8);
+    transform: translateY(-1px);
   }
 
-  input:checked + .slider {
-    background-color: #3b82f6;
+  .footer-toggle.active {
+    background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
+    border-color: var(--ws-border-active, #94a3b8);
+    color: var(--ws-text-strong, #0f172a);
   }
 
-  input:checked + .slider:before {
-    transform: translateX(20px);
+  .footer-toggle-icon {
+    width: 14px;
+    flex: 0 0 auto;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .footer-toggle-label {
+    min-width: 0;
+    flex: 1;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .footer-toggle-state {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--ws-muted, #64748b);
   }
 
   .sidebar.compact .brand h1 {
@@ -640,27 +579,21 @@
     margin-top: 5px;
   }
 
-  .sidebar.compact .block-title {
-    font-size: 10px;
-    margin-bottom: 6px;
-  }
-
-	  @container (max-width: 230px) {
-	    .sidebar {
-	      padding: 10px 8px;
-	      gap: 8px;
-	    }
+  @container (max-width: 230px) {
+    .sidebar {
+      padding: 10px 8px;
+      gap: 8px;
+    }
 
     .brand p {
       font-size: 11px;
       margin-top: 4px;
     }
 
-	    .sidebar-block {
-	      padding: 8px;
-	    }
-
-	  }
+    .sidebar-block {
+      padding: 8px;
+    }
+  }
 
   @media (max-width: 920px) {
     .sidebar {

@@ -244,18 +244,21 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 10px;
+    grid-auto-rows: 168px;
   }
 
   .card {
     position: relative;
     border: 1px solid var(--ws-border, #dbe5f1);
-    border-radius: 12px;
+    border-radius: 8px;
     background: var(--ws-card-bg, linear-gradient(180deg, #ffffff 0%, #fbfdff 100%));
     padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    min-height: 176px;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
     transition:
       transform 0.16s ease,
       box-shadow 0.16s ease,
@@ -282,6 +285,9 @@
   .card-body {
     min-height: 0;
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .priority-tag {
@@ -301,14 +307,15 @@
     color: var(--ws-text-strong, #1f2937);
     font-size: 14px;
     line-height: 1.45;
-    max-height: 132px;
     overflow: hidden;
-    -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent);
-    mask-image: linear-gradient(180deg, #000 78%, transparent);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
   }
 
   .text :global(*) {
-    margin: 0 0 4px;
+    margin: 0 0 3px;
     font-size: 13px;
     line-height: 1.4;
   }
@@ -374,10 +381,11 @@
   }
 
   .tag-row {
-    margin-top: 8px;
+    margin-top: auto;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 5px;
+    overflow: hidden;
   }
 
   .tag-chip {
@@ -401,9 +409,32 @@
   }
 
   .actions {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
+    justify-content: flex-end;
+    max-width: calc(100% - 16px);
+    padding: 4px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #dbe3ef) 72%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 88%, transparent);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(3px);
+    transition:
+      opacity 0.14s ease,
+      transform 0.14s ease;
+  }
+
+  .card:hover .actions,
+  .card:focus-within .actions {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
   }
 
   .action-btn {

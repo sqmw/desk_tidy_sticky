@@ -873,13 +873,11 @@
     onSetMainTab={setMainTab}
     onSetViewMode={setViewMode}
     onSetSelectedTag={setSelectedTag}
-    onSetInitialViewMode={setInitialViewMode}
     {showMacTrafficLights}
     {noteViewCounts}
     noteTags={noteTagEntries}
     {selectedTag}
     taggedNoteCount={taggedNoteCount}
-    {initialViewMode}
     {stickiesVisible}
     {globalControlDisabled}
     focusDeadlines={deadlineTasks}
