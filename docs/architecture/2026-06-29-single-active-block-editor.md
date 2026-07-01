@@ -506,6 +506,7 @@ compact
 - 2026-06-29 修正：active block textarea 的 `rows` 必须贴近真实 Markdown 行数，单行 block 不能强制撑成两行，否则编辑态会凭空挤出下方空白。
 - 2026-07-01 修正：active block textarea 恢复 `/` 命令建议，并继续复用 `@todo` / `@done` / `/todo` 命令目录；图片粘贴仍保留为后续局部能力。
 - 2026-07-01 修正：便笺底部工具栏不再保留编辑 / 保存双态按钮；进入编辑由点击正文 block 负责，保存由 block blur 或 `Ctrl/Cmd + Enter` 负责。
+- 2026-07-01 修正：active block 右下角 `+` 追加时会识别当前 draft；若 paragraph draft 已全部变成合法 task line，则按 Todo 追加新 `- [ ] ` 行，而不是插入空 paragraph。
 
 ### Phase 3：便笺窗口接入单活跃块编辑
 

@@ -198,7 +198,7 @@
 
   async function addSameBlockAfterActive() {
     if (!activeBlockOriginal) return false;
-    if (activeBlockOriginal.type === "task_block") {
+    if (activeBlockOriginal.type === "task_block" || isTaskLineDraft(activeBlockDraft)) {
       appendTaskLineToActiveDraft();
       return true;
     }
@@ -321,6 +321,14 @@
     const indent = parsed?.indent ?? "";
     const marker = parsed?.marker ?? "-";
     appendLineToActiveDraft(`${indent}${marker} [ ] `);
+  }
+
+  /** @param {string} draft */
+  function isTaskLineDraft(draft) {
+    const lines = String(draft ?? "")
+      .split("\n")
+      .filter((line) => line.trim() !== "");
+    return lines.length > 0 && lines.every((line) => !!parseTaskLine(line));
   }
 
   /** @param {string} line */
