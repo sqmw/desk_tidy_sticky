@@ -242,33 +242,48 @@
 <style>
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 10px;
-    grid-auto-rows: 168px;
+    grid-template-columns: repeat(auto-fill, minmax(278px, 1fr));
+    gap: 18px 24px;
+    grid-auto-rows: 176px;
+    padding: 2px 2px 24px;
   }
 
   .card {
     position: relative;
-    border: 1px solid var(--ws-border, #dbe5f1);
-    border-radius: 8px;
-    background: var(--ws-card-bg, linear-gradient(180deg, #ffffff 0%, #fbfdff 100%));
-    padding: 10px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 2px 2px 24px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     min-height: 0;
     height: 100%;
     overflow: hidden;
-    transition:
-      transform 0.16s ease,
-      box-shadow 0.16s ease,
-      border-color 0.16s ease;
+    box-shadow: none;
+    transition: background-color 0.16s ease;
+  }
+
+  .card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 5px;
+    bottom: 29px;
+    width: 2px;
+    border-radius: 999px;
+    background: var(--ws-accent, #1d4ed8);
+    opacity: 0;
+    transition: opacity 0.16s ease;
   }
 
   .card:hover {
-    transform: translateY(-2px);
-    border-color: #ccd9ea;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    background: color-mix(in srgb, var(--ws-card-bg, #fdfefe) 18%, transparent);
+  }
+
+  .card:hover::before,
+  .card:focus-within::before {
+    opacity: 0.72;
   }
 
   .card-top {
@@ -297,9 +312,9 @@
     font-size: 10px;
     font-weight: 700;
     color: var(--ws-text, #334155);
-    border: 1px solid var(--ws-border-soft, #d7dfec);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 70%, transparent);
     border-radius: 999px;
-    background: var(--ws-btn-bg, #f8fafc);
+    background: transparent;
     padding: 3px 7px;
   }
 
@@ -389,9 +404,9 @@
   }
 
   .tag-chip {
-    border: 1px solid var(--ws-border-soft, #d7dfec);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 44%, transparent);
     border-radius: 999px;
-    background: var(--ws-btn-bg, #f8fafc);
+    background: transparent;
     color: var(--ws-muted, #64748b);
     font-size: 10px;
     line-height: 1;
@@ -418,10 +433,10 @@
     justify-content: flex-end;
     max-width: calc(100% - 16px);
     padding: 4px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #dbe3ef) 72%, transparent);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 88%, transparent);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #dbe3ef) 42%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 72%, transparent);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
     opacity: 0;
     pointer-events: none;
     transform: translateY(3px);
