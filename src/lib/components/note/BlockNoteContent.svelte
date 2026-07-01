@@ -1,9 +1,11 @@
 <script>
   import { tick } from "svelte";
+  import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
   import {
     adjustInlineColorRangesForTextChange,
     applyInlineColorRange,
     blockRangeMatches,
+    expandNoteCommands,
     mergeBlockIntoPreviousMarkdown,
     parseMarkdownBlocks,
     parseMarkdownInlineStylesForEditing,
@@ -14,6 +16,7 @@
     splitBlockMarkdown,
   } from "$lib/markdown/note-markdown.js";
   import { renderMarkdownBlocks } from "$lib/markdown/blocks/block-renderer.js";
+  import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
 
   let {
     text = "",
@@ -48,8 +51,17 @@
   /** @type {Array<{ start: number; end: number; color: string }>} */
   let activeInlineColorRanges = $state([]);
   let editorInputPreviousDraft = $state("");
+  let showCommandSuggestions = $state(false);
+  let commandQuery = $state("");
+  let commandActiveIndex = $state(0);
 
   const blocks = $derived(parseMarkdownBlocks(text || "", { preserveBlankBlocks: true }));
+  const commandSuggestionItems = $derived(
+    filterNoteCommands(commandQuery).map((command) => ({
+      ...command,
+      preview: getNoteCommandPreview(command),
+    })),
+  );
 
   $effect(() => {
     if (pendingActiveStartLine == null) return;
@@ -104,6 +116,7 @@
     editorInputPreviousDraft = editable.text;
     activeBlockOriginal = block;
     activeSelectionRange = null;
+    hideCommandSuggestions();
     await tick();
     resizeEditor();
     editorEl?.focus?.();
@@ -131,6 +144,7 @@
     activeSelectionRange = null;
     activeInlineColorRanges = [];
     editorInputPreviousDraft = "";
+    hideCommandSuggestions();
     await tick();
     resizeEditor();
     editorEl?.focus?.();
@@ -154,6 +168,7 @@
     activeSelectionRange = null;
     activeInlineColorRanges = [];
     editorInputPreviousDraft = "";
+    hideCommandSuggestions();
     if (nextText !== text) {
       await onTextChange(nextText);
     }
@@ -175,6 +190,7 @@
     activeSelectionRange = null;
     activeInlineColorRanges = [];
     editorInputPreviousDraft = "";
+    hideCommandSuggestions();
     pendingActiveStartLine = inserted.nextStartLine;
     await onTextChange(inserted.text);
     return true;
@@ -211,6 +227,7 @@
     activeSelectionRange = null;
     activeInlineColorRanges = [];
     editorInputPreviousDraft = "";
+    hideCommandSuggestions();
     pendingActiveStartLine = inserted.nextStartLine + insert.activeLineOffset;
     pendingCaretAtEnd = true;
     await onTextChange(inserted.text);
@@ -272,6 +289,7 @@
     activeSelectionRange = null;
     activeInlineColorRanges = [];
     editorInputPreviousDraft = "";
+    hideCommandSuggestions();
     pendingActiveStartLine = next.startLine;
     pendingCaretOffset = next.caretOffset;
     pendingCaretAtEnd = currentIsEmpty;
@@ -385,11 +403,13 @@
     activeSelectionRange = null;
     activeInlineColorRanges = [];
     editorInputPreviousDraft = "";
+    hideCommandSuggestions();
   }
 
   function cancelEmptyEditor() {
     editingEmpty = false;
     emptyDraft = "";
+    hideCommandSuggestions();
   }
 
   /**
@@ -437,6 +457,74 @@
     return serializeMarkdownInlineStylesFromEditing(activeBlockDraft, activeInlineColorRanges);
   }
 
+  function getEditorDraft() {
+    return editingEmpty ? emptyDraft : activeBlockDraft;
+  }
+
+  /** @param {string} draft */
+  function setEditorDraft(draft) {
+    if (editingEmpty) {
+      emptyDraft = draft;
+      return;
+    }
+    const previousDraft = activeBlockDraft;
+    activeBlockDraft = draft;
+    activeInlineColorRanges = adjustInlineColorRangesForTextChange(
+      activeInlineColorRanges,
+      previousDraft,
+      activeBlockDraft,
+    );
+    editorInputPreviousDraft = activeBlockDraft;
+  }
+
+  /** @param {HTMLTextAreaElement | null} target */
+  function updateCommandSuggestions(target) {
+    if (!target) {
+      hideCommandSuggestions();
+      return;
+    }
+    const token = findSourceCommandToken(getEditorDraft(), target.selectionStart ?? 0);
+    if (!token) {
+      hideCommandSuggestions();
+      return;
+    }
+    commandQuery = `${token.trigger}${token.query}`;
+    showCommandSuggestions = true;
+    commandActiveIndex = 0;
+  }
+
+  function hideCommandSuggestions() {
+    showCommandSuggestions = false;
+    commandQuery = "";
+    commandActiveIndex = 0;
+  }
+
+  /**
+   * @param {number} index
+   */
+  async function applyCommandSuggestion(index) {
+    if (!editorEl || commandSuggestionItems.length === 0) return;
+    const selected = commandSuggestionItems[Math.max(0, Math.min(index, commandSuggestionItems.length - 1))];
+    const draft = getEditorDraft();
+    const caret = editorEl.selectionStart ?? draft.length;
+    const suffix = draft.slice(caret);
+    const inserted = applySourceCommandInsert({
+      text: draft,
+      caret,
+      insert: selected.insert,
+    });
+    if (!inserted) return;
+
+    const transformed = expandNoteCommands(inserted.nextText);
+    setEditorDraft(transformed);
+    hideCommandSuggestions();
+    await tick();
+    resizeEditor();
+    const nextCaret = Math.max(0, transformed.length - suffix.length);
+    editorEl.focus();
+    editorEl.setSelectionRange(nextCaret, nextCaret);
+  }
+
   function resizeEditor() {
     if (!editorEl) return;
     editorEl.style.height = "auto";
@@ -444,14 +532,17 @@
   }
 
   function handleEditorInput() {
-    const nextDraft = activeBlockDraft;
-    activeInlineColorRanges = adjustInlineColorRangesForTextChange(
-      activeInlineColorRanges,
-      editorInputPreviousDraft,
-      nextDraft,
-    );
-    editorInputPreviousDraft = nextDraft;
+    if (!editingEmpty) {
+      const nextDraft = activeBlockDraft;
+      activeInlineColorRanges = adjustInlineColorRangesForTextChange(
+        activeInlineColorRanges,
+        editorInputPreviousDraft,
+        nextDraft,
+      );
+      editorInputPreviousDraft = nextDraft;
+    }
     rememberEditorSelection();
+    updateCommandSuggestions(editorEl);
     resizeEditor();
   }
 
@@ -477,6 +568,32 @@
 
   /** @param {KeyboardEvent} event */
   async function handleEditorKeydown(event) {
+    if (showCommandSuggestions && commandSuggestionItems.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        event.stopPropagation();
+        commandActiveIndex = Math.min(commandActiveIndex + 1, commandSuggestionItems.length - 1);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        event.stopPropagation();
+        commandActiveIndex = Math.max(commandActiveIndex - 1, 0);
+        return;
+      }
+      if (event.key === "Enter" || event.key === "Tab") {
+        event.preventDefault();
+        event.stopPropagation();
+        await applyCommandSuggestion(commandActiveIndex);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        hideCommandSuggestions();
+        return;
+      }
+    }
     if (event.key === "Backspace" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
       const selectionStart = editorEl?.selectionStart ?? 0;
       const selectionEnd = editorEl?.selectionEnd ?? selectionStart;
@@ -521,6 +638,7 @@
       } else {
         cancelActiveBlock();
       }
+      hideCommandSuggestions();
     }
   }
 
@@ -576,12 +694,37 @@
     event.preventDefault();
     event.stopPropagation();
   }
+
+  /**
+   * @param {PointerEvent} event
+   * @param {number} index
+   */
+  function handleCommandPointerDown(event, index) {
+    event.preventDefault();
+    event.stopPropagation();
+    void applyCommandSuggestion(index);
+  }
 </script>
 
 <div class="block-note-content" class:compact data-no-drag="true">
   {#if blocks.length === 0}
     {#if editingEmpty}
       <div class="note-block editing empty-editing">
+        {#if showCommandSuggestions && commandSuggestionItems.length > 0}
+          <div class="command-popover">
+            {#each commandSuggestionItems as cmd, idx (cmd.name)}
+              <button
+                type="button"
+                class="command-item"
+                class:active={idx === commandActiveIndex}
+                onpointerdown={(event) => handleCommandPointerDown(event, idx)}
+              >
+                <span class="command-name">{cmd.name}</span>
+                <span class="command-preview">{cmd.preview}</span>
+              </button>
+            {/each}
+          </div>
+        {/if}
         <textarea
           bind:this={editorEl}
           bind:value={emptyDraft}
@@ -622,10 +765,25 @@
             aria-label="Add same block"
             title="Add same block"
             onpointerdown={keepEditorFocus}
-            onclick={handleAddSameBlockClick}
+          onclick={handleAddSameBlockClick}
           >
             +
           </button>
+          {#if showCommandSuggestions && commandSuggestionItems.length > 0}
+            <div class="command-popover">
+              {#each commandSuggestionItems as cmd, idx (cmd.name)}
+                <button
+                  type="button"
+                  class="command-item"
+                  class:active={idx === commandActiveIndex}
+                  onpointerdown={(event) => handleCommandPointerDown(event, idx)}
+                >
+                  <span class="command-name">{cmd.name}</span>
+                  <span class="command-preview">{cmd.preview}</span>
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
       {:else}
         <div
@@ -689,6 +847,10 @@
     background: transparent;
   }
 
+  .empty-editing {
+    position: relative;
+  }
+
   .block-html {
     padding: 0;
     min-width: 0;
@@ -723,6 +885,49 @@
   .block-html :global(img) {
     max-width: 100%;
     height: auto;
+  }
+
+  .block-html :global(.task-block) {
+    display: block;
+  }
+
+  .block-html :global(ul.task-list) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .block-html :global(li.task-item) {
+    min-height: 26px;
+  }
+
+  .block-html :global(.task-row) {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: start;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .block-html :global(.task-row input[type="checkbox"]) {
+    width: 15px;
+    height: 15px;
+    margin: 4px 0 0;
+    accent-color: var(--ws-accent, #1d4ed8);
+  }
+
+  .block-html :global(.task-text) {
+    min-width: 0;
+    line-height: 1.58;
+  }
+
+  .block-html :global(.task-item.is-done .task-text) {
+    opacity: 0.68;
+    text-decoration: line-through;
+  }
+
+  .block-html :global(.task-add) {
+    display: none;
   }
 
   .block-editor {
@@ -775,6 +980,59 @@
     opacity: 1;
     border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 36%, transparent);
     outline: none;
+  }
+
+  .command-popover {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    max-height: 176px;
+    overflow: auto;
+    border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--ws-card-bg, white) 94%, transparent);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+    z-index: 8;
+    padding: 4px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .command-item {
+    width: 100%;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+  }
+
+  .command-item:hover,
+  .command-item.active {
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 12%, transparent);
+  }
+
+  .command-name {
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .command-preview {
+    min-width: 0;
+    margin-left: auto;
+    color: var(--ws-muted, #64748b);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .empty-block {

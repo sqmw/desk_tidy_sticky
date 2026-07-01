@@ -53,7 +53,7 @@
 | 缺口 | 影响 |
 |---|---|
 | 没有持久化 block id | 第一阶段 block id 仍是派生值，外部同步修改时需要 range 校验 |
-| 块内 `/` 命令建议未迁移 | active block textarea 首版只支持源码编辑、保存、取消 |
+| 块内 `/` 命令建议已恢复 | active block textarea 现在可做命令联想与插入 |
 | 图片粘贴未迁移到 active block | 旧整篇 `SourceEditorPane` 路径支持图片粘贴，块编辑路径待补齐 |
 
 2026-06-29 Phase 1 已经补齐：
@@ -497,14 +497,15 @@ compact
 - 2026-06-29 修正：`Backspace` 在 active block 开头会回到上一块。当前块为空时删除空块并把上一块打开到末尾；当前块非空时把当前 Markdown slice 接到上一块后面，caret 停在合并边界。合并前必须同时校验当前块和上一块 range，避免外部同步后误覆盖。
 - 2026-06-29 修正：`BlockNoteContent` 的编辑态回到朴素单状态：`activeBlockId + activeBlockOriginal + activeBlockDraft`。模板只允许 `activeBlockId` 对应的一个 block 渲染 textarea，其他 block 始终渲染为 HTML。
 - `Esc` 取消当前 block draft。
-- Todo checkbox / `+` 仍可在渲染态交互，不强制进入编辑态。
+- Todo checkbox 仍可在渲染态交互，不强制进入编辑态；渲染态不显示追加 `+`。
 - 2026-06-29 修正：active block 必须是正文内联 Markdown 源码编辑，不允许做成独立滚动 / 可拖拽 resize 的小容器；滚动只保留在整篇 inspector 内容区。
 - 2026-06-29 修正：对于工具栏生成的安全 inline color `span`，active block textarea 使用 `纯文本 draft + inline color ranges`，编辑态隐藏 `<span>` 标签，commit 时再序列化回 Markdown；其他 Markdown 语法仍按源码文本显示。
 - 2026-06-29 修正：块外不再保留可见容器边框或卡片感，block 是正文的一部分，不是单独面板。
 - 2026-06-29 修正：active block textarea 不再保留额外左侧 padding，避免编辑态文本被误看成 Markdown 缩进；需要表达缩进时只能来自真实 Markdown 文本。
 - 2026-06-29 修正：active block textarea 必须继承正文 `font`，不能使用单独等宽字体或缩小字号，否则编辑态会比渲染态显著更细、更小。
 - 2026-06-29 修正：active block textarea 的 `rows` 必须贴近真实 Markdown 行数，单行 block 不能强制撑成两行，否则编辑态会凭空挤出下方空白。
-- 块内 `/` 命令建议和图片粘贴暂未迁移，后续可在 `MarkdownBlockEditor` 独立补齐。
+- 2026-07-01 修正：active block textarea 恢复 `/` 命令建议，并继续复用 `@todo` / `@done` / `/todo` 命令目录；图片粘贴仍保留为后续局部能力。
+- 2026-07-01 修正：便笺底部工具栏不再保留编辑 / 保存双态按钮；进入编辑由点击正文 block 负责，保存由 block blur 或 `Ctrl/Cmd + Enter` 负责。
 
 ### Phase 3：便笺窗口接入单活跃块编辑
 
@@ -518,7 +519,7 @@ compact
 - 单击可编辑 block 时进入该 block 的 Markdown slice textarea，并通知便笺容器进入编辑 / 操作态。
 - 拖动窗口仍由外层 `note-window-drag` 管理；拖拽完成后的短暂 click 抑制会阻止误打开 block 编辑态。
 - 桌面层 / 鼠标穿透导致 `canInteract=false` 时，`BlockNoteContent` 以 readonly 方式渲染，不能进入编辑态。
-- Todo checkbox / `+` 仍走行级 Markdown 回写，不触发块编辑。
+- Todo checkbox 仍走行级 Markdown 回写，不触发块编辑；追加入口收敛到编辑态。
 
 额外关注：
 
@@ -526,13 +527,14 @@ compact
 - 点击 block 文本进入编辑态。
 - 桌面层 / 鼠标穿透状态下不可编辑。
 - 小窗口内 active block 编辑器不能撑破布局。
-- 块内 `/` 命令建议和图片粘贴暂未迁移，后续需要做成 active block textarea 的局部能力。
+- 块内 `/` 命令建议已恢复，图片粘贴仍需要做成 active block textarea 的局部能力。
 
 ### Phase 4：块操作增强
 
 后续再做：
 
 - 2026-06-29 已完成：active block 右下角 `+` 插入同类型空白内容；Todo/list/quote 在当前结构块内追加空行，paragraph/heading/code/table/image 在当前块后插入同类空块；全程不复制已有文本。
+- 2026-07-01 修正：Todo 渲染态隐藏追加 `+`，避免非编辑状态出现脱离上下文的创建按钮；Todo 新增通过 active block 编辑态或 `/todo` 命令完成。
 - 2026-06-29 已完成：active block 开头 `Backspace` 合并 / 删除当前块并回到上一块，解决删空后无法继续退回上一行的问题。
 - `/` 命令切换当前空 block 类型。
 - 结构块内部更细粒度拆分，例如 Todo 单行拆分、list item 拆分。

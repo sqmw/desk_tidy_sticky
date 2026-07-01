@@ -671,7 +671,6 @@
     textPickerValue,
     noteColors: NOTE_COLORS,
     noteTextColors: NOTE_TEXT_COLORS,
-    onToggleEdit: () => (isEditing ? exitEditMode() : enterBlockEditSurface()),
     onExitControlMode: exitControlMode,
     onToggleTopmost: toggleTopmost,
     onToggleWallpaper: toggleWallpaperLayer,

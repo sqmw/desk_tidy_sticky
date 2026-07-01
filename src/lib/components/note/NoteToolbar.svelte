@@ -19,7 +19,6 @@
     textPickerValue = "#1f2937",
     noteColors = [],
     noteTextColors = [],
-    onToggleEdit = () => {},
     onToggleTopmost = () => {},
     onToggleWallpaper = () => {},
     onTogglePalette = () => {},
@@ -79,30 +78,6 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="toolbar" class:editing={isEditing} class:control={isControlMode} class:outside={placement === "outside"}>
   <div class="toolbar-actions">
-    <button
-      class="tool-btn tool-btn-primary"
-      class:active={isEditing}
-      onclick={() => onToggleEdit()}
-      title={isEditing ? strings.saveNote : strings.edit}
-    >
-      {#if isEditing}
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="m5 12 4.2 4.2L19 6.5"></path>
-        </svg>
-      {:else}
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 000-1.42L18.37 3.29a1.003 1.003 0 00-1.42 0L15.13 5.1l3.75 3.75 1.83-1.81z" />
-        </svg>
-      {/if}
-    </button>
-
     <button
       class="tool-btn"
       class:active={!!note?.isAlwaysOnTop}
@@ -477,17 +452,6 @@
 
   .tool-btn.active {
     color: #0f4c81;
-  }
-
-  .tool-btn-primary {
-    color: #0f4c81;
-    background: color-mix(in srgb, #e0f2fe 74%, white);
-    border-color: color-mix(in srgb, #0f4c81 24%, rgba(15, 23, 42, 0.08));
-  }
-
-  .tool-btn-primary:hover {
-    background: color-mix(in srgb, #dbeafe 78%, white);
-    color: #0b3c67;
   }
 
   .tool-btn svg {
