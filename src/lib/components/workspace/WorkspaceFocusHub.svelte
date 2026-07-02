@@ -61,6 +61,7 @@
     buildBreakWatchdogSnapshot,
     buildBreakNotification,
     getBreakProgressPercent,
+    resolveBreakDueKind,
   } from "$lib/workspace/break-control/break-control-controller.js";
   import { createBreakOverlayLifecycle } from "$lib/workspace/break-control/break-overlay-lifecycle.js";
   import { mountBreakControlEventListeners } from "$lib/workspace/break-control/break-control-event-listeners.js";
@@ -672,9 +673,13 @@
       lastBreakReminderAtSec = nextMiniWarnAtSec;
       notifyBreak("warn", BREAK_KIND_MINI);
     }
-    const dueKind = focusSinceBreakSec >= nextLongBreakAtSec
-      ? BREAK_KIND_LONG
-      : (focusSinceBreakSec >= nextMiniBreakAtSec ? BREAK_KIND_MINI : "");
+    const dueKind = resolveBreakDueKind({
+      breakReminderEnabled: safeConfig.breakReminderEnabled,
+      nextMiniBreakCountdown: nextMiniBreakAtSec - focusSinceBreakSec,
+      nextLongBreakCountdown: nextLongBreakAtSec - focusSinceBreakSec,
+      miniEverySec: breakPlanSec.miniEverySec,
+      longEverySec: breakPlanSec.longEverySec,
+    });
     if (!dueKind) return;
     const dueAt = dueKind === BREAK_KIND_LONG ? nextLongBreakAtSec : nextMiniBreakAtSec;
     if (lastBreakReminderAtSec !== dueAt) {

@@ -3,10 +3,8 @@
     strings,
     zoomOption = "auto",
     fontSize = "medium",
-    sidebarLayoutMode = "auto",
     onChangeZoomOption = () => {},
     onChangeFontSize = () => {},
-    onChangeSidebarLayoutMode = () => {},
   } = $props();
 </script>
 
@@ -41,17 +39,6 @@
       </select>
     </label>
 
-    <label class="setting-row" for="workspace-setting-sidebar-layout">
-      <span>{strings.workspaceSidebarLayoutMode || "Sidebar layout"}</span>
-      <select
-        id="workspace-setting-sidebar-layout"
-        value={sidebarLayoutMode}
-        onchange={(e) => onChangeSidebarLayoutMode(/** @type {HTMLSelectElement} */ (e.currentTarget).value)}
-      >
-        <option value="auto">{strings.workspaceSidebarLayoutAuto || "Auto priority"}</option>
-        <option value="manual">{strings.workspaceSidebarLayoutManual || "Manual fixed"}</option>
-      </select>
-    </label>
   </div>
 </section>
 
@@ -59,15 +46,15 @@
   .settings-section {
     display: grid;
     gap: 10px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 80%, transparent);
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.96)) 88%, var(--ws-btn-bg, #fbfdff));
-    padding: 14px;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 44%, transparent);
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
   }
 
   .compact-section {
-    padding: 12px 14px;
+    padding: 0;
   }
 
   .setting-grid {

@@ -27,24 +27,20 @@
     grid-template-columns: minmax(0, 1fr) 160px;
     gap: 16px;
     align-items: center;
-    border-radius: 16px;
+    border-radius: 0;
     overflow: hidden;
   }
 
   .feedback-card.workspace {
     padding: 16px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 82%, transparent);
-    background:
-      radial-gradient(circle at 100% 0, color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent), transparent 42%),
-      color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.96)) 88%, var(--ws-btn-bg, #fbfdff));
+    border: 1px solid transparent;
+    background: transparent;
   }
 
   .feedback-card.compact {
     padding: 14px;
-    border: 1px solid #e5e7eb;
-    background:
-      radial-gradient(circle at 100% 0, rgba(59, 130, 246, 0.12), transparent 42%),
-      linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid transparent;
+    background: transparent;
   }
 
   .feedback-copy {
@@ -118,17 +114,17 @@
     align-items: center;
     justify-content: center;
     padding: 10px;
-    border-radius: 14px;
+    border-radius: 0;
   }
 
   .workspace .feedback-qr-wrap {
-    background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent);
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 72%, transparent);
+    background: color-mix(in srgb, var(--ws-card-bg, #fff) 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 44%, transparent);
   }
 
   .compact .feedback-qr-wrap {
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid #e5e7eb;
+    background: color-mix(in srgb, #ffffff 80%, transparent);
+    border: 1px solid color-mix(in srgb, #e5e7eb 44%, transparent);
   }
 
   .feedback-qr {
@@ -136,7 +132,7 @@
     width: 140px;
     height: 140px;
     object-fit: contain;
-    border-radius: 10px;
+    border-radius: 0;
     background: #fff;
   }
 

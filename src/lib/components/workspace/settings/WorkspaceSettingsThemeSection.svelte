@@ -116,20 +116,20 @@
   .settings-section {
     display: grid;
     gap: 10px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 80%, transparent);
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.96)) 88%, var(--ws-btn-bg, #fbfdff));
-    padding: 14px;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 44%, transparent);
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
   }
 
   .setting-stack {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 12px;
-    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 32%, transparent);
+    border-radius: 0;
+    padding: 12px 0 0;
     display: grid;
     gap: 10px;
-    background: color-mix(in srgb, var(--ws-btn-bg, #fbfdff) 70%, transparent);
+    background: transparent;
   }
 
   .setting-stack-head,
@@ -151,9 +151,9 @@
   }
 
   .theme-card {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fbfdff);
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: transparent;
     color: var(--ws-text, #334155);
     display: grid;
     gap: 8px;
@@ -163,13 +163,14 @@
   }
 
   .theme-card:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
+    border-color: transparent;
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
   }
 
   .theme-card.active {
-    border-color: var(--ws-border-active, #94a3b8);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ws-accent, #1d4ed8) 25%, transparent);
+    border-color: transparent;
+    box-shadow: none;
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent);
   }
 
   .theme-card-title {
@@ -179,8 +180,8 @@
   }
 
   .theme-card-preview {
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 70%, transparent);
-    border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 30%, transparent);
+    border-radius: 0;
     background: var(--theme-preview-bg, #f8fafc);
     min-height: 42px;
     display: grid;
@@ -224,9 +225,9 @@
   }
 
   .transition-shape-btn {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fbfdff);
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: transparent;
     color: var(--ws-text, #334155);
     min-height: 42px;
     padding: 0 12px;
@@ -240,14 +241,14 @@
   }
 
   .transition-shape-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
+    border-color: transparent;
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
   }
 
   .transition-shape-btn.active {
-    border-color: var(--ws-border-active, #94a3b8);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ws-accent, #1d4ed8) 24%, transparent);
-    background: color-mix(in srgb, var(--ws-btn-hover, #f4f8ff) 74%, transparent);
+    border-color: transparent;
+    box-shadow: none;
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent);
   }
 
   .transition-shape-indicator {

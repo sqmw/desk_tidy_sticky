@@ -22,6 +22,47 @@ export function buildBreakWatchdogSnapshot(input) {
   };
 }
 
+/** @param {unknown} value */
+function safeRemaining(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * @param {{
+ *   breakReminderEnabled: boolean;
+ *   nextMiniBreakCountdown: number;
+ *   nextLongBreakCountdown: number;
+ *   miniEverySec: number;
+ *   longEverySec: number;
+ * }} input
+ */
+export function resolveBreakDueKind(input) {
+  if (input.breakReminderEnabled !== true) return "";
+  const miniRemaining = safeRemaining(input.nextMiniBreakCountdown);
+  const longRemaining = safeRemaining(input.nextLongBreakCountdown);
+  if (longRemaining <= 0) return "long";
+  if (miniRemaining <= 0) return "mini";
+  return "";
+}
+
+/**
+ * @param {{
+ *   breakReminderEnabled: boolean;
+ *   nextMiniBreakCountdown: number;
+ *   nextLongBreakCountdown: number;
+ *   miniEverySec: number;
+ *   longEverySec: number;
+ * }} input
+ */
+export function resolveNextBreakKind(input) {
+  if (input.breakReminderEnabled !== true) return "";
+  const miniRemaining = Math.max(0, safeRemaining(input.nextMiniBreakCountdown));
+  const longRemaining = Math.max(0, safeRemaining(input.nextLongBreakCountdown));
+  if (!Number.isFinite(miniRemaining) && !Number.isFinite(longRemaining)) return "";
+  return longRemaining <= miniRemaining ? "long" : "mini";
+}
+
 /**
  * @param {{
  *   breakReminderEnabled: boolean;
@@ -33,9 +74,11 @@ export function buildBreakWatchdogSnapshot(input) {
  */
 export function getBreakProgressPercent(input) {
   if (!input.breakReminderEnabled) return 0;
+  const nextKind = resolveNextBreakKind(input);
+  if (!nextKind) return 0;
+  const useMini = nextKind === "mini";
   const miniRemaining = Math.max(0, Number(input.nextMiniBreakCountdown || 0));
   const longRemaining = Math.max(0, Number(input.nextLongBreakCountdown || 0));
-  const useMini = miniRemaining <= longRemaining;
   const total = Math.max(1, Number(useMini ? input.miniEverySec : input.longEverySec));
   const remaining = Math.min(total, Math.max(0, Number(useMini ? miniRemaining : longRemaining)));
   const ratio = (total - remaining) / total;

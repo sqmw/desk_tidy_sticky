@@ -172,15 +172,15 @@
   .settings-section {
     display: grid;
     gap: 10px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 80%, transparent);
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.96)) 88%, var(--ws-btn-bg, #fbfdff));
-    padding: 14px;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 44%, transparent);
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
   }
 
   .compact-section {
-    padding: 12px 14px;
+    padding: 0;
   }
 
   .setting-row {
@@ -210,12 +210,12 @@
   }
 
   .setting-stack {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 12px;
-    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 32%, transparent);
+    border-radius: 0;
+    padding: 12px 0 0;
     display: grid;
     gap: 10px;
-    background: color-mix(in srgb, var(--ws-btn-bg, #fbfdff) 70%, transparent);
+    background: transparent;
   }
 
   .setting-stack-head {

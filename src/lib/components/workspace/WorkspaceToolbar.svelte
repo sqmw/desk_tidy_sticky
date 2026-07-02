@@ -10,8 +10,11 @@
     newNotePriority = $bindable(/** @type {number | null} */ (null)),
     newNoteTags = $bindable(/** @type {string[]} */ ([])),
     noteTagOptions = /** @type {string[]} */ ([]),
+    selectedTag = "",
+    tagFilterOpen = false,
     searchQuery = $bindable(),
     onCreateNote = () => {},
+    onToggleTagFilter = () => {},
   } = $props();
 </script>
 
@@ -26,7 +29,7 @@
     {noteTagOptions}
     {onCreateNote}
   />
-  <WorkspaceQueryBar {strings} {compact} bind:searchQuery />
+  <WorkspaceQueryBar {strings} {compact} {selectedTag} {tagFilterOpen} {onToggleTagFilter} bind:searchQuery />
 </div>
 
 <style>
@@ -34,11 +37,10 @@
     display: grid;
     grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
     gap: 8px;
-    border: 1px solid var(--ws-border, #dbe5f2);
-    border-radius: 8px;
-    padding: 8px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.75)) 90%, transparent);
-    backdrop-filter: blur(8px);
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
     align-items: center;
   }
 

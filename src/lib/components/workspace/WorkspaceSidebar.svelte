@@ -7,14 +7,6 @@
   import WorkspaceSidebarDeadlines from "$lib/components/workspace/sidebar/WorkspaceSidebarDeadlines.svelte";
   import WorkspaceSidebarModules from "$lib/components/workspace/sidebar/WorkspaceSidebarModules.svelte";
   import WorkspaceSidebarNoteFilters from "$lib/components/workspace/sidebar/WorkspaceSidebarNoteFilters.svelte";
-  import {
-    calcSidebarManualSplitRatioFromPointer,
-    DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
-    DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO,
-    DEFAULT_SIDEBAR_MANUAL_SPLITTER_HEIGHT,
-    resolveSidebarManualSplitHeights,
-  } from "$lib/workspace/sidebar/manual-split-layout.js";
-  const MANUAL_BOTTOM_CARD_GAP = 8;
 
   let {
     strings,
@@ -25,23 +17,15 @@
     noteViewCounts = {},
     collapsed = false,
     compact = false,
-    sidebarLayoutMode = "auto",
-    sidebarManualSplitRatio = 0.42,
     viewSectionMaxHeight = 240,
     deadlineSectionMaxHeight = 320,
-    onSidebarManualSplitRatioInput = () => {},
-    onSidebarManualSplitRatioCommit = () => {},
     onDragStart,
     onSetMainTab,
     onSetViewMode,
-    onSetSelectedTag = () => {},
     stickiesVisible,
     globalControlDisabled = false,
     showMacTrafficLights = false,
     focusDeadlines = [],
-    noteTags = [],
-    selectedTag = "",
-    taggedNoteCount = 0,
     onDeadlineAction = () => {},
     onToggleStickiesVisibility = () => {},
     onToggleGlobalControl = () => {},
@@ -51,149 +35,12 @@
 
   let noteFiltersCollapsed = $state(false);
   let deadlinesCollapsed = $state(false);
-  let modulesBlockEl = $state(/** @type {HTMLDivElement | null} */ (null));
-  let modulesNaturalHeight = $state(0);
-  let sidebarBodyEl = $state(/** @type {HTMLDivElement | null} */ (null));
-  let sidebarBodyHeight = $state(0);
-  let manualResizePointerId = $state(-1);
-  let manualResizeDragging = $state(false);
-
-  const manualLayoutEnabled = $derived(sidebarLayoutMode === "manual" && !collapsed);
-  const manualResolvedRatio = $derived.by(() => {
-    const savedRatio = Number(sidebarManualSplitRatio || DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO);
-    const safeSavedRatio = Number.isFinite(savedRatio) ? savedRatio : DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO;
-    const isDefaultRatio = Math.abs(safeSavedRatio - DEFAULT_SIDEBAR_MANUAL_SPLIT_RATIO) <= 0.0005;
-    if (!manualLayoutEnabled || !isDefaultRatio) return safeSavedRatio;
-    const trackHeight = Math.max(0, sidebarBodyHeight - DEFAULT_SIDEBAR_MANUAL_SPLITTER_HEIGHT);
-    if (trackHeight <= 0) return safeSavedRatio;
-    const fallbackTop = DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT;
-    const contentTop = modulesNaturalHeight > 0 ? modulesNaturalHeight : fallbackTop;
-    const clampedTop = Math.max(
-      DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
-      Math.min(trackHeight - DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT, contentTop),
-    );
-    if (clampedTop <= 0) return safeSavedRatio;
-    return Number((clampedTop / trackHeight).toFixed(4));
-  });
-  const manualSplit = $derived.by(() =>
-    resolveSidebarManualSplitHeights({
-      bodyHeight: sidebarBodyHeight,
-      ratio: manualResolvedRatio,
-      splitterHeight: DEFAULT_SIDEBAR_MANUAL_SPLITTER_HEIGHT,
-      minSectionHeight: DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
-    }),
-  );
-  const manualTopBlockStyle = $derived.by(() =>
-    manualLayoutEnabled ? `--manual-block-height:${manualSplit.topHeight}px;` : "",
-  );
-  const manualBottomBlockHeight = $derived.by(() =>
-    manualLayoutEnabled ? manualSplit.bottomHeight : 0,
-  );
-  const manualBottomCardHeight = $derived.by(() =>
-    manualLayoutEnabled ? Math.max(0, manualBottomBlockHeight - MANUAL_BOTTOM_CARD_GAP) : 0,
-  );
-  const manualSectionMaxHeight = $derived.by(() =>
-    manualLayoutEnabled ? Math.max(40, Math.round(manualBottomCardHeight - 56)) : 0,
-  );
   const noteFiltersBlockStyle = $derived.by(() =>
-    manualLayoutEnabled
-      ? `--section-max-height:${manualSectionMaxHeight}px;--manual-block-height:${manualBottomCardHeight}px;`
-      : `--section-max-height:${viewSectionMaxHeight}px;`,
+    `--section-max-height:${viewSectionMaxHeight}px;`,
   );
   const deadlineBlockStyle = $derived.by(() =>
-    manualLayoutEnabled
-      ? `--section-max-height:${manualSectionMaxHeight}px;--manual-block-height:${manualBottomCardHeight}px;`
-      : `--section-max-height:${deadlineSectionMaxHeight}px;`,
+    `--section-max-height:${deadlineSectionMaxHeight}px;`,
   );
-
-  /** @param {PointerEvent} event */
-  function resolveManualRatioFromPointer(event) {
-    if (!sidebarBodyEl) return Number(sidebarManualSplitRatio || 0.42);
-    const rect = sidebarBodyEl.getBoundingClientRect();
-    return calcSidebarManualSplitRatioFromPointer({
-      clientY: event.clientY,
-      bodyTop: rect.top,
-      bodyHeight: rect.height,
-      splitterHeight: DEFAULT_SIDEBAR_MANUAL_SPLITTER_HEIGHT,
-      minSectionHeight: DEFAULT_SIDEBAR_MANUAL_MIN_SECTION_HEIGHT,
-    });
-  }
-
-  function clearManualResizeState() {
-    manualResizeDragging = false;
-    manualResizePointerId = -1;
-  }
-
-  /** @param {PointerEvent} event */
-  function startManualSectionResize(event) {
-    if (!manualLayoutEnabled) return;
-    if (event.button !== 0) return;
-    manualResizeDragging = true;
-    manualResizePointerId = event.pointerId;
-    const handle = /** @type {HTMLElement | null} */ (event.currentTarget);
-    handle?.setPointerCapture?.(event.pointerId);
-    onSidebarManualSplitRatioInput(resolveManualRatioFromPointer(event));
-    event.preventDefault();
-  }
-
-  /** @param {PointerEvent} event */
-  function moveManualSectionResize(event) {
-    if (!manualResizeDragging) return;
-    if (manualResizePointerId !== -1 && event.pointerId !== manualResizePointerId) return;
-    onSidebarManualSplitRatioInput(resolveManualRatioFromPointer(event));
-  }
-
-  /** @param {PointerEvent} event */
-  function endManualSectionResize(event) {
-    if (!manualResizeDragging) return;
-    if (manualResizePointerId !== -1 && event.pointerId !== manualResizePointerId) return;
-    const next = resolveManualRatioFromPointer(event);
-    onSidebarManualSplitRatioInput(next);
-    onSidebarManualSplitRatioCommit(next);
-    clearManualResizeState();
-  }
-
-  /** @param {PointerEvent} event */
-  function cancelManualSectionResize(event) {
-    if (!manualResizeDragging) return;
-    if (manualResizePointerId !== -1 && event.pointerId !== manualResizePointerId) return;
-    clearManualResizeState();
-  }
-
-  $effect(() => {
-    if (!modulesBlockEl) {
-      modulesNaturalHeight = 0;
-      return;
-    }
-    const updateNaturalHeight = () => {
-      if (manualLayoutEnabled) return;
-      modulesNaturalHeight = Math.max(0, Math.round(modulesBlockEl?.clientHeight || 0));
-    };
-    updateNaturalHeight();
-    const observer = new ResizeObserver(updateNaturalHeight);
-    observer.observe(modulesBlockEl);
-    return () => observer.disconnect();
-  });
-
-  $effect(() => {
-    if (!sidebarBodyEl) {
-      sidebarBodyHeight = 0;
-      return;
-    }
-    const updateBodyHeight = () => {
-      sidebarBodyHeight = Math.max(0, Math.round(sidebarBodyEl?.clientHeight || 0));
-    };
-    updateBodyHeight();
-    const observer = new ResizeObserver(updateBodyHeight);
-    observer.observe(sidebarBodyEl);
-    return () => observer.disconnect();
-  });
-
-  $effect(() => {
-    if (manualLayoutEnabled) return;
-    if (!manualResizeDragging && manualResizePointerId === -1) return;
-    clearManualResizeState();
-  });
 
   /** @param {boolean} value */
   function sectionToggleIcon(value) {
@@ -206,9 +53,6 @@
   class="sidebar"
   class:collapsed
   class:compact
-  class:auto-priority={sidebarLayoutMode === "auto"}
-  class:manual-layout={manualLayoutEnabled}
-  class:manual-resizing={manualResizeDragging}
 >
   <div class="brand" data-drag-handle="workspace" onpointerdown={onDragStart}>
     {#if isMac}
@@ -226,46 +70,30 @@
     {/if}
   </div>
 
-  <div class="sidebar-body" bind:this={sidebarBodyEl}>
-    <div class="sidebar-block modules-block" style={manualTopBlockStyle} bind:this={modulesBlockEl}>
+  <div class="sidebar-body">
+    <div class="sidebar-block modules-block">
       <WorkspaceSidebarModules {strings} {collapsed} {mainTabs} {mainTab} {onSetMainTab} />
     </div>
-    {#if manualLayoutEnabled}
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="section-height-splitter"
-        title={strings.workspaceSidebarManualResizeHint || "Drag to resize sidebar sections"}
-        onpointerdown={startManualSectionResize}
-        onpointermove={moveManualSectionResize}
-        onpointerup={endManualSectionResize}
-        onpointercancel={cancelManualSectionResize}
-      ></div>
-    {/if}
+    <div class="sidebar-section-divider" aria-hidden="true"></div>
 
     {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
       <WorkspaceSidebarNoteFilters
         {strings}
         {collapsed}
         {compact}
-        manualLayoutEnabled={manualLayoutEnabled}
         blockStyle={noteFiltersBlockStyle}
         sectionCollapsed={noteFiltersCollapsed}
         {viewModes}
         {viewMode}
         {noteViewCounts}
-        {noteTags}
-        {selectedTag}
-        {taggedNoteCount}
         onToggleSectionCollapsed={() => (noteFiltersCollapsed = !noteFiltersCollapsed)}
         {onSetViewMode}
-        {onSetSelectedTag}
       />
     {:else if mainTab === WORKSPACE_MAIN_TAB_FOCUS}
       <WorkspaceSidebarDeadlines
         {strings}
         {collapsed}
         {compact}
-        manualLayoutEnabled={manualLayoutEnabled}
         blockStyle={deadlineBlockStyle}
         sectionCollapsed={deadlinesCollapsed}
         {focusDeadlines}
@@ -313,52 +141,36 @@
 
 <style>
   .sidebar {
+    --sidebar-divider-inset: 22px;
+    --sidebar-divider-color: color-mix(in srgb, var(--ws-border-soft, #d8e2ef) 76%, transparent);
     border-right: 1px solid #dbe4f2;
     background: var(--ws-panel-bg, rgba(255, 255, 255, 0.86));
     backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
-    padding: 16px 14px;
-    gap: 14px;
+    padding: 12px 10px;
+    gap: 10px;
     position: relative;
     color: var(--ws-text, #111827);
     cursor: default;
     min-height: 0;
     overflow: hidden;
     container-type: inline-size;
-    scrollbar-width: thin;
-    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
-      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
+    scrollbar-width: none;
   }
 
   .sidebar::-webkit-scrollbar {
-    width: 7px;
-    height: 7px;
-  }
-
-  .sidebar::-webkit-scrollbar-track {
-    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 78%, transparent);
-    border-radius: 999px;
-  }
-
-  .sidebar::-webkit-scrollbar-thumb {
-    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.86)) 78%, transparent);
-  }
-
-  .sidebar::-webkit-scrollbar-thumb:hover {
-    background: var(--ws-scrollbar-thumb-hover, rgba(51, 65, 85, 0.62));
+    display: none;
   }
 
   .sidebar.collapsed {
-    padding: 14px 8px;
-    gap: 10px;
+    padding: 8px 6px;
+    gap: 6px;
   }
 
   .sidebar.compact {
-    gap: 10px;
-    padding: 12px 10px;
+    gap: 8px;
+    padding: 10px 9px;
   }
 
   .sidebar-body {
@@ -366,41 +178,18 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 7px;
     overflow: auto;
-    padding-right: 2px;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    padding-right: 0;
+    padding-bottom: 8px;
     align-items: stretch;
-    scrollbar-width: thin;
-    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
-      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
-  }
-
-  .sidebar.manual-layout .sidebar-body {
-    gap: 0;
-    overflow: hidden;
-  }
-
-  .sidebar.manual-layout .section-height-splitter {
-    margin: 10px 0;
-  }
-
-  .sidebar.manual-resizing {
-    user-select: none;
+    scrollbar-width: none;
   }
 
   .sidebar-body::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .sidebar-body::-webkit-scrollbar-track {
-    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 76%, transparent);
-    border-radius: 999px;
-  }
-
-  .sidebar-body::-webkit-scrollbar-thumb {
-    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
-    border-radius: 999px;
+    display: none;
   }
 
   .brand-pill {
@@ -412,9 +201,9 @@
     color: var(--ws-accent, #1d4ed8);
     background: var(--ws-badge-bg, #e8f0ff);
     border: 1px solid var(--ws-badge-border, #d7e5ff);
-    padding: 4px 8px;
+    padding: 3px 7px;
     border-radius: 999px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .brand-pill.traffic-reserved {
@@ -428,7 +217,7 @@
 
   .brand h1 {
     margin: 0;
-    font-size: clamp(24px, 2.3vw, 34px);
+    font-size: clamp(23px, 2.1vw, 31px);
     line-height: 1;
     font-weight: 800;
     letter-spacing: -0.03em;
@@ -436,28 +225,28 @@
   }
 
   .sidebar.collapsed .brand h1 {
-    font-size: 18px;
+    font-size: 16px;
     text-align: center;
   }
 
   .sidebar.collapsed .brand-pill {
     width: 100%;
     text-align: center;
-    padding: 4px 2px;
-    font-size: 9px;
+    padding: 2px 2px;
+    font-size: 8px;
   }
 
   .brand p {
-    margin: 6px 0 0;
-    font-size: 12px;
+    margin: 4px 0 0;
+    font-size: 10px;
     color: var(--ws-muted, #64748b);
   }
 
   .sidebar-block {
-    border: 1px solid var(--ws-border, #dce5f3);
-    border-radius: 8px;
-    background: var(--ws-card-bg, #fcfdff);
-    padding: 10px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
     min-height: 0;
     flex: 0 0 auto;
   }
@@ -466,67 +255,60 @@
     min-height: 0;
   }
 
-  .section-height-splitter {
+  .sidebar-section-divider {
     position: relative;
-    height: 8px;
-    border-radius: 999px;
-    cursor: row-resize;
+    height: 12px;
     flex: 0 0 auto;
-    touch-action: none;
   }
 
-  .section-height-splitter::before {
+  .sidebar-section-divider::before {
     content: "";
     position: absolute;
-    left: 16%;
-    right: 16%;
-    top: 3px;
-    height: 2px;
+    left: var(--sidebar-divider-inset);
+    right: var(--sidebar-divider-inset);
+    top: 50%;
+    height: 1px;
+    transform: translateY(-50%);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 88%, transparent);
-    transition: background 0.16s ease;
-  }
-
-  .section-height-splitter:hover::before,
-  .sidebar.manual-resizing .section-height-splitter::before {
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 48%, var(--ws-border-soft, #d9e2ef));
-  }
-
-  .sidebar.manual-layout .modules-block {
-    min-height: 0;
-    height: var(--manual-block-height, auto);
-    max-height: var(--manual-block-height, none);
-    flex: 0 0 auto;
-  }
-
-  .sidebar.manual-layout .modules-block {
-    overflow: auto;
+    background: var(--sidebar-divider-color);
   }
 
   .sidebar.collapsed .sidebar-block {
-    padding: 8px 6px;
+    padding: 4px 0;
   }
 
   .sidebar-actions {
     margin-top: 0;
     display: grid;
-    gap: 6px;
-    border-top: 1px dashed var(--ws-border-soft, #d8e2ef);
-    padding-top: 10px;
+    gap: 4px;
+    border-top: none;
+    position: relative;
+    padding-top: 7px;
     flex: 0 0 auto;
+  }
+
+  .sidebar-actions::before {
+    content: "";
+    position: absolute;
+    left: var(--sidebar-divider-inset);
+    right: var(--sidebar-divider-inset);
+    top: 0;
+    height: 1px;
+    border-radius: 999px;
+    background: var(--sidebar-divider-color);
   }
 
   .footer-toggle {
     width: 100%;
-    min-height: 34px;
-    padding: 0 10px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 8px;
-    background: var(--ws-btn-bg, #fbfdff);
+    min-height: 24px;
+    padding: 0 5px;
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: transparent;
     color: var(--ws-text, #334155);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
     cursor: pointer;
     transition:
       background 0.15s ease,
@@ -536,62 +318,83 @@
   }
 
   .footer-toggle:hover {
-    background: var(--ws-btn-hover, #f4f8ff);
-    border-color: var(--ws-border-hover, #c6d5e8);
-    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
+    border-color: transparent;
   }
 
   .footer-toggle.active {
-    background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
-    border-color: var(--ws-border-active, #94a3b8);
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent);
+    border-color: transparent;
     color: var(--ws-text-strong, #0f172a);
   }
 
   .footer-toggle-icon {
-    width: 14px;
+    width: 12px;
     flex: 0 0 auto;
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1;
   }
 
   .footer-toggle-label {
     min-width: 0;
     flex: 1;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 700;
     text-align: left;
   }
 
   .footer-toggle-state {
     flex: 0 0 auto;
-    font-size: 10px;
+    font-size: 8px;
     font-weight: 800;
     letter-spacing: 0.06em;
     color: var(--ws-muted, #64748b);
   }
 
   .sidebar.compact .brand h1 {
-    font-size: 24px;
+    font-size: 19px;
   }
 
   .sidebar.compact .brand p {
-    font-size: 11px;
-    margin-top: 5px;
+    font-size: 9px;
+    margin-top: 3px;
   }
 
   @container (max-width: 230px) {
     .sidebar {
-      padding: 10px 8px;
-      gap: 8px;
+      padding: 8px 6px;
+      gap: 6px;
+    }
+
+    .sidebar-body {
+      gap: 6px;
+    }
+
+    .sidebar-section-divider {
+      height: 10px;
     }
 
     .brand p {
-      font-size: 11px;
-      margin-top: 4px;
+      font-size: 9px;
+      margin-top: 2px;
     }
 
     .sidebar-block {
-      padding: 8px;
+      padding: 0;
+    }
+
+    .footer-toggle {
+      min-height: 22px;
+      padding: 0 4px;
+    }
+
+    .footer-toggle-label,
+    .footer-toggle-state {
+      display: none;
+    }
+
+    .footer-toggle {
+      justify-content: center;
     }
   }
 

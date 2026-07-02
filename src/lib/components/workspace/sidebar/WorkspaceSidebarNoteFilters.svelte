@@ -12,18 +12,13 @@
     strings,
     collapsed = false,
     compact = false,
-    manualLayoutEnabled = false,
     blockStyle = "",
     sectionCollapsed = false,
     viewModes = [],
     viewMode,
     noteViewCounts = {},
-    noteTags = [],
-    selectedTag = "",
-    taggedNoteCount = 0,
     onToggleSectionCollapsed = () => {},
     onSetViewMode = () => {},
-    onSetSelectedTag = () => {},
   } = $props();
 
   const PRIMARY_VIEW_MODES = [WORKSPACE_NOTE_VIEW_ACTIVE, WORKSPACE_NOTE_VIEW_TODO, WORKSPACE_NOTE_VIEW_QUADRANT];
@@ -52,11 +47,10 @@
   class="note-filters-block"
   class:collapsed
   class:compact
-  class:manual-layout={manualLayoutEnabled}
   style={blockStyle}
 >
   <div class="sidebar-block-head">
-    <div class="block-title">{collapsed ? "•" : strings.workspaceNoteFilters}</div>
+    <div class="block-title">{strings.workspaceNoteFilters}</div>
     {#if compact && !collapsed}
       <button
         type="button"
@@ -95,62 +89,28 @@
           </button>
         {/each}
       </div>
-      {#if !collapsed}
-        <div class="tag-filter">
-          <div class="filter-label">{strings.workspaceTagsFilter}</div>
-          {#if noteTags.length === 0}
-            <div class="tag-empty">{strings.workspaceTagsEmpty}</div>
-          {:else}
-            <div class="tag-list">
-              <button
-                type="button"
-                class="tag-filter-btn"
-                class:active={selectedTag === ""}
-                onclick={() => onSetSelectedTag("")}
-              >
-                <span>{strings.workspaceTagsAll}</span>
-                <span class="view-count">{taggedNoteCount}</span>
-              </button>
-              {#each noteTags as item (item.tag)}
-                <button
-                  type="button"
-                  class="tag-filter-btn"
-                  class:active={selectedTag === item.tag}
-                  onclick={() => onSetSelectedTag(item.tag)}
-                  title={`#${item.tag}`}
-                >
-                  <span class="tag-name">#{item.tag}</span>
-                  <span class="view-count">{item.count}</span>
-                </button>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      {/if}
     </div>
   {/if}
 </div>
 
 <style>
   .note-filters-block {
-    border: 1px solid var(--ws-border, #dce5f3);
-    border-radius: 12px;
-    background: var(--ws-card-bg, #fdfefe);
-    padding: 10px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
     flex: 0 0 auto;
   }
 
-  .note-filters-block.manual-layout {
-    height: var(--manual-block-height, auto);
-    max-height: var(--manual-block-height, none);
-    overflow: hidden;
+  .note-filters-block.collapsed {
+    padding: 6px 0;
   }
 
-  .note-filters-block.collapsed {
-    padding: 8px 6px;
+  .note-filters-block.collapsed .block-title {
+    display: none;
   }
 
   .sidebar-block-head {
@@ -161,16 +121,16 @@
   }
 
   .block-title {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     color: var(--ws-muted, #64748b);
-    margin: 0 0 8px;
+    margin: 0 0 5px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
   .section-toggle {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 58%, transparent);
     border-radius: 8px;
     min-width: 22px;
     height: 22px;
@@ -184,21 +144,17 @@
 
   .view-sections {
     display: grid;
-    gap: 8px;
+    gap: 5px;
     min-height: 0;
-    max-height: var(--section-max-height, 240px);
-    overflow: auto;
-    padding-right: 2px;
-    scrollbar-width: thin;
-  }
-
-  .note-filters-block.manual-layout .view-sections {
-    height: var(--section-max-height, 240px);
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+    scrollbar-width: none;
   }
 
   .view-list {
     display: grid;
-    gap: 6px;
+    gap: 0;
   }
 
   .view-list-secondary .view-btn {
@@ -211,149 +167,68 @@
   }
 
   .view-btn {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fbfdff);
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: transparent;
     color: var(--ws-text, #334155);
     text-align: left;
-    padding: 10px 12px;
+    padding: 8px 8px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     transition: all 0.16s ease;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
   }
 
   .note-filters-block.collapsed .view-btn {
     text-align: center;
-    padding: 8px 4px;
-    font-size: 12px;
+    padding: 0 4px;
+    min-height: 34px;
+    font-size: 11px;
+    justify-content: center;
+    white-space: nowrap;
   }
 
   .note-filters-block.compact .view-btn {
-    padding: 8px 10px;
-    font-size: 12px;
-    gap: 8px;
+    padding: 6px 8px;
+    font-size: 11px;
+    gap: 6px;
   }
 
   .view-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
-    transform: translateX(2px);
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
   }
 
   .view-btn.active {
-    border-color: var(--ws-border-active, #94a3b8);
     color: var(--ws-text-strong, #0f172a);
-    background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent);
   }
 
   .view-count {
     display: inline-flex;
-    min-width: 22px;
-    padding: 2px 7px;
+    min-width: 21px;
+    padding: 1px 6px;
     border-radius: 999px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: var(--ws-card-bg, #fdfefe);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 40%, transparent);
+    background: transparent;
     color: var(--ws-muted, #64748b);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     justify-content: center;
     line-height: 1.1;
   }
 
-  .tag-filter {
-    display: grid;
-    gap: 6px;
-  }
-
-  .filter-label {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-    font-weight: 600;
-  }
-
-  .tag-empty {
-    border: 1px dashed var(--ws-border-soft, #d9e2ef);
-    border-radius: 9px;
-    color: var(--ws-muted, #64748b);
-    font-size: 11px;
-    line-height: 1.4;
-    padding: 8px;
-  }
-
-  .tag-list {
-    display: grid;
-    gap: 5px;
-    max-height: 160px;
-    overflow: auto;
-    padding-right: 3px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
-      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
-  }
-
-  .tag-list::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .tag-list::-webkit-scrollbar-track {
-    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 80%, transparent);
-    border-radius: 999px;
-  }
-
-  .tag-list::-webkit-scrollbar-thumb {
-    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
-    border-radius: 999px;
-  }
-
-  .tag-filter-btn {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 9px;
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    text-align: left;
-    padding: 8px 10px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-    transition: all 0.16s ease;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-
-  .tag-filter-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
-  }
-
-  .tag-filter-btn.active {
-    border-color: var(--ws-border-active, #94a3b8);
-    color: var(--ws-text-strong, #0f172a);
-    background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
-  }
-
-  .tag-name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   @container (max-width: 230px) {
     .note-filters-block {
-      padding: 8px;
+      padding: 0;
     }
 
     .view-btn {
-      font-size: 12px;
-      padding: 7px 9px;
+      font-size: 11px;
+      padding: 6px 8px;
     }
   }
 </style>

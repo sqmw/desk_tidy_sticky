@@ -160,11 +160,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    border: 1px solid var(--ws-border, #dbe5f2);
-    border-radius: 14px;
-    padding: 8px 10px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 92%, transparent);
-    backdrop-filter: blur(8px);
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
     cursor: all-scroll;
     user-select: none;
   }
@@ -217,10 +216,10 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d8e2ef) 78%, transparent);
-    border-radius: 12px;
-    padding: 2px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.92)) 70%, transparent);
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
   }
 
   .window-bar.compact .action-cluster {
@@ -233,9 +232,9 @@
   }
 
   .bar-btn {
-    border: 1px solid var(--ws-border-soft, #d8e2ef);
-    border-radius: 9px;
-    background: var(--ws-btn-bg, #fff);
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: transparent;
     color: var(--ws-text, #334155);
     font-size: 13px;
     height: 36px;
@@ -258,8 +257,8 @@
   }
 
   .bar-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
+    border-color: transparent;
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
     transform: translateY(-1px);
   }
 
@@ -291,13 +290,13 @@
 
   .window-cluster:not(.mac-traffic) .close-btn {
     color: color-mix(in srgb, #d14343 72%, var(--ws-text, #334155));
-    border-color: color-mix(in srgb, #ef9aa2 56%, var(--ws-border-soft, #d8e2ef));
+    border-color: transparent;
   }
 
   .window-cluster:not(.mac-traffic) .close-btn:hover {
     color: #b4232d;
-    border-color: color-mix(in srgb, #ef4444 66%, var(--ws-border-hover, #c6d5e8));
-    background: color-mix(in srgb, #ef4444 12%, var(--ws-btn-hover, #f4f8ff));
+    border-color: transparent;
+    background: color-mix(in srgb, #ef4444 10%, transparent);
   }
 
   @media (max-width: 920px) {

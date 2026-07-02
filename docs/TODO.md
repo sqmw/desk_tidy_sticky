@@ -58,6 +58,14 @@
 
 ## Done
 
+### 2026-07-02：Resolve break reminder collision priority
+
+结果：长休和短休在同一时刻到点时统一优先长休，前端 tick、进度展示与 Rust watchdog 的到点选择收敛到同一条规则；长休开始后短休按新的专注起点重新计时，不会在长休结束后立刻补发短休。2026-07-02 补充修正：到点判定不到点时返回空，避免跳过或自动结束后立刻重新提示休息。
+
+验证：`node --input-type=module` 断言，`make check`，`make build`，`git diff --check`。
+
+关联文档：`docs/ui/2026-02-17-break-control-simplification.md`
+
 ### 2026-06-29：Apply sticky text color to selected text
 
 结果：便笺工具栏 `A` 文字色按钮不再只能修改整张贴纸默认文字色。当前 active block 有选中文字时，颜色会写入 Markdown 正文的安全 `<span style="color: ...">...</span>` 并提交当前块；没有选区时仍 fallback 到原有 `textColor` 字段，保留整体默认文字色能力。后续修正：active block 编辑态会隐藏我们生成的 color `span` 标签，只显示真实内容文本，提交时再序列化回 Markdown。

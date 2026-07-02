@@ -24,6 +24,23 @@ fn now_unix_ms() -> i64 {
         .unwrap_or(0)
 }
 
+fn resolve_break_due_kind(
+    long_due_at_ms: i64,
+    mini_due_at_ms: i64,
+    now_ms: i64,
+) -> Option<(&'static str, i64)> {
+    if long_due_at_ms <= 0 && mini_due_at_ms <= 0 {
+        return None;
+    }
+    if long_due_at_ms > 0 && now_ms >= long_due_at_ms {
+        return Some(("long", long_due_at_ms));
+    }
+    if mini_due_at_ms > 0 && now_ms >= mini_due_at_ms {
+        return Some(("mini", mini_due_at_ms));
+    }
+    None
+}
+
 pub fn process_break_reminder_due(
     app_handle: &tauri::AppHandle,
     state: &BreakReminderWatchState,
@@ -33,21 +50,19 @@ pub fn process_break_reminder_due(
         return Ok(false);
     }
     let now_ms = now_unix_ms();
-    let due = if snapshot.long_due_at_ms > 0 && now_ms >= snapshot.long_due_at_ms {
-        Some(("long".to_string(), snapshot.long_due_at_ms))
-    } else if snapshot.mini_due_at_ms > 0 && now_ms >= snapshot.mini_due_at_ms {
-        Some(("mini".to_string(), snapshot.mini_due_at_ms))
-    } else {
-        None
-    };
-    let Some((kind, due_at_ms)) = due else {
+    let Some((kind, due_at_ms)) =
+        resolve_break_due_kind(snapshot.long_due_at_ms, snapshot.mini_due_at_ms, now_ms)
+    else {
         return Ok(false);
     };
     if !state.mark_emitted(due_at_ms)? {
         return Ok(false);
     }
     ensure_hidden_workspace_runtime_window(app_handle);
-    let payload = BreakReminderDuePayload { kind, due_at_ms };
+    let payload = BreakReminderDuePayload {
+        kind: kind.to_string(),
+        due_at_ms,
+    };
     app_handle
         .emit("focus_break_due", payload)
         .map_err(|error| error.to_string())?;

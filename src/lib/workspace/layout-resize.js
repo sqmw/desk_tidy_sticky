@@ -3,7 +3,7 @@
  * @param {{ min?: number; max?: number }} [opts]
  */
 export function calcSidebarWidth(clientX, opts = {}) {
-  const min = opts.min ?? 86;
+  const min = opts.min ?? 72;
   const max = opts.max ?? 260;
   return Math.max(min, Math.min(max, Math.round(clientX)));
 }

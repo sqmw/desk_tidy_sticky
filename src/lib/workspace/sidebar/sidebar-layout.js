@@ -9,14 +9,14 @@ function clamp(value, min, max) {
 export function resolveSidebarLayout(input) {
   const safeViewportWidth = Math.max(320, Number(input.viewportWidth || 0));
   const safeViewportHeight = Math.max(420, Number(input.viewportHeight || 0));
-  const safeSidebarWidth = clamp(Number(input.sidebarWidth || 0), 86, 360);
+  const safeSidebarWidth = clamp(Number(input.sidebarWidth || 0), 72, 360);
   const safeUiScale = clamp(Number(input.uiScale || 1), 0.75, 1.5);
   const designWidth = safeViewportWidth / safeUiScale;
   const designHeight = safeViewportHeight / safeUiScale;
   const effectiveSidebarWidth = safeSidebarWidth;
   const compact =
     designWidth <= 1320 ||
-    effectiveSidebarWidth <= 252 ||
+    effectiveSidebarWidth <= 220 ||
     designHeight <= 760;
 
   const viewSectionMaxHeight = compact

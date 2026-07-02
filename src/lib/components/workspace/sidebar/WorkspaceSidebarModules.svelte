@@ -6,78 +6,105 @@
     mainTab,
     onSetMainTab = () => {},
   } = $props();
+
+  /** @param {string} label */
+  function getCollapsedLabel(label) {
+    return label ? Array.from(label).slice(0, 2).join("") : "•";
+  }
 </script>
 
-<div class="block-title">{collapsed ? "•" : strings.workspaceModules}</div>
-<div class="main-tabs">
+<div class="block-title">{strings.workspaceModules}</div>
+<div class="main-nav-list">
   {#each mainTabs as tab (tab.key)}
     <button
       type="button"
-      class="main-tab-btn"
+      class="main-nav-row"
       class:active={mainTab === tab.key}
       onclick={() => onSetMainTab(tab.key)}
       title={tab.label}
     >
-      {collapsed ? tab.label.slice(0, 1) : tab.label}
+      {collapsed ? getCollapsedLabel(tab.label) : tab.label}
     </button>
   {/each}
 </div>
 
 <style>
   .block-title {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     color: var(--ws-muted, #64748b);
-    margin: 0 0 8px;
+    margin: 0 0 5px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
-  .main-tabs {
+  .main-nav-list {
     display: grid;
-    gap: 6px;
+    gap: 0;
   }
 
-  .main-tab-btn {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fbfdff);
+  .main-nav-row {
+    position: relative;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
     color: var(--ws-text, #334155);
     text-align: left;
-    padding: 9px 12px;
+    padding: 8px 10px 8px 12px;
     cursor: pointer;
     font-size: 13px;
     font-weight: 700;
-    transition: all 0.16s ease;
+    transition: background 0.16s ease, color 0.16s ease;
   }
 
-  .main-tab-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
-    transform: translateX(2px);
+  .main-nav-row:hover {
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
   }
 
-  .main-tab-btn.active {
-    border-color: var(--ws-border-active, #94a3b8);
+  .main-nav-row.active {
     color: var(--ws-text-strong, #0f172a);
-    background: var(--ws-btn-active, linear-gradient(180deg, #edf2fb 0%, #e2e8f0 100%));
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent);
   }
 
-  :global(.sidebar.collapsed) .main-tab-btn {
+  .main-nav-row.active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    border-radius: 999px;
+    background: var(--ws-accent, #1d4ed8);
+  }
+
+  :global(.sidebar.collapsed) .main-nav-row {
     text-align: center;
-    padding: 8px 4px;
+    padding: 0 4px;
+    min-height: 34px;
+    font-size: 11px;
+    white-space: nowrap;
+    word-break: keep-all;
+    letter-spacing: 0;
+    justify-content: center;
+  }
+
+  :global(.sidebar.collapsed) .main-nav-row.active::before {
+    display: none;
+  }
+
+  :global(.sidebar.compact) .main-nav-row {
+    padding: 7px 9px 7px 11px;
     font-size: 12px;
   }
 
-  :global(.sidebar.compact) .main-tab-btn {
-    padding: 8px 10px;
-    font-size: 12px;
+  :global(.sidebar.collapsed) .block-title {
+    display: none;
   }
 
   @container (max-width: 230px) {
-    .main-tab-btn {
-      font-size: 12px;
-      padding: 7px 9px;
+    .main-nav-row {
+      font-size: 11px;
+      padding: 6px 8px;
     }
   }
 </style>

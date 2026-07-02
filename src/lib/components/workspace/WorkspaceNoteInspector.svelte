@@ -55,9 +55,9 @@
 
 <style>
   .inspector {
-    border: 1px solid var(--ws-border, #dbe5f2);
-    border-radius: 12px;
-    background: var(--ws-card-bg, #fff);
+    border: none;
+    border-radius: 0;
+    background: transparent;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -69,7 +69,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    border-bottom: 1px solid var(--ws-border-soft, #dbe4f0);
+    border-bottom: 1px solid color-mix(in srgb, var(--ws-border-soft, #dbe4f0) 60%, transparent);
     padding: 10px 12px;
   }
 
@@ -98,9 +98,9 @@
   }
 
   .btn {
-    border: 1px solid var(--ws-border-soft, #dbe4ef);
-    border-radius: 8px;
-    background: var(--ws-btn-bg, #fbfdff);
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: transparent;
     color: var(--ws-text, #334155);
     font-size: 12px;
     padding: 6px 9px;
@@ -108,8 +108,8 @@
   }
 
   .btn.danger {
-    border-color: var(--ws-border-soft, #dbe4ef);
-    background: var(--ws-btn-bg, #fbfdff);
+    border-color: transparent;
+    background: transparent;
     color: var(--ws-text, #334155);
   }
 
@@ -129,7 +129,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 12px;
+    padding: 8px 0 0;
     scrollbar-width: thin;
     scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
       var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
@@ -154,7 +154,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    padding: 10px 12px 0;
+    padding: 10px 0 0;
     overflow: auto;
   }
 </style>

@@ -41,6 +41,7 @@
   import WorkspaceWindowBar from "$lib/components/workspace/WorkspaceWindowBar.svelte";
   import WorkspaceSidebar from "$lib/components/workspace/WorkspaceSidebar.svelte";
   import WorkspaceToolbar from "$lib/components/workspace/WorkspaceToolbar.svelte";
+  import WorkspaceTagFilterRail from "$lib/components/workspace/WorkspaceTagFilterRail.svelte";
   import WorkspaceNoteInspector from "$lib/components/workspace/WorkspaceNoteInspector.svelte";
   import WorkspaceSettingsDialog from "$lib/components/workspace/WorkspaceSettingsDialog.svelte";
   import WorkspaceReviewHub from "$lib/components/workspace/review/WorkspaceReviewHub.svelte";
@@ -94,6 +95,7 @@
   let initialViewMode = $state("last");
   let searchQuery = $state("");
   let selectedTag = $state("");
+  let tagFilterCollapsed = $state(true);
   /** @type {string} */
   let locale = $state(resolveAppLocale());
   let newNoteText = $state("");
@@ -180,7 +182,7 @@
     independentMiniBreakEveryMinutes: 10,
     independentLongBreakEveryMinutes: 30,
   });
-  let sidebarCollapsed = $derived(sidebarWidth <= 104);
+  let sidebarCollapsed = $derived(sidebarWidth <= 92);
   const isMac =
     typeof navigator !== "undefined" &&
     /mac/i.test(String(navigator.userAgent || navigator.platform || ""));
@@ -863,21 +865,13 @@
     {viewMode}
     collapsed={sidebarCollapsed}
     compact={sidebarCompact}
-    sidebarLayoutMode={workspaceSidebarLayoutMode}
-    sidebarManualSplitRatio={workspaceSidebarManualSplitRatio}
     viewSectionMaxHeight={sidebarLayout.viewSectionMaxHeight}
     deadlineSectionMaxHeight={sidebarLayout.deadlineSectionMaxHeight}
-    onSidebarManualSplitRatioInput={handleSidebarManualSplitRatioInput}
-    onSidebarManualSplitRatioCommit={handleSidebarManualSplitRatioCommit}
     onDragStart={startWorkspaceDragPointer}
     onSetMainTab={setMainTab}
     onSetViewMode={setViewMode}
-    onSetSelectedTag={setSelectedTag}
     {showMacTrafficLights}
     {noteViewCounts}
-    noteTags={noteTagEntries}
-    {selectedTag}
-    taggedNoteCount={taggedNoteCount}
     {stickiesVisible}
     {globalControlDisabled}
     focusDeadlines={deadlineTasks}
@@ -913,7 +907,10 @@
         bind:newNotePriority
         bind:newNoteTags
         {noteTagOptions}
+        {selectedTag}
+        tagFilterOpen={!tagFilterCollapsed}
         bind:searchQuery
+        onToggleTagFilter={() => (tagFilterCollapsed = !tagFilterCollapsed)}
         onCreateNote={createNoteFromWorkspaceComposer}
       />
 
@@ -921,6 +918,7 @@
         class="workbench-shell"
         class:inspector-open={inspectorOpen}
         class:list-collapsed={inspectorListCollapsed}
+        class:tag-filter-open={!tagFilterCollapsed}
         bind:this={workbenchShellEl}
         style={`--inspector-width: ${inspectorWidth}px;`}
       >
@@ -945,6 +943,15 @@
             {persistReorderedVisible}
           />
         </div>
+        {#if !tagFilterCollapsed}
+          <WorkspaceTagFilterRail
+            {strings}
+            noteTags={noteTagEntries}
+            {selectedTag}
+            {taggedNoteCount}
+            onSetSelectedTag={setSelectedTag}
+          />
+        {/if}
         {#if inspectorOpen && inspectorNote}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
@@ -1026,7 +1033,6 @@
   themeCustomCss={workspaceCustomCss}
   zoomOption={workspaceZoomOption}
   fontSize={workspaceFontSize}
-  sidebarLayoutMode={workspaceSidebarLayoutMode}
   onChangeLanguage={setLanguage}
   {toggleAutostart}
   onSavePrefs={savePrefs}
@@ -1057,7 +1063,6 @@
   onResetThemeCustomCss={resetWorkspaceCustomCss}
   onChangeZoomOption={setWorkspaceZoomOption}
   onChangeFontSize={setWorkspaceFontSize}
-  onChangeSidebarLayoutMode={setWorkspaceSidebarLayoutMode}
 />
 
 <svelte:window
@@ -1212,15 +1217,28 @@
     flex: 1;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
+    gap: 10px;
+    position: relative;
+  }
+
+  .workbench-shell.tag-filter-open {
+    grid-template-columns: minmax(0, 1fr) minmax(132px, 176px);
   }
 
   .workbench-shell.inspector-open {
     grid-template-columns: minmax(0, 1fr) 8px minmax(340px, var(--inspector-width, 430px));
   }
 
+  .workbench-shell.inspector-open.tag-filter-open {
+    grid-template-columns: minmax(0, 1fr) minmax(128px, 164px) 8px minmax(340px, var(--inspector-width, 430px));
+  }
+
   .workbench-shell.inspector-open.list-collapsed {
     grid-template-columns: 0 8px minmax(340px, 1fr);
+  }
+
+  .workbench-shell.list-collapsed :global(.tag-filter-rail) {
+    display: none;
   }
 
   .inspector-splitter {
@@ -1279,9 +1297,9 @@
   }
 
   .workspace :global(.sidebar .block-title),
-  .workspace :global(.sidebar .main-tab-btn),
+  .workspace :global(.sidebar .main-nav-row),
   .workspace :global(.sidebar .view-btn),
-  .workspace :global(.sidebar .tag-filter-btn),
+  .workspace :global(.tag-filter-rail .tag-filter-btn),
   .workspace :global(.sidebar .initial-view-label),
   .workspace :global(.sidebar .initial-view-select),
   .workspace :global(.sidebar .ghost-btn),
@@ -1370,11 +1388,11 @@
     top: 46%;
     left: 50%;
     width: var(--splitter-visual-width);
-    height: 70px;
+    height: 48px;
     transform: translate(-50%, -50%);
     border-radius: 999px;
     background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 72%, transparent);
-    opacity: 0.92;
+    opacity: 0;
     transition: background 0.15s ease, opacity 0.15s ease;
     pointer-events: none;
     cursor: inherit;
@@ -1382,7 +1400,7 @@
 
   .sidebar-splitter:hover::after {
     background: color-mix(in srgb, var(--ws-border-active, #94a3b8) 45%, transparent);
-    opacity: 1;
+    opacity: 0.72;
   }
 
   @media (max-width: 920px) {
@@ -1396,6 +1414,10 @@
 
     .workbench-shell.inspector-open {
       grid-template-columns: minmax(0, 1fr);
+    }
+
+    .workbench-shell.list-collapsed :global(.tag-filter-rail) {
+      display: grid;
     }
 
     .inspector-splitter {

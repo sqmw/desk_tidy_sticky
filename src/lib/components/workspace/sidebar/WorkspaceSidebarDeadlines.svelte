@@ -3,7 +3,6 @@
     strings,
     collapsed = false,
     compact = false,
-    manualLayoutEnabled = false,
     blockStyle = "",
     sectionCollapsed = false,
     focusDeadlines = [],
@@ -53,7 +52,6 @@
   class="deadline-block"
   class:collapsed
   class:compact
-  class:manual-layout={manualLayoutEnabled}
   style={blockStyle}
 >
   <div class="sidebar-block-head">
@@ -127,24 +125,18 @@
 
 <style>
   .deadline-block {
-    border: 1px solid var(--ws-border, #dce5f3);
-    border-radius: 12px;
-    background: var(--ws-card-bg, #fdfefe);
-    padding: 10px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
     min-height: 0;
     display: flex;
     flex-direction: column;
     flex: 0 0 auto;
   }
 
-  .deadline-block.manual-layout {
-    height: var(--manual-block-height, auto);
-    max-height: var(--manual-block-height, none);
-    overflow: hidden;
-  }
-
   .deadline-block.collapsed {
-    padding: 8px 6px;
+    padding: 6px 0;
   }
 
   .sidebar-block-head {
@@ -155,21 +147,21 @@
   }
 
   .block-title {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     color: var(--ws-muted, #64748b);
-    margin: 0 0 8px;
+    margin: 0 0 5px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
 
   .section-toggle {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 8px;
+    border: 1px solid transparent;
+    border-radius: 0;
     min-width: 22px;
     height: 22px;
     padding: 0;
-    background: var(--ws-btn-bg, #fbfdff);
+    background: transparent;
     color: var(--ws-muted, #64748b);
     font-size: 12px;
     line-height: 1;
@@ -177,75 +169,46 @@
   }
 
   .deadline-empty {
-    border: 1px dashed var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
+    border: 1px solid transparent;
+    border-radius: 0;
     color: var(--ws-muted, #64748b);
     font-size: 12px;
     line-height: 1.45;
-    padding: 10px;
+    padding: 8px;
   }
 
   .deadline-count {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     text-align: center;
     color: var(--ws-text-strong, #0f172a);
-    border: 1px dashed var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    padding: 8px 0;
+    border: 1px solid transparent;
+    border-radius: 0;
+    padding: 6px 0;
   }
 
   .deadline-list {
     display: grid;
     align-content: start;
     grid-auto-rows: max-content;
-    gap: 6px;
+    gap: 4px;
     min-height: 0;
-    max-height: var(--section-max-height, 320px);
+    max-height: none;
     flex: 0 0 auto;
-    overflow: auto;
-    padding-right: 4px;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
-    scrollbar-color: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45))
-      var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14));
-  }
-
-  .deadline-block.manual-layout .deadline-list {
-    height: var(--section-max-height, 320px);
+    overflow: visible;
+    padding-right: 0;
+    scrollbar-width: none;
   }
 
   .deadline-list::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .deadline-list::-webkit-scrollbar-button {
-    width: 0;
-    height: 0;
     display: none;
   }
 
-  .deadline-list::-webkit-scrollbar-track {
-    background: color-mix(in srgb, var(--ws-scrollbar-track, rgba(148, 163, 184, 0.14)) 70%, transparent);
-    border-radius: 999px;
-  }
-
-  .deadline-list::-webkit-scrollbar-thumb {
-    background: var(--ws-scrollbar-thumb, rgba(71, 85, 105, 0.45));
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.86)) 80%, transparent);
-  }
-
-  .deadline-list::-webkit-scrollbar-thumb:hover {
-    background: var(--ws-scrollbar-thumb-hover, rgba(51, 65, 85, 0.62));
-  }
-
   .deadline-item {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    padding: 8px;
-    background: var(--ws-btn-bg, #fbfdff);
+    border: 1px solid transparent;
+    border-radius: 0;
+    padding: 6px 0 6px 5px;
+    background: transparent;
     min-width: 0;
     width: 100%;
     text-align: left;
@@ -257,19 +220,17 @@
   }
 
   .deadline-item:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
-    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
   }
 
   .deadline-item.overdue {
-    border-color: color-mix(in srgb, #ef4444 45%, var(--ws-border-soft, #d9e2ef));
-    background: color-mix(in srgb, #ef4444 10%, var(--ws-btn-bg, #fbfdff));
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, #ef4444 24%, transparent);
+    border-color: transparent;
+    background: color-mix(in srgb, #ef4444 8%, transparent);
+    box-shadow: none;
   }
 
   .deadline-title {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--ws-text, #334155);
     white-space: nowrap;
@@ -285,13 +246,13 @@
   }
 
   .deadline-state {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 34%, transparent);
     border-radius: 999px;
-    padding: 2px 7px;
-    font-size: 10px;
+    padding: 1px 6px;
+    font-size: 9px;
     font-weight: 700;
     color: var(--ws-muted, #64748b);
-    background: var(--ws-card-bg, #fdfefe);
+    background: transparent;
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
@@ -300,8 +261,8 @@
 
   .deadline-state.overdue {
     color: #b91c1c;
-    border-color: color-mix(in srgb, #ef4444 55%, var(--ws-border-soft, #d9e2ef));
-    background: color-mix(in srgb, #ef4444 12%, var(--ws-card-bg, #fdfefe));
+    border-color: color-mix(in srgb, #ef4444 42%, var(--ws-border-soft, #d9e2ef));
+    background: color-mix(in srgb, #ef4444 6%, transparent);
   }
 
   .deadline-alert-dot {
@@ -314,59 +275,58 @@
   }
 
   .deadline-meta {
-    margin-top: 4px;
+    margin-top: 3px;
     display: flex;
     justify-content: space-between;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-  }
-
-  .deadline-progress-row {
-    margin-top: 6px;
-    display: flex;
-    justify-content: flex-start;
     gap: 6px;
     font-size: 10px;
     color: var(--ws-muted, #64748b);
   }
 
+  .deadline-progress-row {
+    margin-top: 4px;
+    display: flex;
+    justify-content: flex-start;
+    gap: 6px;
+    font-size: 9px;
+    color: var(--ws-muted, #64748b);
+  }
+
   .deadline-actions {
-    margin-top: 7px;
+    margin-top: 5px;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    gap: 4px;
   }
 
   .deadline-action-btn {
     flex: 1;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 8px;
-    background: var(--ws-btn-bg, #fbfdff);
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: transparent;
     color: var(--ws-text, #334155);
     font-size: 11px;
     font-weight: 700;
-    min-height: 26px;
+    min-height: 22px;
     cursor: pointer;
     transition: all 0.14s ease;
   }
 
   .deadline-action-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
+    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
   }
 
   .deadline-block.compact .deadline-item {
-    padding: 7px;
+    padding: 6px;
   }
 
   .deadline-block.compact .deadline-actions {
-    gap: 5px;
+    gap: 4px;
   }
 
   .deadline-block.compact .deadline-action-btn {
-    min-height: 24px;
-    font-size: 10px;
+    min-height: 20px;
+    font-size: 9px;
   }
 
   @keyframes deadline-overdue-pulse {
@@ -383,7 +343,7 @@
 
   @container (max-width: 230px) {
     .deadline-block {
-      padding: 8px;
+      padding: 0;
     }
 
     .deadline-title {
@@ -396,8 +356,8 @@
     }
 
     .deadline-action-btn {
-      min-height: 24px;
-      font-size: 10px;
+      min-height: 20px;
+      font-size: 9px;
     }
   }
 </style>

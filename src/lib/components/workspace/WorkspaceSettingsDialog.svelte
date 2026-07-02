@@ -24,7 +24,6 @@
     pomodoroFocusMinutes = 25,
     zoomOption = "auto",
     fontSize = "medium",
-    sidebarLayoutMode = "auto",
     themePreset = "light",
     themeTransitionShape = "circle",
     themePresetOptions = [],
@@ -49,7 +48,6 @@
     onResetThemeCustomCss = () => {},
     onChangeZoomOption = () => {},
     onChangeFontSize = () => {},
-    onChangeSidebarLayoutMode = () => {},
     themeDark = false,
     themeVarStyle = "",
   } = $props();
@@ -189,10 +187,8 @@
           {strings}
           {zoomOption}
           {fontSize}
-          {sidebarLayoutMode}
           {onChangeZoomOption}
           {onChangeFontSize}
-          onChangeSidebarLayoutMode={onChangeSidebarLayoutMode}
         />
 
         <FeedbackQrCard {strings} variant="workspace" />
@@ -260,10 +256,10 @@
   .settings-dialog {
     width: min(820px, 100%);
     max-height: min(90vh, 960px);
-    border: 1px solid var(--ws-border, #dce5f3);
-    border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--ws-border, #dce5f3) 70%, transparent);
+    border-radius: 10px;
     background: var(--ws-panel-bg, rgba(255, 255, 255, 0.96));
-    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.26);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
     overflow: hidden;
   }
 
@@ -273,7 +269,7 @@
     justify-content: space-between;
     gap: 10px;
     padding: 14px 16px;
-    border-bottom: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 90%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 70%, transparent);
   }
 
   .dialog-head h3 {
@@ -283,9 +279,9 @@
   }
 
   .close-btn {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 10px;
-    background: var(--ws-btn-bg, #fbfdff);
+    border: 1px solid transparent;
+    border-radius: 0;
+    background: transparent;
     color: var(--ws-text, #334155);
     font-size: 12px;
     font-weight: 700;
@@ -297,7 +293,7 @@
   .dialog-body {
     padding: 16px 18px 18px;
     display: grid;
-    gap: 14px;
+    gap: 12px;
     max-height: calc(min(90vh, 960px) - 72px);
     overflow: auto;
   }
