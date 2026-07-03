@@ -13,11 +13,9 @@
     collapsed = false,
     compact = false,
     blockStyle = "",
-    sectionCollapsed = false,
     viewModes = [],
     viewMode,
     noteViewCounts = {},
-    onToggleSectionCollapsed = () => {},
     onSetViewMode = () => {},
   } = $props();
 
@@ -36,11 +34,6 @@
     return Number.isFinite(value) ? value : 0;
   }
 
-  /** @param {boolean} value */
-  function sectionToggleIcon(value) {
-    return value ? "▸" : "▾";
-  }
-
 </script>
 
 <div
@@ -51,46 +44,34 @@
 >
   <div class="sidebar-block-head">
     <div class="block-title">{strings.workspaceNoteFilters}</div>
-    {#if compact && !collapsed}
-      <button
-        type="button"
-        class="section-toggle"
-        onclick={() => onToggleSectionCollapsed()}
-        aria-label={strings.workspaceNoteFilters}
-      >
-        {sectionToggleIcon(sectionCollapsed)}
-      </button>
-    {/if}
   </div>
-  {#if !compact || !sectionCollapsed || collapsed}
-    <div class="view-sections">
-      <div class="view-list">
-        {#each primaryViewModes as mode}
-          <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
-            {#if collapsed}
-              <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
-            {:else}
-              <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
-              <span class="view-count">{viewCount(mode)}</span>
-            {/if}
-          </button>
-        {/each}
-      </div>
-      <div class="view-separator"></div>
-      <div class="view-list view-list-secondary">
-        {#each secondaryViewModes as mode}
-          <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
-            {#if collapsed}
-              <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
-            {:else}
-              <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
-              <span class="view-count">{viewCount(mode)}</span>
-            {/if}
-          </button>
-        {/each}
-      </div>
+  <div class="view-sections">
+    <div class="view-list">
+      {#each primaryViewModes as mode}
+        <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
+          {#if collapsed}
+            <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
+          {:else}
+            <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
+            <span class="view-count">{viewCount(mode)}</span>
+          {/if}
+        </button>
+      {/each}
     </div>
-  {/if}
+    <div class="view-separator"></div>
+    <div class="view-list view-list-secondary">
+      {#each secondaryViewModes as mode}
+        <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
+          {#if collapsed}
+            <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
+          {:else}
+            <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
+            <span class="view-count">{viewCount(mode)}</span>
+          {/if}
+        </button>
+      {/each}
+    </div>
+  </div>
 </div>
 
 <style>
@@ -127,19 +108,6 @@
     margin: 0 0 5px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-  }
-
-  .section-toggle {
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 58%, transparent);
-    border-radius: 8px;
-    min-width: 22px;
-    height: 22px;
-    padding: 0;
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-muted, #64748b);
-    font-size: 12px;
-    line-height: 1;
-    cursor: pointer;
   }
 
   .view-sections {

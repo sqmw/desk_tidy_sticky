@@ -33,19 +33,12 @@
 
   const mainTabs = $derived(getWorkspaceMainTabDefs(strings));
 
-  let noteFiltersCollapsed = $state(false);
-  let deadlinesCollapsed = $state(false);
   const noteFiltersBlockStyle = $derived.by(() =>
     `--section-max-height:${viewSectionMaxHeight}px;`,
   );
   const deadlineBlockStyle = $derived.by(() =>
     `--section-max-height:${deadlineSectionMaxHeight}px;`,
   );
-
-  /** @param {boolean} value */
-  function sectionToggleIcon(value) {
-    return value ? "▸" : "▾";
-  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -82,11 +75,9 @@
         {collapsed}
         {compact}
         blockStyle={noteFiltersBlockStyle}
-        sectionCollapsed={noteFiltersCollapsed}
         {viewModes}
         {viewMode}
         {noteViewCounts}
-        onToggleSectionCollapsed={() => (noteFiltersCollapsed = !noteFiltersCollapsed)}
         {onSetViewMode}
       />
     {:else if mainTab === WORKSPACE_MAIN_TAB_FOCUS}
@@ -95,9 +86,7 @@
         {collapsed}
         {compact}
         blockStyle={deadlineBlockStyle}
-        sectionCollapsed={deadlinesCollapsed}
         {focusDeadlines}
-        onToggleSectionCollapsed={() => (deadlinesCollapsed = !deadlinesCollapsed)}
         {onDeadlineAction}
       />
     {/if}

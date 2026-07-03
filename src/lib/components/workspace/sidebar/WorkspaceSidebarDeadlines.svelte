@@ -4,9 +4,7 @@
     collapsed = false,
     compact = false,
     blockStyle = "",
-    sectionCollapsed = false,
     focusDeadlines = [],
-    onToggleSectionCollapsed = () => {},
     onDeadlineAction = () => {},
   } = $props();
 
@@ -31,11 +29,6 @@
     return `${strings.pomodoroTaskRounds || "Task rounds"} x${Math.max(0, Number(item.taskCycles || 0))}`;
   }
 
-  /** @param {boolean} value */
-  function sectionToggleIcon(value) {
-    return value ? "▸" : "▾";
-  }
-
   /**
    * @param {KeyboardEvent} event
    * @param {string} id
@@ -55,22 +48,10 @@
   style={blockStyle}
 >
   <div class="sidebar-block-head">
-    <div class="block-title">{collapsed ? "•" : strings.workspaceDeadlineTitle}</div>
-    {#if compact && !collapsed}
-      <button
-        type="button"
-        class="section-toggle"
-        onclick={() => onToggleSectionCollapsed()}
-        aria-label={strings.workspaceDeadlineTitle}
-      >
-        {sectionToggleIcon(sectionCollapsed)}
-      </button>
-    {/if}
+    <div class="block-title">{strings.workspaceDeadlineTitle}</div>
   </div>
-  {#if !compact || !sectionCollapsed || collapsed}
-    {#if collapsed}
-      <div class="deadline-count">{focusDeadlines.length}</div>
-    {:else if focusDeadlines.length === 0}
+  {#if !collapsed}
+    {#if focusDeadlines.length === 0}
       <div class="deadline-empty">{strings.workspaceDeadlineEmpty}</div>
     {:else}
       <div class="deadline-list">
@@ -136,7 +117,11 @@
   }
 
   .deadline-block.collapsed {
-    padding: 6px 0;
+    display: none;
+  }
+
+  .deadline-block.collapsed .block-title {
+    display: none;
   }
 
   .sidebar-block-head {
@@ -155,19 +140,6 @@
     letter-spacing: 0.04em;
   }
 
-  .section-toggle {
-    border: 1px solid transparent;
-    border-radius: 0;
-    min-width: 22px;
-    height: 22px;
-    padding: 0;
-    background: transparent;
-    color: var(--ws-muted, #64748b);
-    font-size: 12px;
-    line-height: 1;
-    cursor: pointer;
-  }
-
   .deadline-empty {
     border: 1px solid transparent;
     border-radius: 0;
@@ -175,16 +147,6 @@
     font-size: 12px;
     line-height: 1.45;
     padding: 8px;
-  }
-
-  .deadline-count {
-    font-size: 16px;
-    font-weight: 700;
-    text-align: center;
-    color: var(--ws-text-strong, #0f172a);
-    border: 1px solid transparent;
-    border-radius: 0;
-    padding: 6px 0;
   }
 
   .deadline-list {
