@@ -1,6 +1,6 @@
 [package]
 name = "desk_tidy_sticky"
-version = "1.2.2"
+version = "1.2.3"
 description = "Cross-platform desktop stickies and focus workstation."
 authors = ["Desk Tidy Sticky Contributors"]
 license = "MIT"
