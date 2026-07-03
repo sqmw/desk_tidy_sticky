@@ -17,10 +17,11 @@
 关联文档：
 
 - `docs/ui/2026-06-29-workstation-ui-cleanup.md`
+- `docs/ui/2026-07-03-workstation-right-pane-grid-polish.md`
 
 当前下一步：
 
-1. 用户确认 workstation 视觉与交互是否符合预期。
+1. 用户确认右侧轻量卡片边界、网格间距和顶部创建/搜索区主次是否符合预期。
 2. 若确认无误，再进入提交。
 
 ### Single Active Block Editor

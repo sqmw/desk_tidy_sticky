@@ -35,24 +35,24 @@
 <style>
   .toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
-    gap: 8px;
+    grid-template-columns: minmax(420px, 1fr) minmax(220px, 320px);
+    gap: 10px;
     border: none;
     border-radius: 0;
     padding: 0;
     background: transparent;
-    align-items: center;
+    align-items: start;
   }
 
   .toolbar.compact {
-    grid-template-columns: 1fr;
-    padding: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 280px);
+    padding: 0;
     gap: 7px;
   }
 
   @media (max-width: 1100px) {
     .toolbar {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 </style>

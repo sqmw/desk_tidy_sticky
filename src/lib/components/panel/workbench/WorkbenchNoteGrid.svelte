@@ -242,34 +242,43 @@
 <style>
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(278px, 1fr));
-    gap: 18px 24px;
-    grid-auto-rows: 176px;
-    padding: 2px 2px 24px;
+    grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+    gap: 16px;
+    grid-auto-rows: 184px;
+    padding: 2px 2px 28px;
   }
 
   .card {
     position: relative;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    padding: 2px 2px 24px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 72%, transparent);
+    border-radius: 8px;
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--ws-card-bg, #ffffff) 96%, transparent) 0%,
+        color-mix(in srgb, var(--ws-card-bg, #ffffff) 90%, transparent) 100%
+      );
+    padding: 14px 14px 42px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 11px;
     min-height: 0;
     height: 100%;
     overflow: hidden;
     box-shadow: none;
-    transition: background-color 0.16s ease;
+    transition:
+      border-color 0.16s ease,
+      background-color 0.16s ease,
+      box-shadow 0.16s ease,
+      transform 0.16s ease;
   }
 
   .card::before {
     content: "";
     position: absolute;
-    left: 0;
-    top: 5px;
-    bottom: 29px;
+    left: -1px;
+    top: 14px;
+    bottom: 42px;
     width: 2px;
     border-radius: 999px;
     background: var(--ws-accent, #1d4ed8);
@@ -278,7 +287,10 @@
   }
 
   .card:hover {
-    background: color-mix(in srgb, var(--ws-card-bg, #fdfefe) 18%, transparent);
+    border-color: color-mix(in srgb, var(--ws-border-hover, #c6d5e8) 86%, transparent);
+    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 98%, transparent);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    transform: translateY(-1px);
   }
 
   .card:hover::before,
@@ -312,9 +324,9 @@
     font-size: 10px;
     font-weight: 700;
     color: var(--ws-text, #334155);
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 54%, transparent);
     border-radius: 999px;
-    background: transparent;
+    background: color-mix(in srgb, var(--ws-badge-bg, #eef4ff) 52%, transparent);
     padding: 3px 7px;
   }
 
@@ -404,9 +416,9 @@
   }
 
   .tag-chip {
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 44%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 46%, transparent);
     border-radius: 999px;
-    background: transparent;
+    background: color-mix(in srgb, var(--ws-badge-bg, #eef4ff) 44%, transparent);
     color: var(--ws-muted, #64748b);
     font-size: 10px;
     line-height: 1;
@@ -425,8 +437,8 @@
 
   .actions {
     position: absolute;
-    right: 8px;
-    bottom: 8px;
+    right: 10px;
+    bottom: 10px;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;

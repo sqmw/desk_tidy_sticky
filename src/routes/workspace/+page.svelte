@@ -1333,15 +1333,15 @@
   }
 
   .workspace :global(.toolbar) {
-    padding: calc(10px * var(--ws-layout-scale, 1));
-    gap: calc(8px * var(--ws-layout-scale, 1));
+    padding: 0;
+    gap: calc(10px * var(--ws-layout-scale, 1));
   }
 
   .workspace :global(.toolbar .add-input),
   .workspace :global(.toolbar .search) {
     min-height: calc(40px * var(--ws-layout-scale, 1));
     padding: calc(9px * var(--ws-layout-scale, 1)) calc(10px * var(--ws-layout-scale, 1));
-    border-radius: calc(12px * var(--ws-layout-scale, 1));
+    border-radius: calc(8px * var(--ws-layout-scale, 1));
   }
 
   .workspace :global(.toolbar .primary-btn),

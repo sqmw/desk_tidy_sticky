@@ -264,9 +264,14 @@
 
   .card {
     position: relative;
-    border: 1px solid var(--ws-border, #dbe5f1);
-    border-radius: 12px;
-    background: var(--ws-card-bg, linear-gradient(180deg, #ffffff 0%, #fbfdff 100%));
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 72%, transparent);
+    border-radius: 8px;
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--ws-card-bg, #ffffff) 96%, transparent) 0%,
+        color-mix(in srgb, var(--ws-card-bg, #ffffff) 90%, transparent) 100%
+      );
     padding: 10px;
     display: flex;
     flex-direction: column;
@@ -275,13 +280,15 @@
     transition:
       transform 0.16s ease,
       box-shadow 0.16s ease,
-      border-color 0.16s ease;
+      border-color 0.16s ease,
+      background 0.16s ease;
   }
 
   .card:hover {
-    transform: translateY(-2px);
-    border-color: #ccd9ea;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--ws-border-hover, #c6d5e8) 86%, transparent);
+    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 98%, transparent);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
   }
 
   .card-top {
@@ -307,9 +314,9 @@
     font-size: 10px;
     font-weight: 700;
     color: var(--ws-text, #334155);
-    border: 1px solid var(--ws-border-soft, #d7dfec);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 54%, transparent);
     border-radius: 999px;
-    background: var(--ws-btn-bg, #f8fafc);
+    background: color-mix(in srgb, var(--ws-badge-bg, #eef4ff) 52%, transparent);
     padding: 3px 7px;
   }
 
@@ -397,9 +404,9 @@
   }
 
   .tag-chip {
-    border: 1px solid var(--ws-border-soft, #d7dfec);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 46%, transparent);
     border-radius: 999px;
-    background: var(--ws-btn-bg, #f8fafc);
+    background: color-mix(in srgb, var(--ws-badge-bg, #eef4ff) 44%, transparent);
     color: var(--ws-muted, #64748b);
     font-size: 10px;
     line-height: 1;
@@ -460,7 +467,7 @@
 
   .quadrant-note-card {
     min-height: 132px;
-    padding: 9px;
+    padding: 10px;
     gap: 6px;
     cursor: grab;
     transition:

@@ -68,14 +68,24 @@
 
   .add-input {
     flex: 1 1 280px;
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 12px;
-    background: var(--ws-card-bg, #fff);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d6e0ee) 64%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--ws-card-bg, #fff) 82%, transparent);
     color: var(--ws-text, #1f2937);
     font-size: 14px;
     padding: 9px 10px;
     outline: none;
     min-width: 0;
+    transition:
+      border-color 0.16s ease,
+      background 0.16s ease,
+      box-shadow 0.16s ease;
+  }
+
+  .add-input:focus {
+    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 34%, var(--ws-border-soft, #d6e0ee));
+    background: var(--ws-card-bg, #fff);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ws-accent, #1d4ed8) 8%, transparent);
   }
 
   .create-bar.compact .add-input {
@@ -95,7 +105,7 @@
 
   .primary-btn {
     border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 22%, var(--ws-border-soft, #d6e0ee));
-    border-radius: 12px;
+    border-radius: 8px;
     background: linear-gradient(
       180deg,
       color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, #ffffff) 0%,
