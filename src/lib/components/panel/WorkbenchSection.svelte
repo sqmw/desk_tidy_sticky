@@ -480,6 +480,10 @@
       {priorityActionLabel}
       {openView}
       {openEdit}
+      {toggleArchive}
+      {togglePin}
+      {toggleZOrder}
+      {toggleWallpaperLayer}
       {toggleDone}
       {togglePriorityMenu}
       {deleteNote}

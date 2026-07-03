@@ -18,11 +18,13 @@
 
 - `docs/ui/2026-06-29-workstation-ui-cleanup.md`
 - `docs/ui/2026-07-03-workstation-right-pane-grid-polish.md`
+- `docs/issues/2026-07-03-workstation-card-sticky-actions-regression.md`
 
 当前下一步：
 
 1. 用户确认右侧轻量卡片边界、网格间距和顶部创建/搜索区主次是否符合预期。
-2. 若确认无误，再进入提交。
+2. 用户回归 workstation 普通网格 `active/todo` 视图和四象限视图，确认钉到桌面、置顶/置底、壁纸/桌面层入口已恢复。
+3. 若确认无误，再进入后续发布/打包或继续处理新的 UI 反馈。
 
 ### Single Active Block Editor
 

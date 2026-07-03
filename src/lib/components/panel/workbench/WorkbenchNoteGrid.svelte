@@ -82,7 +82,7 @@
               {priorityActionLabel(note.priority)}
             </button>
           </div>
-          {#if viewMode === "active"}
+          {#if !note.isArchived && !note.isDeleted}
             <button
               type="button"
               class="action-btn"

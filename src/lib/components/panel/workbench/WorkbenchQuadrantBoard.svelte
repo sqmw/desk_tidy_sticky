@@ -13,6 +13,10 @@
     priorityActionLabel = () => "",
     openView = () => {},
     openEdit = () => {},
+    toggleArchive = () => {},
+    togglePin = () => {},
+    toggleZOrder = () => {},
+    toggleWallpaperLayer = () => {},
     toggleDone = () => {},
     togglePriorityMenu = () => {},
     deleteNote = () => {},
@@ -107,6 +111,55 @@
                   </div>
                   <button
                     type="button"
+                    class="action-btn"
+                    title={note.isPinned ? strings.unpinNote : strings.pinNote}
+                    onclick={() => togglePin(note)}
+                  >
+                    {#if note.isPinned}
+                      {@render iconPinFilled()}
+                    {:else}
+                      {@render iconPinOutline()}
+                    {/if}
+                  </button>
+                  {#if note.isPinned}
+                    <button
+                      type="button"
+                      class="action-btn"
+                      title={note.isAlwaysOnTop ? strings.pinToBottom : strings.pinToTop}
+                      onclick={() => toggleZOrder(note)}
+                    >
+                      {#if note.isAlwaysOnTop}
+                        {@render iconLayerTop()}
+                      {:else}
+                        {@render iconLayerBottom()}
+                      {/if}
+                    </button>
+                    {#if !note.isAlwaysOnTop}
+                      <button
+                        type="button"
+                        class="action-btn"
+                        class:active={note.isWallpaper}
+                        title={note.isWallpaper ? strings.pinToDesktopLayer : strings.pinToWallpaper}
+                        onclick={() => toggleWallpaperLayer(note)}
+                      >
+                        {@render iconWallpaperLayer()}
+                      </button>
+                    {/if}
+                  {/if}
+                  <button
+                    type="button"
+                    class="action-btn"
+                    title={note.isArchived ? strings.unarchive : strings.archive}
+                    onclick={() => toggleArchive(note)}
+                  >
+                    {#if note.isArchived}
+                      {@render iconUnarchive()}
+                    {:else}
+                      {@render iconArchive()}
+                    {/if}
+                  </button>
+                  <button
+                    type="button"
                     class="action-btn danger"
                     title={strings.delete}
                     onclick={() => deleteNote(note)}
@@ -137,11 +190,39 @@
   </svg>
 {/snippet}
 
+{#snippet iconArchive()}
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+    <path
+      d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z"
+    />
+  </svg>
+{/snippet}
+
+{#snippet iconUnarchive()}
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+    <path
+      d="M20.55 5.22l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.15.55L3.46 5.22C3.17 5.57 3 6.01 3 6.5V19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.49-.17-.93-.45-1.28zM12 9.5l5.5 5.5H14v2h-4v-2H6.5L12 9.5zM5.12 5l.82-1h12l.93 1H5.12z"
+    />
+  </svg>
+{/snippet}
+
 {#snippet iconEdit()}
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
     <path
       d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
     />
+  </svg>
+{/snippet}
+
+{#snippet iconPinOutline()}
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+    <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zm-2-2h-4V4h4v6z" />
+  </svg>
+{/snippet}
+
+{#snippet iconPinFilled()}
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+    <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
   </svg>
 {/snippet}
 
@@ -158,6 +239,30 @@
     <path
       d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
     />
+  </svg>
+{/snippet}
+
+{#snippet iconLayerTop()}
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
+    <rect x="5" y="15" width="14" height="4" rx="1.3"></rect>
+    <path d="M12 5v7"></path>
+    <path d="M9 9.8 12 12.8l3-3"></path>
+  </svg>
+{/snippet}
+
+{#snippet iconLayerBottom()}
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
+    <rect x="5" y="5" width="14" height="4" rx="1.3"></rect>
+    <path d="M12 19v-7"></path>
+    <path d="M9 14.2 12 11.2l3 3"></path>
+  </svg>
+{/snippet}
+
+{#snippet iconWallpaperLayer()}
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14">
+    <rect x="4.5" y="5" width="15" height="10" rx="2"></rect>
+    <path d="M7 13l2.8-2.8 2.8 2.8 2.6-2.6 2.1 2.1"></path>
+    <path d="M6 19h12"></path>
   </svg>
 {/snippet}
 
@@ -449,6 +554,12 @@
     background: var(--ws-btn-hover, #eef3fb);
     border-color: var(--ws-border-hover, #c9d5e8);
     color: var(--ws-text-strong, #1f2937);
+  }
+
+  .action-btn.active {
+    color: var(--ws-accent-strong, #0f766e);
+    background: color-mix(in srgb, var(--ws-accent-soft, rgba(45, 212, 191, 0.18)) 70%, white);
+    border-color: color-mix(in srgb, var(--ws-accent, #14b8a6) 34%, rgba(148, 163, 184, 0.24));
   }
 
   .action-btn.priority {
