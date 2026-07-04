@@ -6,6 +6,23 @@
 
 ## Active
 
+### Sticky Edge Auto Hide
+
+状态：planned
+
+优先级：medium
+
+目标：设计并实现贴纸靠近屏幕边缘后自动贴边隐藏，并通过快捷键、贴纸按钮或面板 / workstation 按钮恢复显示。
+
+关联文档：
+
+- `docs/ui/2026-07-04-sticky-edge-auto-hide-plan.md`
+
+当前下一步：
+
+1. 用户确认默认快捷键、支持边缘范围、隐藏可见边宽和是否需要托盘入口。
+2. 确认后进入 Phase 1：edge 计算 helper、Note 字段扩展和后端命令骨架。
+
 ### Workstation UI Cleanup
 
 状态：in_progress
