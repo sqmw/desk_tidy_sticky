@@ -211,8 +211,8 @@ CodeMirror 6 的核心启发是“文本变更是 transaction / changes”。官
 | `paragraph` | 连续普通文本行 | textarea |
 | `heading` | `#` 到 `######` 单行 | textarea |
 | `task_block` | 连续 `- [ ]` / `- [x]` 行 | Todo block 编辑 / textarea fallback |
-| `bullet_list` | 连续 `- ` / `* ` 行 | textarea |
-| `ordered_list` | 连续 `1. ` 行 | textarea |
+| `bullet_list` | `- ` / `* ` marker 行及其非空续行 | textarea |
+| `ordered_list` | `1. ` marker 行及其非空续行 | textarea |
 | `blockquote` | 连续 `> ` 行 | textarea |
 | `code_block` | fenced code block | textarea，保留 fence |
 | `table` | header + separator + rows | textarea |
@@ -228,7 +228,7 @@ CodeMirror 6 的核心启发是“文本变更是 transaction / changes”。官
 3. fenced code 从开 fence 到 close fence 是一个 block。
 4. table 从 header + separator 开始，直到非 table 行结束。
 5. task list 是连续 task 行，形成一个 `task_block`。
-6. 普通 list 是连续 list 行，形成一个 list block。
+6. 普通 list 以 list marker 行开始，并吸收后续非空 continuation 行，形成一个 list block；例如 `1. foo` 后紧跟 `a. bar` 时，`a. bar` 是上一条的续行而不是新的顶层 paragraph。
 
 ### 当前边界细节
 
@@ -535,6 +535,7 @@ compact
 后续再做：
 
 - 2026-06-29 已完成：active block 右下角 `+` 插入同类型空白内容；Todo/list/quote 在当前结构块内追加空行，paragraph/heading/code/table/image 在当前块后插入同类空块；全程不复制已有文本。
+- 2026-07-04 修正：list block parser / renderer 支持 Markdown list continuation。`1. ...` 后紧跟的 `a. ...` 会作为同一个 ordered list item 的续行渲染，并保留字面 `a.`；ordered list 的 `+` 追加仍按最后一个数字 marker 生成下一条数字序号。
 - 2026-07-01 修正：Todo 渲染态隐藏追加 `+`，避免非编辑状态出现脱离上下文的创建按钮；Todo 新增通过 active block 编辑态或 `/todo` 命令完成。
 - 2026-06-29 已完成：active block 开头 `Backspace` 合并 / 删除当前块并回到上一块，解决删空后无法继续退回上一行的问题。
 - `/` 命令切换当前空 block 类型。

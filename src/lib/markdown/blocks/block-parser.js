@@ -1,5 +1,10 @@
 import { splitMarkdownLines, parseTaskLine } from "$lib/markdown/task-list.js";
 import { tryRenderTable } from "$lib/markdown/renderer.js";
+import {
+  isBulletListLine,
+  isListBlockLine,
+  isOrderedListLine,
+} from "$lib/markdown/blocks/list-block.js";
 
 /**
  * @typedef {"paragraph" | "heading" | "task_block" | "bullet_list" | "ordered_list" | "blockquote" | "code_block" | "table" | "image" | "hr"} MarkdownBlockType
@@ -45,13 +50,6 @@ function hashMarkdown(text) {
     hash = ((hash << 5) + hash) ^ text.charCodeAt(i);
   }
   return (hash >>> 0).toString(36);
-}
-
-/**
- * @param {string} line
- */
-function isBulletLine(line) {
-  return /^[-*]\s+/.test(line) && !parseTaskLine(line);
 }
 
 /**
@@ -127,16 +125,16 @@ export function parseMarkdownBlocks(text, options = {}) {
       continue;
     }
 
-    if (isBulletLine(line)) {
-      while (i < lines.length && isBulletLine(lines[i])) {
+    if (isBulletListLine(line)) {
+      while (i < lines.length && isListBlockLine(lines[i], "bullet")) {
         i += 1;
       }
       blocks.push(createBlock("bullet_list", startLine, i - 1, lines.slice(startLine, i)));
       continue;
     }
 
-    if (/^\d+\.\s+/.test(line)) {
-      while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
+    if (isOrderedListLine(line)) {
+      while (i < lines.length && isListBlockLine(lines[i], "ordered")) {
         i += 1;
       }
       blocks.push(createBlock("ordered_list", startLine, i - 1, lines.slice(startLine, i)));

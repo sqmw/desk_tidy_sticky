@@ -6,6 +6,26 @@ import {
   tryRenderTable,
   tryRenderTaskList,
 } from "$lib/markdown/renderer.js";
+import { collectMarkdownListItems } from "$lib/markdown/blocks/list-block.js";
+
+/**
+ * @param {string[]} lines
+ * @param {"bullet" | "ordered"} kind
+ */
+function renderListBlock(lines, kind) {
+  const items = collectMarkdownListItems(lines, kind);
+  const body = items
+    .map((item) => `<li>${item.lines.map((part) => renderInline(part)).join("<br/>")}</li>`)
+    .join("");
+
+  if (kind === "ordered") {
+    const start = items[0]?.marker.number;
+    const startAttr = Number.isFinite(start) && start !== 1 ? ` start="${start}"` : "";
+    return `<ol${startAttr}>${body}</ol>`;
+  }
+
+  return `<ul>${body}</ul>`;
+}
 
 /**
  * @param {import("./block-parser.js").MarkdownBlock} block
@@ -45,13 +65,11 @@ function renderBlock(block, options) {
   }
 
   if (block.type === "bullet_list") {
-    const items = lines.map((item) => item.replace(/^[-*]\s+/, ""));
-    return `<ul>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</ul>`;
+    return renderListBlock(lines, "bullet");
   }
 
   if (block.type === "ordered_list") {
-    const items = lines.map((item) => item.replace(/^\d+\.\s+/, ""));
-    return `<ol>${items.map((item) => `<li>${renderInline(item)}</li>`).join("")}</ol>`;
+    return renderListBlock(lines, "ordered");
   }
 
   if (block.type === "code_block") {

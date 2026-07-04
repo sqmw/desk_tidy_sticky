@@ -38,6 +38,7 @@
 
 - `docs/architecture/2026-06-29-single-active-block-editor.md`
 - `docs/product/2026-06-29-note-todo-blocks.md`
+- `docs/issues/2026-07-04-list-continuation-rendering-regression.md`
 
 阶段：
 
@@ -60,6 +61,14 @@
 - 不恢复旧 `contenteditable BlockEditor`，避免历史 caret 跳动问题回归。
 
 ## Done
+
+### 2026-07-04：Fix Markdown list continuation rendering
+
+结果：修复单活跃块 parser / renderer 对 list continuation 的归属问题。`1. ...` 后紧跟的 `a. ...` 会作为同一个 ordered list item 的续行渲染，保留字面 `a.`，不再拆成独立 paragraph；ordered list 的 `+` 追加路径仍会生成下一条数字序号。
+
+验证：Node smoke 断言解析结果、HTML 输出和追加 `2. ` 后的 ordered list block 形态；`make check`；`git diff --check`。
+
+关联文档：`docs/issues/2026-07-04-list-continuation-rendering-regression.md`
 
 ### 2026-07-02：Resolve break reminder collision priority
 
