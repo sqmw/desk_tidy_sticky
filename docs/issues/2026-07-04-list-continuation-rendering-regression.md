@@ -23,6 +23,7 @@ a. rrna trna mrna
 - `block-renderer.js` 渲染 list block 时把续行并入前一个 `<li>`，续行之间用 `<br/>` 保留原始文本展示。
 - 新增 `src/lib/markdown/editor-indent.js`，提供纯文本行缩进 / 反缩进 helper。
 - `BlockNoteContent.svelte` 在命令补全未打开时接管 `Tab` / `Shift+Tab`：`Tab` 缩进当前行或选中多行，`Shift+Tab` 反缩进；命令补全打开时 `Tab` 仍用于选择命令。
+- 2026-07-04 补充：`Tab` 缩进期间短暂抑制 editor blur 提交，并在 blur 被运行时触发时重新聚焦 textarea，避免按 `Tab` 后立刻退出到渲染态。
 - 用 Node smoke 验证示例会解析为 `heading + ordered_list`，且 `a. ...` 不再输出为独立 `<p>`。
 - 同一 smoke 验证在该 ordered list 草稿后追加 `2. ` 后仍保持单个 ordered list block，覆盖 `+` 追加数字序号的核心数据形态。
 - 用 Node smoke 验证单行缩进、多行缩进和反缩进的 selection 位置回写。
@@ -34,4 +35,4 @@ a. rrna trna mrna
 - 回归关注：
   - `a. ...` 这类字母加点应保持字面文本，不当作新列表 marker。
   - ordered list 的 `+` 应继续基于最后一个数字 marker 追加下一条数字序号。
-  - 编辑态 `Tab` 缩进不能抢走焦点；命令补全弹出时 `Tab` 仍应优先选择命令。
+  - 编辑态 `Tab` 缩进不能抢走焦点或触发 blur 提交；命令补全弹出时 `Tab` 仍应优先选择命令。

@@ -55,6 +55,7 @@
   let showCommandSuggestions = $state(false);
   let commandQuery = $state("");
   let commandActiveIndex = $state(0);
+  let suppressEditorBlurUntil = 0;
 
   const blocks = $derived(parseMarkdownBlocks(text || "", { preserveBlankBlocks: true }));
   const commandSuggestionItems = $derived(
@@ -560,6 +561,7 @@
    */
   async function applyEditorLineIndent(outdent = false) {
     if (!editorEl) return false;
+    suppressEditorBlurBriefly();
     const draft = getEditorDraft();
     const selectionStart = editorEl.selectionStart ?? 0;
     const selectionEnd = editorEl.selectionEnd ?? selectionStart;
@@ -577,6 +579,14 @@
     return true;
   }
 
+  function suppressEditorBlurBriefly() {
+    suppressEditorBlurUntil = Date.now() + 250;
+  }
+
+  function shouldSuppressEditorBlur() {
+    return Date.now() <= suppressEditorBlurUntil;
+  }
+
   function rememberEditorSelection() {
     if (!editorEl || editingEmpty) return;
     const start = editorEl.selectionStart ?? 0;
@@ -588,12 +598,22 @@
   /** @param {FocusEvent} event */
   async function handleEditorBlur(event) {
     if (event.currentTarget !== editorEl) return;
+    if (shouldSuppressEditorBlur()) {
+      await tick();
+      editorEl?.focus?.();
+      return;
+    }
     await commitActiveBlock();
   }
 
   /** @param {FocusEvent} event */
   async function handleEmptyEditorBlur(event) {
     if (event.currentTarget !== editorEl) return;
+    if (shouldSuppressEditorBlur()) {
+      await tick();
+      editorEl?.focus?.();
+      return;
+    }
     await commitEmptyEditor();
   }
 
