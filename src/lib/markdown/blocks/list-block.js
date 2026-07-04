@@ -54,7 +54,8 @@ export function isOrderedListLine(line) {
  */
 export function isListBlockLine(line, kind) {
   const source = String(line ?? "");
-  if (source.trim() === "") return false;
+  if (source === "") return false;
+  if (source.trim() === "") return true;
   const marker = parseMarkdownListMarker(source);
   return !marker || marker.kind === kind;
 }

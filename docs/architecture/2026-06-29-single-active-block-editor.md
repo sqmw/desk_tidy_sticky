@@ -536,7 +536,7 @@ compact
 
 - 2026-06-29 已完成：active block 右下角 `+` 插入同类型空白内容；Todo/list/quote 在当前结构块内追加空行，paragraph/heading/code/table/image 在当前块后插入同类空块；全程不复制已有文本。
 - 2026-07-04 修正：list block parser / renderer 支持 Markdown list continuation。`1. ...` 后紧跟的 `a. ...` 会作为同一个 ordered list item 的续行渲染，并保留字面 `a.`；ordered list 的 `+` 追加仍按最后一个数字 marker 生成下一条数字序号。active block 编辑态接管 `Tab` / `Shift+Tab` 做行缩进 / 反缩进，使续行可以在 textarea 中直接保留可见左侧空位。
-- 2026-07-04 增强：active block 编辑态普通 `Enter` 会优先执行列表行级 continuation。非空列表行续写下一 marker；空缩进列表项再次 `Enter` 时退到上一级 marker；顶层空列表项再次 `Enter` 时退出列表。右下角 `+` 仍作为鼠标追加入口保留。
+- 2026-07-04 增强：active block 编辑态普通 `Enter` 会优先执行列表行级 continuation。非空列表行续写下一 marker；空缩进列表项再次 `Enter` 时退到上一级 marker；顶层空列表项再次 `Enter` 时退出列表。`Shift+Enter` 是强制硬换行，会继承当前列表 marker 的内容列缩进，连续按两次仍停留在同一列表项内。右下角 `+` 仍作为鼠标追加入口保留。
 - 2026-07-01 修正：Todo 渲染态隐藏追加 `+`，避免非编辑状态出现脱离上下文的创建按钮；Todo 新增通过 active block 编辑态或 `/todo` 命令完成。
 - 2026-06-29 已完成：active block 开头 `Backspace` 合并 / 删除当前块并回到上一块，解决删空后无法继续退回上一行的问题。
 - `/` 命令切换当前空 block 类型。

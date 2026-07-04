@@ -16,7 +16,7 @@
     splitBlockMarkdown,
   } from "$lib/markdown/note-markdown.js";
   import { renderMarkdownBlocks } from "$lib/markdown/blocks/block-renderer.js";
-  import { applyListEnterContinuation } from "$lib/markdown/editor-enter.js";
+  import { applyHardLineBreak, applyListEnterContinuation } from "$lib/markdown/editor-enter.js";
   import { applyLineIndentToText } from "$lib/markdown/editor-indent.js";
   import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
 
@@ -597,6 +597,22 @@
     return true;
   }
 
+  async function applyEditorHardLineBreak() {
+    if (!editorEl) return false;
+    const draft = getEditorDraft();
+    const selectionStart = editorEl.selectionStart ?? 0;
+    const selectionEnd = editorEl.selectionEnd ?? selectionStart;
+    const next = applyHardLineBreak(draft, selectionStart, selectionEnd);
+    setEditorDraft(next.text);
+    hideCommandSuggestions();
+    await tick();
+    resizeEditor();
+    editorEl.focus();
+    editorEl.setSelectionRange(next.selectionStart, next.selectionEnd);
+    rememberEditorSelection();
+    return true;
+  }
+
   function suppressEditorBlurBriefly() {
     suppressEditorBlurUntil = Date.now() + 250;
   }
@@ -667,6 +683,12 @@
       event.preventDefault();
       event.stopPropagation();
       await applyEditorLineIndent(event.shiftKey);
+      return;
+    }
+    if (event.key === "Enter" && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      await applyEditorHardLineBreak();
       return;
     }
     if (event.key === "Backspace" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {

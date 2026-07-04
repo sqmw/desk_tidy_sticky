@@ -30,6 +30,23 @@ function lineEndAt(text, offset) {
   return end < 0 ? String(text ?? "").length : end;
 }
 
+/** @param {string} line */
+function leadingWhitespace(line) {
+  return /^(\s*)/.exec(String(line ?? ""))?.[1] ?? "";
+}
+
+/**
+ * @param {string} line
+ */
+function continuationIndentForLine(line) {
+  const marker = parseEditorListMarker(line);
+  if (marker) {
+    return `${marker.indent}${" ".repeat(marker.marker.length + 1)}`;
+  }
+  const source = String(line ?? "");
+  return source.trim() === "" ? source : leadingWhitespace(source);
+}
+
 /**
  * @param {string} line
  * @returns {EditorListMarker | null}
@@ -200,5 +217,24 @@ export function applyListEnterContinuation(text, selectionStart, selectionEnd, o
   const currentLine = beforeCursor.replace(/\s+$/, "");
   const nextText = `${source.slice(0, lineStart)}${currentLine}\n${nextLine}${source.slice(lineEnd)}`;
   const nextCaret = lineStart + currentLine.length + 1 + `${marker.indent}${nextMarkerFor(marker)} `.length;
+  return { text: nextText, selectionStart: nextCaret, selectionEnd: nextCaret };
+}
+
+/**
+ * @param {string} text
+ * @param {number} selectionStart
+ * @param {number} selectionEnd
+ */
+export function applyHardLineBreak(text, selectionStart, selectionEnd) {
+  const source = String(text ?? "");
+  const start = Math.max(0, Math.min(Number(selectionStart) || 0, source.length));
+  const end = Math.max(start, Math.min(Number(selectionEnd) || start, source.length));
+  const lineStart = lineStartAt(source, start);
+  const lineEnd = lineEndAt(source, start);
+  const line = source.slice(lineStart, lineEnd);
+  const indent = continuationIndentForLine(line);
+  const insert = `\n${indent}`;
+  const nextText = `${source.slice(0, start)}${insert}${source.slice(end)}`;
+  const nextCaret = start + insert.length;
   return { text: nextText, selectionStart: nextCaret, selectionEnd: nextCaret };
 }

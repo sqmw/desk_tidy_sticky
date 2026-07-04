@@ -82,9 +82,9 @@
 
 ### 2026-07-04：Fix Markdown list continuation rendering
 
-结果：修复单活跃块 parser / renderer 对 list continuation 的归属问题。`1. ...` 后紧跟的 `a. ...` 会作为同一个 ordered list item 的续行渲染，保留字面 `a.`，不再拆成独立 paragraph；ordered list 的 `+` 追加路径仍会生成下一条数字序号。编辑态补充接管 `Tab` / `Shift+Tab`，支持当前行或选中多行缩进 / 反缩进，并保留命令补全弹出时 `Tab` 选择命令的行为；缩进期间会抑制 blur 提交，避免按 `Tab` 后退出编辑态。后续增强：普通 `Enter` 在列表行内优先续写下一 marker，空子项再次 `Enter` 会退到上一级，顶层空项再次 `Enter` 退出列表。
+结果：修复单活跃块 parser / renderer 对 list continuation 的归属问题。`1. ...` 后紧跟的 `a. ...` 会作为同一个 ordered list item 的续行渲染，保留字面 `a.`，不再拆成独立 paragraph；ordered list 的 `+` 追加路径仍会生成下一条数字序号。编辑态补充接管 `Tab` / `Shift+Tab`，支持当前行或选中多行缩进 / 反缩进，并保留命令补全弹出时 `Tab` 选择命令的行为；缩进期间会抑制 blur 提交，避免按 `Tab` 后退出编辑态。后续增强：普通 `Enter` 在列表行内优先续写下一 marker，空子项再次 `Enter` 会退到上一级，顶层空项再次 `Enter` 退出列表；`Shift+Enter` 强制硬换行并继承列表内容列缩进，连续触发不退级。
 
-验证：Node smoke 断言解析结果、HTML 输出、追加 `2. ` 后的 ordered list block 形态、编辑态行缩进 / 反缩进 selection 回写，以及 `a. -> b. -> 2.` 的 Enter continuation；`make check`；`make build`；`git diff --check`。
+验证：Node smoke 断言解析结果、HTML 输出、追加 `2. ` 后的 ordered list block 形态、编辑态行缩进 / 反缩进 selection 回写、`a. -> b. -> 2.` 的 Enter continuation，以及连续 `Shift+Enter` 硬换行；`make check`；`make build`；`git diff --check`。
 
 关联文档：`docs/issues/2026-07-04-list-continuation-rendering-regression.md`
 

@@ -15,7 +15,7 @@ import { collectMarkdownListItems } from "$lib/markdown/blocks/list-block.js";
 function renderListBlock(lines, kind) {
   const items = collectMarkdownListItems(lines, kind);
   const body = items
-    .map((item) => `<li>${item.lines.map((part) => renderInline(part)).join("<br/>")}</li>`)
+    .map((item) => `<li>${item.lines.map((part) => (part.trim() === "" ? "" : renderInline(part))).join("<br/>")}</li>`)
     .join("");
 
   if (kind === "ordered") {
