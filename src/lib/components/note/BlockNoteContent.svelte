@@ -16,6 +16,7 @@
     splitBlockMarkdown,
   } from "$lib/markdown/note-markdown.js";
   import { renderMarkdownBlocks } from "$lib/markdown/blocks/block-renderer.js";
+  import { applyLineIndentToText } from "$lib/markdown/editor-indent.js";
   import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
 
   let {
@@ -554,6 +555,28 @@
     resizeEditor();
   }
 
+  /**
+   * @param {boolean} outdent
+   */
+  async function applyEditorLineIndent(outdent = false) {
+    if (!editorEl) return false;
+    const draft = getEditorDraft();
+    const selectionStart = editorEl.selectionStart ?? 0;
+    const selectionEnd = editorEl.selectionEnd ?? selectionStart;
+    const next = applyLineIndentToText(draft, selectionStart, selectionEnd, { outdent });
+    if (next.text === draft && next.selectionStart === selectionStart && next.selectionEnd === selectionEnd) {
+      return false;
+    }
+    setEditorDraft(next.text);
+    hideCommandSuggestions();
+    await tick();
+    resizeEditor();
+    editorEl.focus();
+    editorEl.setSelectionRange(next.selectionStart, next.selectionEnd);
+    rememberEditorSelection();
+    return true;
+  }
+
   function rememberEditorSelection() {
     if (!editorEl || editingEmpty) return;
     const start = editorEl.selectionStart ?? 0;
@@ -601,6 +624,12 @@
         hideCommandSuggestions();
         return;
       }
+    }
+    if (event.key === "Tab" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      await applyEditorLineIndent(event.shiftKey);
+      return;
     }
     if (event.key === "Backspace" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
       const selectionStart = editorEl?.selectionStart ?? 0;

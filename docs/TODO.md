@@ -64,9 +64,9 @@
 
 ### 2026-07-04：Fix Markdown list continuation rendering
 
-结果：修复单活跃块 parser / renderer 对 list continuation 的归属问题。`1. ...` 后紧跟的 `a. ...` 会作为同一个 ordered list item 的续行渲染，保留字面 `a.`，不再拆成独立 paragraph；ordered list 的 `+` 追加路径仍会生成下一条数字序号。
+结果：修复单活跃块 parser / renderer 对 list continuation 的归属问题。`1. ...` 后紧跟的 `a. ...` 会作为同一个 ordered list item 的续行渲染，保留字面 `a.`，不再拆成独立 paragraph；ordered list 的 `+` 追加路径仍会生成下一条数字序号。编辑态补充接管 `Tab` / `Shift+Tab`，支持当前行或选中多行缩进 / 反缩进，并保留命令补全弹出时 `Tab` 选择命令的行为。
 
-验证：Node smoke 断言解析结果、HTML 输出和追加 `2. ` 后的 ordered list block 形态；`make check`；`git diff --check`。
+验证：Node smoke 断言解析结果、HTML 输出、追加 `2. ` 后的 ordered list block 形态，以及编辑态行缩进 / 反缩进 selection 回写；`make check`；`git diff --check`。
 
 关联文档：`docs/issues/2026-07-04-list-continuation-rendering-regression.md`
 
