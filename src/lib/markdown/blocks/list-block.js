@@ -50,14 +50,39 @@ export function isOrderedListLine(line) {
 
 /**
  * @param {string} line
- * @param {MarkdownListKind} kind
+ * @param {string | undefined} nextLine
  */
-export function isListBlockLine(line, kind) {
+function isMarkdownBlockBoundaryLine(line, nextLine) {
+  const source = String(line ?? "");
+  if (parseTaskLine(source)) return true;
+  if (/^ {0,3}(#{1,6})\s+/.test(source)) return true;
+  if (/^ {0,3}>\s+/.test(source)) return true;
+  if (/^ {0,3}```/.test(source)) return true;
+  if (/^ {0,3}!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)(?:\{([^}]*)\})?\s*$/.test(source)) {
+    return true;
+  }
+  if (/^ {0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(source.trim())) return true;
+  if (
+    source.includes("|") &&
+    /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(String(nextLine ?? ""))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * @param {string} line
+ * @param {MarkdownListKind} kind
+ * @param {string | undefined} [nextLine]
+ */
+export function isListBlockLine(line, kind, nextLine = undefined) {
   const source = String(line ?? "");
   if (source === "") return false;
   if (source.trim() === "") return true;
   const marker = parseMarkdownListMarker(source);
-  return !marker || marker.kind === kind;
+  if (marker) return marker.kind === kind;
+  return !isMarkdownBlockBoundaryLine(source, nextLine);
 }
 
 /**

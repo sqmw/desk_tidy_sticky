@@ -126,7 +126,7 @@ export function parseMarkdownBlocks(text, options = {}) {
     }
 
     if (isBulletListLine(line)) {
-      while (i < lines.length && isListBlockLine(lines[i], "bullet")) {
+      while (i < lines.length && isListBlockLine(lines[i], "bullet", lines[i + 1])) {
         i += 1;
       }
       blocks.push(createBlock("bullet_list", startLine, i - 1, lines.slice(startLine, i)));
@@ -134,7 +134,7 @@ export function parseMarkdownBlocks(text, options = {}) {
     }
 
     if (isOrderedListLine(line)) {
-      while (i < lines.length && isListBlockLine(lines[i], "ordered")) {
+      while (i < lines.length && isListBlockLine(lines[i], "ordered", lines[i + 1])) {
         i += 1;
       }
       blocks.push(createBlock("ordered_list", startLine, i - 1, lines.slice(startLine, i)));

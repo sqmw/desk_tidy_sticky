@@ -49,6 +49,7 @@
   let isEditing = $state(false);
   let isControlMode = $state(false);
   let blockNoteContentApi = $state(/** @type {any} */ (null));
+  let noteBlockSurfaceEl = $state(/** @type {HTMLDivElement | null} */ (null));
   let outsideToolbarSlotEl = $state(/** @type {HTMLDivElement | null} */ (null));
   let outsideToolbarHeight = $state(0);
   let collapsedWindowHeight = $state(0);
@@ -424,12 +425,35 @@
     }
   }
 
+  function rememberNoteBlockScroll() {
+    return {
+      top: noteBlockSurfaceEl?.scrollTop ?? 0,
+      left: noteBlockSurfaceEl?.scrollLeft ?? 0,
+    };
+  }
+
+  /**
+   * @param {{ top: number; left: number }} position
+   */
+  async function restoreNoteBlockScroll(position) {
+    await tick();
+    if (!noteBlockSurfaceEl) return;
+    noteBlockSurfaceEl.scrollTop = position.top;
+    noteBlockSurfaceEl.scrollLeft = position.left;
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    if (!noteBlockSurfaceEl) return;
+    noteBlockSurfaceEl.scrollTop = position.top;
+    noteBlockSurfaceEl.scrollLeft = position.left;
+  }
+
   /** @param {string} nextText */
   async function updateTextFromPreview(nextText) {
     if (!note || typeof nextText !== "string") return;
+    const scrollPosition = rememberNoteBlockScroll();
     text = nextText;
-    await tick();
+    await restoreNoteBlockScroll(scrollPosition);
     await save();
+    await restoreNoteBlockScroll(scrollPosition);
   }
 
   /** @param {number} lineIndex */
@@ -987,7 +1011,7 @@
           onChangeTags={setNoteTags}
         />
 
-        <div class="note-block-surface">
+        <div class="note-block-surface" bind:this={noteBlockSurfaceEl}>
           <BlockNoteContent
             bind:this={blockNoteContentApi}
             text={text || note?.text || ""}
