@@ -983,11 +983,12 @@
   }
 
   .block-html :global(blockquote) {
-    padding: 8px 12px;
-    border-left: 3px solid color-mix(in srgb, currentColor 28%, transparent);
-    border-radius: 8px;
-    background: color-mix(in srgb, currentColor 8%, transparent);
-    color: color-mix(in srgb, currentColor 88%, transparent);
+    margin: 2px 0 4px;
+    padding: 0 0 0 12px;
+    border-left: 2px solid color-mix(in srgb, currentColor 24%, transparent);
+    border-radius: 0;
+    background: transparent;
+    color: color-mix(in srgb, currentColor 82%, transparent);
   }
 
   .block-html :global(img) {

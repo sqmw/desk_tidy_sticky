@@ -111,11 +111,12 @@
   }
 
   .preview-markdown :global(blockquote) {
-    margin: 0 0 12px;
-    padding: 10px 14px;
-    border-left: 3px solid rgba(15, 76, 129, 0.38);
-    background: rgba(255, 255, 255, 0.34);
-    border-radius: 10px;
+    margin: 2px 0 12px;
+    padding: 0 0 0 12px;
+    border-left: 2px solid color-mix(in srgb, var(--note-text-color, #1f2937) 24%, transparent);
+    background: transparent;
+    border-radius: 0;
+    color: color-mix(in srgb, var(--note-text-color, #1f2937) 82%, transparent);
   }
 
   .preview-markdown :global(hr) {

@@ -20,8 +20,15 @@
   - blockquote 识别从 `^>\s+` 扩展为 `^ {0,3}>\s+`。
 - `src/lib/markdown/blocks/block-renderer.js`
   - 渲染时剥离 0-3 个前导空格和 `>` marker。
+  - 连续 `>` 行合并为同一个 `<blockquote>`，避免每行各自生成独立引用块。
 - `src/lib/components/note/BlockNoteContent.svelte`
-  - 为 `blockquote` 增加左边线、浅背景、内边距和圆角，恢复引用块的可见形态。
+  - 单活跃块渲染路径中的 `blockquote` 使用正文流里的细左线样式。
+- `src/lib/components/note/NotePreview.svelte`
+  - 全文预览路径使用同一套低调引用样式。
+
+视觉取舍：
+
+- 不使用卡片背景、圆角和浏览器默认左右大 margin，避免在便笺内显得突兀。
 
 ## Result
 
