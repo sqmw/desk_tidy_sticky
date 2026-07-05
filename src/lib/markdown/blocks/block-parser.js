@@ -117,8 +117,8 @@ export function parseMarkdownBlocks(text, options = {}) {
       continue;
     }
 
-    if (/^>\s+/.test(line)) {
-      while (i < lines.length && /^>\s+/.test(lines[i])) {
+    if (/^ {0,3}>\s+/.test(line)) {
+      while (i < lines.length && /^ {0,3}>\s+/.test(lines[i])) {
         i += 1;
       }
       blocks.push(createBlock("blockquote", startLine, i - 1, lines.slice(startLine, i)));

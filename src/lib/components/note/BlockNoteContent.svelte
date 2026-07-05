@@ -982,6 +982,14 @@
     padding-left: 20px;
   }
 
+  .block-html :global(blockquote) {
+    padding: 8px 12px;
+    border-left: 3px solid color-mix(in srgb, currentColor 28%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, currentColor 8%, transparent);
+    color: color-mix(in srgb, currentColor 88%, transparent);
+  }
+
   .block-html :global(img) {
     max-width: 100%;
     height: auto;

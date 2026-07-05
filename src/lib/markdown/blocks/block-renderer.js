@@ -61,7 +61,7 @@ function renderBlock(block, options) {
   }
 
   if (block.type === "blockquote") {
-    return lines.map((item) => `<blockquote>${renderInline(item.replace(/^>\s+/, ""))}</blockquote>`).join("\n");
+    return lines.map((item) => `<blockquote>${renderInline(item.replace(/^ {0,3}>\s+/, ""))}</blockquote>`).join("\n");
   }
 
   if (block.type === "bullet_list") {

@@ -58,6 +58,7 @@
 - `docs/issues/2026-07-04-list-continuation-rendering-regression.md`
 - `docs/issues/2026-07-04-list-enter-continuation.md`
 - `docs/issues/2026-07-04-list-boundary-and-scroll-regression.md`
+- `docs/issues/2026-07-05-blockquote-rendering-style-regression.md`
 
 阶段：
 
@@ -72,7 +73,7 @@
 
 1. 继续补齐图片粘贴能力。
 2. 继续补齐空块类型退回段落。
-3. 回归 active block 列表 `Enter` continuation、Markdown 块级边界、滚动位置保持和右下角 `+` 追加入口。
+3. 回归 active block 列表 `Enter` continuation、Markdown 块级边界、blockquote 视觉、滚动位置保持和右下角 `+` 追加入口。
 
 风险：
 
