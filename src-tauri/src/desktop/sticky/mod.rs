@@ -6,10 +6,16 @@ use crate::platform::{window_hwnd_isize, windows};
 use crate::runtime::GlobalControlState;
 use tauri::{Emitter, Manager};
 
+mod auto_hide;
 mod effects;
 mod layer;
 mod panel_window;
 
+pub use auto_hide::{
+    clear_active_topmost_editing_sticky, hide_active_topmost_editing_sticky, hide_note_to_edge,
+    mark_active_topmost_editing_sticky, reveal_note_from_edge, set_note_auto_hide_enabled,
+    shortcut_hide_or_reveal, toggle_hidden_stickies,
+};
 pub use effects::apply_note_window_frost;
 use effects::{apply_note_window_frost_by_label, sync_note_window_frost_by_id};
 pub use layer::apply_overlay_input_state;

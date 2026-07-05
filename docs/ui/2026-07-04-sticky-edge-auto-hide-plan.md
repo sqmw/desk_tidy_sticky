@@ -6,7 +6,7 @@
 
 当前 Tauri 版已经具备独立 `note-*` 贴纸窗口、拖动后位置持久化、桌面层 / 置顶层切换、全局快捷键和托盘入口；但还没有“贴纸移动到屏幕边缘后自动贴边隐藏，再由快捷键或按钮唤回”的完整机制。
 
-本轮只写方案，不改运行代码。
+2026-07-05 已进入落地阶段：先实现两种隐藏触发模式本身，再把面板 / workstation 指定显示按钮和托盘入口作为后续入口补强。
 
 ## 参考结论
 
@@ -39,7 +39,7 @@
 1. 实现两种隐藏触发源，且都只作用于已经钉在桌面并处于置顶显示的贴纸：
    - `溢边隐藏`：贴纸被拖到屏幕边缘并且部分超出屏幕边界，说明用户有隐藏意愿。
    - `快捷键隐藏`：用户按快捷键时隐藏当前“编辑中的顶层贴纸”，也就是最近编辑过的置顶贴纸。
-2. 用户通过全局快捷键、贴纸按钮、面板 / workstation 卡片按钮触发时，可把隐藏贴纸显示回来。
+2. 用户通过全局快捷键可把隐藏贴纸显示回来；贴纸工具栏提供“允许溢边隐藏”开关。
 3. 隐藏能力不破坏现有置顶 / 桌面层 / 壁纸层 / 鼠标穿透 / macOS 非激活面板行为。
 4. 位置和隐藏状态应可恢复；重启后不应出现贴纸完全丢失到屏幕外的情况。
 
@@ -92,21 +92,14 @@
 |---|---:|---:|---|
 | `overflowHideThresholdPx` | `1` | `1` | 超出屏幕边多少像素认为有溢边隐藏意图 |
 | `hiddenSliverPx` | `8` | `16` | 收起后保留的可见边宽 |
-| `autoHideDelayMs` | `350` | `50` | 拖动结束后多久执行收起 |
+| `autoHideDelayMs` | `0` | `0` | 当前实现为拖动结束后立即交给后端判定，后续可按体验再加延迟 |
 | `revealDurationMs` | `120` | `0` | 显示 / 收起动画时长；第一阶段可先无动画 |
 
 测试态切换方式建议用 debug preference 或开发环境变量，例如 `STICKY_AUTO_HIDE_TEST_MODE=1`，避免把测试值写死进业务逻辑。
 
 ### 2. 边缘检测
 
-新增纯函数模块，例如 `src/lib/note/note-edge-auto-hide.js`：
-
-- 输入：窗口 `position / size`、当前 monitor rect、溢边阈值、隐藏边宽。
-- 输出：
-  - 最近边：`left / right / top / bottom / null`
-  - 完整显示位置：`visiblePosition`
-  - 收起位置：`hiddenPosition`
-  - 是否需要夹回屏幕：`clampedPosition`
+当前实现把边缘检测放在 Rust 侧 `src-tauri/src/desktop/sticky/auto_hide.rs`，由统一命令读取真实窗口 `outer_position / outer_size / scale_factor` 和 monitor 信息，避免前端坐标与原生窗口状态漂移。
 
 溢边隐藏不再使用“靠近边缘”作为唯一判断。第一版应以窗口 rect 是否超出当前 monitor 为主要信号：
 
@@ -119,10 +112,7 @@
 
 优先用当前窗口所在 monitor，而不是整个 virtual screen。多屏场景下，如果贴纸在两个屏幕交界处，应选择与窗口中心点相交的 monitor；找不到时再退回 primary / virtual screen。
 
-Rust 侧需要提供或复用 monitor 信息。当前 `reset_pinned_note_positions` 已经使用 monitor 信息，可以抽一个命令：
-
-- `get_note_window_monitor_rect(label)`：返回当前窗口所在 monitor 的逻辑坐标。
-- 或 `get_display_monitor_rects()`：前端按窗口中心点选择。
+Rust 侧当前不额外暴露 monitor 查询命令；`hide_note_to_edge` / `reveal_note_from_edge` 内部完成 monitor 选择和坐标夹取。
 
 ### 3. 状态机
 
@@ -147,13 +137,14 @@ Rust 侧需要提供或复用 monitor 信息。当前 `reset_pinned_note_positio
 
 ### 4. 后端命令
 
-建议新增一个小的 `desktop::sticky_auto_hide` 模块，避免继续把 `sticky/mod.rs` 堆大：
+已新增 `src-tauri/src/desktop/sticky/auto_hide.rs`，避免继续把 `sticky/mod.rs` 堆大：
 
-- `set_note_auto_hide(id, enabled, edge?, state?, visible_x?, visible_y?, hidden_x?, hidden_y?)`
+- `set_note_auto_hide_enabled(id, enabled, sort_mode)`
 - `hide_note_to_edge(id, reason)`：读取 note、置顶 / 钉住状态和窗口尺寸；`reason=overflow` 时还要求 `autoHideEnabled=true` 且窗口已溢边，`reason=shortcut` 时要求 id 是最近编辑顶层贴纸。
 - `reveal_note_from_edge(id)`：移动到 `autoHideVisibleX/Y`，必要时 `show` 且不激活。
 - `hide_active_topmost_editing_sticky()`：快捷键隐藏入口；隐藏最近编辑过的顶层贴纸。
-- `toggle_hidden_stickies()`：全局显示入口；如果存在 hidden 贴纸则全部显示。是否兼作隐藏入口应谨慎，避免和“只隐藏当前编辑贴纸”的语义冲突。
+- `toggle_hidden_stickies()`：全局入口；如果存在 hidden 贴纸则全部显示，否则隐藏最近编辑顶层贴纸。
+- `mark_active_topmost_editing_sticky(id)` / `clear_active_topmost_editing_sticky(id)`：贴纸窗口刷新或清理快捷键隐藏目标。
 
 窗口移动应继续走无激活路径：
 
@@ -164,8 +155,8 @@ Rust 侧需要提供或复用 monitor 信息。当前 `reset_pinned_note_positio
 
 快捷键：
 
-- 在现有快捷键设置上新增第三个 binding：`stickyRevealBinding`。
-- 建议默认值先设为 `Ctrl+Shift+H`，允许用户清空禁用。
+- 在现有快捷键设置上新增第三个 binding：`stickyHideBinding`。
+- 默认值为 `Ctrl+Shift+H`，允许用户清空禁用。
 - 注册失败 / 冲突状态复用当前 `ShortcutBindingSnapshot` UI。
 - 快捷键按下时的优先语义：
   1. 如果存在 hidden 贴纸，先显示隐藏贴纸。
@@ -174,15 +165,15 @@ Rust 侧需要提供或复用 monitor 信息。当前 `reset_pinned_note_positio
 
 按钮：
 
-- 贴纸工具栏新增“自动隐藏”开关按钮，状态是单张贴纸的 `autoHideEnabled`。
+- 贴纸工具栏已新增“自动隐藏”开关按钮，状态是单张贴纸的 `autoHideEnabled`。
 - 自动隐藏开关表示“允许溢边隐藏”，只在贴纸已经钉在桌面且处于置顶显示时可用；其他状态可禁用或隐藏，避免用户误以为普通窗口也会自动贴边隐藏。
 - 快捷键隐藏不需要在贴纸上新增单独开关，因为它的目标来自“最近编辑过的顶层贴纸”。
-- 已隐藏贴纸无法直接点自身完整按钮，所以还需要面板 / workstation 卡片上的“显示”按钮。
+- 已隐藏贴纸可以通过快捷键显示；面板 / workstation 卡片上的“显示”按钮是后续入口补强。
 - 已隐藏状态在面板列表中应有可辨识状态，但不建议用大段说明文字；使用图标状态和 tooltip 即可。
 
 托盘：
 
-- 可选补充 `显示隐藏贴纸` 菜单项，调用同一个 `toggle_hidden_stickies()`。
+- 可选补充 `显示隐藏贴纸` 菜单项，调用同一个 `toggle_hidden_stickies()`；当前阶段未接托盘。
 
 ### 6. 平台细节
 
@@ -207,23 +198,21 @@ macOS：
 
 Phase 1：纯计算与数据落点
 
-- 新增 edge 计算 helper 和单元 smoke。
-- 扩展 `Note` 字段与 serde 默认值。
-- 增加命令但先不接 UI。
-- 增加最近编辑顶层贴纸 tracker 的前后端契约。
+- 已扩展 `Note` 字段与 serde 默认值。
+- 已增加 Rust 统一命令和最近编辑顶层贴纸 tracker。
+- 已通过 `cargo check` 覆盖后端编译。
 
 Phase 2：贴纸窗口拖动接入
 
-- `note-window-drag.js` 拖动结束后回调传入窗口尺寸和 monitor 信息。
-- `src/routes/note/[id]/+page.svelte` 在非编辑态、启用溢边隐藏且窗口部分超出屏幕时调度收起。
+- `src/routes/note/[id]/+page.svelte` 在非编辑态、启用溢边隐藏且窗口部分超出屏幕时调用后端收起命令。
 - `src/routes/note/[id]/+page.svelte` 在编辑 / 输入 / 提交时刷新最近编辑顶层贴纸目标。
-- 收起 / 显示后同步本地 `note` 状态。
+- 收起 / 显示后同步本地 `note` 状态，并由 `notes_changed` 驱动其他窗口刷新。
 
 Phase 3：触发入口
 
-- 贴纸工具栏自动隐藏开关。
-- 面板 / workstation 卡片显示按钮。
-- 全局快捷键 `stickyRevealBinding`。
+- 已接贴纸工具栏自动隐藏开关。
+- 已接全局快捷键 `stickyHideBinding`。
+- 面板 / workstation 卡片显示按钮后续补强。
 
 Phase 4：平台回归与补强
 

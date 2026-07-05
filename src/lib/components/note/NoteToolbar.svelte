@@ -21,6 +21,7 @@
     noteTextColors = [],
     onToggleTopmost = () => {},
     onToggleWallpaper = () => {},
+    onToggleAutoHide = () => {},
     onTogglePalette = () => {},
     onToggleTextColorPalette = () => {},
     onToggleOpacityPanel = () => {},
@@ -131,6 +132,30 @@
           <rect x="4.5" y="5" width="15" height="10" rx="2"></rect>
           <path d="M7 13l2.8-2.8 2.8 2.8 2.6-2.6 2.1 2.1"></path>
           <path d="M6 19h12"></path>
+        </svg>
+      </button>
+    {/if}
+
+    {#if note?.isPinned && note?.isAlwaysOnTop}
+      <button
+        class="tool-btn"
+        class:active={!!note?.autoHideEnabled}
+        onclick={() => onToggleAutoHide()}
+        title={note?.autoHideEnabled ? strings.stickyAutoHideDisable : strings.stickyAutoHideEnable}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="5" y="6" width="14" height="12" rx="2"></rect>
+          <path d="M3 12h4"></path>
+          <path d="M17 12h4"></path>
+          <path d="M12 4v4"></path>
+          <path d="M12 16v4"></path>
         </svg>
       </button>
     {/if}

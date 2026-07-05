@@ -22,6 +22,7 @@ const STATUS_ERROR: &str = "error";
 enum ShortcutAction {
     TogglePanel,
     ToggleOverlay,
+    ToggleStickyHide,
 }
 
 #[derive(Clone)]
@@ -48,10 +49,12 @@ pub fn update_shortcut_settings(
     app: tauri::AppHandle,
     panel_shortcut: String,
     overlay_shortcut: String,
+    sticky_hide_shortcut: String,
 ) -> Result<ShortcutSettingsSnapshot, String> {
     let mut prefs = read_preferences()?;
     prefs.panel_shortcut = panel_shortcut.trim().to_string();
     prefs.overlay_shortcut = overlay_shortcut.trim().to_string();
+    prefs.sticky_hide_shortcut = sticky_hide_shortcut.trim().to_string();
     write_preferences(&prefs)?;
     apply_shortcut_preferences(&app)
 }
@@ -64,20 +67,28 @@ pub fn initialize_shortcut_settings(
 
 fn apply_shortcut_preferences(app: &tauri::AppHandle) -> Result<ShortcutSettingsSnapshot, String> {
     let prefs = read_preferences()?;
-    let mut panel_binding = build_binding(ShortcutAction::TogglePanel, prefs.panel_shortcut);
-    let mut overlay_binding = build_binding(ShortcutAction::ToggleOverlay, prefs.overlay_shortcut);
+    let mut bindings = vec![
+        build_binding(ShortcutAction::TogglePanel, prefs.panel_shortcut),
+        build_binding(ShortcutAction::ToggleOverlay, prefs.overlay_shortcut),
+        build_binding(ShortcutAction::ToggleStickyHide, prefs.sticky_hide_shortcut),
+    ];
 
-    if let (Some(panel_shortcut), Some(overlay_shortcut)) =
-        (panel_binding.parsed, overlay_binding.parsed)
-    {
-        if panel_shortcut.id() == overlay_shortcut.id() {
-            let message = "Shortcut is already assigned to another action.".to_string();
-            panel_binding.snapshot.status = STATUS_CONFLICT.to_string();
-            panel_binding.snapshot.message = message.clone();
-            overlay_binding.snapshot.status = STATUS_CONFLICT.to_string();
-            overlay_binding.snapshot.message = message;
-            panel_binding.parsed = None;
-            overlay_binding.parsed = None;
+    for index in 0..bindings.len() {
+        let Some(shortcut) = bindings[index].parsed else {
+            continue;
+        };
+        let has_conflict = bindings.iter().enumerate().any(|(other_index, other)| {
+            other_index != index
+                && other
+                    .parsed
+                    .map(|other_shortcut| other_shortcut.id() == shortcut.id())
+                    .unwrap_or(false)
+        });
+        if has_conflict {
+            bindings[index].snapshot.status = STATUS_CONFLICT.to_string();
+            bindings[index].snapshot.message =
+                "Shortcut is already assigned to another action.".to_string();
+            bindings[index].parsed = None;
         }
     }
 
@@ -85,12 +96,14 @@ fn apply_shortcut_preferences(app: &tauri::AppHandle) -> Result<ShortcutSettings
         eprintln!("unregister shortcuts failed: {}", error);
     }
 
-    register_binding(app, &mut panel_binding);
-    register_binding(app, &mut overlay_binding);
+    for binding in bindings.iter_mut() {
+        register_binding(app, binding);
+    }
 
     let snapshot = ShortcutSettingsSnapshot {
-        panel_binding: panel_binding.snapshot.clone(),
-        overlay_binding: overlay_binding.snapshot.clone(),
+        panel_binding: bindings[0].snapshot.clone(),
+        overlay_binding: bindings[1].snapshot.clone(),
+        sticky_hide_binding: bindings[2].snapshot.clone(),
     };
 
     if let Some(state) = app.try_state::<ShortcutRuntimeState>() {
@@ -162,6 +175,14 @@ fn register_binding(app: &tauri::AppHandle, binding: &mut DesiredShortcutBinding
                 .on_shortcut(shortcut, move |app, _, event| {
                     if event.state == ShortcutState::Pressed {
                         handle_overlay_shortcut(app);
+                    }
+                })
+        }
+        ShortcutAction::ToggleStickyHide => {
+            app.global_shortcut()
+                .on_shortcut(shortcut, move |app, _, event| {
+                    if event.state == ShortcutState::Pressed {
+                        crate::desktop::shortcut_hide_or_reveal(app);
                     }
                 })
         }

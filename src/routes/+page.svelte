@@ -222,7 +222,7 @@
   }
 
   /**
-   * @param {{ panelShortcut: string, overlayShortcut: string }} payload
+   * @param {{ panelShortcut: string, overlayShortcut: string, stickyHideShortcut: string }} payload
    */
   async function saveShortcutSettings(payload) {
     try {

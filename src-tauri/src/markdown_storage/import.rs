@@ -345,6 +345,14 @@ fn build_imported_note(
         y: None,
         width: None,
         height: None,
+        auto_hide_enabled: false,
+        auto_hide_edge: None,
+        auto_hide_state: None,
+        auto_hide_reason: None,
+        auto_hide_visible_x: None,
+        auto_hide_visible_y: None,
+        auto_hide_hidden_x: None,
+        auto_hide_hidden_y: None,
     };
     normalize_note_review_semantics(&mut note);
     Ok((note, attachments_imported))

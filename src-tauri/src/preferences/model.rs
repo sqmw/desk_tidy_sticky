@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_PANEL_SHORTCUT: &str = "Ctrl+Shift+N";
 pub const DEFAULT_OVERLAY_SHORTCUT: &str = "Ctrl+Shift+O";
+pub const DEFAULT_STICKY_HIDE_SHORTCUT: &str = "Ctrl+Shift+H";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -30,6 +31,8 @@ pub struct PanelPreferences {
     pub panel_shortcut: String,
     #[serde(default = "default_overlay_shortcut")]
     pub overlay_shortcut: String,
+    #[serde(default = "default_sticky_hide_shortcut")]
+    pub sticky_hide_shortcut: String,
     #[serde(default = "default_workspace_theme")]
     pub workspace_theme: String,
     #[serde(default = "default_workspace_custom_css")]
@@ -117,6 +120,9 @@ fn default_panel_shortcut() -> String {
 }
 fn default_overlay_shortcut() -> String {
     DEFAULT_OVERLAY_SHORTCUT.to_string()
+}
+fn default_sticky_hide_shortcut() -> String {
+    DEFAULT_STICKY_HIDE_SHORTCUT.to_string()
 }
 fn default_glass() -> f64 {
     0.18

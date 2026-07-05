@@ -6,6 +6,7 @@ export function createDefaultShortcutSettings() {
   return {
     panelBinding: { value: "Ctrl+Shift+N", status: "registered", message: "" },
     overlayBinding: { value: "Ctrl+Shift+O", status: "registered", message: "" },
+    stickyHideBinding: { value: "Ctrl+Shift+H", status: "registered", message: "" },
   };
 }
 
@@ -18,6 +19,7 @@ export function normalizeShortcutSettings(raw) {
   return {
     panelBinding: normalizeBinding(raw.panelBinding, fallback.panelBinding),
     overlayBinding: normalizeBinding(raw.overlayBinding, fallback.overlayBinding),
+    stickyHideBinding: normalizeBinding(raw.stickyHideBinding, fallback.stickyHideBinding),
   };
 }
 
@@ -43,13 +45,14 @@ export async function getShortcutSettings(invoke) {
 
 /**
  * @param {(cmd: string, args?: any) => Promise<any>} invoke
- * @param {{ panelShortcut: string, overlayShortcut: string }} payload
+ * @param {{ panelShortcut: string, overlayShortcut: string, stickyHideShortcut: string }} payload
  */
 export async function updateShortcutSettings(invoke, payload) {
   return normalizeShortcutSettings(
     await invoke("update_shortcut_settings", {
       panelShortcut: payload.panelShortcut,
       overlayShortcut: payload.overlayShortcut,
+      stickyHideShortcut: payload.stickyHideShortcut,
     }),
   );
 }

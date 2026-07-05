@@ -143,6 +143,7 @@ impl Default for ShortcutBindingSnapshot {
 pub struct ShortcutSettingsSnapshot {
     pub panel_binding: ShortcutBindingSnapshot,
     pub overlay_binding: ShortcutBindingSnapshot,
+    pub sticky_hide_binding: ShortcutBindingSnapshot,
 }
 
 #[derive(Clone, Default)]
@@ -162,6 +163,38 @@ impl ShortcutRuntimeState {
         self.0
             .lock()
             .map_err(|_| "shortcut runtime mutex poisoned".to_string())
+            .map(|guard| guard.clone())
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct ActiveTopmostStickyState(Arc<Mutex<Option<String>>>);
+
+impl ActiveTopmostStickyState {
+    pub fn set(&self, id: String) -> Result<(), String> {
+        let mut guard = self
+            .0
+            .lock()
+            .map_err(|_| "active topmost sticky mutex poisoned".to_string())?;
+        *guard = Some(id);
+        Ok(())
+    }
+
+    pub fn clear_if_matches(&self, id: &str) -> Result<(), String> {
+        let mut guard = self
+            .0
+            .lock()
+            .map_err(|_| "active topmost sticky mutex poisoned".to_string())?;
+        if guard.as_deref() == Some(id) {
+            *guard = None;
+        }
+        Ok(())
+    }
+
+    pub fn snapshot(&self) -> Result<Option<String>, String> {
+        self.0
+            .lock()
+            .map_err(|_| "active topmost sticky mutex poisoned".to_string())
             .map(|guard| guard.clone())
     }
 }

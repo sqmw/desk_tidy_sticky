@@ -9,6 +9,7 @@
 
   let panelDraft = $state("");
   let overlayDraft = $state("");
+  let stickyHideDraft = $state("");
 
   $effect(() => {
     panelDraft = shortcutSettings?.panelBinding?.value ?? "";
@@ -18,9 +19,16 @@
     overlayDraft = shortcutSettings?.overlayBinding?.value ?? "";
   });
 
+  $effect(() => {
+    stickyHideDraft = shortcutSettings?.stickyHideBinding?.value ?? "";
+  });
+
   const panelDirty = $derived(panelDraft !== (shortcutSettings?.panelBinding?.value ?? ""));
   const overlayDirty = $derived(overlayDraft !== (shortcutSettings?.overlayBinding?.value ?? ""));
-  const canSubmit = $derived((panelDirty || overlayDirty) && !saving);
+  const stickyHideDirty = $derived(
+    stickyHideDraft !== (shortcutSettings?.stickyHideBinding?.value ?? ""),
+  );
+  const canSubmit = $derived((panelDirty || overlayDirty || stickyHideDirty) && !saving);
 
   /**
    * @param {{ status?: string, message?: string } | null | undefined} binding
@@ -82,6 +90,9 @@
 
   const panelUi = $derived(buildBindingUi(shortcutSettings?.panelBinding, panelDirty));
   const overlayUi = $derived(buildBindingUi(shortcutSettings?.overlayBinding, overlayDirty));
+  const stickyHideUi = $derived(
+    buildBindingUi(shortcutSettings?.stickyHideBinding, stickyHideDirty),
+  );
 
   /**
    * @param {SubmitEvent} event
@@ -92,6 +103,7 @@
     await onSave({
       panelShortcut: panelDraft.trim(),
       overlayShortcut: overlayDraft.trim(),
+      stickyHideShortcut: stickyHideDraft.trim(),
     });
   }
 </script>
@@ -143,6 +155,33 @@
           />
           <span class="shortcut-status-indicator" aria-hidden="true" title={overlayUi.tooltip}>
             {overlayUi.symbol}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="shortcut-row">
+      <label class="shortcut-label shortcut-row-label" for="shortcut-sticky-hide-input">
+        {strings.shortcutStickyHideLabel}
+      </label>
+      <div class="shortcut-field-main">
+        <div
+          class="shortcut-input-wrap"
+          data-status={stickyHideUi.status}
+          data-tooltip={stickyHideUi.tooltip}
+        >
+          <input
+            id="shortcut-sticky-hide-input"
+            type="text"
+            bind:value={stickyHideDraft}
+            data-status={stickyHideUi.status}
+            title={stickyHideUi.tooltip}
+            placeholder="Ctrl+Shift+H"
+            spellcheck="false"
+            autocomplete="off"
+          />
+          <span class="shortcut-status-indicator" aria-hidden="true" title={stickyHideUi.tooltip}>
+            {stickyHideUi.symbol}
           </span>
         </div>
       </div>

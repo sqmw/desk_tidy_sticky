@@ -8,11 +8,11 @@
 
 ### Sticky Edge Auto Hide
 
-状态：planned
+状态：in_progress
 
 优先级：medium
 
-目标：设计并实现已钉在桌面且置顶显示的贴纸隐藏能力：拖动溢出屏幕边界时可溢边隐藏，快捷键可隐藏最近编辑过的顶层贴纸，并可通过快捷键、贴纸按钮或面板 / workstation 按钮恢复显示。
+目标：实现已钉在桌面且置顶显示的贴纸隐藏能力：拖动溢出屏幕边界时可溢边隐藏，快捷键可隐藏最近编辑过的顶层贴纸；存在隐藏贴纸时，快捷键优先恢复显示。
 
 关联文档：
 
@@ -20,8 +20,9 @@
 
 当前下一步：
 
-1. 用户确认默认快捷键、溢边隐藏支持边缘范围、隐藏可见边宽、是否需要托盘入口，以及“已钉在桌面 + 置顶显示”的入口展示方式。
-2. 确认后进入 Phase 1：edge 计算 helper、Note 字段扩展、最近编辑顶层贴纸 tracker 和后端命令骨架。
+1. 已实现 Note 持久化字段、Rust 统一隐藏 / 显示命令、`activeTopmostEditingNoteId` tracker、`Ctrl+Shift+H` 全局快捷键、贴纸工具栏“溢边隐藏”开关和拖动溢边触发。
+2. 静态验证已通过：`cargo test --manifest-path src-tauri/Cargo.toml sticky::auto_hide`、`make check`、`make build`。真实运行验证已尝试启动 `make dev`，但当前正式版 `/Applications/Desk Tidy Sticky.app` 正在运行，开发版被单实例拦截；需先关闭正式版后再重启开发版验证拖动溢边与 `Ctrl+Shift+H`。
+3. 后续候选入口：面板 / workstation 卡片上的“显示隐藏贴纸”按钮和托盘入口，先不阻塞当前两种隐藏触发模式验收。
 
 ### Workstation UI Cleanup
 

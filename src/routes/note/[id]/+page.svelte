@@ -82,6 +82,7 @@
   const noteWindowRadius = $derived(isWindows ? "0px" : "12px");
   const canInteract = $derived(!globalControlDisabled || !!note?.isAlwaysOnTop);
   const isEffectiveTopmost = $derived(!!note?.isAlwaysOnTop || !globalControlDisabled);
+  const isPinnedTopmostSticky = $derived(!!note?.isPinned && !!note?.isAlwaysOnTop);
   const showTopmostControls = $derived(isEffectiveTopmost && (isControlMode || isEditing));
   const allowHoverToolbar = $derived((isEffectiveTopmost ? false : canInteract));
   const noteCenterHudText = $derived.by(() => {
@@ -425,6 +426,43 @@
     }
   }
 
+  async function markActiveTopmostEditingSticky() {
+    if (!note || !isPinnedTopmostSticky) return;
+    try {
+      await invoke("mark_active_topmost_editing_sticky", {
+        id: resolveNoteId(note, noteId),
+      });
+    } catch (e) {
+      console.error("markActiveTopmostEditingSticky", e);
+    }
+  }
+
+  async function clearActiveTopmostEditingSticky() {
+    if (!note) return;
+    try {
+      await invoke("clear_active_topmost_editing_sticky", {
+        id: resolveNoteId(note, noteId),
+      });
+    } catch (e) {
+      console.error("clearActiveTopmostEditingSticky", e);
+    }
+  }
+
+  async function hideToEdgeAfterOverflowIfNeeded() {
+    if (!note || !isPinnedTopmostSticky || !note.autoHideEnabled || isEditing) return;
+    try {
+      const result = await invoke("hide_note_to_edge", {
+        id: resolveNoteId(note, noteId),
+        reason: "overflow",
+      });
+      if (result?.note) {
+        note = result.note;
+      }
+    } catch (e) {
+      console.error("hideToEdgeAfterOverflowIfNeeded", e);
+    }
+  }
+
   function rememberNoteBlockScroll() {
     return {
       top: noteBlockSurfaceEl?.scrollTop ?? 0,
@@ -449,6 +487,7 @@
   /** @param {string} nextText */
   async function updateTextFromPreview(nextText) {
     if (!note || typeof nextText !== "string") return;
+    void markActiveTopmostEditingSticky();
     const scrollPosition = rememberNoteBlockScroll();
     text = nextText;
     await restoreNoteBlockScroll(scrollPosition);
@@ -477,6 +516,7 @@
       isControlMode = true;
     }
     isEditing = true;
+    void markActiveTopmostEditingSticky();
     showPalette = false;
     showTextColorPalette = false;
     showOpacityPanel = false;
@@ -486,6 +526,7 @@
 
   async function exitEditMode() {
     await save();
+    void markActiveTopmostEditingSticky();
     isEditing = false;
   }
 
@@ -520,6 +561,9 @@
         note = updated;
         opacityDraft = updated.opacity ?? DEFAULT_NOTE_OPACITY;
         frostDraft = updated.frost ?? DEFAULT_NOTE_FROST;
+        if (!updated.isAlwaysOnTop) {
+          void clearActiveTopmostEditingSticky();
+        }
       }
       await applyInteractionPolicy();
     } catch (e) {
@@ -541,6 +585,9 @@
         note = updated;
         opacityDraft = updated.opacity ?? DEFAULT_NOTE_OPACITY;
         frostDraft = updated.frost ?? DEFAULT_NOTE_FROST;
+        if (!updated.isAlwaysOnTop) {
+          void clearActiveTopmostEditingSticky();
+        }
       }
       await applyInteractionPolicy();
     } catch (e) {
@@ -650,6 +697,7 @@
           x: position.x,
           y: position.y,
         };
+        await hideToEdgeAfterOverflowIfNeeded();
       } catch (e) {
         console.error("persistNotePosition", e);
       }
@@ -698,6 +746,7 @@
     onExitControlMode: exitControlMode,
     onToggleTopmost: toggleTopmost,
     onToggleWallpaper: toggleWallpaperLayer,
+    onToggleAutoHide: toggleAutoHide,
     onTogglePalette: () => (showPalette = !showPalette),
     onToggleTextColorPalette: () => (showTextColorPalette = !showTextColorPalette),
     onToggleOpacityPanel: () => (showOpacityPanel = !showOpacityPanel),
@@ -765,6 +814,7 @@
         noteId,
       });
       await syncAfterCommand(all, { closeIfUnpinned: true });
+      void clearActiveTopmostEditingSticky();
     } catch (e) {
       console.error("toggleArchive", e);
     }
@@ -781,6 +831,7 @@
         noteId,
       });
       await syncAfterCommand(all, { closeIfUnpinned: true });
+      void clearActiveTopmostEditingSticky();
     } catch (e) {
       console.error("unpinNote", e);
     }
@@ -797,8 +848,23 @@
         noteId,
       });
       await syncAfterCommand(all, { closeIfUnpinned: true });
+      void clearActiveTopmostEditingSticky();
     } catch (e) {
       console.error("moveToTrash", e);
+    }
+  }
+
+  async function toggleAutoHide() {
+    if (!note || !isPinnedTopmostSticky) return;
+    try {
+      const all = await invoke("set_note_auto_hide_enabled", {
+        id: resolveNoteId(note, noteId),
+        enabled: !note.autoHideEnabled,
+        sortMode: "custom",
+      });
+      await syncAfterCommand(all);
+    } catch (e) {
+      console.error("toggleAutoHide", e);
     }
   }
 

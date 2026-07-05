@@ -16,7 +16,8 @@ pub(crate) use commands::{
 };
 pub(crate) use domain::{normalize_note_review_semantics, normalize_tags};
 pub(crate) use model::{
-    chrono_now, Note, DEFAULT_NOTE_FROST, DEFAULT_NOTE_OPACITY, DEFAULT_NOTE_TEXT_COLOR,
+    chrono_now, Note, AUTO_HIDE_REASON_OVERFLOW, AUTO_HIDE_REASON_SHORTCUT, AUTO_HIDE_STATE_HIDDEN,
+    AUTO_HIDE_STATE_VISIBLE, DEFAULT_NOTE_FROST, DEFAULT_NOTE_OPACITY, DEFAULT_NOTE_TEXT_COLOR,
     RECORD_KIND_DONE_LOG, RECORD_KIND_NOTE,
 };
 pub(crate) use service::NoteSortMode;

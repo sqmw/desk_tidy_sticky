@@ -18,12 +18,15 @@ use desktop::ensure_hidden_workspace_runtime_window;
 use desktop::{apply_macos_runtime_dock_icon, ensure_hidden_workspace_runtime_window};
 use desktop::{
     apply_note_window_frost, apply_note_window_layer, apply_window_no_snap_by_label,
-    configure_note_panel_window, dismiss_note_window_by_label, get_overlay_interaction,
-    get_shortcut_settings, hide_panel_window, initialize_shortcut_settings, minimize_panel_window,
-    move_note_window_without_activation, pin_window_to_desktop, show_preferred_panel_window,
-    sync_all_note_window_layers, sync_note_window_layer, sync_panel_window_shell_state,
-    toggle_overlay_interaction, toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply,
-    unpin_window_from_desktop, update_shortcut_settings, update_tray_texts,
+    clear_active_topmost_editing_sticky, configure_note_panel_window, dismiss_note_window_by_label,
+    get_overlay_interaction, get_shortcut_settings, hide_active_topmost_editing_sticky,
+    hide_note_to_edge, hide_panel_window, initialize_shortcut_settings,
+    mark_active_topmost_editing_sticky, minimize_panel_window, move_note_window_without_activation,
+    pin_window_to_desktop, reveal_note_from_edge, set_note_auto_hide_enabled,
+    show_preferred_panel_window, sync_all_note_window_layers, sync_note_window_layer,
+    sync_panel_window_shell_state, toggle_hidden_stickies, toggle_overlay_interaction,
+    toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply, unpin_window_from_desktop,
+    update_shortcut_settings, update_tray_texts,
 };
 use markdown_storage::{
     export_current_notes_to_markdown, get_markdown_storage_snapshot,
@@ -42,8 +45,8 @@ use notes::{
 use platform::window_hwnd_isize;
 use preferences::{get_preferences, set_preferences};
 use runtime::{
-    BreakOverlayPresentationState, BreakReminderWatchState, GlobalControlState,
-    ShortcutRuntimeState,
+    ActiveTopmostStickyState, BreakOverlayPresentationState, BreakReminderWatchState,
+    GlobalControlState, ShortcutRuntimeState,
 };
 use tauri::Manager;
 
@@ -54,6 +57,7 @@ pub fn run() {
         .manage(BreakReminderWatchState::default())
         .manage(BreakOverlayPresentationState::default())
         .manage(ShortcutRuntimeState::default())
+        .manage(ActiveTopmostStickyState::default())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             show_preferred_panel_window(app);
         }))
@@ -149,6 +153,13 @@ pub fn run() {
             import_markdown_from_storage_root,
             get_shortcut_settings,
             update_shortcut_settings,
+            set_note_auto_hide_enabled,
+            mark_active_topmost_editing_sticky,
+            clear_active_topmost_editing_sticky,
+            hide_note_to_edge,
+            reveal_note_from_edge,
+            hide_active_topmost_editing_sticky,
+            toggle_hidden_stickies,
             pin_window_to_desktop,
             unpin_window_from_desktop,
             configure_note_panel_window,

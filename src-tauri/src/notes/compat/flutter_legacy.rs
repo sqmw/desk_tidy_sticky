@@ -317,6 +317,14 @@ fn note_from_value(value: &Value) -> Option<Note> {
         y: pick_f64(obj, &["y"]),
         width: pick_f64(obj, &["width"]),
         height: pick_f64(obj, &["height"]),
+        auto_hide_enabled: pick_bool(obj, &["autoHideEnabled", "auto_hide_enabled"], false),
+        auto_hide_edge: pick_string(obj, &["autoHideEdge", "auto_hide_edge"]),
+        auto_hide_state: pick_string(obj, &["autoHideState", "auto_hide_state"]),
+        auto_hide_reason: pick_string(obj, &["autoHideReason", "auto_hide_reason"]),
+        auto_hide_visible_x: pick_f64(obj, &["autoHideVisibleX", "auto_hide_visible_x"]),
+        auto_hide_visible_y: pick_f64(obj, &["autoHideVisibleY", "auto_hide_visible_y"]),
+        auto_hide_hidden_x: pick_f64(obj, &["autoHideHiddenX", "auto_hide_hidden_x"]),
+        auto_hide_hidden_y: pick_f64(obj, &["autoHideHiddenY", "auto_hide_hidden_y"]),
     })
 }
 

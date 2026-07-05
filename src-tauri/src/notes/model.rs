@@ -6,6 +6,10 @@ pub const DEFAULT_NOTE_FROST: f64 = 0.22;
 pub const DEFAULT_NOTE_TEXT_COLOR: &str = "#1f2937";
 pub const RECORD_KIND_NOTE: &str = "note";
 pub const RECORD_KIND_DONE_LOG: &str = "done_log";
+pub const AUTO_HIDE_STATE_VISIBLE: &str = "visible";
+pub const AUTO_HIDE_STATE_HIDDEN: &str = "hidden";
+pub const AUTO_HIDE_REASON_OVERFLOW: &str = "overflow";
+pub const AUTO_HIDE_REASON_SHORTCUT: &str = "shortcut";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,6 +51,22 @@ pub struct Note {
     pub width: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<f64>,
+    #[serde(default)]
+    pub auto_hide_enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_hide_edge: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_hide_state: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_hide_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_hide_visible_x: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_hide_visible_y: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_hide_hidden_x: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_hide_hidden_y: Option<f64>,
 }
 
 impl Note {
@@ -77,6 +97,14 @@ impl Note {
             y: None,
             width: None,
             height: None,
+            auto_hide_enabled: false,
+            auto_hide_edge: None,
+            auto_hide_state: None,
+            auto_hide_reason: None,
+            auto_hide_visible_x: None,
+            auto_hide_visible_y: None,
+            auto_hide_hidden_x: None,
+            auto_hide_hidden_y: None,
         }
     }
 }

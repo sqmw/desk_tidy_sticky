@@ -4,7 +4,9 @@ use crate::notes::repository::{
     self as notes_repository, merged_notes_from_context, persist_current_and_verify,
     persist_legacy_file, upsert_current_note,
 };
-use crate::notes::{Note, RECORD_KIND_DONE_LOG, RECORD_KIND_NOTE};
+use crate::notes::{
+    Note, AUTO_HIDE_STATE_HIDDEN, AUTO_HIDE_STATE_VISIBLE, RECORD_KIND_DONE_LOG, RECORD_KIND_NOTE,
+};
 
 pub use crate::notes::domain::NoteSortMode;
 
@@ -62,6 +64,22 @@ where
     }
     save_notes_to_file(&context.current_notes)?;
     Ok(merged_notes_from_context(&context))
+}
+
+fn clear_auto_hide_runtime(note: &mut Note) {
+    note.auto_hide_state = None;
+    note.auto_hide_edge = None;
+    note.auto_hide_reason = None;
+    note.auto_hide_visible_x = None;
+    note.auto_hide_visible_y = None;
+    note.auto_hide_hidden_x = None;
+    note.auto_hide_hidden_y = None;
+}
+
+pub fn find_note(id: &str) -> Result<Option<Note>, String> {
+    Ok(load_notes_from_file()?
+        .into_iter()
+        .find(|note| note.id == id))
 }
 
 pub fn load_notes(sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
@@ -163,6 +181,82 @@ pub fn update_note_size(id: &str, width: f64, height: f64) -> Result<(), String>
         n.height = Some(safe_height);
     })?;
     Ok(())
+}
+
+pub fn update_note_auto_hide_enabled(
+    id: &str,
+    enabled: bool,
+    sort_mode: NoteSortMode,
+) -> Result<Vec<Note>, String> {
+    mutate_note(id, Some(sort_mode), |n| {
+        n.auto_hide_enabled = enabled;
+        if !enabled {
+            clear_auto_hide_runtime(n);
+        }
+        n.updated_at = chrono_now();
+    })
+}
+
+pub fn update_note_auto_hide_state(
+    id: &str,
+    edge: &str,
+    state: &str,
+    reason: Option<&str>,
+    visible_position: Option<(f64, f64)>,
+    hidden_position: Option<(f64, f64)>,
+) -> Result<Note, String> {
+    let notes = mutate_note(id, None, |n| {
+        let edge = edge.trim();
+        n.auto_hide_edge = if edge.is_empty() {
+            None
+        } else {
+            Some(edge.to_string())
+        };
+        n.auto_hide_state = if state.trim().is_empty() {
+            None
+        } else {
+            Some(state.to_string())
+        };
+        n.auto_hide_reason = reason
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string);
+        if let Some((x, y)) = visible_position {
+            n.auto_hide_visible_x = Some(x);
+            n.auto_hide_visible_y = Some(y);
+        }
+        if let Some((x, y)) = hidden_position {
+            n.auto_hide_hidden_x = Some(x);
+            n.auto_hide_hidden_y = Some(y);
+            n.x = Some(x);
+            n.y = Some(y);
+        } else if state == AUTO_HIDE_STATE_VISIBLE {
+            if let Some((x, y)) = visible_position {
+                n.x = Some(x);
+                n.y = Some(y);
+            }
+            n.auto_hide_hidden_x = None;
+            n.auto_hide_hidden_y = None;
+        }
+        n.updated_at = chrono_now();
+    })?;
+    notes
+        .into_iter()
+        .find(|note| note.id == id)
+        .ok_or_else(|| "note not found".to_string())
+}
+
+pub fn hidden_notes() -> Result<Vec<Note>, String> {
+    Ok(load_notes_from_file()?
+        .into_iter()
+        .filter(|note| {
+            note.is_pinned
+                && note.is_always_on_top
+                && !note.is_archived
+                && !note.is_deleted
+                && note.auto_hide_state.as_deref() == Some(AUTO_HIDE_STATE_HIDDEN)
+        })
+        .collect())
 }
 
 pub fn reset_pinned_note_positions<F>(mut next_position: F) -> Result<Vec<Note>, String>
@@ -271,6 +365,10 @@ pub fn clear_note_priority(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note
 pub fn toggle_pin(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, String> {
     mutate_note(id, Some(sort_mode), |n| {
         n.is_pinned = !n.is_pinned;
+        if !n.is_pinned {
+            n.auto_hide_enabled = false;
+            clear_auto_hide_runtime(n);
+        }
     })
 }
 
@@ -279,6 +377,8 @@ pub fn toggle_z_order(id: &str, _sort_mode: NoteSortMode) -> Result<Vec<Note>, S
         n.is_always_on_top = !n.is_always_on_top;
         if n.is_always_on_top {
             n.is_wallpaper = false;
+        } else {
+            clear_auto_hide_runtime(n);
         }
     })
 }
@@ -288,6 +388,7 @@ pub fn toggle_wallpaper_layer(id: &str, _sort_mode: NoteSortMode) -> Result<Vec<
         n.is_wallpaper = !n.is_wallpaper;
         if n.is_wallpaper {
             n.is_always_on_top = false;
+            clear_auto_hide_runtime(n);
         }
     })
 }
@@ -313,6 +414,8 @@ pub fn toggle_archive(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, St
         n.is_archived = !n.is_archived;
         if n.is_archived {
             n.is_pinned = false;
+            n.auto_hide_enabled = false;
+            clear_auto_hide_runtime(n);
         }
     })
 }
@@ -321,6 +424,8 @@ pub fn delete_note(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, Strin
     mutate_note(id, Some(sort_mode), |n| {
         n.is_deleted = true;
         n.is_pinned = false;
+        n.auto_hide_enabled = false;
+        clear_auto_hide_runtime(n);
     })
 }
 
@@ -328,6 +433,8 @@ pub fn restore_note(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, Stri
     mutate_note(id, Some(sort_mode), |n| {
         n.is_deleted = false;
         n.is_pinned = false;
+        n.auto_hide_enabled = false;
+        clear_auto_hide_runtime(n);
     })
 }
 
