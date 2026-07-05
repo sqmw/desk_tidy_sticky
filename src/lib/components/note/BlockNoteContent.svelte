@@ -20,6 +20,10 @@
   import { applyLineIndentToText } from "$lib/markdown/editor-indent.js";
   import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
 
+  /**
+   * @typedef {{ before: string; after: string; caretOffset?: number | null; caretAtEnd?: boolean }} EnterSplit
+   */
+
   let {
     text = "",
     compact = false,
@@ -72,6 +76,7 @@
       if (pendingActiveStartLine == null) return;
       const nextBlock = blocks.find((block) => block.startLine === pendingActiveStartLine);
       if (!nextBlock) {
+        pendingActiveStartLine = null;
         pendingCaretAtEnd = false;
         pendingCaretOffset = null;
         return;
@@ -100,7 +105,7 @@
 
   /**
    * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
-   * @param {{ fromPending?: boolean }} [options]
+   * @param {{ fromPending?: boolean; caretAtEnd?: boolean; caretOffset?: number | null }} [options]
    */
   async function openBlock(block, options = {}) {
     if (readonly || !block.editable) return;
@@ -123,12 +128,13 @@
     await tick();
     resizeEditor();
     editorEl?.focus?.();
-    if (options.fromPending && pendingCaretOffset != null) {
-      const caret = Math.max(0, Math.min(pendingCaretOffset, activeBlockDraft.length));
+    const requestedCaretOffset = options.caretOffset ?? (options.fromPending ? pendingCaretOffset : null);
+    if (requestedCaretOffset != null) {
+      const caret = Math.max(0, Math.min(requestedCaretOffset, activeBlockDraft.length));
       pendingCaretOffset = null;
       pendingCaretAtEnd = false;
       editorEl?.setSelectionRange?.(caret, caret);
-    } else if (options.fromPending && pendingCaretAtEnd) {
+    } else if (options.caretAtEnd || (options.fromPending && pendingCaretAtEnd)) {
       pendingCaretAtEnd = false;
       const caret = activeBlockDraft.length;
       editorEl?.setSelectionRange?.(caret, caret);
@@ -195,6 +201,8 @@
     editorInputPreviousDraft = "";
     hideCommandSuggestions();
     pendingActiveStartLine = inserted.nextStartLine;
+    pendingCaretOffset = split.caretOffset ?? null;
+    pendingCaretAtEnd = !!split.caretAtEnd;
     await onTextChange(inserted.text);
     return true;
   }
@@ -316,6 +324,22 @@
     return previousBlock?.editable ? previousBlock : null;
   }
 
+  /**
+   * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
+   */
+  function getNextEditableBlock(block) {
+    const index = blocks.findIndex(
+      (candidate) =>
+        candidate.id === block.id ||
+        (candidate.startLine === block.startLine &&
+          candidate.endLine === block.endLine &&
+          candidate.markdown === block.markdown),
+    );
+    if (index < 0 || index >= blocks.length - 1) return null;
+    const nextBlock = blocks[index + 1];
+    return nextBlock?.editable ? nextBlock : null;
+  }
+
   function appendTaskLineToActiveDraft() {
     const draft = String(activeBlockDraft ?? "");
     const lines = draft.split("\n");
@@ -425,14 +449,36 @@
 
   /**
    * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
+   * @returns {EnterSplit}
    */
   function getEnterSplit(block) {
     if (block.type !== "paragraph" && block.type !== "heading") {
       return { before: getActiveBlockMarkdownDraft().replace(/\n$/, ""), after: "" };
     }
+    if (block.type === "heading") {
+      return getHeadingEnterSplit(block);
+    }
     return getDraftSplitAtCursor();
   }
 
+  /**
+   * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
+   */
+  function getHeadingEnterSplit(block) {
+    const split = getDraftSplitAtCursor();
+    const marker = getHeadingMarker(activeBlockDraft || block.rawLines[0] || "");
+    const prefix = `${marker} `;
+    const after = /^ {0,3}#{1,6}(?:\s+|$)/.test(split.after)
+      ? split.after
+      : `${prefix}${split.after.replace(/^\s+/, "")}`;
+    return {
+      ...split,
+      after,
+      caretOffset: prefix.length,
+    };
+  }
+
+  /** @returns {EnterSplit} */
   function getDraftSplitAtCursor() {
     const draft = String(activeBlockDraft ?? "");
     const cursor = Math.max(0, Math.min(editorEl?.selectionStart ?? draft.length, draft.length));
@@ -613,6 +659,43 @@
     return true;
   }
 
+  /**
+   * @param {-1 | 1} direction
+   */
+  function getEditorBoundaryNavigation(direction) {
+    if (!editorEl || editingEmpty || !activeBlockOriginal) return null;
+    const draft = getEditorDraft();
+    const selectionStart = editorEl.selectionStart ?? 0;
+    const selectionEnd = editorEl.selectionEnd ?? selectionStart;
+    if (selectionStart !== selectionEnd) return null;
+
+    const atStart = selectionStart === 0;
+    const atEnd = selectionStart === draft.length;
+    const target =
+      direction < 0 && atStart
+        ? getPreviousEditableBlock(activeBlockOriginal)
+        : direction > 0 && atEnd
+          ? getNextEditableBlock(activeBlockOriginal)
+          : null;
+    if (!target) return null;
+    return {
+      targetStartLine: target.startLine,
+      caretAtEnd: direction < 0,
+    };
+  }
+
+  /**
+   * @param {{ targetStartLine: number; caretAtEnd: boolean }} navigation
+   */
+  async function moveActiveBlockAtEditorBoundary(navigation) {
+    const saved = await commitActiveBlock();
+    if (!saved) return true;
+    pendingActiveStartLine = navigation.targetStartLine;
+    pendingCaretAtEnd = navigation.caretAtEnd;
+    pendingCaretOffset = navigation.caretAtEnd ? null : 0;
+    return true;
+  }
+
   function suppressEditorBlurBriefly() {
     suppressEditorBlurUntil = Date.now() + 250;
   }
@@ -684,6 +767,25 @@
       event.stopPropagation();
       await applyEditorLineIndent(event.shiftKey);
       return;
+    }
+    if (
+      (event.key === "ArrowLeft" ||
+        event.key === "ArrowUp" ||
+        event.key === "ArrowRight" ||
+        event.key === "ArrowDown") &&
+      !event.shiftKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
+      const direction = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 1;
+      const navigation = getEditorBoundaryNavigation(direction);
+      if (navigation) {
+        event.preventDefault();
+        event.stopPropagation();
+        await moveActiveBlockAtEditorBoundary(navigation);
+        return;
+      }
     }
     if (event.key === "Enter" && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
       event.preventDefault();
