@@ -97,6 +97,13 @@
 
 测试态切换方式建议用 debug preference 或开发环境变量，例如 `STICKY_AUTO_HIDE_TEST_MODE=1`，避免把测试值写死进业务逻辑。
 
+当前落地的真实运行验证入口：
+
+- 环境变量：`DESK_TIDY_STICKY_RUNTIME_CHECK=sticky_auto_hide`
+- 默认状态：未设置时完全不运行。
+- 行为：启动真实 Tauri 进程后，在当前数据目录创建一张测试贴纸，创建真实 `note-*` 窗口，调用同一套 `hide_active_topmost_editing_sticky` / `toggle_hidden_stickies` 命令，校验 hidden / visible 状态写回，然后自动退出。
+- 隔离建议：运行验证时使用临时 `HOME` 或后续专用数据目录，避免写入正式 notes。
+
 ### 2. 边缘检测
 
 当前实现把边缘检测放在 Rust 侧 `src-tauri/src/desktop/sticky/auto_hide.rs`，由统一命令读取真实窗口 `outer_position / outer_size / scale_factor` 和 monitor 信息，避免前端坐标与原生窗口状态漂移。

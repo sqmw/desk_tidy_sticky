@@ -21,7 +21,7 @@
 当前下一步：
 
 1. 已实现 Note 持久化字段、Rust 统一隐藏 / 显示命令、`activeTopmostEditingNoteId` tracker、`Ctrl+Shift+H` 全局快捷键、贴纸工具栏“溢边隐藏”开关和拖动溢边触发。
-2. 静态验证已通过：`cargo test --manifest-path src-tauri/Cargo.toml sticky::auto_hide`、`make check`、`make build`。真实运行验证已尝试启动 `make dev`，但当前正式版 `/Applications/Desk Tidy Sticky.app` 正在运行，开发版被单实例拦截；需先关闭正式版后再重启开发版验证拖动溢边与 `Ctrl+Shift+H`。
+2. 验证已通过：`cargo test --manifest-path src-tauri/Cargo.toml sticky::auto_hide`、`make check`、`make build`。真实运行验证使用临时 `HOME` 启动开发版 Tauri，并设置 `DESK_TIDY_STICKY_RUNTIME_CHECK=sticky_auto_hide`；日志已出现 `hide active note`、`reveal hidden note`、`hide overflowed note`、`reveal overflow hidden note` 和 `sticky_auto_hide PASS`。
 3. 后续候选入口：面板 / workstation 卡片上的“显示隐藏贴纸”按钮和托盘入口，先不阻塞当前两种隐藏触发模式验收。
 
 ### Workstation UI Cleanup

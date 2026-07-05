@@ -5,6 +5,7 @@ mod notes;
 mod platform;
 mod preferences;
 mod runtime;
+mod runtime_checks;
 
 #[cfg(target_os = "macos")]
 use breaks::process_break_reminder_due;
@@ -95,6 +96,7 @@ pub fn run() {
 
                 ensure_hidden_workspace_runtime_window(&app.handle());
                 start_break_reminder_watchdog(&app.handle());
+                runtime_checks::maybe_start_sticky_auto_hide_runtime_check(&app.handle());
 
                 // Apply show panel on startup preference (defer to ensure window exists)
                 let app_handle = app.handle().clone();
