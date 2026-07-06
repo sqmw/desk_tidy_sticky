@@ -101,7 +101,7 @@
       aria-label={strings.overlay}
       onclick={() => onToggleStickiesVisibility()}
     >
-      <span class="footer-toggle-icon" aria-hidden="true">{stickiesVisible ? "◉" : "○"}</span>
+      <span class="footer-toggle-icon" aria-hidden="true"></span>
       {#if !collapsed}
         <span class="footer-toggle-label">{strings.overlay}</span>
       {/if}
@@ -117,7 +117,7 @@
       aria-label={strings.overlayClickThrough}
       onclick={() => onToggleGlobalControl()}
     >
-      <span class="footer-toggle-icon" aria-hidden="true">{globalControlDisabled ? "◌" : "◉"}</span>
+      <span class="footer-toggle-icon" aria-hidden="true"></span>
       {#if !collapsed}
         <span class="footer-toggle-label">{strings.overlayClickThrough}</span>
       {/if}
@@ -318,23 +318,41 @@
   }
 
   .footer-toggle-icon {
-    width: 12px;
+    width: 16px;
+    height: 16px;
     flex: 0 0 auto;
-    font-size: 12px;
-    line-height: 1;
+    display: grid;
+    place-items: center;
+  }
+
+  .footer-toggle-icon::before {
+    content: "";
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid var(--ws-muted, #64748b);
+    border-radius: 999px;
+    background: transparent;
+    opacity: 0.72;
+  }
+
+  .footer-toggle.active .footer-toggle-icon::before {
+    border-color: var(--ws-accent, #1d4ed8);
+    background:
+      radial-gradient(circle, var(--ws-accent, #1d4ed8) 0 4px, transparent 4.5px);
+    opacity: 1;
   }
 
   .footer-toggle-label {
     min-width: 0;
     flex: 1;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     text-align: left;
   }
 
   .footer-toggle-state {
     flex: 0 0 auto;
-    font-size: 8px;
+    font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.06em;
     color: var(--ws-muted, #64748b);
