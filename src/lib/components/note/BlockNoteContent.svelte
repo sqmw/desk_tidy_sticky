@@ -36,6 +36,8 @@
     onToggleTask = () => {},
     onAppendTask = () => {},
     onConflict = () => {},
+    commitOnEscape = false,
+    onEditorEscape = async () => {},
   } = $props();
 
   /** @type {string | null} */
@@ -424,6 +426,7 @@
     if (nextText !== text) {
       await onTextChange(nextText);
     }
+    return true;
   }
 
   async function commitActiveEditor() {
@@ -835,12 +838,19 @@
     if (event.key === "Escape") {
       event.preventDefault();
       event.stopPropagation();
+      hideCommandSuggestions();
+      if (commitOnEscape) {
+        const saved = editingEmpty ? await commitEmptyEditor() : await commitActiveBlock();
+        if (saved !== false) {
+          await onEditorEscape();
+        }
+        return;
+      }
       if (editingEmpty) {
         cancelEmptyEditor();
       } else {
         cancelActiveBlock();
       }
-      hideCommandSuggestions();
     }
   }
 

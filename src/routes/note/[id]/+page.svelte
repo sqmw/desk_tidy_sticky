@@ -1085,10 +1085,12 @@
             readonly={!canInteract}
             editTrigger="click"
             placeholder={strings.noteEditorPlaceholder}
+            commitOnEscape
             onBeginEdit={enterBlockEditSurface}
             onTextChange={updateTextFromPreview}
             onToggleTask={togglePreviewTask}
             onAppendTask={appendPreviewTask}
+            onEditorEscape={exitControlMode}
           />
         </div>
 
