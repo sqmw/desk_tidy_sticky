@@ -11,6 +11,7 @@
     strings,
     viewMode,
     renderedNotes,
+    openViewOnClick = false,
     canQuadrantReorder = false,
     persistReorderedVisible = async () => {},
     formatDate,
@@ -478,6 +479,7 @@
       {formatDate}
       {priorityBadge}
       {priorityActionLabel}
+      {openViewOnClick}
       {openView}
       {openEdit}
       {toggleArchive}
@@ -498,6 +500,7 @@
       {formatDate}
       {priorityBadge}
       {priorityActionLabel}
+      {openViewOnClick}
       {restoreNote}
       {toggleArchive}
       {deleteNote}

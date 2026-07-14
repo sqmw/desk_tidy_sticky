@@ -927,6 +927,7 @@
             {strings}
             {viewMode}
             {renderedNotes}
+            openViewOnClick={inspectorOpen}
             {canQuadrantReorder}
             formatDate={formatWorkspaceNoteDate}
             {restoreNote}

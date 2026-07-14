@@ -7,6 +7,7 @@
     formatDate = () => "",
     priorityBadge = () => "",
     priorityActionLabel = () => "",
+    openViewOnClick = false,
     restoreNote = () => {},
     toggleArchive = () => {},
     deleteNote = () => {},
@@ -18,11 +19,35 @@
     toggleDone = () => {},
     togglePriorityMenu = () => {},
   } = $props();
+
+  /** @param {MouseEvent} event @param {any} note */
+  function handleCardClick(event, note) {
+    if (!openViewOnClick) return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest("button, a, input, textarea, select")) return;
+    openView(note);
+  }
+
+  /** @param {KeyboardEvent} event @param {any} note */
+  function handleCardKeydown(event, note) {
+    if (!openViewOnClick || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    openView(note);
+  }
 </script>
 
 <div class="grid">
   {#each renderedNotes as note (note.id)}
-    <article class="card" ondblclick={() => openView(note)}>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex: role and tabindex are enabled only while the inspector is open. -->
+    <article
+      class="card"
+      class:selectable={openViewOnClick}
+      role={openViewOnClick ? "button" : undefined}
+      tabindex={openViewOnClick ? 0 : undefined}
+      onclick={(event) => handleCardClick(event, note)}
+      onkeydown={(event) => handleCardKeydown(event, note)}
+      ondblclick={!openViewOnClick ? () => openView(note) : undefined}
+    >
       <div class="card-top">
         {#if priorityBadge(note.priority)}
           <span class="priority-tag">{priorityBadge(note.priority)}</span>
@@ -271,6 +296,15 @@
       background-color 0.16s ease,
       box-shadow 0.16s ease,
       transform 0.16s ease;
+  }
+
+  .card.selectable {
+    cursor: pointer;
+  }
+
+  .card.selectable:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 72%, transparent);
+    outline-offset: 2px;
   }
 
   .card::before {

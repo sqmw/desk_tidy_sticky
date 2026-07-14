@@ -51,3 +51,13 @@
    - 卡片边界清楚但不过重。
    - 顶部创建/搜索区主次更明确。
 
+## Interaction Follow-up (2026-07-14)
+
+当右侧详情 inspector 已展开时，普通网格和四象限中的笔记卡片改为单击切换详情；详情未展开时继续使用双击打开详情，保留原有浏览行为。卡片内的操作按钮和拖拽手柄不触发卡片切换，键盘焦点下可用 `Enter` / `Space` 选择卡片。
+
+涉及文件：
+
+- `src/routes/workspace/+page.svelte`
+- `src/lib/components/panel/WorkbenchSection.svelte`
+- `src/lib/components/panel/workbench/WorkbenchNoteGrid.svelte`
+- `src/lib/components/panel/workbench/WorkbenchQuadrantBoard.svelte`
