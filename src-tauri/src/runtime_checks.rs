@@ -1,8 +1,8 @@
 use std::{sync::mpsc, thread, time::Duration};
 
 use crate::notes::{
-    self, service as notes_service, AUTO_HIDE_REASON_OVERFLOW, AUTO_HIDE_STATE_HIDDEN,
-    AUTO_HIDE_STATE_VISIBLE,
+    self, service as notes_service, store as notes_store, AUTO_HIDE_REASON_OVERFLOW,
+    AUTO_HIDE_STATE_HIDDEN, AUTO_HIDE_STATE_VISIBLE,
 };
 use tauri::Manager;
 
@@ -38,7 +38,7 @@ fn run_sticky_auto_hide_runtime_check(app: &tauri::AppHandle) -> Result<(), Stri
     eprintln!("[runtime-check] sticky_auto_hide start");
     thread::sleep(Duration::from_millis(700));
     eprintln!("[runtime-check] create note");
-    let note_id = create_runtime_check_note()?;
+    let note_id = create_runtime_check_note(app)?;
     let label = format!("note-{}", note_id);
     eprintln!("[runtime-check] create window {}", label);
     create_runtime_check_note_window(app, &note_id, &label)?;
@@ -52,7 +52,7 @@ fn run_sticky_auto_hide_runtime_check(app: &tauri::AppHandle) -> Result<(), Stri
     if hidden.state != AUTO_HIDE_STATE_HIDDEN {
         return Err(format!("expected hidden state, got {}", hidden.state));
     }
-    let hidden_note = notes_service::find_note(&note_id)?
+    let hidden_note = notes_store::with_notes_store(app, || notes_service::find_note(&note_id))?
         .ok_or_else(|| "hidden note missing after hide".to_string())?;
     if hidden_note.auto_hide_state.as_deref() != Some(AUTO_HIDE_STATE_HIDDEN) {
         return Err("note was not persisted as hidden".to_string());
@@ -66,7 +66,7 @@ fn run_sticky_auto_hide_runtime_check(app: &tauri::AppHandle) -> Result<(), Stri
     if revealed.is_empty() {
         return Err("toggle_hidden_stickies did not reveal any note".to_string());
     }
-    let visible_note = notes_service::find_note(&note_id)?
+    let visible_note = notes_store::with_notes_store(app, || notes_service::find_note(&note_id))?
         .ok_or_else(|| "hidden note missing after reveal".to_string())?;
     if visible_note.auto_hide_state.as_deref() != Some(AUTO_HIDE_STATE_VISIBLE) {
         return Err("note was not persisted as visible after reveal".to_string());
@@ -88,7 +88,7 @@ fn run_sticky_auto_hide_runtime_check(app: &tauri::AppHandle) -> Result<(), Stri
             overflow_hidden.state
         ));
     }
-    let overflow_note = notes_service::find_note(&note_id)?
+    let overflow_note = notes_store::with_notes_store(app, || notes_service::find_note(&note_id))?
         .ok_or_else(|| "overflow note missing after hide".to_string())?;
     if overflow_note.auto_hide_state.as_deref() != Some(AUTO_HIDE_STATE_HIDDEN) {
         return Err("overflow note was not persisted as hidden".to_string());
@@ -101,24 +101,26 @@ fn run_sticky_auto_hide_runtime_check(app: &tauri::AppHandle) -> Result<(), Stri
     Ok(())
 }
 
-fn create_runtime_check_note() -> Result<String, String> {
-    let notes = notes_service::add_note(
-        RUNTIME_CHECK_NOTE_TEXT.to_string(),
-        true,
-        notes::NoteSortMode::Custom,
-        None,
-        Some(vec!["runtime-check".to_string()]),
-    )?;
-    let note_id = notes
-        .iter()
-        .find(|note| note.text == RUNTIME_CHECK_NOTE_TEXT)
-        .map(|note| note.id.clone())
-        .ok_or_else(|| "runtime check note was not created".to_string())?;
-    notes_service::update_note_size(&note_id, 320.0, 260.0)?;
-    notes_service::update_note_position(&note_id, 120.0, 120.0)?;
-    notes_service::toggle_z_order(&note_id, notes::NoteSortMode::Custom)?;
-    notes_service::update_note_auto_hide_enabled(&note_id, true, notes::NoteSortMode::Custom)?;
-    Ok(note_id)
+fn create_runtime_check_note(app: &tauri::AppHandle) -> Result<String, String> {
+    notes_store::with_notes_store(app, || {
+        let notes = notes_service::add_note(
+            RUNTIME_CHECK_NOTE_TEXT.to_string(),
+            true,
+            notes::NoteSortMode::Custom,
+            None,
+            Some(vec!["runtime-check".to_string()]),
+        )?;
+        let note_id = notes
+            .iter()
+            .find(|note| note.text == RUNTIME_CHECK_NOTE_TEXT)
+            .map(|note| note.id.clone())
+            .ok_or_else(|| "runtime check note was not created".to_string())?;
+        notes_service::update_note_size(&note_id, 320.0, 260.0)?;
+        notes_service::update_note_position(&note_id, 120.0, 120.0)?;
+        notes_service::toggle_z_order(&note_id, notes::NoteSortMode::Custom)?;
+        notes_service::update_note_auto_hide_enabled(&note_id, true, notes::NoteSortMode::Custom)?;
+        Ok(note_id)
+    })
 }
 
 fn create_runtime_check_note_window(

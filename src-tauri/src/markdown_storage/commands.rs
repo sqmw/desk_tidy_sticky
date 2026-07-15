@@ -9,6 +9,7 @@ use crate::markdown_storage::import::{
 use crate::markdown_storage::model::{
     apply_storage_preferences, snapshot_from_preferences, MarkdownStorageSnapshot,
 };
+use crate::notes::store as notes_store;
 
 #[tauri::command]
 pub fn get_markdown_storage_snapshot() -> Result<MarkdownStorageSnapshot, String> {
@@ -24,16 +25,22 @@ pub fn set_markdown_storage_preferences(
 }
 
 #[tauri::command]
-pub fn export_current_notes_to_markdown() -> Result<MarkdownExportSummary, String> {
-    export_service()
+pub fn export_current_notes_to_markdown(
+    app: tauri::AppHandle,
+) -> Result<MarkdownExportSummary, String> {
+    notes_store::with_notes_store(&app, export_service)
 }
 
 #[tauri::command]
-pub fn import_markdown_from_storage_root() -> Result<MarkdownImportSummary, String> {
-    import_service()
+pub fn import_markdown_from_storage_root(
+    app: tauri::AppHandle,
+) -> Result<MarkdownImportSummary, String> {
+    notes_store::with_notes_store(&app, import_service)
 }
 
 #[tauri::command]
-pub fn preview_markdown_import_from_storage_root() -> Result<MarkdownImportPreviewSummary, String> {
-    preview_import_service()
+pub fn preview_markdown_import_from_storage_root(
+    app: tauri::AppHandle,
+) -> Result<MarkdownImportPreviewSummary, String> {
+    notes_store::with_notes_store(&app, preview_import_service)
 }

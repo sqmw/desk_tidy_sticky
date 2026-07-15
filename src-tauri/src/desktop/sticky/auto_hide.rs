@@ -1,6 +1,6 @@
 use crate::notes::{
-    self, service as notes_service, AUTO_HIDE_REASON_OVERFLOW, AUTO_HIDE_REASON_SHORTCUT,
-    AUTO_HIDE_STATE_HIDDEN, AUTO_HIDE_STATE_VISIBLE,
+    self, service as notes_service, store as notes_store, AUTO_HIDE_REASON_OVERFLOW,
+    AUTO_HIDE_REASON_SHORTCUT, AUTO_HIDE_STATE_HIDDEN, AUTO_HIDE_STATE_VISIBLE,
 };
 use crate::runtime::ActiveTopmostStickyState;
 use tauri::{Emitter, Manager};
@@ -225,7 +225,8 @@ pub fn shortcut_hide_or_reveal(app: &tauri::AppHandle) {
 
 #[tauri::command]
 pub fn mark_active_topmost_editing_sticky(app: tauri::AppHandle, id: String) -> Result<(), String> {
-    let Some(note) = notes_service::find_note(&id)? else {
+    let note = notes_store::with_notes_store(&app, || notes_service::find_note(&id))?;
+    let Some(note) = note else {
         clear_active_if_matches(&app, &id);
         return Ok(());
     };
@@ -256,25 +257,26 @@ pub fn set_note_auto_hide_enabled(
     sort_mode: String,
 ) -> Result<Vec<notes::Note>, String> {
     let mode = super::parse_sort_mode(sort_mode.as_str());
-    let notes = notes_service::update_note_auto_hide_enabled(&id, enabled, mode)?;
+    let notes = notes_store::with_notes_store(&app, || {
+        notes_service::update_note_auto_hide_enabled(&id, enabled, mode)
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
 
-#[tauri::command]
-pub fn hide_note_to_edge(
-    app: tauri::AppHandle,
-    id: String,
-    reason: String,
+fn hide_note_to_edge_unlocked(
+    app: &tauri::AppHandle,
+    id: &str,
+    reason: &str,
 ) -> Result<Option<StickyAutoHideResult>, String> {
-    let Some(note) = notes_service::find_note(&id)? else {
+    let Some(note) = notes_service::find_note(id)? else {
         return Ok(None);
     };
     if !is_auto_hide_eligible(&note) {
-        clear_active_if_matches(&app, &id);
+        clear_active_if_matches(app, id);
         return Ok(None);
     }
-    let normalized_reason = match reason.as_str() {
+    let normalized_reason = match reason {
         AUTO_HIDE_REASON_OVERFLOW => AUTO_HIDE_REASON_OVERFLOW,
         AUTO_HIDE_REASON_SHORTCUT => AUTO_HIDE_REASON_SHORTCUT,
         _ => AUTO_HIDE_REASON_SHORTCUT,
@@ -283,12 +285,12 @@ pub fn hide_note_to_edge(
         return Ok(None);
     }
 
-    let label = note_window_label(&id);
+    let label = note_window_label(id);
     let Some(window) = app.get_webview_window(label.as_str()) else {
         return Ok(None);
     };
     let rect = window_rect(&window)?;
-    let monitor = resolve_window_monitor(&app, rect)?;
+    let monitor = resolve_window_monitor(app, rect)?;
     let edge = if normalized_reason == AUTO_HIDE_REASON_OVERFLOW {
         let Some(edge) = overflow_edge(rect, monitor) else {
             return Ok(None);
@@ -300,14 +302,13 @@ pub fn hide_note_to_edge(
     let hidden = hidden_position(rect, monitor, edge);
     move_window_without_activation(window, hidden.0, hidden.1)?;
     let updated = notes_service::update_note_auto_hide_state(
-        &id,
+        id,
         edge,
         AUTO_HIDE_STATE_HIDDEN,
         Some(normalized_reason),
         Some((rect.x, rect.y)),
         Some(hidden),
     )?;
-    emit_notes_changed(&app);
     Ok(Some(StickyAutoHideResult {
         note: updated,
         edge: edge.to_string(),
@@ -317,37 +318,35 @@ pub fn hide_note_to_edge(
     }))
 }
 
-#[tauri::command]
-pub fn reveal_note_from_edge(
-    app: tauri::AppHandle,
-    id: String,
+fn reveal_note_from_edge_unlocked(
+    app: &tauri::AppHandle,
+    id: &str,
 ) -> Result<Option<StickyAutoHideResult>, String> {
-    let Some(note) = notes_service::find_note(&id)? else {
+    let Some(note) = notes_service::find_note(id)? else {
         return Ok(None);
     };
     if !is_auto_hide_eligible(&note) {
-        clear_active_if_matches(&app, &id);
+        clear_active_if_matches(app, id);
         return Ok(None);
     }
-    let label = note_window_label(&id);
+    let label = note_window_label(id);
     let Some(window) = app.get_webview_window(label.as_str()) else {
         return Ok(None);
     };
     let rect = window_rect(&window)?;
-    let monitor = resolve_window_monitor(&app, rect)?;
+    let monitor = resolve_window_monitor(app, rect)?;
     let visible = visible_position(&note, rect, monitor);
     let _ = window.show();
     move_window_without_activation(window, visible.0, visible.1)?;
     let edge = note.auto_hide_edge.as_deref().unwrap_or("left").to_string();
     let updated = notes_service::update_note_auto_hide_state(
-        &id,
+        id,
         &edge,
         AUTO_HIDE_STATE_VISIBLE,
         None,
         Some(visible),
         None,
     )?;
-    emit_notes_changed(&app);
     Ok(Some(StickyAutoHideResult {
         note: updated,
         edge,
@@ -355,6 +354,32 @@ pub fn reveal_note_from_edge(
         reason: "reveal".to_string(),
         moved: true,
     }))
+}
+
+#[tauri::command]
+pub fn hide_note_to_edge(
+    app: tauri::AppHandle,
+    id: String,
+    reason: String,
+) -> Result<Option<StickyAutoHideResult>, String> {
+    let result =
+        notes_store::with_notes_store(&app, || hide_note_to_edge_unlocked(&app, &id, &reason))?;
+    if result.is_some() {
+        emit_notes_changed(&app);
+    }
+    Ok(result)
+}
+
+#[tauri::command]
+pub fn reveal_note_from_edge(
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<Option<StickyAutoHideResult>, String> {
+    let result = notes_store::with_notes_store(&app, || reveal_note_from_edge_unlocked(&app, &id))?;
+    if result.is_some() {
+        emit_notes_changed(&app);
+    }
+    Ok(result)
 }
 
 #[tauri::command]
@@ -367,21 +392,42 @@ pub fn hide_active_topmost_editing_sticky(
     let Some(id) = state.snapshot()? else {
         return Ok(None);
     };
-    hide_note_to_edge(app, id, AUTO_HIDE_REASON_SHORTCUT.to_string())
+    let result = notes_store::with_notes_store(&app, || {
+        hide_note_to_edge_unlocked(&app, &id, AUTO_HIDE_REASON_SHORTCUT)
+    })?;
+    if result.is_some() {
+        emit_notes_changed(&app);
+    }
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn toggle_hidden_stickies(app: tauri::AppHandle) -> Result<Vec<StickyAutoHideResult>, String> {
-    let hidden = notes_service::hidden_notes()?;
-    if hidden.is_empty() {
-        return hide_active_topmost_editing_sticky(app).map(|result| result.into_iter().collect());
-    }
-
-    let mut results = Vec::new();
-    for note in hidden {
-        if let Some(result) = reveal_note_from_edge(app.clone(), note.id)? {
-            results.push(result);
+    let active_note_id = app
+        .try_state::<ActiveTopmostStickyState>()
+        .map(|state| state.snapshot())
+        .transpose()?
+        .flatten();
+    let results = notes_store::with_notes_store(&app, || {
+        let hidden = notes_service::hidden_notes()?;
+        if hidden.is_empty() {
+            let result = match active_note_id.as_deref() {
+                Some(id) => hide_note_to_edge_unlocked(&app, id, AUTO_HIDE_REASON_SHORTCUT)?,
+                None => None,
+            };
+            return Ok(result.into_iter().collect());
         }
+
+        let mut results = Vec::new();
+        for note in hidden {
+            if let Some(result) = reveal_note_from_edge_unlocked(&app, &note.id)? {
+                results.push(result);
+            }
+        }
+        Ok(results)
+    })?;
+    if !results.is_empty() {
+        emit_notes_changed(&app);
     }
     Ok(results)
 }

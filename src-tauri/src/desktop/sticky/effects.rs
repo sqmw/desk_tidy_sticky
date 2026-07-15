@@ -1,4 +1,4 @@
-use crate::notes::{service as notes_service, NoteSortMode};
+use crate::notes::{service as notes_service, store as notes_store, NoteSortMode};
 #[cfg(target_os = "macos")]
 use tauri::window::EffectState;
 use tauri::{
@@ -95,7 +95,8 @@ pub(crate) fn sync_note_window_frost_by_id(
     app: &tauri::AppHandle,
     id: &str,
 ) -> Result<bool, String> {
-    let notes = notes_service::load_notes(NoteSortMode::Custom)?;
+    let notes =
+        notes_store::with_notes_store(app, || notes_service::load_notes(NoteSortMode::Custom))?;
     let Some(note) = notes.into_iter().find(|note| note.id == id) else {
         return Ok(false);
     };

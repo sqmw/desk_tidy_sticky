@@ -35,12 +35,12 @@ use markdown_storage::{
     set_markdown_storage_preferences,
 };
 use notes::{
-    add_done_log, add_note, clear_note_priority, delete_note, empty_trash, load_notes,
-    permanently_delete_note, persist_note_window_size, reorder_notes, reset_pinned_note_positions,
-    restore_note, save_clipboard_image, toggle_archive, toggle_done, toggle_pin, update_note,
-    update_note_color, update_note_frost, update_note_opacity, update_note_position,
-    update_note_priority, update_note_size, update_note_tags, update_note_text,
-    update_note_text_color,
+    add_done_log, add_note, clear_note_priority, delete_note, empty_trash,
+    get_notes_storage_status, load_notes, open_notes_data_directory, permanently_delete_note,
+    persist_note_window_size, reorder_notes, reset_pinned_note_positions, restore_note,
+    save_clipboard_image, toggle_archive, toggle_done, toggle_pin, update_note, update_note_color,
+    update_note_frost, update_note_opacity, update_note_position, update_note_priority,
+    update_note_size, update_note_tags, update_note_text, update_note_text_color,
 };
 #[cfg(target_os = "windows")]
 use platform::window_hwnd_isize;
@@ -59,6 +59,7 @@ pub fn run() {
         .manage(BreakOverlayPresentationState::default())
         .manage(ShortcutRuntimeState::default())
         .manage(ActiveTopmostStickyState::default())
+        .manage(notes::store::NotesStore::default())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             show_preferred_panel_window(app);
         }))
@@ -120,6 +121,8 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             load_notes,
+            get_notes_storage_status,
+            open_notes_data_directory,
             add_note,
             add_done_log,
             update_note,

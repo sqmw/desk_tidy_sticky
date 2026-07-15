@@ -1,4 +1,4 @@
-use crate::notes::{self, service as notes_service, NoteSortMode};
+use crate::notes::{self, service as notes_service, store as notes_store, NoteSortMode};
 #[cfg(target_os = "macos")]
 use crate::platform::{macos, run_macos_window_op};
 #[cfg(target_os = "windows")]
@@ -118,7 +118,8 @@ pub fn apply_note_window_layer(
 }
 
 fn sync_note_layer_by_id(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
-    let notes = notes_service::load_notes(NoteSortMode::Custom)?;
+    let notes =
+        notes_store::with_notes_store(app, || notes_service::load_notes(NoteSortMode::Custom))?;
     let Some(note) = notes.into_iter().find(|n| n.id == id) else {
         return Ok(());
     };
@@ -144,7 +145,8 @@ pub fn sync_note_window_layer(app: tauri::AppHandle, id: String) -> Result<(), S
 
 #[tauri::command]
 pub fn sync_all_note_window_layers(app: tauri::AppHandle) -> Result<(), String> {
-    let notes = notes_service::load_notes(NoteSortMode::Custom)?;
+    let notes =
+        notes_store::with_notes_store(&app, || notes_service::load_notes(NoteSortMode::Custom))?;
     let interaction_disabled = get_overlay_interaction_disabled(&app);
     for n in notes {
         if !n.is_pinned || n.is_archived || n.is_deleted {
@@ -207,7 +209,9 @@ pub fn toggle_z_order_and_apply(
     id: String,
     sort_mode: String,
 ) -> Result<Vec<notes::Note>, String> {
-    let notes = notes_service::toggle_z_order(&id, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = notes_store::with_notes_store(&app, || {
+        notes_service::toggle_z_order(&id, parse_sort_mode(sort_mode.as_str()))
+    })?;
     if let Some(updated) = notes.iter().find(|n| n.id == id) {
         let label = format!("note-{}", updated.id);
         if let Err(e) = apply_note_window_layer_with_interaction_by_label(
@@ -243,7 +247,9 @@ pub fn toggle_wallpaper_layer_and_apply(
     id: String,
     sort_mode: String,
 ) -> Result<Vec<notes::Note>, String> {
-    let notes = notes_service::toggle_wallpaper_layer(&id, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = notes_store::with_notes_store(&app, || {
+        notes_service::toggle_wallpaper_layer(&id, parse_sort_mode(sort_mode.as_str()))
+    })?;
     if let Some(updated) = notes.iter().find(|n| n.id == id) {
         let label = format!("note-{}", updated.id);
         if let Err(e) = apply_note_window_layer_with_interaction_by_label(

@@ -1,4 +1,4 @@
-use crate::notes::{service as notes_service, NoteSortMode};
+use crate::notes::{service as notes_service, store as notes_store, NoteSortMode};
 #[cfg(target_os = "macos")]
 use crate::platform::{macos, run_macos_window_op};
 #[cfg(target_os = "windows")]
@@ -9,7 +9,15 @@ use tauri::Manager;
 use super::effects::apply_note_window_frost_by_label;
 
 pub fn apply_overlay_input_state(app: &tauri::AppHandle, interaction_disabled: bool) {
-    let notes = notes_service::load_notes(NoteSortMode::Custom).unwrap_or_default();
+    let notes =
+        notes_store::with_notes_store(app, || notes_service::load_notes(NoteSortMode::Custom))
+            .unwrap_or_else(|error| {
+                eprintln!(
+                    "[notes_storage] cannot apply overlay input state: {}",
+                    error
+                );
+                Vec::new()
+            });
     for (label, w) in app.webview_windows() {
         if label.starts_with("note-") {
             let note_id = label.trim_start_matches("note-");

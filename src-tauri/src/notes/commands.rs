@@ -1,5 +1,8 @@
 use crate::desktop::apply_note_window_frost;
-use crate::notes::{assets as note_assets, service as notes_service, Note, NoteSortMode};
+use crate::notes::{
+    assets as note_assets, repository, service as notes_service, store as notes_store, Note,
+    NoteSortMode,
+};
 use tauri::{Emitter, LogicalPosition, Manager};
 
 #[derive(Clone, serde::Serialize)]
@@ -34,9 +37,31 @@ fn parse_sort_mode(sort_mode: &str) -> NoteSortMode {
     }
 }
 
+fn run_notes_operation<T>(
+    app: &tauri::AppHandle,
+    operation: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    notes_store::with_notes_store(app, operation)
+}
+
 #[tauri::command]
-pub fn load_notes(sort_mode: String) -> Result<Vec<Note>, String> {
-    notes_service::load_notes(parse_sort_mode(sort_mode.as_str()))
+pub fn load_notes(app: tauri::AppHandle, sort_mode: String) -> Result<Vec<Note>, String> {
+    run_notes_operation(&app, || {
+        notes_service::load_notes(parse_sort_mode(sort_mode.as_str()))
+    })
+}
+
+#[tauri::command]
+pub fn get_notes_storage_status(
+    app: tauri::AppHandle,
+) -> Result<notes_store::NotesStorageStatus, String> {
+    notes_store::notes_storage_status(&app)
+}
+
+#[tauri::command]
+pub fn open_notes_data_directory() -> Result<(), String> {
+    let directory = repository::notes_data_directory()?;
+    open::that(directory).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -48,13 +73,15 @@ pub fn add_note(
     priority: Option<u8>,
     tags: Option<Vec<String>>,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::add_note(
-        text,
-        is_pinned,
-        parse_sort_mode(sort_mode.as_str()),
-        priority,
-        tags,
-    )?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::add_note(
+            text,
+            is_pinned,
+            parse_sort_mode(sort_mode.as_str()),
+            priority,
+            tags,
+        )
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -67,12 +94,14 @@ pub fn add_done_log(
     tags: Option<Vec<String>>,
     completed_at: Option<String>,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::add_done_log(
-        text,
-        parse_sort_mode(sort_mode.as_str()),
-        tags,
-        completed_at,
-    )?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::add_done_log(
+            text,
+            parse_sort_mode(sort_mode.as_str()),
+            tags,
+            completed_at,
+        )
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -83,7 +112,9 @@ pub fn update_note(
     note: Note,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::update_note(note, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::update_note(note, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -96,7 +127,7 @@ pub fn update_note_position(
     y: f64,
     emit_event: Option<bool>,
 ) -> Result<(), String> {
-    notes_service::update_note_position(&id, x, y)?;
+    run_notes_operation(&app, || notes_service::update_note_position(&id, x, y))?;
     if emit_event.unwrap_or(true) {
         emit_notes_changed(&app);
     }
@@ -111,7 +142,7 @@ pub fn update_note_size(
     height: f64,
     emit_event: Option<bool>,
 ) -> Result<(), String> {
-    notes_service::update_note_size(&id, width, height)?;
+    run_notes_operation(&app, || notes_service::update_note_size(&id, width, height))?;
     if emit_event.unwrap_or(true) {
         emit_notes_changed(&app);
     }
@@ -137,7 +168,7 @@ pub fn persist_note_window_size(
     };
     let width = (size.width as f64 / scale).max(220.0);
     let height = (size.height as f64 / scale).max(220.0);
-    notes_service::update_note_size(&id, width, height)?;
+    run_notes_operation(&app, || notes_service::update_note_size(&id, width, height))?;
     if emit_event.unwrap_or(true) {
         emit_notes_changed(&app);
     }
@@ -151,7 +182,9 @@ pub fn update_note_text(
     text: String,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::update_note_text(&id, text, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::update_note_text(&id, text, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed_event(
         &app,
         NotesChangedEvent {
@@ -179,7 +212,9 @@ pub fn update_note_color(
     color: String,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::update_note_color(&id, color, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::update_note_color(&id, color, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -191,8 +226,9 @@ pub fn update_note_text_color(
     color: String,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes =
-        notes_service::update_note_text_color(&id, color, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::update_note_text_color(&id, color, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -205,8 +241,9 @@ pub fn update_note_opacity(
     sort_mode: String,
     emit_event: Option<bool>,
 ) -> Result<Vec<Note>, String> {
-    let notes =
-        notes_service::update_note_opacity(&id, opacity, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::update_note_opacity(&id, opacity, parse_sort_mode(sort_mode.as_str()))
+    })?;
     if emit_event.unwrap_or(true) {
         emit_notes_changed(&app);
     }
@@ -221,7 +258,9 @@ pub fn update_note_frost(
     sort_mode: String,
     emit_event: Option<bool>,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::update_note_frost(&id, frost, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::update_note_frost(&id, frost, parse_sort_mode(sort_mode.as_str()))
+    })?;
     let _ = apply_note_window_frost(app.clone(), format!("note-{}", id), frost);
     if emit_event.unwrap_or(true) {
         emit_notes_changed(&app);
@@ -236,8 +275,9 @@ pub fn update_note_priority(
     priority: u8,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes =
-        notes_service::update_note_priority(&id, priority, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::update_note_priority(&id, priority, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -248,7 +288,9 @@ pub fn clear_note_priority(
     id: String,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::clear_note_priority(&id, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::clear_note_priority(&id, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -260,7 +302,9 @@ pub fn update_note_tags(
     tags: Vec<String>,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::update_note_tags(&id, tags, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::update_note_tags(&id, tags, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -271,7 +315,9 @@ pub fn toggle_pin(
     id: String,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::toggle_pin(&id, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::toggle_pin(&id, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -282,7 +328,9 @@ pub fn toggle_done(
     id: String,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::toggle_done(&id, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::toggle_done(&id, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -293,7 +341,9 @@ pub fn toggle_archive(
     id: String,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::toggle_archive(&id, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::toggle_archive(&id, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -304,7 +354,9 @@ pub fn delete_note(
     id: String,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::delete_note(&id, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::delete_note(&id, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
@@ -315,21 +367,23 @@ pub fn restore_note(
     id: String,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
-    let notes = notes_service::restore_note(&id, parse_sort_mode(sort_mode.as_str()))?;
+    let notes = run_notes_operation(&app, || {
+        notes_service::restore_note(&id, parse_sort_mode(sort_mode.as_str()))
+    })?;
     emit_notes_changed(&app);
     Ok(notes)
 }
 
 #[tauri::command]
 pub fn permanently_delete_note(app: tauri::AppHandle, id: String) -> Result<(), String> {
-    notes_service::permanently_delete_note(&id)?;
+    run_notes_operation(&app, || notes_service::permanently_delete_note(&id))?;
     emit_notes_changed(&app);
     Ok(())
 }
 
 #[tauri::command]
 pub fn empty_trash(app: tauri::AppHandle) -> Result<(), String> {
-    notes_service::empty_trash()?;
+    run_notes_operation(&app, notes_service::empty_trash)?;
     emit_notes_changed(&app);
     Ok(())
 }
@@ -376,30 +430,32 @@ pub fn reset_pinned_note_positions(app: tauri::AppHandle) -> Result<usize, Strin
     let mut next_y = screen_y + margin;
     let mut row_height = 0.0;
 
-    let notes = notes_service::reset_pinned_note_positions(|note| {
-        let width = note
-            .width
-            .unwrap_or(default_width)
-            .clamp(min_size, max_width);
-        let height = note
-            .height
-            .unwrap_or(default_height)
-            .clamp(min_size, max_height);
+    let notes = run_notes_operation(&app, || {
+        notes_service::reset_pinned_note_positions(|note| {
+            let width = note
+                .width
+                .unwrap_or(default_width)
+                .clamp(min_size, max_width);
+            let height = note
+                .height
+                .unwrap_or(default_height)
+                .clamp(min_size, max_height);
 
-        if next_x + width > screen_x + screen_width - margin {
-            next_x = screen_x + margin;
-            next_y += row_height + gap;
-            row_height = 0.0;
-        }
+            if next_x + width > screen_x + screen_width - margin {
+                next_x = screen_x + margin;
+                next_y += row_height + gap;
+                row_height = 0.0;
+            }
 
-        if next_y + height > screen_y + screen_height - margin {
-            next_y = screen_y + margin;
-        }
+            if next_y + height > screen_y + screen_height - margin {
+                next_y = screen_y + margin;
+            }
 
-        let position = (next_x, next_y);
-        next_x += width + gap;
-        row_height = row_height.max(height);
-        position
+            let position = (next_x, next_y);
+            next_x += width + gap;
+            row_height = row_height.max(height);
+            position
+        })
     })?;
 
     let recovered_count = notes
@@ -436,7 +492,9 @@ pub fn reorder_notes(
     is_archived_view: bool,
 ) -> Result<(), String> {
     let items: Vec<(String, i32)> = reordered.into_iter().map(|r| (r.id, r.order)).collect();
-    notes_service::reorder_notes(items, is_archived_view)?;
+    run_notes_operation(&app, || {
+        notes_service::reorder_notes(items, is_archived_view)
+    })?;
     emit_notes_changed(&app);
     Ok(())
 }

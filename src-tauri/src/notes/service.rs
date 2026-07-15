@@ -10,15 +10,19 @@ use crate::notes::{
 
 pub use crate::notes::domain::NoteSortMode;
 
+pub(crate) const NOTE_NOT_FOUND_ERROR_CODE: &str = "note_not_found";
+
+fn note_not_found_error() -> String {
+    NOTE_NOT_FOUND_ERROR_CODE.to_string()
+}
+
 fn load_notes_from_file() -> Result<Vec<Note>, String> {
     let mut context = notes_repository::load_notes_context()?;
     let merged_notes = merged_notes_from_context(&context);
-    if let Err(err) = notes_repository::migrate_legacy_batch(
+    notes_repository::migrate_legacy_batch(
         &mut context,
         notes_repository::LEGACY_MIGRATION_BATCH_SIZE,
-    ) {
-        eprintln!("[note_compat] incremental legacy migration failed: {}", err);
-    }
+    )?;
     Ok(merged_notes)
 }
 
@@ -31,7 +35,18 @@ where
     F: FnOnce(&mut Note),
 {
     let mut context = notes_repository::load_notes_context()?;
+    mutate_note_in_context(&mut context, id, sort_mode, mutate)
+}
 
+fn mutate_note_in_context<F>(
+    context: &mut notes_repository::NotesContext,
+    id: &str,
+    sort_mode: Option<NoteSortMode>,
+    mutate: F,
+) -> Result<Vec<Note>, String>
+where
+    F: FnOnce(&mut Note),
+{
     if let Some(note) = context.current_notes.iter_mut().find(|note| note.id == id) {
         mutate(note);
     } else {
@@ -50,12 +65,14 @@ where
         if let Some((file_index, note_index)) = legacy_hit {
             let mut note = migrated_note.ok_or_else(|| "legacy note lookup failed".to_string())?;
             mutate(&mut note);
-            upsert_current_note(&mut context, note);
+            upsert_current_note(context, note);
             let (deduped, _) = flutter_legacy::dedupe_notes(context.current_notes.clone());
             context.current_notes = deduped;
             persist_current_and_verify(&context)?;
             context.legacy_files[file_index].notes.remove(note_index);
             persist_legacy_file(&context.legacy_files[file_index])?;
+        } else {
+            return Err(note_not_found_error());
         }
     }
 
@@ -173,6 +190,31 @@ pub fn update_note_position(id: &str, x: f64, y: f64) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use uuid::Uuid;
+
+    #[test]
+    fn missing_note_id_returns_an_error_without_persisting() {
+        let path = std::env::temp_dir()
+            .join(format!("desk-tidy-missing-note-{}", Uuid::new_v4()))
+            .join("notes.json");
+        let mut context = notes_repository::NotesContext {
+            current_path: PathBuf::from(&path),
+            current_notes: Vec::new(),
+            legacy_files: Vec::new(),
+        };
+
+        let error = mutate_note_in_context(&mut context, "missing", None, |_| {})
+            .expect_err("missing note ids must be rejected");
+
+        assert_eq!(error, NOTE_NOT_FOUND_ERROR_CODE);
+        assert!(!path.exists());
+    }
+}
+
 pub fn update_note_size(id: &str, width: f64, height: f64) -> Result<(), String> {
     let safe_width = width.max(220.0);
     let safe_height = height.max(220.0);
@@ -265,12 +307,10 @@ where
 {
     let mut context = notes_repository::load_notes_context()?;
 
-    if let Err(err) = notes_repository::migrate_legacy_batch(
+    notes_repository::migrate_legacy_batch(
         &mut context,
         notes_repository::LEGACY_MIGRATION_BATCH_SIZE,
-    ) {
-        eprintln!("[note_compat] incremental legacy migration failed: {}", err);
-    }
+    )?;
 
     for note in context
         .current_notes
@@ -440,10 +480,20 @@ pub fn restore_note(id: &str, sort_mode: NoteSortMode) -> Result<Vec<Note>, Stri
 
 pub fn permanently_delete_note(id: &str) -> Result<(), String> {
     let mut context = notes_repository::load_notes_context()?;
+    let mut found = false;
+    let previous_current_len = context.current_notes.len();
     context.current_notes.retain(|note| note.id != id);
-    save_notes_to_file(&context.current_notes)?;
+    found |= previous_current_len != context.current_notes.len();
     for legacy_file in &mut context.legacy_files {
+        let previous_legacy_len = legacy_file.notes.len();
         legacy_file.notes.retain(|note| note.id != id);
+        found |= previous_legacy_len != legacy_file.notes.len();
+    }
+    if !found {
+        return Err(note_not_found_error());
+    }
+    save_notes_to_file(&context.current_notes)?;
+    for legacy_file in &context.legacy_files {
         persist_legacy_file(legacy_file)?;
     }
     Ok(())
@@ -462,6 +512,17 @@ pub fn empty_trash() -> Result<(), String> {
 
 pub fn reorder_notes(reordered: Vec<(String, i32)>, is_archived_view: bool) -> Result<(), String> {
     let mut context = notes_repository::load_notes_context()?;
+    for (id, _) in &reordered {
+        let exists_in_current = context.current_notes.iter().any(|note| note.id == *id);
+        let exists_in_legacy = context
+            .legacy_files
+            .iter()
+            .any(|legacy_file| legacy_file.notes.iter().any(|note| note.id == *id));
+        if !exists_in_current && !exists_in_legacy {
+            return Err(note_not_found_error());
+        }
+    }
+
     for (id, order) in reordered {
         if let Some(n) = context.current_notes.iter_mut().find(|x| x.id == id) {
             let in_view = if is_archived_view {
