@@ -85,6 +85,16 @@
 
 ## Done
 
+### 2026-07-15：Notes storage safety and architecture governance
+
+结果：笔记存储改为应用级串行 `NotesStore`；读取损坏的 `notes.json` 时进入 `recovery_required` 并阻止写入，不再以空数组覆盖。写入采用同目录临时文件同步、原子替换和最近一次有效备份，失效笔记 ID 返回明确错误。工作台卡片保留详情展开时的鼠标单击切换，新增独立键盘详情入口；工作台笔记装配和块编辑瞬态状态已拆分为专用组件/控制器。
+
+验证：2026-07-15 已通过 `make check`、`make test`（10 个 Rust 单测与 3 个前端交互测试）和 `git diff --check`。发布前仍需在目标操作系统人工回归恢复提示、卡片单击和贴纸编辑流程。
+
+关联文档：`architecture/2026-07-15-notes-storage-safety-and-governance.md`、`agent-context/current.md`。
+
+接受风险：不对损坏数据执行自动修复；运行时备份保留在系统应用数据目录。当前环境无法完成 Windows 目标编译，见 `agent-context/current.md`。
+
 ### 2026-07-04：Fix Markdown list continuation rendering
 
 结果：修复单活跃块 parser / renderer 对 list continuation 的归属问题。`1. ...` 后紧跟的 `a. ...` 会作为同一个 ordered list item 的续行渲染，保留字面 `a.`，不再拆成独立 paragraph；`## ...` 等新的 Markdown 块级起始行会正确切断当前 list，避免标题被吞掉且后续 ordered list 序号串到上一组；ordered list 的 `+` 追加路径仍会生成下一条数字序号。编辑态补充接管 `Tab` / `Shift+Tab`，支持当前行或选中多行缩进 / 反缩进，并保留命令补全弹出时 `Tab` 选择命令的行为；缩进期间会抑制 blur 提交，避免按 `Tab` 后退出编辑态。后续增强：普通 `Enter` 在列表行内优先续写下一 marker，空子项再次 `Enter` 会退到上一级，顶层空项再次 `Enter` 退出列表；`Shift+Enter` 强制硬换行并继承列表内容列缩进，连续触发不退级。便笺文本回写时会恢复滚动位置，避免按 `Enter` 后滚回顶部。

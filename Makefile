@@ -1,4 +1,4 @@
-TASKS := help install dev start frontend-dev check check-frontend check-rust build build-frontend package package-portable package-portable-stop clean
+TASKS := help install dev start frontend-dev check check-frontend check-rust test test-frontend test-rust build build-frontend package package-portable package-portable-stop clean
 
 ifeq ($(OS),Windows_NT)
 RUN_TASK = powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make/task.ps1
@@ -32,6 +32,15 @@ check-frontend:
 
 check-rust:
 	$(RUN_TASK) check-rust
+
+test:
+	$(RUN_TASK) test
+
+test-frontend:
+	$(RUN_TASK) test-frontend
+
+test-rust:
+	$(RUN_TASK) test-rust
 
 build:
 	$(RUN_TASK) build

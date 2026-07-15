@@ -45,6 +45,9 @@ Desk Tidy Sticky make targets
   make check                  Run frontend and Rust checks
   make check-frontend         Run Svelte checks
   make check-rust             Run cargo check for src-tauri
+  make test                   Run frontend and Rust unit tests
+  make test-frontend          Run frontend interaction tests
+  make test-rust              Run Rust unit tests
   make build                  Build the Tauri release executable without bundling
   make build-frontend         Build the frontend only
   make package                Build the platform bundle with Tauri
@@ -71,6 +74,16 @@ Desk Tidy Sticky make targets
   }
   "check-rust" {
     Invoke-Cargo check --manifest-path src-tauri/Cargo.toml
+  }
+  "test" {
+    Invoke-Pnpm test:frontend
+    Invoke-Cargo test --manifest-path src-tauri/Cargo.toml
+  }
+  "test-frontend" {
+    Invoke-Pnpm test:frontend
+  }
+  "test-rust" {
+    Invoke-Cargo test --manifest-path src-tauri/Cargo.toml
   }
   "build" {
     Invoke-Pnpm tauri build --no-bundle

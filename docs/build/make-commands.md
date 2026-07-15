@@ -15,6 +15,9 @@
 | `make check` | 支持 | 支持 | 先执行 `pnpm check`，再执行 `cargo check --manifest-path src-tauri/Cargo.toml` |
 | `make check-frontend` | 支持 | 支持 | 只执行前端检查 |
 | `make check-rust` | 支持 | 支持 | 只执行 Rust 检查 |
+| `make test` | 支持 | 支持 | 依次执行前端交互测试和 Rust 单元测试 |
+| `make test-frontend` | 支持 | 支持 | 只执行前端交互测试 |
+| `make test-rust` | 支持 | 支持 | 只执行 Rust 单元测试 |
 | `make build` | 支持 | 支持 | 执行 `pnpm tauri build --no-bundle`，生成 release 可执行文件 |
 | `make build-frontend` | 支持 | 支持 | 执行 `pnpm build`，只构建前端产物 |
 | `make package` | 支持 | 支持 | 执行 `pnpm tauri build`，生成当前平台 bundle |
@@ -36,16 +39,12 @@
 
 ## Windows 使用约定
 
-Windows 侧项目路径按现有双端映射理解：
-
-- macOS：`/Users/sunqin/study/language/rust/code/desk_tidy_sticky`
-- Windows：`F:\language\rust\code\desk_tidy_sticky`
-
-在 Windows 项目根目录执行：
+在 Windows 的项目根目录执行：
 
 ```powershell
 make dev
 make check
+make test
 make package
 make package-portable
 ```
@@ -65,6 +64,7 @@ make package-portable-stop
 ```bash
 make help
 make check
+make test
 ```
 
 打包验证：
