@@ -2,7 +2,6 @@
   import { tick } from "svelte";
   import { filterNoteCommands, getNoteCommandPreview } from "$lib/markdown/command-catalog.js";
   import {
-    adjustInlineColorRangesForTextChange,
     applyInlineColorRange,
     blockRangeMatches,
     expandNoteCommands,
@@ -19,6 +18,7 @@
   import { applyHardLineBreak, applyListEnterContinuation } from "$lib/markdown/editor-enter.js";
   import { applyLineIndentToText } from "$lib/markdown/editor-indent.js";
   import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
+  import { createBlockNoteEditorController } from "$lib/note/block-note-editor-controller.js";
 
   /**
    * @typedef {{ before: string; after: string; caretOffset?: number | null; caretAtEnd?: boolean }} EnterSplit
@@ -54,15 +54,12 @@
   let pendingCaretAtEnd = $state(false);
   /** @type {number | null} */
   let pendingCaretOffset = $state(null);
-  /** @type {{ start: number; end: number } | null} */
-  let activeSelectionRange = $state(null);
   /** @type {Array<{ start: number; end: number; color: string }>} */
   let activeInlineColorRanges = $state([]);
-  let editorInputPreviousDraft = $state("");
   let showCommandSuggestions = $state(false);
   let commandQuery = $state("");
   let commandActiveIndex = $state(0);
-  let suppressEditorBlurUntil = 0;
+  const editorController = createBlockNoteEditorController();
 
   const blocks = $derived(parseMarkdownBlocks(text || "", { preserveBlankBlocks: true }));
   const commandSuggestionItems = $derived(
@@ -123,9 +120,8 @@
     const editable = parseMarkdownInlineStylesForEditing(block.markdown);
     activeBlockDraft = editable.text;
     activeInlineColorRanges = editable.ranges;
-    editorInputPreviousDraft = editable.text;
+    editorController.beginEditing(editable.text);
     activeBlockOriginal = block;
-    activeSelectionRange = null;
     hideCommandSuggestions();
     await tick();
     resizeEditor();
@@ -152,9 +148,8 @@
     }
     editingEmpty = true;
     emptyDraft = text || "";
-    activeSelectionRange = null;
     activeInlineColorRanges = [];
-    editorInputPreviousDraft = "";
+    editorController.clearEditing();
     hideCommandSuggestions();
     await tick();
     resizeEditor();
@@ -176,9 +171,8 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
-    activeSelectionRange = null;
     activeInlineColorRanges = [];
-    editorInputPreviousDraft = "";
+    editorController.clearEditing();
     hideCommandSuggestions();
     if (nextText !== text) {
       await onTextChange(nextText);
@@ -198,9 +192,8 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
-    activeSelectionRange = null;
     activeInlineColorRanges = [];
-    editorInputPreviousDraft = "";
+    editorController.clearEditing();
     hideCommandSuggestions();
     pendingActiveStartLine = inserted.nextStartLine;
     pendingCaretOffset = split.caretOffset ?? null;
@@ -237,9 +230,8 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
-    activeSelectionRange = null;
     activeInlineColorRanges = [];
-    editorInputPreviousDraft = "";
+    editorController.clearEditing();
     hideCommandSuggestions();
     pendingActiveStartLine = inserted.nextStartLine + insert.activeLineOffset;
     pendingCaretAtEnd = true;
@@ -252,10 +244,7 @@
    */
   export async function applySelectedTextColor(color) {
     if (readonly || editingEmpty || !activeBlockOriginal || !editorEl) return false;
-    const currentStart = editorEl.selectionStart ?? 0;
-    const currentEnd = editorEl.selectionEnd ?? currentStart;
-    const selectionStart = currentStart !== currentEnd ? currentStart : (activeSelectionRange?.start ?? currentStart);
-    const selectionEnd = currentStart !== currentEnd ? currentEnd : (activeSelectionRange?.end ?? currentEnd);
+    const { start: selectionStart, end: selectionEnd } = editorController.resolveSelection(editorEl);
     if (selectionStart === selectionEnd) return false;
 
     const nextRanges = applyInlineColorRange(
@@ -299,9 +288,8 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
-    activeSelectionRange = null;
     activeInlineColorRanges = [];
-    editorInputPreviousDraft = "";
+    editorController.clearEditing();
     hideCommandSuggestions();
     pendingActiveStartLine = next.startLine;
     pendingCaretOffset = next.caretOffset;
@@ -365,12 +353,8 @@
     const draft = String(activeBlockDraft ?? "");
     const previousDraft = draft;
     activeBlockDraft = `${draft.replace(/\n$/, "")}\n${line}`;
-    editorInputPreviousDraft = activeBlockDraft;
-    activeInlineColorRanges = adjustInlineColorRangesForTextChange(
-      activeInlineColorRanges,
-      previousDraft,
-      activeBlockDraft,
-    );
+    editorController.beginEditing(previousDraft);
+    activeInlineColorRanges = editorController.updateInlineRanges(activeInlineColorRanges, activeBlockDraft);
     void tick().then(() => {
       resizeEditor();
       const caret = activeBlockDraft.length;
@@ -438,9 +422,8 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
-    activeSelectionRange = null;
     activeInlineColorRanges = [];
-    editorInputPreviousDraft = "";
+    editorController.clearEditing();
     hideCommandSuggestions();
   }
 
@@ -529,12 +512,8 @@
     }
     const previousDraft = activeBlockDraft;
     activeBlockDraft = draft;
-    activeInlineColorRanges = adjustInlineColorRangesForTextChange(
-      activeInlineColorRanges,
-      previousDraft,
-      activeBlockDraft,
-    );
-    editorInputPreviousDraft = activeBlockDraft;
+    editorController.beginEditing(previousDraft);
+    activeInlineColorRanges = editorController.updateInlineRanges(activeInlineColorRanges, activeBlockDraft);
   }
 
   /** @param {HTMLTextAreaElement | null} target */
@@ -594,12 +573,7 @@
   function handleEditorInput() {
     if (!editingEmpty) {
       const nextDraft = activeBlockDraft;
-      activeInlineColorRanges = adjustInlineColorRangesForTextChange(
-        activeInlineColorRanges,
-        editorInputPreviousDraft,
-        nextDraft,
-      );
-      editorInputPreviousDraft = nextDraft;
+      activeInlineColorRanges = editorController.updateInlineRanges(activeInlineColorRanges, nextDraft);
     }
     rememberEditorSelection();
     updateCommandSuggestions(editorEl);
@@ -700,19 +674,16 @@
   }
 
   function suppressEditorBlurBriefly() {
-    suppressEditorBlurUntil = Date.now() + 250;
+    editorController.suppressBlurBriefly();
   }
 
   function shouldSuppressEditorBlur() {
-    return Date.now() <= suppressEditorBlurUntil;
+    return editorController.shouldSuppressBlur();
   }
 
   function rememberEditorSelection() {
     if (!editorEl || editingEmpty) return;
-    const start = editorEl.selectionStart ?? 0;
-    const end = editorEl.selectionEnd ?? start;
-    if (start === end) return;
-    activeSelectionRange = { start, end };
+    editorController.rememberSelection(editorEl);
   }
 
   /** @param {FocusEvent} event */

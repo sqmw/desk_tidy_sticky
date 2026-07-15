@@ -21,6 +21,11 @@
   } from "$lib/panel/panel-note-selectors.js";
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
+  import {
+    isNotesStorageRecoveryRequired,
+    refreshNotesStorageStatus,
+    reportNotesStorageError,
+  } from "$lib/notes/storage-recovery.js";
   import { createDragReorder } from "$lib/panel/use-drag-reorder.js";
   import { switchPanelWindow } from "$lib/panel/switch-panel-window.js";
   import { getPreferences, updatePreferences } from "$lib/preferences/preferences-store.js";
@@ -34,6 +39,7 @@
   import NotesSection from "$lib/components/panel/NotesSection.svelte";
   import EditDialog from "$lib/components/panel/EditDialog.svelte";
   import SettingsDialog from "$lib/components/panel/SettingsDialog.svelte";
+  import NotesStorageRecoveryNotice from "$lib/components/note/NotesStorageRecoveryNotice.svelte";
 
   const NOTE_VIEW_MODES = PANEL_NOTE_VIEW_MODES;
   const COMPACT_ALLOWED_VIEW_MODES = new Set(PANEL_NOTE_VIEW_MODES);
@@ -60,6 +66,7 @@
   let showPanelOnStartup = $state(false);
   let shortcutSettings = $state(createDefaultShortcutSettings());
   let shortcutSettingsSaving = $state(false);
+  let notesStorageStatus = $state({ state: "ready", message: "" });
 
   /** @type {HTMLDivElement | null} */
   let notesListEl = $state(null);
@@ -88,6 +95,7 @@
   });
 
   const strings = $derived(getStrings(locale));
+  const notesRecoveryRequired = $derived(isNotesStorageRecoveryRequired(notesStorageStatus));
   const formatDate = formatNoteDate;
 
   const visibleNotes = $derived.by(() => getVisiblePanelNotes({ notes, viewMode, searchQuery }));
@@ -121,6 +129,7 @@
     getNotes: () => notes,
     getStickiesVisible: () => stickiesVisible,
     invoke,
+    onNotesStorageError: reportNoteStorageFailure,
   });
 
   const {
@@ -164,7 +173,36 @@
     openNoteWindow: windowSync.openNoteWindow,
     closeNoteWindow: windowSync.closeNoteWindow,
     getCurrentWindow,
+    onNotesStorageStatus: (status) => {
+      notesStorageStatus = status;
+    },
   });
+
+  async function refreshNotesStorageRecoveryState() {
+    try {
+      await refreshNotesStorageStatus(invoke, (status) => {
+        notesStorageStatus = status;
+      });
+    } catch (error) {
+      console.error("getNotesStorageStatus", error);
+    }
+  }
+
+  /** @param {string} source @param {unknown} error */
+  function reportNoteStorageFailure(source, error) {
+    console.error(source, error);
+    void reportNotesStorageError(invoke, error, (status) => {
+      notesStorageStatus = status;
+    });
+  }
+
+  async function openNotesDataDirectory() {
+    try {
+      await invoke("open_notes_data_directory");
+    } catch (error) {
+      console.error("openNotesDataDirectory", error);
+    }
+  }
 
   const {
     createVerticalDragStartHandler,
@@ -271,7 +309,7 @@
       });
       await loadNotes();
     } catch (e) {
-      console.error("submitEdit", e);
+      reportNoteStorageFailure("submitEdit", e);
     }
     showEditDialog = false;
     editingNote = null;
@@ -396,6 +434,7 @@
   });
 
   onMount(() => {
+    void refreshNotesStorageRecoveryState();
     invoke("get_overlay_interaction")
       .then((state) => {
         globalControlDisabled = /** @type {boolean} */ (state);
@@ -480,7 +519,7 @@
   onpointercancel={handleWindowPointerCancel}
 />
 
-<div class="panel" class:windows-flat={isWindows}>
+<div class="panel" class:windows-flat={isWindows} inert={notesRecoveryRequired}>
   <div class="glass-container">
     <PanelHeader
       {strings}
@@ -538,6 +577,12 @@
     />
   </div>
 </div>
+
+<NotesStorageRecoveryNotice
+  {strings}
+  status={notesStorageStatus}
+  onOpenDataDirectory={openNotesDataDirectory}
+/>
 
 <EditDialog {strings} bind:showEditDialog bind:editText {submitEdit} />
 

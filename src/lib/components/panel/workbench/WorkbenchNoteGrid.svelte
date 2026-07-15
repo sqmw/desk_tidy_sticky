@@ -1,4 +1,6 @@
 <script>
+  import { shouldOpenWorkbenchCardFromClick } from "$lib/workspace/note/workbench-card-selection.js";
+
   let {
     strings,
     viewMode,
@@ -22,30 +24,18 @@
 
   /** @param {MouseEvent} event @param {any} note */
   function handleCardClick(event, note) {
-    if (!openViewOnClick) return;
-    const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest("button, a, input, textarea, select")) return;
-    openView(note);
-  }
-
-  /** @param {KeyboardEvent} event @param {any} note */
-  function handleCardKeydown(event, note) {
-    if (!openViewOnClick || (event.key !== "Enter" && event.key !== " ")) return;
-    event.preventDefault();
+    if (!shouldOpenWorkbenchCardFromClick(event, openViewOnClick)) return;
     openView(note);
   }
 </script>
 
 <div class="grid">
   {#each renderedNotes as note (note.id)}
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex: role and tabindex are enabled only while the inspector is open. -->
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events: keyboard access is provided by the dedicated details button. -->
     <article
       class="card"
       class:selectable={openViewOnClick}
-      role={openViewOnClick ? "button" : undefined}
-      tabindex={openViewOnClick ? 0 : undefined}
       onclick={(event) => handleCardClick(event, note)}
-      onkeydown={(event) => handleCardKeydown(event, note)}
       ondblclick={!openViewOnClick ? () => openView(note) : undefined}
     >
       <div class="card-top">
@@ -53,6 +43,14 @@
           <span class="priority-tag">{priorityBadge(note.priority)}</span>
         {/if}
         <span class="date">{formatDate(note.updatedAt)}</span>
+        <button
+          type="button"
+          class="open-details-btn"
+          title={strings.openDetails}
+          aria-label={strings.openDetails}
+          data-card-action
+          onclick={() => openView(note)}
+        >{@render iconDetails()}</button>
       </div>
       <div class="card-body">
         <div class="text" class:done={note.isDone}>{@html note.renderedHtml}</div>
@@ -212,6 +210,13 @@
   </svg>
 {/snippet}
 
+{#snippet iconDetails()}
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9">
+    <path d="M5 5h14v14H5z"></path>
+    <path d="M9 9h6M9 13h6"></path>
+  </svg>
+{/snippet}
+
 {#snippet iconPinOutline()}
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
     <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zm-2-2h-4V4h4v6z" />
@@ -302,11 +307,6 @@
     cursor: pointer;
   }
 
-  .card.selectable:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 72%, transparent);
-    outline-offset: 2px;
-  }
-
   .card::before {
     content: "";
     position: absolute;
@@ -341,6 +341,37 @@
 
   .card-top .date {
     margin-left: auto;
+  }
+
+  .open-details-btn {
+    display: inline-grid;
+    width: 26px;
+    height: 26px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--ws-text-muted, #64748b);
+    cursor: pointer;
+    opacity: 0;
+  }
+
+  .card:hover .open-details-btn,
+  .card:focus-within .open-details-btn {
+    opacity: 1;
+  }
+
+  .open-details-btn:hover {
+    border-color: color-mix(in srgb, var(--ws-border-soft, #d7dfec) 82%, transparent);
+    background: color-mix(in srgb, var(--ws-badge-bg, #eef4ff) 64%, transparent);
+    color: var(--ws-accent, #1d4ed8);
+  }
+
+  .open-details-btn:focus-visible {
+    opacity: 1;
+    outline: 2px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 72%, transparent);
+    outline-offset: 2px;
   }
 
   .card-body {

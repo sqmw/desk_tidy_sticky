@@ -8,6 +8,7 @@
   import { resolveAppLocale } from "$lib/i18n/locale.js";
   import { getStrings } from "$lib/strings.js";
   import BlockNoteContent from "$lib/components/note/BlockNoteContent.svelte";
+  import NotesStorageRecoveryNotice from "$lib/components/note/NotesStorageRecoveryNotice.svelte";
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
   import NoteToolbar from "$lib/components/note/NoteToolbar.svelte";
   import {
@@ -23,6 +24,10 @@
   import { createNoteWindowDragController } from "$lib/note/note-window-drag.js";
   import { createNoteStyleActions } from "$lib/note/note-style-actions.js";
   import { applyNoteWindowNativeEffects } from "$lib/note/note-native-effects.js";
+  import {
+    refreshNotesStorageStatus,
+    reportNotesStorageError,
+  } from "$lib/notes/storage-recovery.js";
   import {
     DEFAULT_NOTE_COLOR,
     DEFAULT_NOTE_FROST,
@@ -59,7 +64,9 @@
   let hasNativeWindowFrost = $state(false);
   let opacityDraft = $state(DEFAULT_NOTE_OPACITY);
   let frostDraft = $state(DEFAULT_NOTE_FROST);
+  let notesStorageStatus = $state({ state: "ready", message: "" });
   const strings = $derived(getStrings(locale));
+  const notesRecoveryRequired = $derived(notesStorageStatus.state === "recoveryRequired");
   const noteBgColor = $derived(note?.bgColor || DEFAULT_NOTE_COLOR);
   const noteTextColor = $derived(note?.textColor || DEFAULT_NOTE_TEXT_COLOR);
   const noteOpacity = $derived(note?.opacity ?? DEFAULT_NOTE_OPACITY);
@@ -126,6 +133,32 @@
 
   function getNow() {
     return globalThis.performance?.now?.() ?? Date.now();
+  }
+
+  /** @param {string} source @param {unknown} error */
+  function reportNoteStorageFailure(source, error) {
+    console.error(source, error);
+    void reportNotesStorageError(invoke, error, (status) => {
+      notesStorageStatus = status;
+    });
+  }
+
+  async function refreshNotesStorageRecoveryState() {
+    try {
+      await refreshNotesStorageStatus(invoke, (status) => {
+        notesStorageStatus = status;
+      });
+    } catch (error) {
+      console.error("getNotesStorageStatus(note)", error);
+    }
+  }
+
+  async function openNotesDataDirectory() {
+    try {
+      await invoke("open_notes_data_directory");
+    } catch (error) {
+      console.error("openNotesDataDirectory(note)", error);
+    }
   }
 
   function getToolbarWindowReserve() {
@@ -271,7 +304,7 @@
         height,
       };
     } catch (e) {
-      console.error("persistWindowSize", e);
+      reportNoteStorageFailure("persistWindowSize", e);
     }
   }
 
@@ -319,7 +352,7 @@
         lastPersistedWindowSizeKey = width && height ? `${width}x${height}` : "";
       }
     } catch (e) {
-      console.error("loadNote", e);
+      reportNoteStorageFailure("loadNote", e);
     }
   }
 
@@ -422,7 +455,7 @@
         sortMode: "custom",
       });
     } catch (e) {
-      console.error("save", e);
+      reportNoteStorageFailure("save", e);
     }
   }
 
@@ -433,7 +466,7 @@
         id: resolveNoteId(note, noteId),
       });
     } catch (e) {
-      console.error("markActiveTopmostEditingSticky", e);
+      reportNoteStorageFailure("markActiveTopmostEditingSticky", e);
     }
   }
 
@@ -444,7 +477,7 @@
         id: resolveNoteId(note, noteId),
       });
     } catch (e) {
-      console.error("clearActiveTopmostEditingSticky", e);
+      reportNoteStorageFailure("clearActiveTopmostEditingSticky", e);
     }
   }
 
@@ -459,7 +492,7 @@
         note = result.note;
       }
     } catch (e) {
-      console.error("hideToEdgeAfterOverflowIfNeeded", e);
+      reportNoteStorageFailure("hideToEdgeAfterOverflowIfNeeded", e);
     }
   }
 
@@ -567,7 +600,7 @@
       }
       await applyInteractionPolicy();
     } catch (e) {
-      console.error("toggleTopmost", e);
+      reportNoteStorageFailure("toggleTopmost", e);
     }
   }
 
@@ -591,7 +624,7 @@
       }
       await applyInteractionPolicy();
     } catch (e) {
-      console.error("toggleWallpaperLayer", e);
+      reportNoteStorageFailure("toggleWallpaperLayer", e);
     }
   }
 
@@ -699,7 +732,7 @@
         };
         await hideToEdgeAfterOverflowIfNeeded();
       } catch (e) {
-        console.error("persistNotePosition", e);
+        reportNoteStorageFailure("persistNotePosition", e);
       }
     },
   });
@@ -799,7 +832,7 @@
       });
       await syncAfterCommand(all);
     } catch (e) {
-      console.error("toggleDone", e);
+      reportNoteStorageFailure("toggleDone", e);
     }
   }
 
@@ -816,7 +849,7 @@
       await syncAfterCommand(all, { closeIfUnpinned: true });
       void clearActiveTopmostEditingSticky();
     } catch (e) {
-      console.error("toggleArchive", e);
+      reportNoteStorageFailure("toggleArchive", e);
     }
   }
 
@@ -833,7 +866,7 @@
       await syncAfterCommand(all, { closeIfUnpinned: true });
       void clearActiveTopmostEditingSticky();
     } catch (e) {
-      console.error("unpinNote", e);
+      reportNoteStorageFailure("unpinNote", e);
     }
   }
 
@@ -850,7 +883,7 @@
       await syncAfterCommand(all, { closeIfUnpinned: true });
       void clearActiveTopmostEditingSticky();
     } catch (e) {
-      console.error("moveToTrash", e);
+      reportNoteStorageFailure("moveToTrash", e);
     }
   }
 
@@ -864,7 +897,7 @@
       });
       await syncAfterCommand(all);
     } catch (e) {
-      console.error("toggleAutoHide", e);
+      reportNoteStorageFailure("toggleAutoHide", e);
     }
   }
 
@@ -889,7 +922,7 @@
             });
       await syncAfterCommand(all);
     } catch (e) {
-      console.error("setNotePriority", e);
+      reportNoteStorageFailure("setNotePriority", e);
     }
   }
 
@@ -906,7 +939,7 @@
       });
       await syncAfterCommand(all);
     } catch (e) {
-      console.error("setNoteTags", e);
+      reportNoteStorageFailure("setNoteTags", e);
     }
   }
 
@@ -961,6 +994,7 @@
       }),
     );
 
+    void refreshNotesStorageRecoveryState();
     loadLocale()
       .then(loadGlobalControlState)
       .then(loadNote)
@@ -1046,6 +1080,7 @@
   class="note-shell"
   data-control-mode={showTopmostControls ? "true" : "false"}
   data-toolbar-placement={showTopmostControls ? "outside" : "inside"}
+  inert={notesRecoveryRequired}
   onpointerdown={noteWindowDrag.handleDragPointerDown}
   onpointermove={noteWindowDrag.onDragPointerMove}
   onpointerup={noteWindowDrag.onDragPointerUp}
@@ -1112,6 +1147,12 @@
     <div class="loading">Loading...</div>
   {/if}
 </div>
+
+<NotesStorageRecoveryNotice
+  {strings}
+  status={notesStorageStatus}
+  onOpenDataDirectory={openNotesDataDirectory}
+/>
 
 <style>
   .note-shell {

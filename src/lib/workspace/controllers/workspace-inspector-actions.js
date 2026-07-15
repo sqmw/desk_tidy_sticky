@@ -23,9 +23,19 @@
  *   setInspectorOpen: (open: boolean) => void;
  *   setInspectorNoteId: (id: string | null) => void;
  *   setInspectorListCollapsed: (collapsed: boolean) => void;
+ *   onNotesStorageError?: (source: string, error: unknown) => void;
  * }} deps
  */
 export function createWorkspaceInspectorActions(deps) {
+  /** @param {string} source @param {unknown} error */
+  function reportError(source, error) {
+    if (deps.onNotesStorageError) {
+      deps.onNotesStorageError(source, error);
+      return;
+    }
+    console.error(source, error);
+  }
+
   /** @param {any} note */
   function openInspectorView(note) {
     deps.setInspectorOpen(true);
@@ -53,7 +63,7 @@ export function createWorkspaceInspectorActions(deps) {
       await deps.loadNotes();
       await deps.syncWindows();
     } catch (e) {
-      console.error("discardPendingEditorDraft(workspace)", e);
+      reportError("discardPendingEditorDraft(workspace)", e);
     } finally {
       deps.setPendingEditorDraft(null);
       closeInspector();
@@ -110,7 +120,7 @@ export function createWorkspaceInspectorActions(deps) {
         await deps.setMainTab(deps.notesTabKey);
       }
     } catch (e) {
-      console.error("createNoteFromWorkspaceComposer(workspace)", e);
+      reportError("createNoteFromWorkspaceComposer(workspace)", e);
     }
   }
 

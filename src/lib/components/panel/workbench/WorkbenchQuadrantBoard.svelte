@@ -1,4 +1,6 @@
 <script>
+  import { shouldOpenWorkbenchCardFromClick } from "$lib/workspace/note/workbench-card-selection.js";
+
   let {
     strings,
     quadrants = [],
@@ -26,16 +28,7 @@
 
   /** @param {MouseEvent} event @param {any} note */
   function handleCardClick(event, note) {
-    if (!openViewOnClick) return;
-    const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest("button, a, input, textarea, select")) return;
-    openView(note);
-  }
-
-  /** @param {KeyboardEvent} event @param {any} note */
-  function handleCardKeydown(event, note) {
-    if (!openViewOnClick || (event.key !== "Enter" && event.key !== " ")) return;
-    event.preventDefault();
+    if (!shouldOpenWorkbenchCardFromClick(event, openViewOnClick)) return;
     openView(note);
   }
 </script>
@@ -65,16 +58,13 @@
               </div>
             {:else}
               {@const note = item.note}
-              <!-- svelte-ignore a11y_no_noninteractive_tabindex: role and tabindex are enabled only while the inspector is open. -->
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events: keyboard access is provided by the dedicated details button. -->
               <article
                 class="card quadrant-note-card"
                 data-note-id={note.id}
                 class:dragging={draggingNoteId === String(note.id)}
                 class:selectable={openViewOnClick}
-                role={openViewOnClick ? "button" : undefined}
-                tabindex={openViewOnClick ? 0 : undefined}
                 onclick={(event) => handleCardClick(event, note)}
-                onkeydown={(event) => handleCardKeydown(event, note)}
                 ondblclick={!openViewOnClick ? () => openView(note) : undefined}
               >
                 <div class="card-top">
@@ -90,6 +80,14 @@
                     <span class="priority-tag">{priorityBadge(note.priority)}</span>
                   {/if}
                   <span class="date">{formatDate(note.updatedAt)}</span>
+                  <button
+                    type="button"
+                    class="open-details-btn"
+                    title={strings.openDetails}
+                    aria-label={strings.openDetails}
+                    data-card-action
+                    onclick={() => openView(note)}
+                  >{@render iconDetails()}</button>
                 </div>
                 <div class="card-body">
                   <div class="text" class:done={note.isDone}>{@html note.renderedHtml}</div>
@@ -233,6 +231,13 @@
     <path
       d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"
     />
+  </svg>
+{/snippet}
+
+{#snippet iconDetails()}
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9">
+    <path d="M5 5h14v14H5z"></path>
+    <path d="M9 9h6M9 13h6"></path>
   </svg>
 {/snippet}
 
@@ -415,11 +420,6 @@
     cursor: pointer;
   }
 
-  .card.selectable:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 72%, transparent);
-    outline-offset: 2px;
-  }
-
   .card:hover {
     transform: translateY(-1px);
     border-color: color-mix(in srgb, var(--ws-border-hover, #c6d5e8) 86%, transparent);
@@ -436,6 +436,37 @@
 
   .card-top .date {
     margin-left: auto;
+  }
+
+  .open-details-btn {
+    display: inline-grid;
+    width: 26px;
+    height: 26px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--ws-text-muted, #64748b);
+    cursor: pointer;
+    opacity: 0;
+  }
+
+  .quadrant-note-card:hover .open-details-btn,
+  .quadrant-note-card:focus-within .open-details-btn {
+    opacity: 1;
+  }
+
+  .open-details-btn:hover {
+    border-color: color-mix(in srgb, var(--ws-border-soft, #d7dfec) 82%, transparent);
+    background: color-mix(in srgb, var(--ws-badge-bg, #eef4ff) 64%, transparent);
+    color: var(--ws-accent, #1d4ed8);
+  }
+
+  .open-details-btn:focus-visible {
+    opacity: 1;
+    outline: 2px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 72%, transparent);
+    outline-offset: 2px;
   }
 
   .card-body {

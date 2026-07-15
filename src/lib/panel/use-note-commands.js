@@ -1,4 +1,5 @@
 import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
+import { reportNotesStorageError } from "$lib/notes/storage-recovery.js";
 
 /**
  * @param {{
@@ -20,9 +21,16 @@ import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
  *   openNoteWindow: (note: any) => Promise<void>;
  *   closeNoteWindow: (noteId: string | number) => Promise<void>;
  *   getCurrentWindow: typeof import("@tauri-apps/api/window").getCurrentWindow;
+ *   onNotesStorageStatus?: (status: { state: "ready" | "recoveryRequired"; message: string }) => void;
  * }} deps
  */
 export function createNoteCommands(deps) {
+  /** @param {string} source @param {unknown} error */
+  function reportError(source, error) {
+    console.error(source, error);
+    void reportNotesStorageError(deps.invoke, error, deps.onNotesStorageStatus);
+  }
+
   async function loadNotes() {
     try {
       const sortMode = deps.getSortMode();
@@ -30,7 +38,7 @@ export function createNoteCommands(deps) {
       deps.setNotes(next);
       await deps.syncWindows();
     } catch (e) {
-      console.error("loadNotes", e);
+      reportError("loadNotes", e);
     }
   }
 
@@ -65,7 +73,7 @@ export function createNoteCommands(deps) {
         await win.hide();
       }
     } catch (e) {
-      console.error("saveNote", e);
+      reportError("saveNote", e);
     }
   }
 
@@ -87,7 +95,7 @@ export function createNoteCommands(deps) {
       });
       await loadNotes();
     } catch (e) {
-      console.error("saveDoneLog", e);
+      reportError("saveDoneLog", e);
     }
   }
 
@@ -97,7 +105,7 @@ export function createNoteCommands(deps) {
       await deps.invoke("toggle_pin", { id: note.id, sortMode: deps.getSortMode() });
       await loadNotes();
     } catch (e) {
-      console.error("togglePin", e);
+      reportError("togglePin", e);
     }
   }
 
@@ -113,7 +121,7 @@ export function createNoteCommands(deps) {
       deps.setNotes(next);
       await deps.syncWindows();
     } catch (e) {
-      console.error("toggleZOrder", e);
+      reportError("toggleZOrder", e);
     }
   }
 
@@ -128,7 +136,7 @@ export function createNoteCommands(deps) {
       deps.setNotes(next);
       await deps.syncWindows();
     } catch (e) {
-      console.error("toggleWallpaperLayer", e);
+      reportError("toggleWallpaperLayer", e);
     }
   }
 
@@ -138,7 +146,7 @@ export function createNoteCommands(deps) {
       await deps.invoke("toggle_done", { id: note.id, sortMode: deps.getSortMode() });
       await loadNotes();
     } catch (e) {
-      console.error("toggleDone", e);
+      reportError("toggleDone", e);
     }
   }
 
@@ -162,7 +170,7 @@ export function createNoteCommands(deps) {
       }
       await loadNotes();
     } catch (e) {
-      console.error("updatePriority", e);
+      reportError("updatePriority", e);
     }
   }
 
@@ -179,7 +187,7 @@ export function createNoteCommands(deps) {
       });
       await loadNotes();
     } catch (e) {
-      console.error("updateTags", e);
+      reportError("updateTags", e);
     }
   }
 
@@ -189,7 +197,7 @@ export function createNoteCommands(deps) {
       await deps.invoke("toggle_archive", { id: note.id, sortMode: deps.getSortMode() });
       await loadNotes();
     } catch (e) {
-      console.error("toggleArchive", e);
+      reportError("toggleArchive", e);
     }
   }
 
@@ -203,7 +211,7 @@ export function createNoteCommands(deps) {
       }
       await loadNotes();
     } catch (e) {
-      console.error("deleteNote", e);
+      reportError("deleteNote", e);
     }
   }
 
@@ -213,7 +221,7 @@ export function createNoteCommands(deps) {
       await deps.invoke("restore_note", { id: note.id, sortMode: deps.getSortMode() });
       await loadNotes();
     } catch (e) {
-      console.error("restoreNote", e);
+      reportError("restoreNote", e);
     }
   }
 
@@ -222,7 +230,7 @@ export function createNoteCommands(deps) {
       await deps.invoke("empty_trash");
       await loadNotes();
     } catch (e) {
-      console.error("emptyTrash", e);
+      reportError("emptyTrash", e);
     }
   }
 
@@ -258,7 +266,7 @@ export function createNoteCommands(deps) {
         isArchivedView: viewMode === "archived",
       });
     } catch (e) {
-      console.error("reorderNotes", e);
+      reportError("reorderNotes", e);
       await loadNotes();
     }
   }

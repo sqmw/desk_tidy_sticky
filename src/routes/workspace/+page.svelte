@@ -14,6 +14,11 @@
   import { broadcastPreferencesChanged, listenPreferencesChanged } from "$lib/preferences/preferences-sync.js";
   import { createWindowSync } from "$lib/panel/use-window-sync.js";
   import { createNoteCommands } from "$lib/panel/use-note-commands.js";
+  import {
+    isNotesStorageRecoveryRequired,
+    refreshNotesStorageStatus,
+    reportNotesStorageError,
+  } from "$lib/notes/storage-recovery.js";
   import { createWorkspaceInspectorActions } from "$lib/workspace/controllers/workspace-inspector-actions.js";
   import { createWorkspaceFocusActions } from "$lib/workspace/controllers/workspace-focus-actions.js";
   import { createWorkspaceNoteViewActions } from "$lib/workspace/controllers/workspace-note-view-actions.js";
@@ -35,16 +40,14 @@
     updateShortcutSettings,
   } from "$lib/shortcuts/shortcut-settings-service.js";
 
-  import WorkbenchSection from "$lib/components/panel/WorkbenchSection.svelte";
   import WorkspaceFocusHub from "$lib/components/workspace/WorkspaceFocusHub.svelte";
   import WorkspaceMacTrafficLights from "$lib/components/workspace/WorkspaceMacTrafficLights.svelte";
   import WorkspaceWindowBar from "$lib/components/workspace/WorkspaceWindowBar.svelte";
   import WorkspaceSidebar from "$lib/components/workspace/WorkspaceSidebar.svelte";
-  import WorkspaceToolbar from "$lib/components/workspace/WorkspaceToolbar.svelte";
-  import WorkspaceTagFilterRail from "$lib/components/workspace/WorkspaceTagFilterRail.svelte";
-  import WorkspaceNoteInspector from "$lib/components/workspace/WorkspaceNoteInspector.svelte";
+  import WorkspaceNotesPane from "$lib/components/workspace/WorkspaceNotesPane.svelte";
   import WorkspaceSettingsDialog from "$lib/components/workspace/WorkspaceSettingsDialog.svelte";
   import WorkspaceReviewHub from "$lib/components/workspace/review/WorkspaceReviewHub.svelte";
+  import NotesStorageRecoveryNotice from "$lib/components/note/NotesStorageRecoveryNotice.svelte";
   import { buildReviewFocusSnapshot } from "$lib/workspace/review/review-focus-stats.js";
   import { getReviewRecords } from "$lib/workspace/review/review-records.js";
   import { enableReviewDevFixtures } from "$lib/runtime/dev-flags.js";
@@ -144,6 +147,7 @@
   let markdownStorageImporting = $state(false);
   let shortcutSettings = $state(createDefaultShortcutSettings());
   let shortcutSettingsSaving = $state(false);
+  let notesStorageStatus = $state({ state: "ready", message: "" });
   /** @type {any[]} */
   let focusTasks = $state([]);
   /** @type {Record<string, any>} */
@@ -210,6 +214,7 @@
   const workspaceCustomCssStyle = $derived.by(() => String(workspaceCustomCss || ""));
 
   const strings = $derived(getStrings(locale));
+  const notesRecoveryRequired = $derived(isNotesStorageRecoveryRequired(notesStorageStatus));
   const workspaceThemePresetOptions = $derived.by(() => getWorkspaceThemePresetOptions(strings));
   const deadlineTasks = $derived.by(() => {
     const now = new Date(deadlineNowTick);
@@ -269,6 +274,7 @@
     getNotes: () => notes,
     getStickiesVisible: () => stickiesVisible,
     invoke,
+    onNotesStorageError: reportNoteStorageFailure,
   });
 
   const routeNoteBridge = createWorkspaceRouteNoteBridge({
@@ -303,6 +309,10 @@
     openNoteWindow: windowSync.openNoteWindow,
     closeNoteWindow: windowSync.closeNoteWindow,
     getCurrentWindow,
+    onNotesStorageStatus: (status) => {
+      notesStorageStatus = status;
+    },
+    onNotesStorageError: reportNoteStorageFailure,
     getInspectorNote: () => inspectorNote,
     getPendingEditorDraft: () => pendingEditorDraft,
     setPendingEditorDraft: (next) => {
@@ -351,6 +361,32 @@
     persistReorderedVisible,
   } = createNoteCommands(routeNoteBridge.createNoteCommandsConfig());
 
+  async function refreshNotesStorageRecoveryState() {
+    try {
+      await refreshNotesStorageStatus(invoke, (status) => {
+        notesStorageStatus = status;
+      });
+    } catch (error) {
+      console.error("getNotesStorageStatus(workspace)", error);
+    }
+  }
+
+  /** @param {string} source @param {unknown} error */
+  function reportNoteStorageFailure(source, error) {
+    console.error(source, error);
+    void reportNotesStorageError(invoke, error, (status) => {
+      notesStorageStatus = status;
+    });
+  }
+
+  async function openNotesDataDirectory() {
+    try {
+      await invoke("open_notes_data_directory");
+    } catch (error) {
+      console.error("openNotesDataDirectory(workspace)", error);
+    }
+  }
+
   /** @param {Record<string, any>} patch */
   function setWorkspaceRouteState(patch) {
     if ("viewMode" in patch) viewMode = normalizeWorkspaceViewMode(patch.viewMode);
@@ -391,6 +427,7 @@
 
   const workspaceStorageActions = createWorkspaceStorageActions({
     invoke,
+    onNotesStorageError: reportNoteStorageFailure,
     setMarkdownStorageMode: (next) => {
       markdownStorageMode = next;
     },
@@ -428,13 +465,17 @@
   /** @param {string} nextText */
   async function updateInspectorNoteText(nextText) {
     if (!inspectorNote || typeof nextText !== "string") return;
-    await invoke("update_note_text", {
-      id: inspectorNote.id,
-      text: nextText,
-      sortMode,
-    });
-    await loadNotes();
-    inspectorDraftText = nextText;
+    try {
+      await invoke("update_note_text", {
+        id: inspectorNote.id,
+        text: nextText,
+        sortMode,
+      });
+      await loadNotes();
+      inspectorDraftText = nextText;
+    } catch (error) {
+      reportNoteStorageFailure("updateInspectorNoteText", error);
+    }
   }
 
   /** @param {number} lineIndex */
@@ -747,6 +788,7 @@
   const resizeController = createWorkspaceResizeController(routeResizeBridge);
 
   onMount(() => {
+    void refreshNotesStorageRecoveryState();
     refreshViewportMetrics();
     runtimeLifecycle.bootstrap();
     syncWindowPresentationState();
@@ -856,6 +898,7 @@
     class:theme-dark={workspaceThemeDark}
     class:mac-windowed={isMac && !windowMaximized}
     style={`--sidebar-width: ${sidebarWidth}px; --ws-ui-scale: ${workspaceLayoutScale}; --ws-layout-scale: 1; --ws-text-scale: ${workspaceTextScale}; ${workspaceThemeVarStyle}`}
+    inert={notesRecoveryRequired}
   >
   <WorkspaceSidebar
     {strings}
@@ -899,10 +942,13 @@
     />
 
     {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
-      <WorkspaceToolbar
+      <WorkspaceNotesPane
         {strings}
         {viewMode}
-        compact={stageLayout.toolbarCompact}
+        renderedNotes={renderedNotes}
+        openViewOnClick={inspectorOpen}
+        {canQuadrantReorder}
+        compactToolbar={stageLayout.toolbarCompact}
         bind:newNoteText
         bind:newNotePriority
         bind:newNoteTags
@@ -910,71 +956,39 @@
         {selectedTag}
         tagFilterOpen={!tagFilterCollapsed}
         bind:searchQuery
+        {inspectorOpen}
+        {inspectorNote}
+        bind:inspectorDraftText
+        {inspectorListCollapsed}
+        {inspectorWidth}
+        bind:workbenchShellEl
+        noteTags={noteTagEntries}
+        {taggedNoteCount}
+        formatDate={formatWorkspaceNoteDate}
         onToggleTagFilter={() => (tagFilterCollapsed = !tagFilterCollapsed)}
         onCreateNote={createNoteFromWorkspaceComposer}
+        onSetSelectedTag={setSelectedTag}
+        onStartInspectorResize={resizeController.startInspectorResize}
+        onResetInspectorWidth={() => (inspectorWidth = 430)}
+        {restoreNote}
+        {toggleArchive}
+        {deleteNote}
+        openEdit={openInspectorEdit}
+        openView={openInspectorView}
+        {togglePin}
+        {toggleZOrder}
+        {toggleWallpaperLayer}
+        {toggleDone}
+        {updatePriority}
+        {updateTags}
+        {persistReorderedVisible}
+        onCloseInspector={handleInspectorClose}
+        onChangeInspectorPriority={handleInspectorPriorityChange}
+        onChangeInspectorTags={handleInspectorTagsChange}
+        onToggleInspectorTask={toggleInspectorTask}
+        onAppendInspectorTask={appendInspectorTask}
+        onInspectorTextChange={updateInspectorNoteText}
       />
-
-      <div
-        class="workbench-shell"
-        class:inspector-open={inspectorOpen}
-        class:list-collapsed={inspectorListCollapsed}
-        class:tag-filter-open={!tagFilterCollapsed}
-        bind:this={workbenchShellEl}
-        style={`--inspector-width: ${inspectorWidth}px;`}
-      >
-        <div class="workbench-pane">
-          <WorkbenchSection
-            {strings}
-            {viewMode}
-            {renderedNotes}
-            openViewOnClick={inspectorOpen}
-            {canQuadrantReorder}
-            formatDate={formatWorkspaceNoteDate}
-            {restoreNote}
-            {toggleArchive}
-            {deleteNote}
-            openEdit={openInspectorEdit}
-            openView={openInspectorView}
-            {togglePin}
-            {toggleZOrder}
-            {toggleWallpaperLayer}
-            {toggleDone}
-            {updatePriority}
-            {updateTags}
-            {persistReorderedVisible}
-          />
-        </div>
-        {#if !tagFilterCollapsed}
-          <WorkspaceTagFilterRail
-            {strings}
-            noteTags={noteTagEntries}
-            {selectedTag}
-            {taggedNoteCount}
-            onSetSelectedTag={setSelectedTag}
-          />
-        {/if}
-        {#if inspectorOpen && inspectorNote}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            class="inspector-splitter"
-            onpointerdown={resizeController.startInspectorResize}
-            ondblclick={() => (inspectorWidth = 430)}
-          ></div>
-          <WorkspaceNoteInspector
-            {strings}
-            note={inspectorNote}
-            bind:draftText={inspectorDraftText}
-            tagSuggestions={noteTagOptions}
-            formatDate={formatWorkspaceNoteDate}
-            onClose={handleInspectorClose}
-            onChangePriority={handleInspectorPriorityChange}
-            onChangeTags={handleInspectorTagsChange}
-            onToggleTask={toggleInspectorTask}
-            onAppendTask={appendInspectorTask}
-            onBlockTextChange={updateInspectorNoteText}
-          />
-        {/if}
-      </div>
     {/if}
 
     <section class="focus-pane" class:hidden={mainTab !== WORKSPACE_MAIN_TAB_FOCUS}>
@@ -1011,6 +1025,12 @@
   </main>
   </div>
 </div>
+
+<NotesStorageRecoveryNotice
+  {strings}
+  status={notesStorageStatus}
+  onOpenDataDirectory={openNotesDataDirectory}
+/>
 
 <WorkspaceSettingsDialog
   {strings}
@@ -1213,85 +1233,6 @@
     border-radius: 999px;
   }
 
-  .workbench-shell {
-    min-height: 0;
-    flex: 1;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-    position: relative;
-  }
-
-  .workbench-shell.tag-filter-open {
-    grid-template-columns: minmax(0, 1fr) minmax(132px, 176px);
-  }
-
-  .workbench-shell.inspector-open {
-    grid-template-columns: minmax(0, 1fr) 8px minmax(340px, var(--inspector-width, 430px));
-  }
-
-  .workbench-shell.inspector-open.tag-filter-open {
-    grid-template-columns: minmax(0, 1fr) minmax(128px, 164px) 8px minmax(340px, var(--inspector-width, 430px));
-  }
-
-  .workbench-shell.inspector-open.list-collapsed {
-    grid-template-columns: 0 8px minmax(340px, 1fr);
-  }
-
-  .workbench-shell.list-collapsed :global(.tag-filter-rail) {
-    display: none;
-  }
-
-  .inspector-splitter {
-    --inspector-splitter-hit-width: 30px;
-    --inspector-splitter-visual-width: 8px;
-    width: var(--inspector-splitter-hit-width);
-    justify-self: center;
-    border-radius: 999px;
-    background: transparent;
-    cursor: col-resize;
-    min-height: 0;
-    position: relative;
-    touch-action: none;
-    z-index: 3;
-  }
-
-  .inspector-splitter::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: rgba(15, 23, 42, 0.001);
-  }
-
-  .inspector-splitter::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: var(--inspector-splitter-visual-width);
-    transform: translate(-50%, -50%);
-    height: 60px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 70%, transparent);
-    opacity: 0.92;
-    transition: background 0.15s ease, opacity 0.15s ease;
-    pointer-events: none;
-  }
-
-  .inspector-splitter:hover::after {
-    background: color-mix(in srgb, var(--ws-border-active, #94a3b8) 46%, transparent);
-    opacity: 1;
-  }
-
-  .workbench-pane {
-    min-height: 0;
-    min-width: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
   .workspace :global(button),
   .workspace :global([role="button"]) {
     cursor: pointer;
@@ -1413,17 +1354,6 @@
       display: none;
     }
 
-    .workbench-shell.inspector-open {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .workbench-shell.list-collapsed :global(.tag-filter-rail) {
-      display: grid;
-    }
-
-    .inspector-splitter {
-      display: none;
-    }
   }
 
   :global(html.ws-vt-running::view-transition) {

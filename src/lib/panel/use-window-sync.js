@@ -8,6 +8,7 @@ import { applyNoteWindowNativeEffects } from "$lib/note/note-native-effects.js";
  *   getNotes: () => any[];
  *   getStickiesVisible: () => boolean;
  *   invoke: typeof import("@tauri-apps/api/core").invoke;
+ *   onNotesStorageError?: (source: string, error: unknown) => void;
  * }} deps
  */
 export function createWindowSync(deps) {
@@ -19,6 +20,15 @@ export function createWindowSync(deps) {
   /** @type {Promise<void> | null} */
   let syncInFlight = null;
   let syncRequested = false;
+
+  /** @param {string} source @param {unknown} error */
+  function reportError(source, error) {
+    if (deps.onNotesStorageError) {
+      deps.onNotesStorageError(source, error);
+      return;
+    }
+    console.error(source, error);
+  }
 
   function shouldDisableNativeShadow() {
     return (
@@ -69,7 +79,7 @@ export function createWindowSync(deps) {
         emitEvent: false,
       });
     } catch (error) {
-      console.error("persist_note_window_size", error);
+      reportError("persist_note_window_size", error);
     }
   }
 
@@ -144,7 +154,7 @@ export function createWindowSync(deps) {
     try {
       await syncNoteLayerOnce(note);
     } catch (error) {
-      console.error("sync_note_window_layer(initial)", error);
+      reportError("sync_note_window_layer(initial)", error);
     }
     if (readyPromise) {
       await readyPromise;

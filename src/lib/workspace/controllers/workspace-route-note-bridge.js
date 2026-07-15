@@ -21,6 +21,8 @@
  *   openNoteWindow: (note: any) => Promise<void>;
  *   closeNoteWindow: (noteId: string | number) => Promise<void>;
  *   getCurrentWindow: typeof import("@tauri-apps/api/window").getCurrentWindow;
+ *   onNotesStorageStatus?: (status: { state: "ready" | "recoveryRequired"; message: string }) => void;
+ *   onNotesStorageError?: (source: string, error: unknown) => void;
  *   loadNotes?: () => Promise<void>;
  *   savePrefs?: (updates: Record<string, any>) => Promise<void>;
  *   setViewModeState?: (next: string) => void;
@@ -57,6 +59,7 @@ export function createWorkspaceRouteNoteBridge(input) {
       openNoteWindow: input.openNoteWindow,
       closeNoteWindow: input.closeNoteWindow,
       getCurrentWindow: input.getCurrentWindow,
+      onNotesStorageStatus: input.onNotesStorageStatus,
     };
   }
 
@@ -85,6 +88,7 @@ export function createWorkspaceRouteNoteBridge(input) {
       setInspectorOpen: input.setInspectorOpen,
       setInspectorNoteId: input.setInspectorNoteId,
       setInspectorListCollapsed: input.setInspectorListCollapsed,
+      onNotesStorageError: input.onNotesStorageError,
     };
   }
 

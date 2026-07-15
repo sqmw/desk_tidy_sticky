@@ -17,6 +17,7 @@ import {
  *   setMarkdownStorageSaving: (next: boolean) => void;
  *   setMarkdownStorageExporting: (next: boolean) => void;
  *   setMarkdownStorageImporting: (next: boolean) => void;
+ *   onNotesStorageError?: (source: string, error: unknown) => void;
  * }} deps
  */
 export function createWorkspaceStorageActions(deps) {
@@ -40,6 +41,7 @@ export function createWorkspaceStorageActions(deps) {
       deps.setMarkdownStorageSnapshot(snapshot);
       return { ok: true, snapshot };
     } catch (error) {
+      deps.onNotesStorageError?.("exportMarkdownStorage(workspace)", error);
       return {
         ok: false,
         message: error instanceof Error ? error.message : String(error || "Failed to update Markdown storage"),
@@ -58,6 +60,7 @@ export function createWorkspaceStorageActions(deps) {
         summary,
       };
     } catch (error) {
+      deps.onNotesStorageError?.("importMarkdownStorage(workspace)", error);
       return {
         ok: false,
         message: error instanceof Error ? error.message : String(error || "Failed to export Markdown"),
@@ -76,6 +79,7 @@ export function createWorkspaceStorageActions(deps) {
         summary,
       };
     } catch (error) {
+      deps.onNotesStorageError?.("previewMarkdownImportStorage(workspace)", error);
       return {
         ok: false,
         message: error instanceof Error ? error.message : String(error || "Failed to import Markdown"),
