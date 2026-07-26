@@ -70,8 +70,6 @@
 
 <div
   class="workbench-shell"
-  class:inspector-open={inspectorOpen}
-  class:list-collapsed={inspectorListCollapsed}
   class:tag-filter-open={tagFilterOpen}
   bind:this={workbenchShellEl}
   style={`--inspector-width: ${inspectorWidth}px;`}
@@ -108,25 +106,28 @@
     />
   {/if}
   {#if inspectorOpen && inspectorNote}
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="inspector-splitter" onpointerdown={onStartInspectorResize} ondblclick={onResetInspectorWidth}></div>
     <WorkspaceNoteInspector
       {strings}
       note={inspectorNote}
       bind:draftText={inspectorDraftText}
       tagSuggestions={noteTagOptions}
       {formatDate}
+      listCollapsed={inspectorListCollapsed}
       onClose={onCloseInspector}
       onChangePriority={onChangeInspectorPriority}
       onChangeTags={onChangeInspectorTags}
       onToggleTask={onToggleInspectorTask}
       onAppendTask={onAppendInspectorTask}
       onBlockTextChange={onInspectorTextChange}
+      onStartResize={onStartInspectorResize}
+      onResetWidth={onResetInspectorWidth}
     />
   {/if}
 </div>
 
 <style>
+  /* The inspector renders as an overlay drawer anchored to this shell
+     (absolute, right edge), so opening it never reflows the note grid. */
   .workbench-shell {
     min-height: 0;
     flex: 1;
@@ -140,83 +141,11 @@
     grid-template-columns: minmax(0, 1fr) minmax(132px, 176px);
   }
 
-  .workbench-shell.inspector-open {
-    grid-template-columns: minmax(0, 1fr) 8px minmax(340px, var(--inspector-width, 430px));
-  }
-
-  .workbench-shell.inspector-open.tag-filter-open {
-    grid-template-columns: minmax(0, 1fr) minmax(128px, 164px) 8px minmax(340px, var(--inspector-width, 430px));
-  }
-
-  .workbench-shell.inspector-open.list-collapsed {
-    grid-template-columns: 0 8px minmax(340px, 1fr);
-  }
-
-  .workbench-shell.list-collapsed :global(.tag-filter-rail) {
-    display: none;
-  }
-
-  .inspector-splitter {
-    --inspector-splitter-hit-width: 30px;
-    --inspector-splitter-visual-width: 8px;
-    width: var(--inspector-splitter-hit-width);
-    justify-self: center;
-    border-radius: 999px;
-    background: transparent;
-    cursor: col-resize;
-    min-height: 0;
-    position: relative;
-    touch-action: none;
-    z-index: 3;
-  }
-
-  .inspector-splitter::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: rgba(15, 23, 42, 0.001);
-  }
-
-  .inspector-splitter::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: var(--inspector-splitter-visual-width);
-    transform: translate(-50%, -50%);
-    height: 60px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 70%, transparent);
-    opacity: 0.92;
-    transition: background 0.15s ease, opacity 0.15s ease;
-    pointer-events: none;
-  }
-
-  .inspector-splitter:hover::after {
-    background: color-mix(in srgb, var(--ws-border-active, #94a3b8) 46%, transparent);
-    opacity: 1;
-  }
-
   .workbench-pane {
     min-height: 0;
     min-width: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-  }
-
-  @media (max-width: 920px) {
-    .workbench-shell.inspector-open {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .workbench-shell.list-collapsed :global(.tag-filter-rail) {
-      display: grid;
-    }
-
-    .inspector-splitter {
-      display: none;
-    }
   }
 </style>
