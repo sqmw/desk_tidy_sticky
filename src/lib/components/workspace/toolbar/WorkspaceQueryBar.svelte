@@ -10,7 +10,15 @@
 </script>
 
 <div class="query-bar" class:compact>
-  <input type="text" class="search" placeholder={strings.searchHint} bind:value={searchQuery} />
+  <div class="search-box">
+    <span class="search-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <circle cx="11" cy="11" r="6.5"></circle>
+        <path d="m20 20-4.4-4.4"></path>
+      </svg>
+    </span>
+    <input type="text" class="search" placeholder={strings.searchHint} bind:value={searchQuery} />
+  </div>
   <button
     type="button"
     class="tag-filter-btn"
@@ -38,13 +46,31 @@
     gap: 6px;
   }
 
+  .search-box {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-grid;
+    place-items: center;
+    color: var(--ws-muted, #71809b);
+    pointer-events: none;
+  }
+
   .search {
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d6e0ee) 56%, transparent);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--ws-card-bg, #fff) 64%, transparent);
-    color: var(--ws-text, #1f2937);
-    font-size: 14px;
-    padding: 9px 10px;
+    width: 100%;
+    border: 1px solid var(--ws-border, #e3e9f2);
+    border-radius: var(--ws-radius-md, 12px);
+    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 72%, transparent);
+    color: var(--ws-text-strong, #101828);
+    font-size: 13.5px;
+    padding: 8px 10px 8px 33px;
     outline: none;
     min-width: 0;
     transition:
@@ -53,44 +79,50 @@
       box-shadow 0.16s ease;
   }
 
+  .search::placeholder {
+    color: color-mix(in srgb, var(--ws-muted, #71809b) 82%, transparent);
+  }
+
   .search:focus {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 26%, var(--ws-border-soft, #d6e0ee));
-    background: var(--ws-card-bg, #fff);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 45%, var(--ws-border, #e3e9f2));
+    background: var(--ws-card-bg, #ffffff);
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .query-bar.compact .search {
     min-height: 38px;
-    padding: 8px 10px;
-  }
-
-  .search {
-    flex: 1 1 auto;
+    padding-top: 7px;
+    padding-bottom: 7px;
   }
 
   .tag-filter-btn {
     flex: 0 0 auto;
     min-height: 38px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d6e0ee) 62%, transparent);
-    border-radius: 8px;
-    background: transparent;
-    color: var(--ws-muted, #64748b);
+    border: 1px solid var(--ws-border, #e3e9f2);
+    border-radius: var(--ws-radius-md, 12px);
+    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 72%, transparent);
+    color: var(--ws-muted, #71809b);
     padding: 0 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 700;
     white-space: nowrap;
     transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
   }
 
   .tag-filter-btn:hover,
   .tag-filter-btn.active {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 26%, transparent);
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 9%, transparent);
-    color: var(--ws-text-strong, #0f172a);
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 32%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 9%, transparent);
+    color: var(--ws-accent, #2563eb);
+  }
+
+  .tag-filter-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .query-bar.compact .tag-filter-label {

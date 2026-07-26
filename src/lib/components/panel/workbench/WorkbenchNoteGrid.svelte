@@ -29,7 +29,29 @@
   }
 </script>
 
-<div class="grid">
+<div class="grid" class:empty={renderedNotes.length === 0}>
+  {#if renderedNotes.length === 0}
+    <div class="empty-state">
+      <span class="empty-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 4h14v10l-6 6H5z"></path>
+          <path d="M13 20v-6h6"></path>
+        </svg>
+      </span>
+      <div class="empty-title">
+        {#if viewMode === "trash"}
+          {strings.emptyTrashTitle}
+        {:else if viewMode === "archived"}
+          {strings.emptyArchivedTitle}
+        {:else}
+          {strings.emptyActiveTitle}
+        {/if}
+      </div>
+      {#if viewMode !== "trash" && viewMode !== "archived"}
+        <div class="empty-hint">{strings.emptyActiveHint}</div>
+      {/if}
+    </div>
+  {/if}
   {#each renderedNotes as note (note.id)}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events: keyboard access is provided by the dedicated details button. -->
     <article
@@ -38,29 +60,29 @@
       onclick={(event) => handleCardClick(event, note)}
       ondblclick={!openViewOnClick ? () => openView(note) : undefined}
     >
-      <div class="card-top">
+      <button
+        type="button"
+        class="open-details-btn"
+        title={strings.openDetails}
+        aria-label={strings.openDetails}
+        data-card-action
+        onclick={() => openView(note)}
+      >{@render iconDetails()}</button>
+      <div class="card-body">
+        <div class="text" class:done={note.isDone}>{@html note.renderedHtml}</div>
+      </div>
+      <div class="card-foot">
         {#if priorityBadge(note.priority)}
           <span class="priority-tag">{priorityBadge(note.priority)}</span>
         {/if}
-        <span class="date">{formatDate(note.updatedAt)}</span>
-        <button
-          type="button"
-          class="open-details-btn"
-          title={strings.openDetails}
-          aria-label={strings.openDetails}
-          data-card-action
-          onclick={() => openView(note)}
-        >{@render iconDetails()}</button>
-      </div>
-      <div class="card-body">
-        <div class="text" class:done={note.isDone}>{@html note.renderedHtml}</div>
         {#if noteTags(note).length > 0}
           <div class="tag-row">
-            {#each noteTags(note).slice(0, 4) as tag (tag)}
+            {#each noteTags(note).slice(0, 3) as tag (tag)}
               <span class="tag-chip">#{tag}</span>
             {/each}
           </div>
         {/if}
+        <span class="date">{formatDate(note.updatedAt)}</span>
       </div>
       <div class="actions">
         {#if viewMode === "trash"}
@@ -272,33 +294,67 @@
 <style>
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
-    gap: 16px;
-    grid-auto-rows: 184px;
+    grid-template-columns: repeat(auto-fill, minmax(264px, 1fr));
+    gap: 14px;
+    grid-auto-rows: 188px;
     padding: 2px 2px 28px;
+  }
+
+  .grid.empty {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+    flex: 1;
+    align-content: center;
+    justify-items: center;
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 64px 16px;
+    text-align: center;
+  }
+
+  .empty-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 4px;
+    border-radius: var(--ws-radius-lg, 16px);
+    color: var(--ws-muted, #71809b);
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 10%, transparent);
+  }
+
+  .empty-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ws-text, #3a4557);
+  }
+
+  .empty-hint {
+    font-size: 12.5px;
+    color: var(--ws-muted, #71809b);
   }
 
   .card {
     position: relative;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 72%, transparent);
-    border-radius: 8px;
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-card-bg, #ffffff) 96%, transparent) 0%,
-        color-mix(in srgb, var(--ws-card-bg, #ffffff) 90%, transparent) 100%
-      );
-    padding: 14px 14px 42px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 88%, transparent);
+    border-radius: 14px;
+    background: var(--ws-card-bg, #ffffff);
+    padding: 14px 14px 12px;
     display: flex;
     flex-direction: column;
-    gap: 11px;
+    gap: 10px;
     min-height: 0;
     height: 100%;
     overflow: hidden;
-    box-shadow: none;
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
     transition:
       border-color 0.16s ease,
-      background-color 0.16s ease,
       box-shadow 0.16s ease,
       transform 0.16s ease;
   }
@@ -307,54 +363,31 @@
     cursor: pointer;
   }
 
-  .card::before {
-    content: "";
-    position: absolute;
-    left: -1px;
-    top: 14px;
-    bottom: 42px;
-    width: 2px;
-    border-radius: 999px;
-    background: var(--ws-accent, #1d4ed8);
-    opacity: 0;
-    transition: opacity 0.16s ease;
-  }
-
-  .card:hover {
-    border-color: color-mix(in srgb, var(--ws-border-hover, #c6d5e8) 86%, transparent);
-    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 98%, transparent);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
-    transform: translateY(-1px);
-  }
-
-  .card:hover::before,
-  .card:focus-within::before {
-    opacity: 0.72;
-  }
-
-  .card-top {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 8px;
-  }
-
-  .card-top .date {
-    margin-left: auto;
+  .card:hover,
+  .card:focus-within {
+    border-color: color-mix(in srgb, var(--ws-border-hover, #cdd9ea) 90%, transparent);
+    box-shadow: var(--ws-shadow-md, 0 10px 28px rgba(15, 23, 42, 0.08));
+    transform: translateY(-2px);
   }
 
   .open-details-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
     display: inline-grid;
     width: 26px;
     height: 26px;
     place-items: center;
     padding: 0;
-    border: 1px solid transparent;
-    border-radius: 5px;
-    background: transparent;
-    color: var(--ws-text-muted, #64748b);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 90%, transparent);
+    border-radius: var(--ws-radius-sm, 8px);
+    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 92%, transparent);
+    backdrop-filter: blur(6px);
+    color: var(--ws-muted, #71809b);
     cursor: pointer;
     opacity: 0;
+    transition: opacity 0.14s ease, color 0.14s ease, background 0.14s ease;
   }
 
   .card:hover .open-details-btn,
@@ -363,15 +396,14 @@
   }
 
   .open-details-btn:hover {
-    border-color: color-mix(in srgb, var(--ws-border-soft, #d7dfec) 82%, transparent);
-    background: color-mix(in srgb, var(--ws-badge-bg, #eef4ff) 64%, transparent);
-    color: var(--ws-accent, #1d4ed8);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 10%, var(--ws-card-bg, #ffffff));
+    color: var(--ws-accent, #2563eb);
   }
 
   .open-details-btn:focus-visible {
     opacity: 1;
-    outline: 2px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 72%, transparent);
-    outline-offset: 2px;
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .card-body {
@@ -382,17 +414,31 @@
     gap: 8px;
   }
 
+  .card-foot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    transition: opacity 0.14s ease;
+  }
+
+  .card:hover .card-foot,
+  .card:focus-within .card-foot {
+    opacity: 0.3;
+  }
+
   .priority-tag {
+    flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 10px;
     font-weight: 700;
-    color: var(--ws-text, #334155);
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 54%, transparent);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-badge-bg, #eef4ff) 52%, transparent);
-    padding: 3px 7px;
+    color: var(--ws-accent, #2563eb);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 11%, transparent);
+    padding: 3px 6px;
+    line-height: 1;
   }
 
   .text {
@@ -402,8 +448,8 @@
     overflow: hidden;
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
   }
 
   .text :global(*) {
@@ -473,7 +519,8 @@
   }
 
   .tag-row {
-    margin-top: auto;
+    flex: 0 1 auto;
+    min-width: 0;
     display: flex;
     flex-wrap: nowrap;
     gap: 5px;
@@ -481,39 +528,44 @@
   }
 
   .tag-chip {
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d7dfec) 46%, transparent);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-badge-bg, #eef4ff) 44%, transparent);
-    color: var(--ws-muted, #64748b);
-    font-size: 10px;
+    background: color-mix(in srgb, var(--ws-badge-bg, #e9f0ff) 72%, transparent);
+    color: color-mix(in srgb, var(--ws-accent, #2563eb) 52%, var(--ws-muted, #71809b));
+    font-size: 10.5px;
+    font-weight: 600;
     line-height: 1;
-    padding: 4px 7px;
-    max-width: 140px;
+    padding: 4px 8px;
+    max-width: 120px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .date {
+    margin-left: auto;
+    flex: 0 0 auto;
     font-size: 11px;
+    font-variant-numeric: tabular-nums;
     color: var(--ws-muted, #94a3b8);
     white-space: nowrap;
   }
 
   .actions {
     position: absolute;
-    right: 10px;
-    bottom: 10px;
+    right: 8px;
+    bottom: 8px;
+    z-index: 2;
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 2px;
     justify-content: flex-end;
     max-width: calc(100% - 16px);
-    padding: 4px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #dbe3ef) 42%, transparent);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 72%, transparent);
-    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+    padding: 3px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 90%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ws-card-bg, #ffffff) 90%, transparent);
+    backdrop-filter: blur(8px);
+    box-shadow: var(--ws-shadow-md, 0 10px 28px rgba(15, 23, 42, 0.08));
     opacity: 0;
     pointer-events: none;
     transform: translateY(3px);
@@ -530,31 +582,34 @@
   }
 
   .action-btn {
-    border: 1px solid var(--ws-border-soft, #dbe3ef);
-    border-radius: 6px;
-    background: var(--ws-btn-bg, #f9fbff);
-    color: var(--ws-text, #4b5563);
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--ws-muted, #71809b);
     font-size: 11px;
     padding: 4px;
     cursor: pointer;
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.16s ease;
+    transition: background 0.14s ease, color 0.14s ease;
   }
 
   .action-btn:hover {
-    background: var(--ws-btn-hover, #eef3fb);
-    border-color: var(--ws-border-hover, #c9d5e8);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 10%, transparent);
     color: var(--ws-text-strong, #1f2937);
   }
 
+  .action-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
+  }
+
   .action-btn.active {
-    color: var(--ws-accent-strong, #0f766e);
-    background: color-mix(in srgb, var(--ws-accent-soft, rgba(45, 212, 191, 0.18)) 70%, white);
-    border-color: color-mix(in srgb, var(--ws-accent, #14b8a6) 34%, rgba(148, 163, 184, 0.24));
+    color: var(--ws-accent, #2563eb);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 12%, transparent);
   }
 
   .action-btn.priority {
@@ -562,13 +617,12 @@
     width: auto;
     min-width: 30px;
     padding: 4px 7px;
-    color: var(--ws-text, #334155);
+    color: var(--ws-text, #3a4557);
   }
 
-  .action-btn.danger {
-    color: #b91c1c;
-    border-color: #fecaca;
-    background: #fef2f2;
+  .action-btn.danger:hover {
+    color: #dc2626;
+    background: color-mix(in srgb, #dc2626 10%, transparent);
   }
 
   .priority-wrap {

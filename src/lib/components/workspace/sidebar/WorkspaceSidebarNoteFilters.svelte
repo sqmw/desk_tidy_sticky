@@ -48,31 +48,67 @@
   <div class="view-sections">
     <div class="view-list">
       {#each primaryViewModes as mode}
-        <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
-          {#if collapsed}
-            <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
-          {:else}
-            <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
-            <span class="view-count">{viewCount(mode)}</span>
-          {/if}
-        </button>
+        {@render viewButton(mode)}
       {/each}
     </div>
     <div class="view-separator"></div>
     <div class="view-list view-list-secondary">
       {#each secondaryViewModes as mode}
-        <button type="button" class="view-btn" class:active={viewMode === mode} onclick={() => onSetViewMode(mode)}>
-          {#if collapsed}
-            <span title={getWorkspaceViewModeLabel(strings, mode)}>{getWorkspaceViewModeLabel(strings, mode).slice(0, 1)}</span>
-          {:else}
-            <span>{getWorkspaceViewModeLabel(strings, mode)}</span>
-            <span class="view-count">{viewCount(mode)}</span>
-          {/if}
-        </button>
+        {@render viewButton(mode)}
       {/each}
     </div>
   </div>
 </div>
+
+{#snippet viewButton(/** @type {string} */ mode)}
+  <button
+    type="button"
+    class="view-btn"
+    class:active={viewMode === mode}
+    title={getWorkspaceViewModeLabel(strings, mode)}
+    onclick={() => onSetViewMode(mode)}
+  >
+    <span class="view-icon" aria-hidden="true">{@render viewIcon(mode)}</span>
+    {#if !collapsed}
+      <span class="view-label">{getWorkspaceViewModeLabel(strings, mode)}</span>
+      <span class="view-count">{viewCount(mode)}</span>
+    {/if}
+  </button>
+{/snippet}
+
+{#snippet viewIcon(/** @type {string} */ mode)}
+  {#if mode === WORKSPACE_NOTE_VIEW_TODO}
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="8.4"></circle>
+      <path d="m8.6 12.2 2.3 2.3 4.5-4.7"></path>
+    </svg>
+  {:else if mode === WORKSPACE_NOTE_VIEW_QUADRANT}
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="4" width="7" height="7" rx="1.6"></rect>
+      <rect x="13" y="4" width="7" height="7" rx="1.6"></rect>
+      <rect x="4" y="13" width="7" height="7" rx="1.6"></rect>
+      <rect x="13" y="13" width="7" height="7" rx="1.6"></rect>
+    </svg>
+  {:else if mode === WORKSPACE_NOTE_VIEW_ARCHIVED}
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3.5" y="4.5" width="17" height="4.4" rx="1.2"></rect>
+      <path d="M5.4 8.9V18a1.6 1.6 0 0 0 1.6 1.6h10a1.6 1.6 0 0 0 1.6-1.6V8.9"></path>
+      <path d="M10 12.6h4"></path>
+    </svg>
+  {:else if mode === WORKSPACE_NOTE_VIEW_TRASH}
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 6.6h15"></path>
+      <path d="M9.4 6.4V5a1.2 1.2 0 0 1 1.2-1.2h2.8A1.2 1.2 0 0 1 14.6 5v1.4"></path>
+      <path d="M6.4 6.8 7.2 19a1.6 1.6 0 0 0 1.6 1.5h6.4a1.6 1.6 0 0 0 1.6-1.5l.8-12.2"></path>
+    </svg>
+  {:else}
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m12 3.6 8.4 4.4L12 12.4 3.6 8z"></path>
+      <path d="m3.6 12.6 8.4 4.4 8.4-4.4"></path>
+      <path d="m3.6 16.6 8.4 4.4 8.4-4.4"></path>
+    </svg>
+  {/if}
+{/snippet}
 
 <style>
   .note-filters-block {
@@ -104,15 +140,16 @@
   .block-title {
     font-size: 10px;
     font-weight: 700;
-    color: var(--ws-muted, #64748b);
+    color: var(--ws-muted, #71809b);
     margin: 0 0 5px;
+    padding: 0 8px;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
   }
 
   .view-sections {
     display: grid;
-    gap: 5px;
+    gap: 6px;
     min-height: 0;
     max-height: none;
     overflow: visible;
@@ -122,71 +159,92 @@
 
   .view-list {
     display: grid;
-    gap: 0;
-  }
-
-  .view-list-secondary .view-btn {
-    opacity: 0.95;
+    gap: 2px;
   }
 
   .view-separator {
     height: 1px;
-    background: color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 90%, transparent);
+    margin: 2px 8px;
+    background: color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 90%, transparent);
   }
 
   .view-btn {
     border: 1px solid transparent;
-    border-radius: 0;
+    border-radius: var(--ws-radius-sm, 8px);
     background: transparent;
-    color: var(--ws-text, #334155);
+    color: var(--ws-text, #3a4557);
     text-align: left;
-    padding: 8px 8px;
+    padding: 7px 10px;
     cursor: pointer;
     font-size: 13px;
     font-weight: 600;
-    transition: all 0.16s ease;
+    transition: background 0.16s ease, color 0.16s ease;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    gap: 9px;
+    min-width: 0;
+  }
+
+  .view-icon {
+    flex: 0 0 auto;
+    display: inline-grid;
+    place-items: center;
+    color: var(--ws-muted, #71809b);
+    transition: color 0.16s ease;
+  }
+
+  .view-label {
+    min-width: 0;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .note-filters-block.collapsed .view-btn {
-    text-align: center;
+    justify-content: center;
     padding: 0 4px;
     min-height: 34px;
-    font-size: 11px;
-    justify-content: center;
-    white-space: nowrap;
   }
 
   .note-filters-block.compact .view-btn {
-    padding: 6px 8px;
-    font-size: 11px;
-    gap: 6px;
+    padding: 6px 9px;
+    font-size: 12px;
+    gap: 7px;
   }
 
   .view-btn:hover {
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 7%, transparent);
+  }
+
+  .view-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .view-btn.active {
-    color: var(--ws-text-strong, #0f172a);
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent);
+    color: var(--ws-accent, #2563eb);
+    font-weight: 700;
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 11%, transparent);
+  }
+
+  .view-btn.active .view-icon {
+    color: var(--ws-accent, #2563eb);
   }
 
   .view-count {
-    display: inline-flex;
-    min-width: 21px;
-    padding: 1px 6px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 40%, transparent);
-    background: transparent;
-    color: var(--ws-muted, #64748b);
-    font-size: 10px;
-    font-weight: 700;
-    justify-content: center;
+    flex: 0 0 auto;
+    min-width: 18px;
+    text-align: right;
+    color: var(--ws-muted, #71809b);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     line-height: 1.1;
+  }
+
+  .view-btn.active .view-count {
+    color: color-mix(in srgb, var(--ws-accent, #2563eb) 74%, var(--ws-muted, #71809b));
   }
 
   @container (max-width: 230px) {
@@ -197,6 +255,7 @@
     .view-btn {
       font-size: 11px;
       padding: 6px 8px;
+      gap: 7px;
     }
   }
 </style>

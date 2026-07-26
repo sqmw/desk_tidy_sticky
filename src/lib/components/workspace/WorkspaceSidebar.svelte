@@ -57,7 +57,17 @@
         {strings.workspaceBrandTag}
       </span>
     {/if}
-    <h1>{collapsed ? "WS" : strings.workspaceTitle}</h1>
+    <div class="brand-row">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 4h14v10l-6 6H5z"></path>
+          <path d="M13 20v-6h6"></path>
+        </svg>
+      </span>
+      {#if !collapsed}
+        <h1>{strings.workspaceTitle}</h1>
+      {/if}
+    </div>
     {#if !collapsed}
       <p>{strings.workspaceHint}</p>
     {/if}
@@ -99,15 +109,13 @@
       class:active={stickiesVisible}
       title={stickiesVisible ? strings.trayStickiesShow : strings.trayStickiesClose}
       aria-label={strings.overlay}
+      aria-pressed={stickiesVisible}
       onclick={() => onToggleStickiesVisibility()}
     >
-      <span class="footer-toggle-icon" aria-hidden="true"></span>
       {#if !collapsed}
         <span class="footer-toggle-label">{strings.overlay}</span>
       {/if}
-      {#if !collapsed}
-        <span class="footer-toggle-state">{stickiesVisible ? "ON" : "OFF"}</span>
-      {/if}
+      <span class="footer-switch" aria-hidden="true"><span class="footer-switch-knob"></span></span>
     </button>
     <button
       type="button"
@@ -115,15 +123,13 @@
       class:active={!globalControlDisabled}
       title={globalControlDisabled ? strings.trayInteractionStateOff : strings.trayInteractionStateOn}
       aria-label={strings.overlayClickThrough}
+      aria-pressed={!globalControlDisabled}
       onclick={() => onToggleGlobalControl()}
     >
-      <span class="footer-toggle-icon" aria-hidden="true"></span>
       {#if !collapsed}
         <span class="footer-toggle-label">{strings.overlayClickThrough}</span>
       {/if}
-      {#if !collapsed}
-        <span class="footer-toggle-state">{globalControlDisabled ? "OFF" : "ON"}</span>
-      {/if}
+      <span class="footer-switch" aria-hidden="true"><span class="footer-switch-knob"></span></span>
     </button>
   </div>
 </aside>
@@ -132,7 +138,7 @@
   .sidebar {
     --sidebar-divider-inset: 22px;
     --sidebar-divider-color: color-mix(in srgb, var(--ws-border-soft, #d8e2ef) 76%, transparent);
-    border-right: 1px solid #dbe4f2;
+    border-right: 1px solid var(--ws-border, #e3e9f2);
     background: var(--ws-panel-bg, rgba(255, 255, 255, 0.86));
     backdrop-filter: blur(10px);
     display: flex;
@@ -204,18 +210,51 @@
     display: none;
   }
 
-  .brand h1 {
-    margin: 0;
-    font-size: clamp(23px, 2.1vw, 31px);
-    line-height: 1;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    color: var(--ws-text-strong, #0f172a);
+  .brand {
+    padding: 4px 6px 2px;
   }
 
-  .sidebar.collapsed .brand h1 {
-    font-size: 16px;
-    text-align: center;
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+  }
+
+  .brand-mark {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 auto;
+    display: inline-grid;
+    place-items: center;
+    border-radius: var(--ws-radius-sm, 8px);
+    background: linear-gradient(
+      135deg,
+      var(--ws-accent, #2563eb) 0%,
+      color-mix(in srgb, var(--ws-accent, #2563eb) 58%, #38bdf8) 100%
+    );
+    color: #fff;
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+  }
+
+  .brand h1 {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ws-text-strong, #101828);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar.collapsed .brand {
+    padding: 2px 0;
+  }
+
+  .sidebar.collapsed .brand-row {
+    justify-content: center;
   }
 
   .sidebar.collapsed .brand-pill {
@@ -226,9 +265,10 @@
   }
 
   .brand p {
-    margin: 4px 0 0;
-    font-size: 10px;
-    color: var(--ws-muted, #64748b);
+    margin: 6px 0 0 1px;
+    font-size: 11px;
+    line-height: 1.35;
+    color: var(--ws-muted, #71809b);
   }
 
   .sidebar-block {
@@ -289,82 +329,83 @@
 
   .footer-toggle {
     width: 100%;
-    min-height: 24px;
-    padding: 0 5px;
+    min-width: 0;
+    min-height: 30px;
+    padding: 4px 8px;
     border: 1px solid transparent;
-    border-radius: 0;
+    border-radius: var(--ws-radius-sm, 8px);
     background: transparent;
-    color: var(--ws-text, #334155);
+    color: var(--ws-text, #3a4557);
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 8px;
     cursor: pointer;
     transition:
       background 0.15s ease,
-      border-color 0.15s ease,
-      color 0.15s ease,
-      transform 0.15s ease;
+      color 0.15s ease;
   }
 
   .footer-toggle:hover {
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
-    border-color: transparent;
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 7%, transparent);
+  }
+
+  .footer-toggle:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .footer-toggle.active {
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent);
-    border-color: transparent;
-    color: var(--ws-text-strong, #0f172a);
-  }
-
-  .footer-toggle-icon {
-    width: 16px;
-    height: 16px;
-    flex: 0 0 auto;
-    display: grid;
-    place-items: center;
-  }
-
-  .footer-toggle-icon::before {
-    content: "";
-    width: 14px;
-    height: 14px;
-    border: 1.5px solid var(--ws-muted, #64748b);
-    border-radius: 999px;
-    background: transparent;
-    opacity: 0.72;
-  }
-
-  .footer-toggle.active .footer-toggle-icon::before {
-    border-color: var(--ws-accent, #1d4ed8);
-    background:
-      radial-gradient(circle, var(--ws-accent, #1d4ed8) 0 4px, transparent 4.5px);
-    opacity: 1;
+    color: var(--ws-text-strong, #101828);
   }
 
   .footer-toggle-label {
     min-width: 0;
     flex: 1;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .footer-toggle-state {
+  .footer-switch {
     flex: 0 0 auto;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    color: var(--ws-muted, #64748b);
+    width: 30px;
+    height: 18px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 32%, transparent);
+    position: relative;
+    transition: background 0.18s ease;
+  }
+
+  .footer-toggle.active .footer-switch {
+    background: var(--ws-accent, #2563eb);
+  }
+
+  .footer-switch-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.24);
+    transition: transform 0.18s ease;
+  }
+
+  .footer-toggle.active .footer-switch-knob {
+    transform: translateX(12px);
   }
 
   .sidebar.compact .brand h1 {
-    font-size: 19px;
+    font-size: 14px;
   }
 
   .sidebar.compact .brand p {
-    font-size: 9px;
-    margin-top: 3px;
+    font-size: 10px;
+    margin-top: 4px;
   }
 
   @container (max-width: 230px) {
@@ -391,24 +432,20 @@
     }
 
     .footer-toggle {
-      min-height: 22px;
-      padding: 0 4px;
+      min-height: 26px;
+      padding: 2px 6px;
+      gap: 6px;
     }
 
-    .footer-toggle-label,
-    .footer-toggle-state {
-      display: none;
-    }
-
-    .footer-toggle {
-      justify-content: center;
+    .footer-toggle-label {
+      font-size: 11px;
     }
   }
 
   @media (max-width: 920px) {
     .sidebar {
       border-right: none;
-      border-bottom: 1px solid #dce3ef;
+      border-bottom: 1px solid var(--ws-border, #e3e9f2);
     }
 
     .sidebar-body {

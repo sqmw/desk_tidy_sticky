@@ -106,11 +106,11 @@
   .tag-filter-btn {
     min-width: 0;
     border: 1px solid transparent;
-    border-radius: 0;
+    border-radius: var(--ws-radius-sm, 8px);
     background: transparent;
-    color: var(--ws-text, #334155);
+    color: var(--ws-text, #3a4557);
     text-align: left;
-    padding: 8px 6px;
+    padding: 7px 8px;
     cursor: pointer;
     font-size: 12px;
     font-weight: 600;
@@ -122,12 +122,18 @@
   }
 
   .tag-filter-btn:hover {
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 7%, transparent);
+  }
+
+  .tag-filter-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .tag-filter-btn.active {
-    color: var(--ws-text-strong, #0f172a);
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent);
+    color: var(--ws-accent, #2563eb);
+    font-weight: 700;
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 11%, transparent);
   }
 
   .tag-name {
@@ -138,15 +144,13 @@
   }
 
   .tag-count {
-    display: inline-flex;
-    justify-content: center;
-    min-width: 22px;
-    padding: 2px 7px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 40%, transparent);
-    color: var(--ws-muted, #64748b);
+    flex: 0 0 auto;
+    min-width: 18px;
+    text-align: right;
+    color: var(--ws-muted, #71809b);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     line-height: 1.1;
   }
 

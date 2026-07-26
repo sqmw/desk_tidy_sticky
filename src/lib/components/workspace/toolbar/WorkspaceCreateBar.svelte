@@ -15,26 +15,34 @@
 </script>
 
 <div class="create-bar" class:compact>
-  <input
-    type="text"
-    class="add-input"
-    placeholder={strings.workspaceQuickNoteHint || strings.inputHint}
-    bind:value={newNoteText}
-    onkeydown={(e) => e.key === "Enter" && onCreateNote()}
-  />
+  <div class="composer">
+    <span class="composer-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 20h4l11-11a2.1 2.1 0 0 0-3-3L5 17z"></path>
+        <path d="M13.5 6.5 17 10"></path>
+      </svg>
+    </span>
+    <input
+      type="text"
+      class="add-input"
+      placeholder={strings.workspaceQuickNoteHint || strings.inputHint}
+      bind:value={newNoteText}
+      onkeydown={(e) => e.key === "Enter" && onCreateNote()}
+    />
 
-  <NoteTagsEditor
-    {strings}
-    compact={true}
-    bind:tags={newNoteTags}
-    bind:priority={newNotePriority}
-    showPriority={true}
-    suggestions={noteTagOptions}
-  />
+    <NoteTagsEditor
+      {strings}
+      compact={true}
+      bind:tags={newNoteTags}
+      bind:priority={newNotePriority}
+      showPriority={true}
+      suggestions={noteTagOptions}
+    />
 
-  <div class="create-actions">
     <button type="button" class="primary-btn" onclick={() => onCreateNote()}>
-      <span class="primary-btn-icon" aria-hidden="true">+</span>
+      <svg class="primary-btn-icon" aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <path d="M12 5v14M5 12h14"></path>
+      </svg>
       {strings.workspaceCreateNote || strings.saveNote}
     </button>
   </div>
@@ -43,54 +51,50 @@
 <style>
   .create-bar {
     display: flex;
-    flex-wrap: nowrap;
-    gap: 8px;
     min-width: 0;
-    align-items: center;
-  }
-
-  .create-bar.compact {
     align-items: stretch;
-    gap: 7px;
   }
 
-  .create-actions {
+  .composer {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-wrap: nowrap;
-    gap: 6px;
     align-items: center;
-    flex: 0 0 auto;
+    gap: 8px;
+    padding: 5px 6px 5px 12px;
+    border: 1px solid var(--ws-border, #e3e9f2);
+    border-radius: var(--ws-radius-md, 12px);
+    background: var(--ws-card-bg, #ffffff);
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
   }
 
-  .create-bar.compact .create-actions {
-    margin-left: auto;
+  .composer:focus-within {
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 45%, var(--ws-border, #e3e9f2));
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
+  }
+
+  .composer-icon {
+    flex: 0 0 auto;
+    display: inline-grid;
+    place-items: center;
+    color: var(--ws-muted, #71809b);
   }
 
   .add-input {
-    flex: 1 1 280px;
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d6e0ee) 64%, transparent);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--ws-card-bg, #fff) 82%, transparent);
-    color: var(--ws-text, #1f2937);
-    font-size: 14px;
-    padding: 9px 10px;
-    outline: none;
+    flex: 1 1 240px;
     min-width: 0;
-    transition:
-      border-color 0.16s ease,
-      background 0.16s ease,
-      box-shadow 0.16s ease;
+    border: none;
+    background: transparent;
+    color: var(--ws-text-strong, #101828);
+    font-size: 14px;
+    padding: 6px 0;
+    outline: none;
   }
 
-  .add-input:focus {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 34%, var(--ws-border-soft, #d6e0ee));
-    background: var(--ws-card-bg, #fff);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ws-accent, #1d4ed8) 8%, transparent);
-  }
-
-  .create-bar.compact .add-input {
-    flex: 1 1 320px;
-    min-height: 38px;
+  .add-input::placeholder {
+    color: color-mix(in srgb, var(--ws-muted, #71809b) 82%, transparent);
   }
 
   .create-bar :global(.tags-editor.compact) {
@@ -104,15 +108,13 @@
   }
 
   .primary-btn {
-    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 22%, var(--ws-border-soft, #d6e0ee));
-    border-radius: 8px;
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, #ffffff) 0%,
-      color-mix(in srgb, var(--ws-accent, #1d4ed8) 15%, #f8fbff) 100%
-    );
-    color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 68%, #1e293b);
-    padding: 8px 12px;
+    flex: 0 0 auto;
+    border: none;
+    border-radius: var(--ws-radius-sm, 8px);
+    background: var(--ws-accent, #2563eb);
+    color: #fff;
+    padding: 0 14px;
+    min-height: 34px;
     font-size: 13px;
     cursor: pointer;
     font-weight: 700;
@@ -120,50 +122,44 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.06);
-    transition:
-      transform 0.15s ease,
-      border-color 0.16s ease,
-      background 0.16s ease,
-      box-shadow 0.16s ease;
-    min-width: 0;
     white-space: nowrap;
-  }
-
-  .create-bar.compact .primary-btn {
-    min-height: 36px;
-    padding: 8px 10px;
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+    transition: background 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
   }
 
   .primary-btn:hover {
-    transform: translateY(-1px);
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 32%, var(--ws-border-soft, #d6e0ee));
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, #ffffff) 0%,
-      color-mix(in srgb, var(--ws-accent, #1d4ed8) 20%, #f4f8ff) 100%
-    );
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 88%, #0f172a);
+  }
+
+  .primary-btn:active {
+    transform: scale(0.98);
+  }
+
+  .primary-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
+  }
+
+  /* Dark presets use a light accent; a solid fill with white text loses contrast there,
+     so switch to a tinted button that keeps the accent hue. */
+  :global(.workspace.theme-dark) .primary-btn {
+    background: color-mix(in srgb, var(--ws-accent, #7aa2ff) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #7aa2ff) 42%, transparent);
+    color: var(--ws-text-strong, #eef2f9);
+  }
+
+  :global(.workspace.theme-dark) .primary-btn:hover {
+    background: color-mix(in srgb, var(--ws-accent, #7aa2ff) 32%, transparent);
   }
 
   .primary-btn-icon {
-    width: 16px;
-    height: 16px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 16%, white);
-    color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 78%, #1e293b);
-    font-size: 14px;
-    line-height: 1;
-    font-weight: 800;
     flex-shrink: 0;
   }
 
   @media (max-width: 920px) {
-    .create-bar {
+    .composer {
       flex-wrap: wrap;
+      padding: 6px 8px 6px 12px;
     }
 
     .create-bar :global(.tags-editor.compact) {
@@ -173,10 +169,6 @@
 
     .create-bar.compact .add-input {
       flex-basis: 100%;
-    }
-
-    .create-actions {
-      justify-content: flex-start;
     }
   }
 </style>

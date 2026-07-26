@@ -18,7 +18,6 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <header class="window-bar" class:compact>
   <div class="drag-area" data-drag-handle="workspace" onpointerdown={onDragStart}>
-    <span class="dot"></span>
     <span class="title">{strings.workspaceTitle}</span>
   </div>
   <div class="window-actions" onpointerdown={(e) => e.stopPropagation()}>
@@ -181,19 +180,11 @@
     min-width: 0;
   }
 
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: linear-gradient(180deg, #fb923c, #f97316);
-    box-shadow: 0 0 0 3px rgba(251, 146, 60, 0.12);
-    flex-shrink: 0;
-  }
-
   .title {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--ws-text-strong, #1f2937);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--ws-muted, #71809b);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -233,9 +224,9 @@
 
   .bar-btn {
     border: 1px solid transparent;
-    border-radius: 0;
+    border-radius: var(--ws-radius-sm, 8px);
     background: transparent;
-    color: var(--ws-text, #334155);
+    color: var(--ws-text, #3a4557);
     font-size: 13px;
     height: 36px;
     padding: 0 10px;
@@ -246,8 +237,7 @@
     transition:
       border-color 0.16s ease,
       background 0.16s ease,
-      color 0.16s ease,
-      transform 0.16s ease;
+      color 0.16s ease;
   }
 
   .window-bar.compact .bar-btn {
@@ -257,13 +247,13 @@
   }
 
   .bar-btn:hover {
-    border-color: transparent;
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
-    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 8%, transparent);
+    color: var(--ws-text-strong, #101828);
   }
 
-  .bar-btn:active {
-    transform: translateY(0);
+  .bar-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .bar-btn.icon-btn {
