@@ -219,18 +219,22 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 16px;
   }
 
   .dialog {
     background: #fff;
     border-radius: 12px;
     padding: 20px;
-    min-width: 320px;
+    min-width: 0;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   }
 
   .settings-dialog {
-    width: 380px;
+    width: min(380px, 100%);
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
     padding: 0;
     overflow: hidden;
   }
@@ -281,8 +285,14 @@
 
   .settings-content {
     padding: 24px;
-    max-height: 400px;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
+  }
+
+  .dialog-header,
+  .dialog-footer {
+    flex-shrink: 0;
   }
 
   .settings-section {

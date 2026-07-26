@@ -47,10 +47,21 @@
   function keepEditorSelection(event) {
     event.preventDefault();
   }
+
+  let toolbarHeight = $state(0);
+  // Mask must cover the toolbar plus its bottom inset and a fade zone above,
+  // regardless of how many rows the toolbar wraps into.
+  const maskHeight = $derived(toolbarHeight > 0 ? toolbarHeight + 44 : 104);
 </script>
 
 {#if placement === "inside"}
-  <div class="toolbar-mask" class:editing={isEditing} class:control={isControlMode} aria-hidden="true"></div>
+  <div
+    class="toolbar-mask"
+    class:editing={isEditing}
+    class:control={isControlMode}
+    style="height: {maskHeight}px;"
+    aria-hidden="true"
+  ></div>
 {/if}
 {#if showControlExit}
   <button
@@ -77,7 +88,13 @@
   </button>
 {/if}
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="toolbar" class:editing={isEditing} class:control={isControlMode} class:outside={placement === "outside"}>
+<div
+  class="toolbar"
+  class:editing={isEditing}
+  class:control={isControlMode}
+  class:outside={placement === "outside"}
+  bind:clientHeight={toolbarHeight}
+>
   <div class="toolbar-actions">
     <button
       class="tool-btn"
@@ -160,7 +177,7 @@
       </button>
     {/if}
 
-    <button class="tool-btn color-trigger" onclick={() => onTogglePalette()} title="Change color">
+    <button class="tool-btn color-trigger" onclick={() => onTogglePalette()} title={strings.changeColor}>
       🎨
     </button>
 
@@ -513,25 +530,12 @@
     flex: 0 0 auto;
   }
 
-  .color-popover {
-    position: absolute;
-    right: 84px;
-    bottom: 72px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 6px;
-    display: grid;
-    grid-template-columns: repeat(4, 18px);
-    gap: 6px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-    min-width: 104px;
-  }
-
+  .color-popover,
   .text-color-popover {
     position: absolute;
-    right: 46px;
-    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(100% + 8px);
     background: rgba(255, 255, 255, 0.96);
     border: 1px solid #d1d5db;
     border-radius: 8px;
@@ -541,6 +545,7 @@
     gap: 6px;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
     min-width: 104px;
+    max-width: calc(100% - 8px);
   }
 
   .color-picker-row {
@@ -583,7 +588,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 42px;
+    bottom: calc(100% + 8px);
     background: rgba(255, 255, 255, 0.96);
     border: 1px solid #d1d5db;
     border-radius: 8px;

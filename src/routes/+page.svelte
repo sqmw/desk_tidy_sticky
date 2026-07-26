@@ -348,6 +348,15 @@
   /** @param {KeyboardEvent} e */
   function handleKeydown(e) {
     if (e.key === "Escape") {
+      // Close an open dialog first; only hide the panel when nothing is open.
+      if (showSettings) {
+        showSettings = false;
+        return;
+      }
+      if (showEditDialog) {
+        showEditDialog = false;
+        return;
+      }
       newNoteText = "";
       getCurrentWindow().hide();
     } else if (e.ctrlKey && e.key === "Enter") {
@@ -551,6 +560,7 @@
     <NotesSection
       {strings}
       {viewMode}
+      searchActive={searchQuery.trim().length > 0}
       {renderedNotes}
       draggedNoteId={drag.draggedNoteId}
       dragTargetIndex={drag.dragTargetIndex}

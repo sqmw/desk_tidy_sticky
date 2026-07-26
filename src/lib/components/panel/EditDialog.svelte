@@ -36,13 +36,14 @@
     align-items: center;
     justify-content: center;
     z-index: 1000;
+    padding: 16px;
   }
 
   .dialog {
     background: #fff;
     border-radius: 12px;
     padding: 20px;
-    min-width: 320px;
+    width: min(320px, 100%);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   }
 

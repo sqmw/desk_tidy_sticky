@@ -1,10 +1,10 @@
 <script>
   import NotesLinearList from "$lib/components/panel/notes/NotesLinearList.svelte";
-  import NotesQuadrantBoard from "$lib/components/panel/notes/NotesQuadrantBoard.svelte";
 
   let {
     strings,
     viewMode,
+    searchActive = false,
     renderedNotes,
     draggedNoteId,
     dragTargetIndex,
@@ -31,12 +31,10 @@
   } = $props();
 </script>
 
-{#if viewMode === "quadrant"}
-  <NotesQuadrantBoard {strings} {renderedNotes} {formatDate} {openEdit} {toggleDone} {updatePriority} />
-{:else}
-  <NotesLinearList
+<NotesLinearList
     {strings}
     {viewMode}
+    {searchActive}
     {renderedNotes}
     {draggedNoteId}
     {dragTargetIndex}
@@ -56,7 +54,6 @@
     {createVerticalDragMoveHandler}
     {createVerticalDragEndHandler}
   />
-{/if}
 
 {#if draggedNote}
   <div

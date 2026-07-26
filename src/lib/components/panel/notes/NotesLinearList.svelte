@@ -6,6 +6,7 @@
   let {
     strings,
     viewMode,
+    searchActive = false,
     renderedNotes,
     draggedNoteId,
     dragTargetIndex,
@@ -25,9 +26,45 @@
     createVerticalDragMoveHandler,
     createVerticalDragEndHandler,
   } = $props();
+
+  const emptyTitle = $derived.by(() => {
+    if (searchActive) return strings.emptySearchTitle;
+    if (viewMode === "archived") return strings.emptyArchivedTitle;
+    if (viewMode === "trash") return strings.emptyTrashTitle;
+    return strings.emptyActiveTitle;
+  });
+
+  const emptyHint = $derived.by(() => {
+    if (searchActive) return strings.emptySearchHint;
+    if (viewMode === "archived" || viewMode === "trash") return "";
+    return strings.emptyActiveHint;
+  });
 </script>
 
 <div class="notes-list" bind:this={notesListEl}>
+  {#if renderedNotes.length === 0}
+    <div class="notes-empty" role="status">
+      <svg
+        class="notes-empty-icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M15.5 4H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path>
+        <path d="M15 4v3.5a1 1 0 0 0 1 1H19"></path>
+        <path d="M8.5 12h7"></path>
+        <path d="M8.5 15.5h4.5"></path>
+      </svg>
+      <span class="notes-empty-title">{emptyTitle}</span>
+      {#if emptyHint}
+        <span class="notes-empty-hint">{emptyHint}</span>
+      {/if}
+    </div>
+  {/if}
   {#each renderedNotes as note, index (note.id)}
     <div
       transition:slide={{ duration: draggedNoteId ? 0 : 200, axis: "y" }}
@@ -91,6 +128,37 @@
 
   .notes-list::-webkit-scrollbar-thumb:hover {
     background: rgba(95, 105, 120, 0.82);
+  }
+
+  .notes-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 32px 24px;
+    text-align: center;
+    color: #8a94a6;
+    user-select: none;
+  }
+
+  .notes-empty-icon {
+    width: 34px;
+    height: 34px;
+    color: #b6bfcd;
+    margin-bottom: 4px;
+  }
+
+  .notes-empty-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+  }
+
+  .notes-empty-hint {
+    font-size: 12px;
+    color: #98a2b3;
   }
 
   .note-wrapper {

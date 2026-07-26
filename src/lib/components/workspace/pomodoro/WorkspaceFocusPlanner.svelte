@@ -359,24 +359,6 @@
     text-align: center;
   }
 
-  @media (max-width: 1220px) {
-    .planner-form {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-
-    .field-title {
-      grid-column: span 2;
-    }
-
-    .planner-form :global(.field-start),
-    .planner-form :global(.field-end),
-    .field-recur,
-    .field-add {
-      grid-column: span 1;
-      min-width: 0;
-    }
-  }
-
   @media (max-width: 1700px) {
     .planner-form {
       grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -1144,7 +1144,7 @@
       </div>
     {/if}
   {:else}
-    <div class="loading">Loading...</div>
+    <div class="loading" role="status">{strings.noteLoading}</div>
   {/if}
 </div>
 
@@ -1159,6 +1159,17 @@
     position: relative;
     width: 100%;
     height: 100%;
+  }
+
+  .loading {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #8a94a6;
+    user-select: none;
   }
 
   .note-shell[data-toolbar-placement="outside"] {
