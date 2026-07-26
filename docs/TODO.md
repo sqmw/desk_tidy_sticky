@@ -6,6 +6,44 @@
 
 ## Active
 
+### UI Design System Overhaul
+
+状态：Phase 0 done（2026-07-26）；workstation 视觉重设计第一轮 done（2026-07-26）；Phase 1 全量 token 迁移未开始
+
+优先级：high
+
+目标：解决整体 UI 视觉粗糙与设计不一致问题。建立 root 级 design token 体系（颜色/间距/圆角/阴影/字号/动效/焦点环），合并三套分裂的 token（`--ws-*` / `--primary` / `--note-*`），让 mini 面板与贴纸窗口获得主题与暗色能力，收敛按钮/卡片/开关/图标为统一基础组件，补齐焦点可见性与 ARIA。
+
+关联文档：
+
+- `docs/ui/2026-07-26-ui-design-audit.md`（全量审计 + Phase 0-4 路线 + 量化验收基线）
+- `docs/ui/2026-07-26-workspace-visual-redesign.md`（workstation 视觉重设计第一轮：设计语言、结构 token、分区改动与遗留项）
+
+已完成（2026-07-26，Phase 0 止血）：
+
+1. mini 设置/编辑弹窗不再溢出 360×500 窗口（backdrop 加 padding、宽度 `min()`、内容区 flex 滚动）。
+2. 贴纸工具栏遮罩高度改为随工具栏实际行数（`bind:clientHeight`），四个 popover（颜色/字色/透明度/毛玻璃）统一锚定在工具栏上方居中，去掉 `right:84px/46px`、`bottom:42px/72px` magic number。
+3. 主列表补空态（首启/搜索无果/归档/回收站，文案入 strings.js en+zh）；贴纸窗口 `Loading...` 样式化并本地化为 `noteLoading`；🎨 按钮 title 本地化为 `changeColor`。
+4. 面板 Esc 冲突修复：弹窗打开时 Esc 先关弹窗，不再直接隐藏窗口。
+5. 删死代码：NotePreview / SourceEditorPane / CreateTagSelect / NotesQuadrantBoard 四个未引用组件（含 NotesSection 不可达 quadrant 分支）、FocusPlanner 重复的 1220px 媒体块、workspace 与 WorkspaceSettingsDialog 两份被内联 style 覆盖的死 `theme-dark` token 块（已注明单一真源为 theme-presets.js）。
+
+验证：2026-07-26 全量 `svelte-check --tsconfig ./jsconfig.json` 通过（0 errors / 0 warnings）；strings.js en/zh 键位零缺失；`node --test` 3 个前端测试通过；`git diff --check` 通过。本轮 src-tauri 零改动，无需 `cargo check`。发布前仍建议人工回归：mini 设置弹窗、贴纸工具栏 hover 与 popover、空列表四种空态、Esc 行为。
+
+已完成（2026-07-26，workstation 视觉重设计第一轮）：
+
+统一 workstation 窗口视觉语言：结构 token（radius/shadow/focus-ring + 各预设 `--ws-shadow-color`）、light/dark 预设调色、图标化侧栏导航与统一激活态、switch 形态底部开关（后续修正：窄宽度保留文字省略截断 + `min-width:0` 防开关裁切）、composer 式创建栏与实心主按钮、内嵌图标搜索框、笔记卡片重排版（底部 meta 行 + 悬浮操作条 + 列表空态）。详情区经用户确认由分栏改为 side-peek 浮层抽屉（网格零重排 + 出入场动效，复用原拖宽/全宽折叠状态机）。范围与遗留见 `docs/ui/2026-07-26-workspace-visual-redesign.md`。贴纸窗口与 mini 面板本轮未动。
+
+当前下一步：
+
+1. 真实 Tauri 运行下人工回归：带数据卡片网格、四象限视图、抽屉打开/切换/拖宽/全宽折叠、五套主题预设。
+2. Phase 1 token 层：`base.css` 建 `:root` token 并三窗口共用注入；批量清理 1,328 处颜色字面量与 `color-mix(..., #ffffff)` 暗色崩坏问题；默认主题模板去 `!important`。
+3. Phase 2 起把四象限板与 Focus / Review hub 收敛到本轮卡片/按钮语言；后续 Phase 3-4（a11y 与动效、巨型文件拆分）见审计文档。
+
+风险：
+
+- token 批量替换涉及 60+ 组件，需分批提交并逐窗口回归（mini / 贴纸 / workstation / break-overlay）。
+- 与进行中的 Workstation UI Cleanup 有范围重叠，Phase 2 收敛按钮/卡片时需先对齐该专题已确认的方向。
+
 ### Sticky Edge Auto Hide
 
 状态：in_progress
