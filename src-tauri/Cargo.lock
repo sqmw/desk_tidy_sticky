@@ -748,6 +748,7 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+ "window-vibrancy",
  "windows 0.58.0",
 ]
 

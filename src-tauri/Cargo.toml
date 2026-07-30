@@ -48,3 +48,4 @@ objc2-app-kit = "0.3.2"
 objc2-core-graphics = "0.3.2"
 objc2-foundation = "0.3.2"
 tauri-nspanel = { path = "vendor/tauri-nspanel" }
+window-vibrancy = "0.6"

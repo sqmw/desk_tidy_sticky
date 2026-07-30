@@ -1,10 +1,13 @@
 use crate::notes::{service as notes_service, store as notes_store, NoteSortMode};
-#[cfg(target_os = "macos")]
-use tauri::window::EffectState;
+#[cfg(not(target_os = "macos"))]
 use tauri::{
     utils::config::WindowEffectsConfig,
-    window::{Color, Effect, EffectsBuilder},
-    Manager,
+    window::{Effect, EffectsBuilder},
+};
+use tauri::{window::Color, Manager};
+#[cfg(target_os = "macos")]
+use window_vibrancy::{
+    apply_vibrancy, clear_vibrancy, NSVisualEffectMaterial, NSVisualEffectState,
 };
 
 const NATIVE_FROST_THRESHOLD: f64 = 0.02;
@@ -14,6 +17,7 @@ fn clamp_frost(frost: f64) -> f64 {
     frost.clamp(0.0, 1.0)
 }
 
+#[cfg(not(target_os = "macos"))]
 fn clear_window_effects(window: &tauri::WebviewWindow) -> Result<(), String> {
     window
         .set_effects(Option::<WindowEffectsConfig>::None)
@@ -27,18 +31,25 @@ fn set_transparent_window_surface(window: &tauri::WebviewWindow) -> Result<(), S
 }
 
 #[cfg(target_os = "macos")]
-fn build_note_window_effects(frost: f64) -> Option<WindowEffectsConfig> {
-    if clamp_frost(frost) <= NATIVE_FROST_THRESHOLD {
-        return None;
-    }
-
-    Some(
-        EffectsBuilder::new()
-            .effect(Effect::HudWindow)
-            .state(EffectState::Active)
-            .radius(10.0 + clamp_frost(frost) * 8.0)
-            .build(),
-    )
+fn apply_platform_note_effect(window: &tauri::WebviewWindow, frost: f64) -> Result<bool, String> {
+    let frost = clamp_frost(frost);
+    let should_apply = frost > NATIVE_FROST_THRESHOLD;
+    let effect_window = window.clone();
+    window
+        .run_on_main_thread(move || {
+            // Tauri 2 does not clear macOS vibrancy for set_effects(None).
+            while matches!(clear_vibrancy(&effect_window), Ok(true)) {}
+            if should_apply {
+                let _ = apply_vibrancy(
+                    &effect_window,
+                    NSVisualEffectMaterial::HudWindow,
+                    Some(NSVisualEffectState::Active),
+                    Some(10.0 + frost * 8.0),
+                );
+            }
+        })
+        .map_err(|e| e.to_string())?;
+    Ok(should_apply)
 }
 
 #[cfg(target_os = "windows")]
@@ -62,22 +73,26 @@ fn build_note_window_effects(_frost: f64) -> Option<WindowEffectsConfig> {
     None
 }
 
-pub(crate) fn apply_note_window_frost_to_window(
-    window: &tauri::WebviewWindow,
-    frost: f64,
-) -> Result<bool, String> {
-    let frost = clamp_frost(frost);
-    let _ = set_transparent_window_surface(window);
-
+#[cfg(not(target_os = "macos"))]
+fn apply_platform_note_effect(window: &tauri::WebviewWindow, frost: f64) -> Result<bool, String> {
     let Some(effects) = build_note_window_effects(frost) else {
         clear_window_effects(window)?;
         return Ok(false);
     };
 
+    clear_window_effects(window)?;
     window
         .set_effects(Some(effects))
         .map_err(|e| e.to_string())?;
     Ok(true)
+}
+
+pub(crate) fn apply_note_window_frost_to_window(
+    window: &tauri::WebviewWindow,
+    frost: f64,
+) -> Result<bool, String> {
+    let _ = set_transparent_window_surface(window);
+    apply_platform_note_effect(window, frost)
 }
 
 pub(crate) fn apply_note_window_frost_by_label(
