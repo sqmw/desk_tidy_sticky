@@ -22,6 +22,8 @@
     resolveNoteId,
   } from "$lib/note/note-window-actions.js";
   import { createNoteWindowDragController } from "$lib/note/note-window-drag.js";
+  import { saveClipboardImageMarkdown } from "$lib/note/note-clipboard-image.js";
+  import { classifyStickyNoteChange } from "$lib/note/sticky-note-interaction.js";
   import { createNoteStyleActions } from "$lib/note/note-style-actions.js";
   import { applyNoteWindowNativeEffects } from "$lib/note/note-native-effects.js";
   import {
@@ -59,6 +61,8 @@
   let outsideToolbarHeight = $state(0);
   let collapsedWindowHeight = $state(0);
   let toolbarWindowExpanded = $state(false);
+  let hasExternalTextChange = $state(false);
+  let ignoreNotesChangedUntil = 0;
   let suppressPointerActivationUntil = $state(0);
   let tagSuggestions = $state(/** @type {string[]} */ ([]));
   let hasNativeWindowFrost = $state(false);
@@ -166,10 +170,7 @@
     return Math.max(0, outsideToolbarHeight + OUTSIDE_TOOLBAR_GAP_PX);
   }
 
-  /**
-   * @param {number} targetHeight
-   * @param {number} [stableCollapsedHeight]
-   */
+  /** @param {number} targetHeight @param {number} [stableCollapsedHeight] */
   function beginToolbarManagedResize(targetHeight, stableCollapsedHeight = 0) {
     toolbarManagedResizeTargetHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(targetHeight));
     toolbarManagedResizeHoldUntil = Date.now() + TOOLBAR_MANAGED_RESIZE_HOLD_MS;
@@ -193,9 +194,7 @@
       clearToolbarManagedResize();
       return false;
     }
-    if (withinTolerance) {
-      clearToolbarManagedResize();
-    }
+    if (withinTolerance) clearToolbarManagedResize();
     return true;
   }
 
@@ -205,8 +204,8 @@
     const logicalHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(nextHeight));
     try {
       await getCurrentWindow().setSize(new LogicalSize(logicalWidth, logicalHeight));
-    } catch (e) {
-      console.error("resizeWindowHeight", e);
+    } catch (error) {
+      console.error("resizeWindowHeight", error);
     }
   }
 
@@ -226,9 +225,7 @@
 
     const reserve = getToolbarWindowReserve();
     if (reserve <= 0) return;
-    if (!toolbarWindowExpanded) {
-      collapsedWindowHeight = currentHeight;
-    }
+    if (!toolbarWindowExpanded) collapsedWindowHeight = currentHeight;
     const collapsedBaseHeight = Math.max(NOTE_MIN_SIZE_PX, collapsedWindowHeight || currentHeight);
     const expandedHeight = collapsedBaseHeight + reserve;
     if (Math.abs(currentHeight - expandedHeight) < 1) {
@@ -242,9 +239,7 @@
 
   function handleViewportResize() {
     const currentHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
-    if (toolbarWindowExpanded && showTopmostControls) {
-      return;
-    }
+    if (toolbarWindowExpanded && showTopmostControls) return;
     collapsedWindowHeight = currentHeight;
   }
 
@@ -325,9 +320,7 @@
 
   function handleWindowResizePersistence() {
     const currentHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
-    if (shouldSkipPersistenceForToolbarManagedResize(currentHeight)) {
-      return;
-    }
+    if (shouldSkipPersistenceForToolbarManagedResize(currentHeight)) return;
     handleViewportResize();
     scheduleWindowSizePersist();
   }
@@ -447,15 +440,18 @@
   }
 
   async function save() {
-    if (!note) return;
+    if (!note || hasExternalTextChange) return false;
     try {
+      ignoreNotesChangedUntil = Date.now() + 750;
       await invoke("update_note_text", {
         id: resolveNoteId(note, noteId),
         text,
         sortMode: "custom",
       });
+      return true;
     } catch (e) {
       reportNoteStorageFailure("save", e);
+      return false;
     }
   }
 
@@ -519,25 +515,34 @@
 
   /** @param {string} nextText */
   async function updateTextFromPreview(nextText) {
-    if (!note || typeof nextText !== "string") return;
+    if (!note || typeof nextText !== "string") return false;
+    if (hasExternalTextChange) {
+      return false;
+    }
     void markActiveTopmostEditingSticky();
     const scrollPosition = rememberNoteBlockScroll();
+    const previousText = text;
     text = nextText;
     await restoreNoteBlockScroll(scrollPosition);
-    await save();
+    const saved = await save();
+    if (!saved) {
+      text = previousText;
+      return false;
+    }
     await restoreNoteBlockScroll(scrollPosition);
+    return true;
   }
 
   /** @param {number} lineIndex */
   async function togglePreviewTask(lineIndex) {
-    const nextText = toggleTaskLineAt(text || note?.text || "", lineIndex);
+    const nextText = toggleTaskLineAt(text, lineIndex);
     if (nextText == null) return;
     await updateTextFromPreview(nextText);
   }
 
   /** @param {number} lineIndex */
   async function appendPreviewTask(lineIndex) {
-    const nextText = appendTaskLineAfterBlock(text || note?.text || "", lineIndex);
+    const nextText = appendTaskLineAfterBlock(text, lineIndex);
     if (nextText == null) return;
     await updateTextFromPreview(nextText);
   }
@@ -557,10 +562,46 @@
     return true;
   }
 
+  /** @param {boolean} active */
+  function handleBlockEditingChange(active) {
+    isEditing = active;
+    if (active && isEffectiveTopmost) {
+      isControlMode = true;
+    }
+  }
+
+  function handleEditorConflict() {
+    hasExternalTextChange = true;
+  }
+
+  async function reloadAfterExternalChange() {
+    blockNoteContentApi?.cancelEditingSession?.();
+    isEditing = false;
+    hasExternalTextChange = false;
+    await loadNote();
+  }
+
+  /** @param {File} file */
+  async function pasteImageIntoActiveBlock(file) {
+    if (!note) return null;
+    try {
+      return await saveClipboardImageMarkdown({
+        invoke,
+        noteId: resolveNoteId(note, noteId),
+        file,
+      });
+    } catch (error) {
+      reportNoteStorageFailure("pasteImageIntoActiveBlock", error);
+      return null;
+    }
+  }
+
   async function exitEditMode() {
-    await save();
+    const committed = await blockNoteContentApi?.commitEditingSession?.();
+    if (committed === false) return false;
     void markActiveTopmostEditingSticky();
     isEditing = false;
+    return true;
   }
 
   function enterControlMode() {
@@ -575,7 +616,8 @@
   async function exitControlMode() {
     dismissFloatingPanelsOnPointerDown(null);
     if (isEditing) {
-      await exitEditMode();
+      const exited = await exitEditMode();
+      if (exited === false) return;
     }
     isControlMode = false;
   }
@@ -662,6 +704,36 @@
     }
   }
 
+  function toggleBackgroundPalette() {
+    const next = !showPalette;
+    showPalette = next;
+    showTextColorPalette = false;
+    showOpacityPanel = false;
+    showFrostPanel = false;
+  }
+
+  function toggleTextPalette() {
+    const next = !showTextColorPalette;
+    showTextColorPalette = next;
+    showPalette = false;
+    showOpacityPanel = false;
+    showFrostPanel = false;
+  }
+
+  function toggleOpacityControls() {
+    showOpacityPanel = !showOpacityPanel;
+    showFrostPanel = false;
+    showPalette = false;
+    showTextColorPalette = false;
+  }
+
+  function toggleFrostControls() {
+    showFrostPanel = !showFrostPanel;
+    showOpacityPanel = false;
+    showPalette = false;
+    showTextColorPalette = false;
+  }
+
   /** @param {MouseEvent} event */
   function handleNoteClick(event) {
     if (!shouldSuppressPointerActivation()) return;
@@ -696,6 +768,16 @@
   function handleWindowKeydown(event) {
     if (event.key !== "Escape") return;
     if (!isEffectiveTopmost) return;
+    if (
+      showPalette ||
+      showTextColorPalette ||
+      showOpacityPanel ||
+      showFrostPanel
+    ) {
+      event.preventDefault();
+      dismissFloatingPanelsOnPointerDown(null);
+      return;
+    }
     if (!isControlMode && !isEditing) return;
     event.preventDefault();
     void exitControlMode();
@@ -780,13 +862,13 @@
     onToggleTopmost: toggleTopmost,
     onToggleWallpaper: toggleWallpaperLayer,
     onToggleAutoHide: toggleAutoHide,
-    onTogglePalette: () => (showPalette = !showPalette),
-    onToggleTextColorPalette: () => (showTextColorPalette = !showTextColorPalette),
-    onToggleOpacityPanel: () => (showOpacityPanel = !showOpacityPanel),
+    onTogglePalette: toggleBackgroundPalette,
+    onToggleTextColorPalette: toggleTextPalette,
+    onToggleOpacityPanel: toggleOpacityControls,
     onOpacityIconWheel: noteStyleActions.onOpacityIconWheel,
     onOpacityInput: noteStyleActions.onOpacityInput,
     onOpacityWheel: noteStyleActions.onOpacityWheel,
-    onToggleFrostPanel: () => (showFrostPanel = !showFrostPanel),
+    onToggleFrostPanel: toggleFrostControls,
     onFrostIconWheel: noteStyleActions.onFrostIconWheel,
     onFrostInput: noteStyleActions.onFrostInput,
     onFrostWheel: noteStyleActions.onFrostWheel,
@@ -982,7 +1064,15 @@
         const payload = /** @type {{ kind?: unknown; noteId?: unknown; windowLayerChanged?: unknown } | null | undefined } */ (event.payload);
         const changedNoteId = typeof payload?.noteId === "string" ? payload.noteId : "";
         const windowLayerChanged = payload?.windowLayerChanged !== false;
-        if (changedNoteId && changedNoteId !== noteId) {
+        const changeKind = classifyStickyNoteChange({
+          changedNoteId,
+          noteId,
+          isEditing,
+          ignoreUntil: ignoreNotesChangedUntil,
+        });
+        if (changeKind === "unrelated" || changeKind === "local") return;
+        if (changeKind === "conflict") {
+          hasExternalTextChange = true;
           return;
         }
         await loadNote();
@@ -1054,16 +1144,10 @@
       outsideToolbarHeight = slot.offsetHeight;
     };
     updateToolbarHeight();
-    if (typeof ResizeObserver === "undefined") {
-      return;
-    }
-    const observer = new ResizeObserver(() => {
-      updateToolbarHeight();
-    });
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(updateToolbarHeight);
     observer.observe(slot);
-    return () => {
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   });
 
   $effect(() => {
@@ -1071,6 +1155,7 @@
     outsideToolbarHeight;
     void tick().then(() => syncWindowHeightForOutsideToolbar());
   });
+
 </script>
 
 <svelte:window onkeydown={handleWindowKeydown} />
@@ -1112,20 +1197,35 @@
           onChangeTags={setNoteTags}
         />
 
+        {#if hasExternalTextChange}
+          <div class="note-conflict-notice" role="alert" data-no-drag="true">
+            <span>{strings.noteExternalChange}</span>
+            <button type="button" onclick={reloadAfterExternalChange}>
+              {strings.noteReloadExternal}
+            </button>
+          </div>
+        {/if}
+
         <div class="note-block-surface" bind:this={noteBlockSurfaceEl}>
           <BlockNoteContent
             bind:this={blockNoteContentApi}
-            text={text || note?.text || ""}
+            {text}
             interactiveTasks={canInteract}
             readonly={!canInteract}
             editTrigger="click"
             placeholder={strings.noteEditorPlaceholder}
+            editBlockLabel={strings.noteEditBlock}
+            addSameBlockLabel={strings.noteAddSameBlock}
             commitOnEscape
             onBeginEdit={enterBlockEditSurface}
+            onEditingChange={handleBlockEditingChange}
+            onPasteImage={pasteImageIntoActiveBlock}
+            pasteErrorMessage={strings.noteImagePasteError}
             onTextChange={updateTextFromPreview}
             onToggleTask={togglePreviewTask}
             onAppendTask={appendPreviewTask}
             onEditorEscape={exitControlMode}
+            onConflict={handleEditorConflict}
           />
         </div>
 
@@ -1252,16 +1352,47 @@
     min-height: 0;
     overflow: auto;
     padding: 20px 20px 28px;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    user-select: none;
-    cursor: default;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--note-text-color) 20%, transparent) transparent;
+    user-select: text;
+    cursor: text;
   }
 
   .note-block-surface::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
+    width: 6px;
+    height: 6px;
+  }
+
+  .note-block-surface::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--note-text-color) 18%, transparent);
+  }
+
+  .note-conflict-notice {
+    margin: 8px 12px 0;
+    padding: 7px 8px 7px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid color-mix(in srgb, #b45309 28%, transparent);
+    border-radius: 6px;
+    background: color-mix(in srgb, #fff7ed 90%, transparent);
+    color: #7c2d12;
+    font-size: 11px;
+    line-height: 1.35;
+    z-index: 5;
+  }
+
+  .note-conflict-notice button {
+    flex: 0 0 auto;
+    border: 0;
+    border-radius: 4px;
+    padding: 4px 7px;
+    background: #9a3412;
+    color: white;
+    font: inherit;
+    cursor: pointer;
   }
 
   .note-center-hud {

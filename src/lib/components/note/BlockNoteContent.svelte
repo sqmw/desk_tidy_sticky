@@ -19,6 +19,10 @@
   import { applyLineIndentToText } from "$lib/markdown/editor-indent.js";
   import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
   import { createBlockNoteEditorController } from "$lib/note/block-note-editor-controller.js";
+  import {
+    estimateMarkdownCaretOffset,
+    insertTextAtSelection,
+  } from "$lib/note/sticky-note-interaction.js";
 
   /**
    * @typedef {{ before: string; after: string; caretOffset?: number | null; caretAtEnd?: boolean }} EnterSplit
@@ -31,11 +35,16 @@
     readonly = false,
     editTrigger = "click",
     placeholder = "",
+    editBlockLabel = "Edit block",
+    addSameBlockLabel = "Add same block",
     onBeginEdit = () => {},
     onTextChange = async () => {},
     onToggleTask = () => {},
     onAppendTask = () => {},
+    onEditingChange = () => {},
+    onPasteImage = async () => null,
     onConflict = () => {},
+    pasteErrorMessage = "",
     commitOnEscape = false,
     onEditorEscape = async () => {},
   } = $props();
@@ -59,7 +68,13 @@
   let showCommandSuggestions = $state(false);
   let commandQuery = $state("");
   let commandActiveIndex = $state(0);
+  let pasteError = $state("");
   const editorController = createBlockNoteEditorController();
+  const isActivelyEditing = $derived(editingEmpty || activeBlockId != null);
+
+  $effect(() => {
+    onEditingChange(isActivelyEditing);
+  });
 
   const blocks = $derived(parseMarkdownBlocks(text || "", { preserveBlankBlocks: true }));
   const commandSuggestionItems = $derived(
@@ -102,12 +117,19 @@
     });
   }
 
+  /** @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block */
+  function getHeadingLevel(block) {
+    if (block.type !== "heading") return null;
+    return /^ {0,3}(#{1,6})(?:\s+|$)/.exec(block.rawLines[0] || "")?.[1]?.length ?? 1;
+  }
+
   /**
    * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
    * @param {{ fromPending?: boolean; caretAtEnd?: boolean; caretOffset?: number | null }} [options]
    */
   async function openBlock(block, options = {}) {
     if (readonly || !block.editable) return;
+    pasteError = "";
     if (onBeginEdit() === false) return;
     if (editingEmpty) {
       await commitEmptyEditor();
@@ -141,6 +163,7 @@
 
   async function openEmptyEditor() {
     if (readonly) return;
+    pasteError = "";
     if (onBeginEdit() === false) return;
     if (activeBlockId) {
       const saved = await commitActiveEditor();
@@ -162,21 +185,24 @@
       return true;
     }
     if (!blockRangeMatches(text, activeBlockOriginal)) {
-      cancelActiveBlock();
       onConflict();
       return false;
     }
     const nextMarkdown = getActiveBlockMarkdownDraft();
     const nextText = replaceBlockMarkdown(text, activeBlockOriginal, nextMarkdown);
+    if (nextText !== text) {
+      const saved = await onTextChange(nextText);
+      if (saved === false) {
+        onConflict();
+        return false;
+      }
+    }
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
     activeInlineColorRanges = [];
     editorController.clearEditing();
     hideCommandSuggestions();
-    if (nextText !== text) {
-      await onTextChange(nextText);
-    }
     return true;
   }
 
@@ -405,11 +431,15 @@
 
   async function commitEmptyEditor() {
     const nextText = emptyDraft;
+    if (nextText !== text) {
+      const saved = await onTextChange(nextText);
+      if (saved === false) {
+        onConflict();
+        return false;
+      }
+    }
     editingEmpty = false;
     emptyDraft = "";
-    if (nextText !== text) {
-      await onTextChange(nextText);
-    }
     return true;
   }
 
@@ -431,6 +461,18 @@
     editingEmpty = false;
     emptyDraft = "";
     hideCommandSuggestions();
+  }
+
+  export function cancelEditingSession() {
+    if (editingEmpty) {
+      cancelEmptyEditor();
+      return;
+    }
+    cancelActiveBlock();
+  }
+
+  export function commitEditingSession() {
+    return commitActiveEditor();
   }
 
   /**
@@ -686,6 +728,40 @@
     editorController.rememberSelection(editorEl);
   }
 
+  /** @param {ClipboardEvent} event */
+  async function handleEditorPaste(event) {
+    const imageItem = Array.from(event.clipboardData?.items || []).find(
+      (item) => item.kind === "file" && item.type.startsWith("image/"),
+    );
+    const file = imageItem?.getAsFile?.();
+    if (!file || !editorEl) return;
+    event.preventDefault();
+    pasteError = "";
+    try {
+      const markdown = await onPasteImage(file);
+      if (!markdown) throw new Error("save clipboard image returned no markdown");
+      const draft = editingEmpty ? emptyDraft : activeBlockDraft;
+      const inserted = insertTextAtSelection(
+        draft,
+        editorEl.selectionStart ?? draft.length,
+        editorEl.selectionEnd ?? editorEl.selectionStart ?? draft.length,
+        markdown,
+      );
+      if (editingEmpty) {
+        emptyDraft = inserted.text;
+      } else {
+        activeBlockDraft = inserted.text;
+      }
+      await tick();
+      resizeEditor();
+      editorEl?.focus?.();
+      editorEl?.setSelectionRange?.(inserted.caret, inserted.caret);
+    } catch (error) {
+      console.error("paste image into note block", error);
+      pasteError = pasteErrorMessage;
+    }
+  }
+
   /** @param {FocusEvent} event */
   async function handleEditorBlur(event) {
     if (event.currentTarget !== editorEl) return;
@@ -839,11 +915,33 @@
    * @param {MouseEvent} event
    * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
    */
+  function estimateCaretOffsetFromPointer(event, block) {
+    const element = /** @type {HTMLElement | null} */ (event.currentTarget);
+    return estimateMarkdownCaretOffset({
+      markdown: block.rawLines.join("\n"),
+      rect: element?.getBoundingClientRect?.() ?? null,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+  }
+
+  /**
+   * @param {MouseEvent} event
+   * @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block
+   */
   function handleBlockPointerEdit(event, block) {
     if (readonly) return;
     const target = /** @type {HTMLElement | null} */ (event.target);
     if (target?.closest?.("[data-task-action], button, input, select, textarea, a")) return;
+    if (globalThis.getSelection?.()?.toString()) return;
     event.preventDefault();
+    openBlock(block, { caretOffset: estimateCaretOffsetFromPointer(event, block) });
+  }
+
+  /** @param {MouseEvent} event @param {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock} block */
+  function handleOpenButton(event, block) {
+    event.preventDefault();
+    event.stopPropagation();
     openBlock(block);
   }
 
@@ -916,9 +1014,13 @@
           {placeholder}
           spellcheck="false"
           oninput={handleEditorInput}
+          onpaste={handleEditorPaste}
           onkeydown={handleEditorKeydown}
           onblur={handleEmptyEditorBlur}
         ></textarea>
+        {#if pasteError}
+          <div class="editor-inline-error" role="alert">{pasteError}</div>
+        {/if}
       </div>
     {:else}
       <button type="button" class="empty-block" disabled={readonly} onclick={openEmptyEditor}>
@@ -928,7 +1030,11 @@
   {:else}
     {#each blocks as block (block.id)}
       {#if activeBlockId === block.id}
-        <div class="note-block editing" data-block-type={block.type}>
+        <div
+          class="note-block editing"
+          data-block-type={block.type}
+          data-heading-level={getHeadingLevel(block)}
+        >
           <textarea
             bind:this={editorEl}
             bind:value={activeBlockDraft}
@@ -936,17 +1042,21 @@
             rows={Math.max(1, block.rawLines.length)}
             spellcheck="false"
             oninput={handleEditorInput}
+            onpaste={handleEditorPaste}
             onselect={rememberEditorSelection}
             onkeyup={rememberEditorSelection}
             onclick={rememberEditorSelection}
             onkeydown={handleEditorKeydown}
             onblur={handleEditorBlur}
           ></textarea>
+          {#if pasteError}
+            <div class="editor-inline-error" role="alert">{pasteError}</div>
+          {/if}
           <button
             type="button"
             class="block-add-button"
-            aria-label="Add same block"
-            title="Add same block"
+            aria-label={addSameBlockLabel}
+            title={addSameBlockLabel}
             onpointerdown={keepEditorFocus}
           onclick={handleAddSameBlockClick}
           >
@@ -969,21 +1079,33 @@
           {/if}
         </div>
       {:else}
+        <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
         <div
           class="note-block rendered"
           class:readonly
           data-block-type={block.type}
-          role="button"
-          tabindex={readonly || !block.editable ? -1 : 0}
-          aria-disabled={readonly || !block.editable}
           onclick={(event) => editTrigger === "click" && handleBlockPointerEdit(event, block)}
           ondblclick={(event) => editTrigger === "dblclick" && handleBlockPointerEdit(event, block)}
-          onkeydown={(event) => handleBlockKeydown(event, block)}
         >
           <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
           <div class="block-html preview-markdown" onclick={handleTaskClick}>
             {@html renderBlockHtml(block)}
           </div>
+          {#if !readonly && block.editable}
+            <button
+              type="button"
+              class="block-open-button"
+              aria-label={editBlockLabel}
+              title={editBlockLabel}
+              onclick={(event) => handleOpenButton(event, block)}
+              onkeydown={(event) => handleBlockKeydown(event, block)}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"></path>
+              </svg>
+            </button>
+          {/if}
         </div>
       {/if}
     {/each}
@@ -1003,6 +1125,7 @@
   }
 
   .note-block {
+    position: relative;
     display: block;
     width: 100%;
     border: none;
@@ -1017,12 +1140,7 @@
   }
 
   .note-block.rendered:not(.readonly) {
-    cursor: default;
-  }
-
-  .note-block.rendered:not(.readonly):focus-visible {
-    outline: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 34%, transparent);
-    outline-offset: 1px;
+    cursor: text;
   }
 
   .note-block.editing {
@@ -1037,6 +1155,7 @@
   .block-html {
     padding: 0;
     min-width: 0;
+    user-select: text;
   }
 
   .block-html :global(*) {
@@ -1141,10 +1260,87 @@
     user-select: text;
   }
 
+  .note-block[data-block-type="heading"] .block-editor {
+    font-size: 2em;
+    line-height: 1.66;
+    font-weight: 700;
+  }
+
+  .note-block[data-heading-level="2"] .block-editor {
+    font-size: 1.5em;
+  }
+
+  .note-block[data-heading-level="3"] .block-editor {
+    font-size: 1.17em;
+  }
+
+  .note-block[data-heading-level="4"] .block-editor {
+    font-size: 1em;
+  }
+
+  .note-block[data-heading-level="5"] .block-editor {
+    font-size: 0.83em;
+  }
+
+  .note-block[data-heading-level="6"] .block-editor {
+    font-size: 0.67em;
+  }
+
+  .note-block[data-block-type="code_block"] .block-editor {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+
+  .block-open-button {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--ws-card-bg, white) 88%, transparent);
+    color: inherit;
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity 0.14s ease;
+  }
+
+  .block-open-button svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .note-block.rendered:hover .block-open-button,
+  .block-open-button:focus-visible {
+    opacity: 0.78;
+  }
+
+  .block-open-button:hover {
+    opacity: 1;
+  }
+
+  .block-open-button:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 42%, transparent);
+    outline-offset: 1px;
+  }
+
   .block-editor::-webkit-scrollbar {
     width: 0;
     height: 0;
     display: none;
+  }
+
+  .editor-inline-error {
+    margin-top: 5px;
+    padding: 5px 7px;
+    border-radius: 4px;
+    background: color-mix(in srgb, #fee2e2 86%, transparent);
+    color: #991b1b;
+    font-size: 11px;
+    line-height: 1.35;
   }
 
   .block-add-button {

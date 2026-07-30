@@ -30,6 +30,7 @@
         {priority}
         showPriority={true}
         showInput={isControlMode || isEditing}
+        compact
         suggestions={tagSuggestions}
         onChange={onChangeTags}
         onPriorityChange={onChangePriority}

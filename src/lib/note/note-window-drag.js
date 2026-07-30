@@ -23,6 +23,7 @@ export function createNoteWindowDragController(input) {
     "label",
     "summary",
     "[contenteditable=\"true\"]",
+    "[data-no-drag=\"true\"]",
     ".command-popover",
     ".note-tag-editor",
     ".color-popover",

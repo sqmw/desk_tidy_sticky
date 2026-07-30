@@ -1,24 +1,7 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
 import { expandNoteCommands } from "$lib/markdown/note-markdown.js";
 import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
 import { resolveNoteId } from "$lib/note/note-window-actions.js";
-
-/**
- * @param {Blob} blob
- * @returns {Promise<string>}
- */
-export function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const raw = String(reader.result || "");
-      const base64 = raw.startsWith("data:") ? raw.split(",")[1] || "" : raw;
-      resolve(base64);
-    };
-    reader.onerror = () => reject(reader.error || new Error("read blob failed"));
-    reader.readAsDataURL(blob);
-  });
-}
+import { saveClipboardImageMarkdown } from "$lib/note/note-clipboard-image.js";
 
 /**
  * @param {{
@@ -98,17 +81,13 @@ export function createNoteEditorActions(input) {
     event.preventDefault();
     try {
       const text = input.getText();
-      const dataBase64 = await blobToBase64(file);
-      const savedPath = await input.invoke("save_clipboard_image", {
+      const md = await saveClipboardImageMarkdown({
+        invoke: input.invoke,
         noteId: resolveNoteId(input.getNote(), input.getNoteId()),
-        mimeType: file.type || "image/png",
-        dataBase64,
+        file,
       });
-      const imageSrc = convertFileSrc(savedPath);
       const start = editorEl.selectionStart ?? text.length;
       const end = editorEl.selectionEnd ?? start;
-      const label = `pasted-${new Date().toISOString().replaceAll(":", "-")}`;
-      const md = `![${label}](${imageSrc})`;
       input.setText(text.slice(0, start) + md + text.slice(end));
       input.setShowCommandSuggestions(false);
       await input.tick();

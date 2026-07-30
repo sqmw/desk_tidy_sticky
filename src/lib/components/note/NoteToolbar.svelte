@@ -45,24 +45,13 @@
 
   /** @param {PointerEvent} event */
   function keepEditorSelection(event) {
+    const target = /** @type {HTMLElement | null} */ (event.target);
+    if (target?.closest?.('input[type="range"], input[type="color"]')) return;
     event.preventDefault();
   }
 
-  let toolbarHeight = $state(0);
-  // Mask must cover the toolbar plus its bottom inset and a fade zone above,
-  // regardless of how many rows the toolbar wraps into.
-  const maskHeight = $derived(toolbarHeight > 0 ? toolbarHeight + 44 : 104);
 </script>
 
-{#if placement === "inside"}
-  <div
-    class="toolbar-mask"
-    class:editing={isEditing}
-    class:control={isControlMode}
-    style="height: {maskHeight}px;"
-    aria-hidden="true"
-  ></div>
-{/if}
 {#if showControlExit}
   <button
     type="button"
@@ -70,60 +59,44 @@
     class:mac={isMac}
     class:windows={!isMac}
     onclick={() => onExitControlMode()}
-    title={strings.close}
-    aria-label={strings.close}
+    title={strings.noteFinishEditing}
+    aria-label={strings.noteFinishEditing}
+    data-no-drag="true"
   >
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
       <path d="M6 6l12 12"></path>
       <path d="M18 6 6 18"></path>
     </svg>
   </button>
 {/if}
-<!-- svelte-ignore a11y_no_static_element_interactions -->
+
 <div
   class="toolbar"
+  role="toolbar"
+  tabindex="-1"
+  aria-label={strings.noteToolbar}
   class:editing={isEditing}
   class:control={isControlMode}
   class:outside={placement === "outside"}
-  bind:clientHeight={toolbarHeight}
+  data-no-drag="true"
+  onpointerdown={keepEditorSelection}
 >
   <div class="toolbar-actions">
     <button
+      type="button"
       class="tool-btn"
       class:active={!!note?.isAlwaysOnTop}
       onclick={() => onToggleTopmost()}
       title={note?.isAlwaysOnTop ? strings.pinToBottom : strings.pinToTop}
     >
       {#if note?.isAlwaysOnTop}
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
           <rect x="5" y="14.5" width="14" height="4.5" rx="1.6"></rect>
           <path d="M12 4.5v8"></path>
           <path d="M8.8 9.6 12 12.8l3.2-3.2"></path>
         </svg>
       {:else}
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
           <rect x="5" y="4.8" width="14" height="4.5" rx="1.6"></rect>
           <path d="M12 19.5v-8"></path>
           <path d="M8.8 14.4 12 11.2l3.2 3.2"></path>
@@ -133,81 +106,144 @@
 
     {#if note?.isPinned && !note?.isAlwaysOnTop}
       <button
+        type="button"
         class="tool-btn"
         class:active={!!note?.isWallpaper}
         onclick={() => onToggleWallpaper()}
         title={note?.isWallpaper ? strings.pinToDesktopLayer : strings.pinToWallpaper}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
           <rect x="4.5" y="5" width="15" height="10" rx="2"></rect>
-          <path d="M7 13l2.8-2.8 2.8 2.8 2.6-2.6 2.1 2.1"></path>
-          <path d="M6 19h12"></path>
+          <path d="M6 19h12M7 13l3-3 3 3 2.5-2.5 2 2"></path>
         </svg>
       </button>
     {/if}
 
     {#if note?.isPinned && note?.isAlwaysOnTop}
       <button
+        type="button"
         class="tool-btn"
         class:active={!!note?.autoHideEnabled}
         onclick={() => onToggleAutoHide()}
         title={note?.autoHideEnabled ? strings.stickyAutoHideDisable : strings.stickyAutoHideEnable}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
           <rect x="5" y="6" width="14" height="12" rx="2"></rect>
-          <path d="M3 12h4"></path>
-          <path d="M17 12h4"></path>
-          <path d="M12 4v4"></path>
-          <path d="M12 16v4"></path>
+          <path d="M3 12h4M17 12h4M12 4v4M12 16v4"></path>
         </svg>
       </button>
     {/if}
 
-    <button class="tool-btn color-trigger" onclick={() => onTogglePalette()} title={strings.changeColor}>
-      🎨
-    </button>
+    <div class="tool-popover-anchor">
+      <button
+        type="button"
+        class="tool-btn color-trigger"
+        class:active={showPalette}
+        onclick={() => onTogglePalette()}
+        title={strings.changeColor}
+      >
+        <span class="color-swatch" style="--swatch-color: {noteBgColor};"></span>
+      </button>
+      {#if showPalette}
+        <div class="color-popover">
+          {#each noteColors as color}
+            <button
+              type="button"
+              class="color-dot"
+              class:active={color === noteBgColor}
+              style="background:{color};"
+              title={color}
+              onclick={() => onSetBackgroundColor(color)}
+            ></button>
+          {/each}
+          <div class="color-picker-row">
+            <span>{strings.customColor}</span>
+            <input
+              class="color-picker-input"
+              type="color"
+              value={backgroundPickerValue}
+              onchange={(event) => onBackgroundColorPickerChange(event)}
+              aria-label={strings.customColor}
+            />
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    <div class="tool-popover-anchor">
+      <button
+        type="button"
+        class="tool-btn text-color-trigger"
+        class:active={showTextColorPalette}
+        onpointerdown={keepEditorSelection}
+        onclick={() => onToggleTextColorPalette()}
+        title={strings.textColor}
+      >
+        <span class="text-color-icon" style="--text-swatch-color: {noteTextColor};">A</span>
+      </button>
+      {#if showTextColorPalette}
+        <div class="text-color-popover">
+          {#each noteTextColors as color}
+            <button
+              type="button"
+              class="color-dot"
+              class:active={color === noteTextColor}
+              style="background:{color};"
+              title={color}
+              onpointerdown={keepEditorSelection}
+              onclick={() => onSetTextColor(color)}
+            ></button>
+          {/each}
+          <div class="color-picker-row">
+            <span>{strings.customColor}</span>
+            <input
+              class="color-picker-input"
+              type="color"
+              value={textPickerValue}
+              onchange={(event) => onTextColorPickerChange(event)}
+              aria-label={strings.customColor}
+            />
+          </div>
+        </div>
+      {/if}
+    </div>
 
     <button
-      class="tool-btn text-color-trigger"
-      onpointerdown={keepEditorSelection}
-      onclick={() => onToggleTextColorPalette()}
-      title={strings.textColor}
+      type="button"
+      class="tool-btn"
+      class:active={!!note?.isDone}
+      onclick={() => onToggleDone()}
+      title={note?.isDone ? strings.markUndone : strings.markDone}
     >
-      A
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5"></circle>
+        {#if note?.isDone}<path d="m8 12 2.7 2.7L16.5 9"></path>{/if}
+      </svg>
     </button>
 
     <div class="tool-popover-anchor">
       <button
+        type="button"
         class="tool-btn opacity-trigger"
+        class:active={showOpacityPanel}
         onclick={() => onToggleOpacityPanel()}
         onwheel={(event) => onOpacityIconWheel(event)}
         title={strings.glassAdjust}
       >
-        ◐
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5"></circle>
+          <path d="M12 3.5v17"></path>
+        </svg>
       </button>
       {#if showOpacityPanel}
-        <div class="opacity-popover">
+        <div class="range-popover opacity-popover">
           <input
-            class="opacity-slider"
             type="range"
             min="0"
             max="1"
             step="0.01"
             value={opacityDraft}
+            aria-label={strings.glassAdjust}
             oninput={(event) => onOpacityInput(event)}
             onwheel={(event) => onOpacityWheel(event)}
           />
@@ -217,22 +253,27 @@
 
     <div class="tool-popover-anchor">
       <button
+        type="button"
         class="tool-btn frost-trigger"
+        class:active={showFrostPanel}
         onclick={() => onToggleFrostPanel()}
         onwheel={(event) => onFrostIconWheel(event)}
         title={strings.frost}
       >
-        ❆
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+          <path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"></path>
+          <path d="m9.5 4.5 2.5 2 2.5-2M9.5 19.5l2.5-2 2.5 2"></path>
+        </svg>
       </button>
       {#if showFrostPanel}
-        <div class="frost-popover">
+        <div class="range-popover frost-popover">
           <input
-            class="frost-slider"
             type="range"
             min="0"
             max="1"
             step="0.01"
             value={frostDraft}
+            aria-label={strings.frost}
             oninput={(event) => onFrostInput(event)}
             onwheel={(event) => onFrostWheel(event)}
           />
@@ -241,311 +282,218 @@
     </div>
 
     <button
-      class="tool-btn"
-      onclick={() => onToggleDone()}
-      title={note?.isDone ? strings.markUndone : strings.markDone}
-    >
-      {#if note?.isDone}
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.2 14.2l-3.5-3.5 1.4-1.4 2.1 2.1 4.6-4.6 1.4 1.4-6 6z" />
-        </svg>
-      {:else}
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
-        </svg>
-      {/if}
-    </button>
-
-    <button
+      type="button"
       class="tool-btn"
       onclick={() => onToggleArchive()}
       title={note?.isArchived ? strings.unarchive : strings.archive}
     >
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M20.54 5.23l-1.39-1.68C18.88 3.21 18.47 3 18 3H6c-.47 0-.88.21-1.16.55L3.46 5.23C3.17 5.57 3 6.02 3 6.5V19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6.5c0-.48-.17-.93-.46-1.27zM12 17.5L6.5 12H10v-2h4v2h3.5L12 17.5zM5.12 5l.81-1h12l.94 1H5.12z" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path d="M4 7h16v13H4zM3 4h18v3H3zM9 12h6"></path>
       </svg>
     </button>
 
-    <button class="tool-btn tool-btn-danger-soft" onclick={() => onUnpin()} title={strings.unpinNote}>
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2zm-2-2h-4V4h4v6z" />
+    <button type="button" class="tool-btn" onclick={() => onUnpin()} title={strings.unpinNote}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path d="M8 4h8M9 4v7l-3 3h12l-3-3V4M12 14v7"></path>
       </svg>
     </button>
 
-    <button class="tool-btn danger" onclick={() => onMoveToTrash()} title={strings.delete}>
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+    <button type="button" class="tool-btn danger" onclick={() => onMoveToTrash()} title={strings.delete}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path>
       </svg>
     </button>
   </div>
-
-  {#if showPalette}
-    <div class="color-popover">
-      {#each noteColors as c}
-        <button
-          class="color-dot"
-          class:active={c === noteBgColor}
-          style="background:{c};"
-          title={c}
-          onclick={() => onSetBackgroundColor(c)}
-        ></button>
-      {/each}
-      <div class="color-picker-row">
-        <span class="color-picker-label">{strings.customColor}</span>
-        <input
-          class="color-picker-input"
-          type="color"
-          value={backgroundPickerValue}
-          onchange={(event) => onBackgroundColorPickerChange(event)}
-          aria-label={strings.customColor}
-        />
-      </div>
-    </div>
-  {/if}
-
-  {#if showTextColorPalette}
-    <div class="text-color-popover">
-      {#each noteTextColors as c}
-        <button
-          class="text-color-dot"
-          class:active={c === noteTextColor}
-          style="background:{c};"
-          title={c}
-          onpointerdown={keepEditorSelection}
-          onclick={() => onSetTextColor(c)}
-        ></button>
-      {/each}
-      <div class="color-picker-row">
-        <span class="color-picker-label">{strings.customColor}</span>
-        <input
-          class="color-picker-input"
-          type="color"
-          value={textPickerValue}
-          onchange={(event) => onTextColorPickerChange(event)}
-          aria-label={strings.customColor}
-        />
-      </div>
-    </div>
-  {/if}
 </div>
 
 <style>
   .toolbar {
     position: absolute;
-    left: 10px;
-    right: 10px;
+    left: 50%;
     bottom: 10px;
-    padding: 10px;
+    z-index: 7;
+    transform: translateX(-50%) translateY(5px);
+    padding: 5px;
     opacity: 0;
-    transition: opacity 0.2s;
     pointer-events: none;
-    z-index: 2;
-    border-radius: 14px;
-    background: color-mix(in srgb, white 76%, transparent);
-    border: 1px solid rgba(255, 255, 255, 0.52);
-    backdrop-filter: blur(10px) saturate(1.04);
-    -webkit-backdrop-filter: blur(10px) saturate(1.04);
-    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+    border: 1px solid color-mix(in srgb, white 52%, transparent);
+    border-radius: 7px;
+    background: color-mix(in srgb, white 78%, transparent);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+    backdrop-filter: blur(14px) saturate(1.08);
+    -webkit-backdrop-filter: blur(14px) saturate(1.08);
+    transition:
+      opacity 0.16s ease,
+      transform 0.16s ease;
   }
 
   .toolbar.outside {
     position: relative;
     left: auto;
-    right: auto;
     bottom: auto;
     width: calc(100% - 20px);
     margin: 0 auto;
+    padding: 10px;
     opacity: 1;
     pointer-events: auto;
+    transform: none;
+    box-sizing: border-box;
   }
 
-  .control-exit {
-    position: absolute;
-    top: 12px;
-    z-index: 3;
-    width: 20px;
-    height: 20px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.58);
-    backdrop-filter: blur(10px) saturate(1.02);
-    -webkit-backdrop-filter: blur(10px) saturate(1.02);
-    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.1);
+  :global(.note-window[data-toolbar-visible="true"]:hover) .toolbar,
+  .toolbar.editing,
+  .toolbar.control {
+    opacity: 1;
     pointer-events: auto;
-    cursor: pointer;
-    transition:
-      background-color 0.16s ease,
-      box-shadow 0.16s ease,
-      transform 0.16s ease;
+    transform: translateX(-50%) translateY(0);
   }
 
-  .control-exit:hover {
-    transform: translateY(-1px);
-  }
-
-  .control-exit.mac {
-    left: 12px;
-    border-radius: 999px;
-    background: color-mix(in srgb, #ff5f57 72%, white);
-    color: rgba(122, 18, 18, 0.76);
-  }
-
-  .control-exit.mac:hover {
-    background: color-mix(in srgb, #ff5f57 82%, white);
-    box-shadow: 0 8px 16px rgba(239, 68, 68, 0.18);
-  }
-
-  .control-exit.windows {
-    right: 12px;
-    width: 24px;
-    height: 24px;
-    border-radius: 8px;
-    background: color-mix(in srgb, white 70%, transparent);
-    color: #64748b;
-  }
-
-  .control-exit.windows:hover {
-    background: color-mix(in srgb, #fee2e2 70%, white);
-    color: #b91c1c;
-    box-shadow: 0 8px 16px rgba(239, 68, 68, 0.12);
-  }
-
-  .control-exit svg {
-    width: 10px;
-    height: 10px;
+  .toolbar.outside {
+    transform: none;
   }
 
   .toolbar-actions {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     flex-wrap: wrap;
     justify-content: center;
   }
 
-  .toolbar-mask {
-    position: absolute;
-    left: 1px;
-    right: 1px;
-    bottom: 1px;
-    height: 104px;
-    background:
-      linear-gradient(
-        to top,
-        rgba(255, 255, 255, 0.94) 0%,
-        rgba(255, 255, 255, 0.72) 48%,
-        rgba(255, 255, 255, 0) 100%
-      );
-    border-radius: 0 0 calc(var(--note-radius, 12px) - 1px) calc(var(--note-radius, 12px) - 1px);
-    opacity: 0;
-    transition: opacity 0.2s;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  :global(.note-window[data-toolbar-visible="true"]:hover) .toolbar {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  :global(.note-window[data-toolbar-visible="true"]:hover) .toolbar-mask {
-    opacity: 1;
-  }
-
-  .toolbar.editing {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .toolbar.control {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .toolbar-mask.editing {
-    opacity: 1;
-  }
-
-  .toolbar-mask.control {
-    opacity: 1;
-  }
-
   .tool-btn {
-    width: 30px;
-    height: 30px;
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid rgba(15, 23, 42, 0.08);
-    border-radius: 9px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: #4b5563;
-    padding: 0;
-    font-size: 13px;
+    width: 32px;
+    height: 32px;
     flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: #475569;
+    cursor: pointer;
   }
 
-  .tool-btn:hover {
-    background: rgba(255, 255, 255, 0.92);
-    color: #111827;
-  }
-
+  .tool-btn:hover,
   .tool-btn.active {
+    border-color: rgba(15, 23, 42, 0.08);
+    background: rgba(255, 255, 255, 0.76);
     color: #0f4c81;
   }
 
+  .tool-btn:focus-visible,
+  .control-exit:focus-visible {
+    outline: 2px solid rgba(29, 78, 216, 0.42);
+    outline-offset: 1px;
+  }
+
   .tool-btn svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .control-exit {
+    position: absolute;
+    top: 8px;
+    z-index: 8;
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, white 54%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, #ff5f57 72%, white);
+    color: rgba(122, 18, 18, 0.76);
+    box-shadow: 0 5px 14px rgba(15, 23, 42, 0.11);
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .control-exit.mac {
+    left: 10px;
+  }
+
+  .control-exit.windows {
+    right: 10px;
+    border-radius: 6px;
+  }
+
+  .control-exit svg {
     width: 15px;
     height: 15px;
-    display: block;
-    flex: 0 0 auto;
   }
 
   .tool-btn.danger {
     color: #b91c1c;
-    background: rgba(255, 255, 255, 0.42);
   }
 
   .tool-btn.danger:hover {
-    background: rgba(255, 255, 255, 0.82);
+    background: #fef2f2;
     color: #991b1b;
   }
 
-  .tool-btn-danger-soft {
-    background: rgba(255, 255, 255, 0.42);
-    color: #7c2d12;
-  }
-
-  .tool-btn-danger-soft:hover {
-    background: rgba(255, 255, 255, 0.82);
-    color: #9a3412;
-  }
-
   .tool-popover-anchor {
-    position: static;
+    position: relative;
     display: inline-flex;
-    align-items: center;
-    flex: 0 0 auto;
+  }
+
+  .color-swatch {
+    width: 17px;
+    height: 17px;
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    border-radius: 4px;
+    background: var(--swatch-color);
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.48);
+  }
+
+  .text-color-icon {
+    height: 19px;
+    min-width: 17px;
+    display: grid;
+    place-items: start center;
+    border-bottom: 3px solid var(--text-swatch-color);
+    font: 600 15px/16px Georgia, serif;
+  }
+
+  .color-popover,
+  .text-color-popover,
+  .range-popover {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    z-index: 12;
+    border: 1px solid rgba(148, 163, 184, 0.38);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.2);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
   .color-popover,
   .text-color-popover {
-    position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    bottom: calc(100% + 8px);
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 6px;
+    width: 112px;
+    padding: 7px;
     display: grid;
-    grid-template-columns: repeat(4, 18px);
+    grid-template-columns: repeat(4, 20px);
     gap: 6px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-    min-width: 104px;
-    max-width: calc(100% - 8px);
+  }
+
+  .color-dot {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
+  .color-dot.active {
+    outline: 2px solid #334155;
+    outline-offset: 1px;
   }
 
   .color-picker-row {
@@ -554,72 +502,32 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding-top: 2px;
-    border-top: 1px solid rgba(148, 163, 184, 0.35);
-  }
-
-  .color-picker-label {
-    font-size: 11px;
+    padding-top: 5px;
+    border-top: 1px solid rgba(148, 163, 184, 0.3);
     color: #475569;
-    user-select: none;
+    font-size: 11px;
   }
 
   .color-picker-input {
-    width: 24px;
-    height: 18px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    border-radius: 4px;
+    width: 26px;
+    height: 20px;
     padding: 0;
+    border: 1px solid rgba(15, 23, 42, 0.18);
+    border-radius: 4px;
     background: transparent;
     cursor: pointer;
   }
 
-  .color-picker-input::-webkit-color-swatch-wrapper {
-    padding: 0;
+  .range-popover {
+    right: 0;
+    width: 136px;
+    padding: 8px;
   }
 
-  .color-picker-input::-webkit-color-swatch {
-    border: none;
-    border-radius: 3px;
-  }
-
-  .opacity-popover,
-  .frost-popover {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: calc(100% + 8px);
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    padding: 6px;
-    display: flex;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
-    width: min(152px, calc(100% - 24px));
-    max-width: calc(100% - 24px);
-    justify-content: center;
-    box-sizing: border-box;
-  }
-
-  .opacity-slider,
-  .frost-slider {
+  .range-popover input {
+    display: block;
     width: 100%;
-    cursor: pointer;
+    margin: 0;
   }
 
-  .color-dot,
-  .text-color-dot {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    cursor: pointer;
-    padding: 0;
-  }
-
-  .color-dot.active,
-  .text-color-dot.active {
-    outline: 2px solid #374151;
-    outline-offset: 1px;
-  }
 </style>
