@@ -193,19 +193,19 @@
   {/if}
 
   <section class="review-summary-shell">
-    <div class="review-summary-copy">
-      <div class="review-summary-title-row">
+    <div class="review-summary-row">
+      <div class="review-summary-copy">
         <h3>{strings.workspaceFocusReviewCardTitle}</h3>
-        <button type="button" class="review-link-btn" onclick={() => onOpenReview()}>
-          {strings.workspaceFocusOpenReview}
-        </button>
+        <p>{strings.workspaceFocusReviewCardHint}</p>
       </div>
-      <p>{strings.workspaceFocusReviewCardHint}</p>
       <div class="review-summary-badges">
-        <span>{strings.pomodoroTodayFocusMinutes}: {todayFocusMinutes}m</span>
-        <span>{strings.pomodoroTodayPomodoros}: 🍅 x{todayPomodoros}</span>
-        <span>{strings.pomodoroStreakDays}: {streakDays}d</span>
+        <span>{strings.pomodoroTodayFocusMinutes} <strong>{todayFocusMinutes}m</strong></span>
+        <span>{strings.pomodoroTodayPomodoros} <strong>x{todayPomodoros}</strong></span>
+        <span>{strings.pomodoroStreakDays} <strong>{streakDays}d</strong></span>
       </div>
+      <button type="button" class="review-link-btn" onclick={() => onOpenReview()}>
+        {strings.workspaceFocusOpenReview}
+      </button>
     </div>
   </section>
 </section>
@@ -241,14 +241,10 @@
   }
 
   .task-start-notice {
-    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 28%, var(--ws-border, #dbe5f2));
-    border-radius: 14px;
-    background:
-      radial-gradient(circle at 0 0, color-mix(in srgb, var(--ws-accent, #1d4ed8) 15%, transparent), transparent 36%),
-      color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.92)) 96%, #ffffff);
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent),
-      0 10px 24px color-mix(in srgb, #0f172a 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #2563eb) 24%, var(--ws-border-soft, #e7ecf5));
+    border-radius: var(--ws-radius-md, 12px);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 5%, var(--ws-card-bg, #ffffff));
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
     padding: 10px 12px;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -260,9 +256,9 @@
     width: 26px;
     height: 26px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 18%, #fff);
-    color: var(--ws-accent, #1d4ed8);
-    font-weight: 900;
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 14%, transparent);
+    color: var(--ws-accent, #2563eb);
+    font-weight: 800;
     display: grid;
     place-items: center;
   }
@@ -287,15 +283,20 @@
   }
 
   .task-start-notice-close {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 999px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text, #334155);
+    border: 1px solid var(--ws-border, #e3e9f2);
+    border-radius: var(--ws-radius-sm, 8px);
+    background: transparent;
+    color: var(--ws-text, #3a4557);
     min-height: 28px;
     padding: 0 10px;
     cursor: pointer;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
+    transition: background 0.16s ease;
+  }
+
+  .task-start-notice-close:hover {
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 8%, transparent);
   }
 
   .focus-complete-notice {
@@ -309,21 +310,27 @@
 
   .focus-complete-hint {
     font-size: 12px;
-    color: color-mix(in srgb, var(--ws-text-2, #6b7280) 92%, transparent);
+    color: var(--ws-muted, #71809b);
   }
 
   .focus-complete-input {
     width: 100%;
     min-height: 96px;
-    border-radius: 12px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: var(--ws-card-bg, #fff);
-    color: var(--ws-text, #334155);
+    border-radius: 10px;
+    border: 1px solid var(--ws-input-border, #dfe6f0);
+    background: var(--ws-input-bg, #ffffff);
+    color: var(--ws-input-text, #101828);
     font-size: 13px;
     line-height: 1.6;
     padding: 10px 12px;
     resize: vertical;
     outline: none;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .focus-complete-input:focus {
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 45%, var(--ws-input-border, #dfe6f0));
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .focus-complete-actions {
@@ -332,20 +339,37 @@
   }
 
   .focus-complete-btn {
-    min-height: 34px;
+    min-height: 32px;
     padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    font-size: 12px;
-    font-weight: 700;
+    border-radius: var(--ws-radius-sm, 8px);
+    border: 1px solid var(--ws-border, #e3e9f2);
+    background: transparent;
+    color: var(--ws-text, #3a4557);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.16s ease;
+  }
+
+  .focus-complete-btn:hover {
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 8%, transparent);
   }
 
   .focus-complete-btn.primary {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 22%, var(--ws-border-soft, #d9e2ef));
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, #fff);
-    color: var(--ws-accent, #1d4ed8);
+    border: none;
+    background: var(--ws-accent, #2563eb);
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .focus-complete-btn.primary:hover {
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 88%, #0f172a);
+  }
+
+  :global(.workspace.theme-dark) .focus-complete-btn.primary {
+    background: color-mix(in srgb, var(--ws-accent, #7aa2ff) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #7aa2ff) 42%, transparent);
+    color: var(--ws-text-strong, #eef2f9);
   }
 
   .timer-slot {
@@ -356,69 +380,61 @@
     grid-area: planner;
   }
 
-  .focus-hub :global(.timer-card),
-  .focus-hub :global(.planner-card) {
-    border: 1px solid var(--ws-border, #dbe5f2);
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 92%, transparent);
-  }
-
-  .focus-hub :global(.btn) {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 9px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text, #334155);
-  }
-
-  .focus-hub :global(input),
-  .focus-hub :global(select) {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 9px;
-    background: var(--ws-card-bg, #fff);
-    color: var(--ws-text, #334155);
-  }
-
   .review-summary-shell {
-    border: 1px solid var(--ws-border, #dbe5f2);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 88%, transparent);
     border-radius: 14px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 92%, transparent);
-    padding: 12px 14px;
+    background: var(--ws-card-bg, #ffffff);
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
+    padding: 12px 16px;
   }
 
-  .review-summary-copy {
-    display: grid;
-    gap: 10px;
-  }
-
-  .review-summary-title-row {
+  .review-summary-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+    gap: 14px;
     flex-wrap: wrap;
   }
 
-  .review-summary-title-row h3 {
+  .review-summary-copy {
+    min-width: 0;
+    flex: 1 1 280px;
+    display: grid;
+    gap: 3px;
+  }
+
+  .review-summary-copy h3 {
     margin: 0;
-    color: var(--ws-text-strong, #0f172a);
-    font-size: clamp(14px, 0.88vw, 18px);
+    color: var(--ws-text-strong, #101828);
+    font-size: 13.5px;
+    font-weight: 700;
   }
 
   .review-link-btn {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 999px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text, #334155);
-    font-size: 12px;
+    flex: 0 0 auto;
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #2563eb) 32%, transparent);
+    border-radius: var(--ws-radius-sm, 8px);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 9%, transparent);
+    color: var(--ws-accent, #2563eb);
+    font-size: 12.5px;
     font-weight: 700;
-    min-height: 34px;
-    padding: 0 12px;
+    min-height: 32px;
+    padding: 0 14px;
     cursor: pointer;
+    transition: background 0.16s ease;
+  }
+
+  .review-link-btn:hover {
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 15%, transparent);
+  }
+
+  .review-link-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .review-summary-copy p {
     margin: 0;
-    color: var(--ws-muted, #64748b);
+    color: var(--ws-muted, #71809b);
     font-size: 12px;
     line-height: 1.55;
   }
@@ -426,18 +442,21 @@
   .review-summary-badges {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 14px;
     flex-wrap: wrap;
   }
 
   .review-summary-badges span {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 999px;
-    padding: 4px 10px;
-    background: var(--ws-card-bg, #fff);
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--ws-muted, #64748b);
+    font-size: 12px;
+    color: var(--ws-muted, #71809b);
+  }
+
+  .review-summary-badges strong {
+    margin-left: 3px;
+    font-size: 12.5px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--ws-text-strong, #101828);
   }
 
   @media (max-width: 1360px) {

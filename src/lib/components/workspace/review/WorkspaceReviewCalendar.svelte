@@ -107,8 +107,10 @@
 
   .calendar-copy h3 {
     margin: 0;
-    font-size: 20px;
-    color: var(--ws-text-strong, #0f172a);
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ws-text-strong, #101828);
   }
 
   .calendar-copy p {
@@ -131,14 +133,26 @@
   }
 
   .nav-btn {
-    min-height: 34px;
+    min-height: 32px;
     padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    font-size: 12px;
-    font-weight: 700;
+    border-radius: var(--ws-radius-sm, 8px);
+    border: 1px solid var(--ws-border, #e3e9f2);
+    background: transparent;
+    color: var(--ws-text, #3a4557);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+  }
+
+  .nav-btn:hover {
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 8%, transparent);
+    color: var(--ws-text-strong, #101828);
+  }
+
+  .nav-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .weekday-row,
@@ -161,16 +175,15 @@
     position: relative;
     z-index: 0;
     min-height: 88px;
-    border-radius: 16px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.86)) 98%, transparent);
+    border-radius: var(--ws-radius-md, 12px);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 88%, transparent);
+    background: var(--ws-card-bg, #ffffff);
     padding: 10px;
     display: grid;
     align-content: space-between;
     text-align: left;
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 76%, transparent),
-      0 1px 2px color-mix(in srgb, #0f172a 4%, transparent);
+    cursor: pointer;
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
     transition:
       border-color 0.16s ease,
       transform 0.16s ease,
@@ -178,13 +191,13 @@
       box-shadow 0.16s ease;
   }
 
+  .day-cell:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
+  }
+
   .day-cell.weekend:not(.selected):not(.today) {
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.86)) 94%, #f5f8fd) 0%,
-        color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.86)) 98%, transparent) 100%
-      );
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 4%, var(--ws-card-bg, #ffffff));
   }
 
   .day-head {
@@ -228,74 +241,34 @@
     border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 16%, var(--ws-border-soft, #d9e2ef));
   }
 
+  /* Heat ramp mixes the accent into the card surface so it survives dark presets. */
   .day-cell.heat-1:not(.selected):not(.today) {
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, #ffffff) 0%,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 2.5%, var(--ws-panel-bg, rgba(255, 255, 255, 0.86))) 100%
-      );
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 6%, var(--ws-card-bg, #ffffff));
   }
 
   .day-cell.heat-2:not(.selected):not(.today) {
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, #ffffff) 0%,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 4.5%, var(--ws-panel-bg, rgba(255, 255, 255, 0.86))) 100%
-      );
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 11%, var(--ws-card-bg, #ffffff));
   }
 
   .day-cell.heat-3:not(.selected):not(.today) {
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, #ffffff) 0%,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, var(--ws-panel-bg, rgba(255, 255, 255, 0.86))) 100%
-      );
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 80%, transparent),
-      0 4px 10px color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 17%, var(--ws-card-bg, #ffffff));
   }
 
   .day-cell.heat-4:not(.selected):not(.today) {
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 18%, #ffffff) 0%,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 8%, var(--ws-panel-bg, rgba(255, 255, 255, 0.86))) 100%
-      );
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 82%, transparent),
-      0 6px 12px color-mix(in srgb, var(--ws-accent, #1d4ed8) 8%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 24%, var(--ws-card-bg, #ffffff));
   }
 
   .day-cell.today {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 22%, var(--ws-border-soft, #d9e2ef));
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 7%, #ffffff) 0%,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 3%, var(--ws-panel-bg, rgba(255, 255, 255, 0.86))) 100%
-      );
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #ffffff 88%, transparent),
-      0 0 0 1px color-mix(in srgb, var(--ws-accent, #1d4ed8) 8%, transparent),
-      0 8px 18px color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 36%, var(--ws-border-soft, #e7ecf5));
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 7%, var(--ws-card-bg, #ffffff));
   }
 
   .day-cell.selected {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 44%, var(--ws-border-soft, #d9e2ef));
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, #ffffff) 0%,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 8%, #eef4ff) 100%
-      );
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 55%, var(--ws-border-soft, #e7ecf5));
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 13%, var(--ws-card-bg, #ffffff));
     box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #ffffff 88%, transparent),
-      0 0 0 1px color-mix(in srgb, var(--ws-accent, #1d4ed8) 12%, transparent),
-      0 12px 24px color-mix(in srgb, var(--ws-accent, #1d4ed8) 12%, transparent);
+      0 0 0 1px color-mix(in srgb, var(--ws-accent, #2563eb) 24%, transparent),
+      var(--ws-shadow-md, 0 10px 28px rgba(15, 23, 42, 0.08));
   }
 
   .day-number {
@@ -310,8 +283,8 @@
     min-height: 20px;
     padding: 0 8px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, #ffffff);
-    color: color-mix(in srgb, var(--ws-accent-strong, #163ea8) 72%, var(--ws-muted, #64748b));
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 14%, transparent);
+    color: var(--ws-accent, #2563eb);
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.02em;
@@ -319,12 +292,12 @@
   }
 
   .day-cell.selected .day-number {
-    color: var(--ws-accent-strong, #163ea8);
+    color: var(--ws-accent, #2563eb);
   }
 
   .day-cell.selected .today-chip {
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 18%, #ffffff);
-    color: var(--ws-accent-strong, #163ea8);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 20%, transparent);
+    color: var(--ws-accent, #2563eb);
   }
 
   .day-count {
@@ -360,19 +333,11 @@
     display: grid;
     gap: 6px;
     padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 16%, var(--ws-border-soft, #d9e2ef));
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.94)) 98%, #ffffff) 0%,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 5%, var(--ws-panel-bg, rgba(255, 255, 255, 0.94))) 100%
-      );
-    color: var(--ws-text, #334155);
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #ffffff 86%, transparent),
-      0 14px 28px color-mix(in srgb, #0f172a 12%, transparent);
-    backdrop-filter: blur(10px);
+    border-radius: var(--ws-radius-md, 12px);
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #2563eb) 22%, var(--ws-border-soft, #e7ecf5));
+    background: var(--ws-card-bg, #ffffff);
+    color: var(--ws-text, #3a4557);
+    box-shadow: var(--ws-shadow-lg, 0 20px 48px rgba(15, 23, 42, 0.12));
   }
 
   .day-cell.tooltip-up .day-tooltip {

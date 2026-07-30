@@ -198,61 +198,65 @@
     </div>
   {:else}
     <div class="task-main">
-      <span class="task-title">{task.title}</span>
-      <span class="task-time">
-        {#if isDurationTask}
-          {strings.pomodoroTaskFlexibleSchedule || "Flexible schedule"}
-        {:else}
-          {task.startTime} - {task.endTime}
-        {/if}
-      </span>
+      <div class="task-line-primary">
+        <span class="task-title">{task.title}</span>
+        <span class="task-time">
+          {#if isDurationTask}
+            {strings.pomodoroTaskFlexibleSchedule || "Flexible schedule"}
+          {:else}
+            {task.startTime} - {task.endTime}
+          {/if}
+        </span>
+        <span class="task-progress" title={`${strings.pomodoroCompletedSessions || "Completed sessions"} ${donePomodoros}`}>
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="14" r="6.6"></circle>
+            <path d="M12 7.4V4.6"></path>
+            <path d="M12 7.4c-1.3-1.1-2.9-1.4-4.3-.9M12 7.4c1.3-1.1 2.9-1.4 4.3-.9"></path>
+          </svg>
+          x{donePomodoros}
+        </span>
+      </div>
       {#if showEffectiveProgress}
-        <span class="task-elapsed">
+        <div class="task-line-meta">
           {(strings.pomodoroTaskElapsed || "Elapsed")} {formatDuration(safeEffectiveSeconds)}
-        </span>
-        <span class="task-cycle">
-          {strings.pomodoroTaskRounds || "Task rounds"} x{cycleSnapshot.completedCycles}
-        </span>
-        <span class="task-round-progress">
-          {strings.pomodoroTaskCurrentRound || "Current round"} {formatDuration(cycleSnapshot.currentCycleSeconds)} / {formatDuration(safeTargetSeconds)}
-        </span>
+          · {strings.pomodoroTaskRounds || "Task rounds"} x{cycleSnapshot.completedCycles}
+          · {strings.pomodoroTaskCurrentRound || "Current round"} {formatDuration(cycleSnapshot.currentCycleSeconds)} / {formatDuration(safeTargetSeconds)}
+        </div>
       {/if}
-      <span class="task-progress" title={`${strings.pomodoroCompletedSessions || "Completed sessions"} ${donePomodoros}`}>
-        🍅 x{donePomodoros}
-      </span>
     </div>
     <div class="task-actions">
       <button
         type="button"
-        class="btn tiny"
+        class="btn tiny start"
         class:started={isStartedTask}
         onclick={() => (isStartedTask ? onToggleTask() : onStartTask(task.id))}
       >
         {primaryActionText}
       </button>
-      <button type="button" class="btn tiny" onclick={() => beginEdit()}>{strings.edit}</button>
-      <button type="button" class="btn tiny" onclick={() => onRemoveTask(task.id)}>{strings.delete}</button>
+      <button type="button" class="btn tiny quiet" onclick={() => beginEdit()}>{strings.edit}</button>
+      <button type="button" class="btn tiny quiet quiet-danger" onclick={() => onRemoveTask(task.id)}>{strings.delete}</button>
     </div>
   {/if}
 </div>
 
 <style>
   .task-item {
-    border: 1px solid var(--ws-border-soft, #dbe4ef);
-    border-radius: 10px;
-    padding: 7px 8px;
+    border: 1px solid transparent;
+    border-radius: var(--ws-radius-md, 12px);
+    padding: 9px 10px;
     width: 100%;
     box-sizing: border-box;
     flex: 0 0 auto;
     justify-self: stretch;
     display: flex;
     justify-content: space-between;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
-    background: var(--ws-card-bg, #fff);
+    background: transparent;
     position: relative;
     overflow: hidden;
     isolation: isolate;
+    transition: background 0.16s ease, border-color 0.16s ease;
   }
 
   .task-item > * {
@@ -260,11 +264,13 @@
     z-index: 1;
   }
 
+  .task-item:hover {
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 7%, transparent);
+  }
+
   .task-item.started {
-    border-color: color-mix(in srgb, #14b8a6 30%, var(--ws-border-soft, #dbe4ef));
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 65%, transparent),
-      0 0 0 1px color-mix(in srgb, #14b8a6 10%, transparent);
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 28%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 4%, transparent);
   }
 
   .task-item.started::before {
@@ -273,25 +279,7 @@
     inset: 0 auto 0 0;
     width: var(--task-active-progress, 0%);
     min-width: 14px;
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, #0f766e 20%, transparent) 0%,
-      color-mix(in srgb, #2dd4bf 26%, transparent) 100%
-    );
-    opacity: 0.58;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .task-item.started::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      180deg,
-      color-mix(in srgb, #ffffff 58%, transparent) 0%,
-      color-mix(in srgb, #ecfeff 18%, transparent) 100%
-    );
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 10%, transparent);
     pointer-events: none;
     z-index: 0;
   }
@@ -299,17 +287,9 @@
   .task-item.editing {
     display: grid;
     align-items: stretch;
-    padding: 10px;
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 5%, var(--ws-card-bg, #fff)) 0%,
-        color-mix(in srgb, var(--ws-card-bg, #fff) 96%, #f8fafc) 100%
-      );
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 18%, var(--ws-border-soft, #dbe4ef));
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent),
-      0 8px 20px color-mix(in srgb, #0f172a 8%, transparent);
+    padding: 12px;
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 4%, var(--ws-card-bg, #ffffff));
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 22%, var(--ws-border-soft, #e7ecf5));
   }
 
   .task-edit-layout {
@@ -367,50 +347,60 @@
   }
 
   .task-main {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .task-line-primary {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
     min-width: 0;
   }
 
   .task-title {
-    font-size: clamp(12px, 0.72vw, 14px);
-    color: var(--ws-text, #334155);
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--ws-text-strong, #101828);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 360px;
+    min-width: 0;
   }
 
   .task-time {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-  }
-
-  .task-cycle,
-  .task-round-progress {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
+    flex: 0 0 auto;
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ws-muted, #71809b);
     white-space: nowrap;
   }
 
   .task-progress {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     font-size: 11px;
-    color: var(--ws-accent, #1d4ed8);
-    border: 1px solid var(--ws-badge-border, #d7e5ff);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: var(--ws-accent, #2563eb);
     border-radius: 999px;
-    padding: 2px 6px;
-    background: var(--ws-badge-bg, #e8f0ff);
+    padding: 3px 8px;
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 10%, transparent);
   }
 
-  .task-elapsed {
-    font-size: 11px;
-    color: var(--ws-text, #334155);
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #dbe4ef) 95%, transparent);
-    border-radius: 999px;
-    padding: 2px 6px;
-    background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, #f8fafc);
+  .task-line-meta {
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ws-muted, #71809b);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
   }
 
   .task-edit-grid {
@@ -430,15 +420,22 @@
   .task-edit-grid input,
   .task-edit-grid :global(.time-text-24),
   .task-edit-grid select {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 9px;
-    background: var(--ws-card-bg, #fff);
-    color: var(--ws-text, #334155);
-    font-size: clamp(12px, 0.72vw, 14px);
-    padding: 6px 8px;
+    border: 1px solid var(--ws-input-border, #dfe6f0);
+    border-radius: 10px;
+    background: var(--ws-input-bg, #ffffff);
+    color: var(--ws-input-text, #101828);
+    font-size: 13px;
+    padding: 6px 10px;
     height: var(--task-edit-control-height);
     outline: none;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .task-edit-grid input:focus,
+  .task-edit-grid :global(.time-text-24:focus-within),
+  .task-edit-grid select:focus-visible {
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 45%, var(--ws-input-border, #dfe6f0));
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .field-duration-hint {
@@ -473,19 +470,21 @@
   }
 
   .day-chip {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
+    border: none;
     border-radius: 999px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text, #334155);
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 8%, transparent);
+    color: var(--ws-text, #3a4557);
     font-size: 11px;
-    padding: 4px 8px;
+    font-weight: 600;
+    padding: 5px 10px;
     cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease;
   }
 
   .day-chip.active {
-    border-color: var(--ws-border-active, #94a3b8);
-    background: var(--ws-btn-active, #e8f0ff);
-    color: var(--ws-text-strong, #0f172a);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 14%, transparent);
+    color: var(--ws-accent, #2563eb);
+    font-weight: 700;
   }
 
   .task-actions {
@@ -501,41 +500,92 @@
   }
 
   .btn {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 9px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text, #334155);
-    height: clamp(30px, 2.1vw, 36px);
-    padding: 0 10px;
-    font-size: clamp(12px, 0.72vw, 14px);
+    border: 1px solid var(--ws-border, #e3e9f2);
+    border-radius: var(--ws-radius-sm, 8px);
+    background: transparent;
+    color: var(--ws-text, #3a4557);
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12.5px;
+    font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
+    transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease;
+  }
+
+  .btn:hover {
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 8%, transparent);
+  }
+
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .btn.tiny {
     height: 28px;
-    font-size: 11px;
+    font-size: 12px;
     padding: 0 10px;
   }
 
-  .btn.primary {
-    border-color: var(--ws-border-active, #2f4368);
-    background: linear-gradient(180deg, color-mix(in srgb, var(--ws-accent, #1d4ed8) 26%, #334155) 0%, #273a57 100%);
-    color: #f8fbff;
+  .btn.start {
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 32%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 9%, transparent);
+    color: var(--ws-accent, #2563eb);
     font-weight: 700;
+  }
+
+  .btn.start:hover {
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 15%, transparent);
+  }
+
+  .btn.quiet {
+    border-color: transparent;
+    color: var(--ws-muted, #71809b);
+    opacity: 0;
+  }
+
+  .task-item:hover .btn.quiet,
+  .task-item:focus-within .btn.quiet {
+    opacity: 1;
+  }
+
+  .btn.quiet:hover {
+    color: var(--ws-text-strong, #101828);
+  }
+
+  .btn.quiet-danger:hover {
+    color: #dc2626;
+    background: color-mix(in srgb, #dc2626 9%, transparent);
+  }
+
+  .btn.primary {
+    border: none;
+    background: var(--ws-accent, #2563eb);
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .btn.primary:hover {
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 88%, #0f172a);
+  }
+
+  :global(.workspace.theme-dark) .btn.primary {
+    background: color-mix(in srgb, var(--ws-accent, #7aa2ff) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #7aa2ff) 42%, transparent);
+    color: var(--ws-text-strong, #eef2f9);
   }
 
   .btn.started {
-    border-color: color-mix(in srgb, #14b8a6 34%, var(--ws-border-soft, #d6e0ee));
-    background: color-mix(in srgb, #ccfbf1 82%, #ffffff);
-    color: #0f766e;
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 40%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 15%, transparent);
+    color: var(--ws-accent, #2563eb);
     font-weight: 700;
-    cursor: default;
   }
 
   .btn.danger {
-    border-color: color-mix(in srgb, #ef4444 24%, var(--ws-border-soft, #d6e0ee));
-    color: color-mix(in srgb, #dc2626 84%, var(--ws-text, #334155));
+    border-color: color-mix(in srgb, #dc2626 24%, var(--ws-border, #e3e9f2));
+    color: #dc2626;
   }
 
   .btn.ghost {

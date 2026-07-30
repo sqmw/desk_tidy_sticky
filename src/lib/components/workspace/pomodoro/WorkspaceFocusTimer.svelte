@@ -14,11 +14,54 @@
     breakPanel = undefined,
   } = $props();
 
+  const RING_RADIUS = 24;
+  const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+  const safeProgress = $derived(Math.max(0, Math.min(100, Number(phaseProgress || 0))));
+  const ringOffset = $derived(RING_CIRCUMFERENCE * (1 - safeProgress / 100));
+  // Below ~4% the arc is shorter than its rounded caps and reads as a lone dot at 12 o'clock.
+  const showRingFill = $derived(safeProgress >= 4);
 </script>
 
 <div class="timer-card" class:break-mode={showBreakPanel} class:focus-mode={!showBreakPanel}>
-  <div class="timer-hero">
-    <div class="timer-head">
+  <div class="timer-row">
+    {#if showBreakPanel}
+      <div class="break-countdowns">
+        <span class="break-countdown-item">
+          {strings.pomodoroMiniBreakIn || "Mini break in"}:
+          <strong>{breakMiniCountdownText}</strong>
+        </span>
+        <span class="break-countdown-item">
+          {strings.pomodoroLongBreakIn || "Long break in"}:
+          <strong>{breakLongCountdownText}</strong>
+        </span>
+      </div>
+    {:else}
+      <div class="timer-ring" aria-hidden="true">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <circle class="ring-track" cx="28" cy="28" r={RING_RADIUS}></circle>
+          {#if showRingFill}
+            <circle
+              class="ring-fill"
+              cx="28"
+              cy="28"
+              r={RING_RADIUS}
+              style={`stroke-dasharray: ${RING_CIRCUMFERENCE}; stroke-dashoffset: ${ringOffset};`}
+            ></circle>
+          {/if}
+        </svg>
+      </div>
+      <div class="timer-info">
+        <strong class="timer">{timerText}</strong>
+        {#if taskText}
+          <div class="timer-task" title={taskText}>
+            <span class="timer-task-label">{strings.pomodoroTask || "Task"}</span>
+            <span class="timer-task-value">{taskText}</span>
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    <div class="timer-side">
       <div class="focus-tabs" role="tablist" aria-label={strings.pomodoro}>
         <button
           type="button"
@@ -28,7 +71,7 @@
           aria-selected={!showBreakPanel}
           onclick={() => onToggleBreakPanel(false)}
         >
-          🍅 {strings.pomodoro}
+          {strings.pomodoro}
         </button>
         <button
           type="button"
@@ -41,25 +84,24 @@
           {strings.pomodoroBreakActionPanel || "Break"}
         </button>
       </div>
-      {#if showBreakPanel}
-        <div class="break-countdowns">
-          <span class="break-countdown-item">
-            {strings.pomodoroMiniBreakIn || "Mini break in"}:
-            <strong>{breakMiniCountdownText}</strong>
-          </span>
-          <span class="break-countdown-item">
-            {strings.pomodoroLongBreakIn || "Long break in"}:
-            <strong>{breakLongCountdownText}</strong>
-          </span>
+      {#if !showBreakPanel}
+        <div class="today-chip" aria-label={strings.pomodoroTodayPomodoros || "Today pomodoros"}>
+          <svg class="tomato-icon" aria-hidden="true" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="14" r="6.6"></circle>
+            <path d="M12 7.4V4.6"></path>
+            <path d="M12 7.4c-1.3-1.1-2.9-1.4-4.3-.9M12 7.4c1.3-1.1 2.9-1.4 4.3-.9"></path>
+          </svg>
+          <span>{todayPomodoroScoreText}</span>
+          <HelpTip
+            text={strings.pomodoroTodayPomodorosHint ||
+              "Counts completed pomodoros today (all tasks). Per-task counts are shown in the task list."}
+            ariaLabel="Pomodoro total help"
+          />
         </div>
-      {:else}
-        <strong class="timer">{timerText}</strong>
       {/if}
     </div>
-    <div class="phase-progress">
-      <div class="phase-progress-fill" style={`width:${Math.max(0, Math.min(100, phaseProgress))}%`}></div>
-    </div>
   </div>
+
   {#if showBreakPanel}
     <div class="break-tab-panel">
       {#if typeof breakPanel === "function"}
@@ -68,227 +110,203 @@
         <div class="break-tab-empty">{strings.pomodoroBreakActionPanel || "Break controls"}</div>
       {/if}
     </div>
-  {:else}
-    <div class="timer-meta">
-      <div class="timer-task-card">
-        <span class="timer-meta-label">{strings.pomodoroTask || "Task"}</span>
-        <strong class="timer-task-value">{taskText}</strong>
-      </div>
-      <div class="timer-stat-chip" aria-label={strings.pomodoroTodayPomodoros || "Today pomodoros"}>
-        <span class="timer-meta-label">
-          {strings.pomodoroTodayPomodoros || "Today total pomodoros"}
-          <HelpTip
-            text={strings.pomodoroTodayPomodorosHint ||
-              "Counts completed pomodoros today (all tasks). Per-task counts are shown in the task list."}
-            ariaLabel="Pomodoro total help"
-          />
-        </span>
-        <strong>🍅 {todayPomodoroScoreText}</strong>
-      </div>
-    </div>
   {/if}
 </div>
 
 <style>
   .timer-card {
-    border: 1px solid var(--ws-border, #dbe5f2);
-    border-radius: 14px;
-    background:
-      radial-gradient(circle at 90% 6%, color-mix(in srgb, var(--ws-accent, #1d4ed8) 12%, transparent), transparent 48%),
-      color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 92%, transparent);
-    backdrop-filter: blur(8px);
-    padding: 12px;
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent),
-      0 8px 22px color-mix(in srgb, #0f172a 12%, transparent);
-  }
-
-  .timer-card.focus-mode {
-    min-height: 0;
-    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 88%, transparent);
+    border-radius: var(--ws-radius-lg, 16px);
+    background: var(--ws-card-bg, #ffffff);
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
+    padding: 12px 16px;
   }
 
   .timer-card.break-mode {
     min-height: clamp(300px, 38vh, 520px);
   }
 
-  .timer-hero {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 12px;
-    padding: 10px 10px 9px;
-    background: color-mix(in srgb, var(--ws-card-bg, #fff) 86%, transparent);
-  }
-
-  .timer-card.focus-mode .timer-hero {
-    padding: 8px 8px 7px;
-  }
-
-  .timer-head {
+  .timer-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-  }
-
-  .focus-tabs {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 999px;
-    padding: 2px;
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    background: var(--ws-btn-bg, #fff);
-  }
-
-  .focus-tab {
-    border: none;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--ws-text, #334155);
-    font-size: 11px;
-    font-weight: 700;
-    height: 24px;
-    padding: 0 9px;
-    cursor: pointer;
-  }
-
-  .focus-tab.active {
-    border: 1px solid var(--ws-border-active, #2f4368);
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 14%, var(--ws-btn-bg, #fff));
-    color: var(--ws-text-strong, #0f172a);
-  }
-
-  .break-tab-panel {
-    margin-top: 8px;
-  }
-
-  .break-tab-empty {
-    border: 1px dashed var(--ws-border-soft, #d6e0ee);
-    border-radius: 10px;
-    padding: 10px;
-    color: var(--ws-muted, #64748b);
-    font-size: 12px;
-  }
-
-  .timer {
-    margin-left: auto;
-    font-family: "Segoe UI", "Consolas", monospace;
-    font-size: clamp(20px, 1.3vw, 30px);
-    color: var(--ws-text-strong, #0f172a);
-  }
-
-  .break-countdowns {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    flex-wrap: wrap;
-  }
-
-  .break-countdown-item {
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
-    white-space: nowrap;
-  }
-
-  .break-countdown-item strong {
-    margin-left: 4px;
-    font-family: "Segoe UI", "Consolas", monospace;
-    font-size: 12px;
-    color: var(--ws-text-strong, #0f172a);
-  }
-
-  .timer-meta {
-    margin-top: 8px;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
-    align-items: stretch;
-  }
-
-  .timer-card.focus-mode .timer-meta {
-    margin-top: 6px;
-    gap: 6px;
-  }
-
-  .timer-task-card,
-  .timer-stat-chip {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent);
-    padding: 6px 8px;
-    display: grid;
-    gap: 4px;
-  }
-
-  .timer-card.focus-mode .timer-task-card,
-  .timer-card.focus-mode .timer-stat-chip {
-    padding: 5px 8px;
-  }
-
-  .timer-task-card {
+    gap: 14px;
     min-width: 0;
   }
 
-  .timer-stat-chip {
-    min-width: 128px;
-    align-content: center;
+  .timer-ring {
+    position: relative;
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    display: grid;
+    place-items: center;
   }
 
-  .timer-meta-label {
+  .timer-ring svg {
+    position: absolute;
+    inset: 0;
+    transform: rotate(-90deg);
+  }
+
+  .ring-track,
+  .ring-fill {
+    fill: none;
+    stroke-width: 4;
+    stroke-linecap: round;
+  }
+
+  .ring-track {
+    stroke: color-mix(in srgb, var(--ws-muted, #71809b) 16%, transparent);
+  }
+
+  .ring-fill {
+    stroke: var(--ws-accent, #2563eb);
+    transition: stroke-dashoffset 0.25s ease;
+  }
+
+  .timer-info {
+    min-width: 0;
+    display: grid;
+    gap: 1px;
+  }
+
+  .timer {
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    color: var(--ws-text-strong, #101828);
+  }
+
+  .timer-task {
+    min-width: 0;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
-    color: var(--ws-muted, #64748b);
+    font-size: 12px;
+  }
+
+  .timer-task-label {
+    flex: 0 0 auto;
+    color: var(--ws-muted, #71809b);
   }
 
   .timer-task-value {
     min-width: 0;
-    font-size: 13px;
-    color: var(--ws-text-strong, #0f172a);
+    color: var(--ws-text, #3a4557);
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .timer-stat-chip strong {
+  .timer-side {
+    margin-left: auto;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .focus-tabs {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 12%, transparent);
+  }
+
+  .focus-tab {
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ws-text, #3a4557);
     font-size: 12px;
-    color: var(--ws-text-strong, #0f172a);
+    font-weight: 600;
+    height: 26px;
+    padding: 0 12px;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
   }
 
-  .phase-progress {
-    margin-top: 8px;
-    height: 7px;
+  .focus-tab:hover {
+    color: var(--ws-text-strong, #101828);
+  }
+
+  .focus-tab:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
+  }
+
+  .focus-tab.active {
+    background: var(--ws-card-bg, #ffffff);
+    color: var(--ws-text-strong, #101828);
+    font-weight: 700;
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
+  }
+
+  .today-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 24px;
+    padding: 0 9px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--ws-border-soft, #d6e0ee) 65%, transparent);
-    overflow: hidden;
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 10%, transparent);
+    color: var(--ws-accent, #2563eb);
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
 
-  .timer-card.focus-mode .phase-progress {
-    margin-top: 6px;
+  .tomato-icon {
+    flex: 0 0 auto;
   }
 
-  .phase-progress-fill {
-    height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, color-mix(in srgb, var(--ws-accent, #1d4ed8) 75%, #1e3a8a), #38bdf8);
-    transition: width 0.25s ease;
+  .break-tab-panel {
+    margin-top: 10px;
+  }
+
+  .break-tab-empty {
+    border: 1px dashed var(--ws-border-soft, #e7ecf5);
+    border-radius: 10px;
+    padding: 10px;
+    color: var(--ws-muted, #71809b);
+    font-size: 12px;
+  }
+
+  .break-countdowns {
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .break-countdown-item {
+    font-size: 12px;
+    color: var(--ws-muted, #71809b);
+    white-space: nowrap;
+  }
+
+  .break-countdown-item strong {
+    margin-left: 4px;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    color: var(--ws-text-strong, #101828);
   }
 
   @media (max-width: 980px) {
-    .timer-head {
+    .timer-row {
       flex-wrap: wrap;
+      gap: 10px;
     }
 
-    .break-countdowns {
-      width: 100%;
+    .timer-side {
       margin-left: 0;
-      justify-content: flex-start;
-    }
-
-    .timer-meta {
-      grid-template-columns: 1fr;
+      width: 100%;
+      justify-content: space-between;
     }
   }
 </style>

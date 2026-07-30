@@ -79,7 +79,14 @@
             </div>
             <div class="deadline-progress-row">
               <span>{strings.pomodoroTaskElapsed || "Elapsed"} {formatMinutesSummary(item.effectiveSeconds)} / {formatMinutesSummary(item.targetSeconds)}</span>
-              <span>🍅 {item.donePomodoros}</span>
+              <span class="deadline-pomos">
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="14" r="6.6"></circle>
+                  <path d="M12 7.4V4.6"></path>
+                  <path d="M12 7.4c-1.3-1.1-2.9-1.4-4.3-.9M12 7.4c1.3-1.1 2.9-1.4 4.3-.9"></path>
+                </svg>
+                x{item.donePomodoros}
+              </span>
             </div>
             <div class="deadline-actions">
               <button
@@ -167,37 +174,62 @@
   }
 
   .deadline-item {
-    border: 1px solid transparent;
-    border-radius: 0;
-    padding: 6px 0 6px 5px;
+    position: relative;
+    border: none;
+    border-radius: var(--ws-radius-sm, 8px);
+    padding: 7px 8px 7px 10px;
     background: transparent;
     min-width: 0;
     width: 100%;
     text-align: left;
     cursor: pointer;
-    transition:
-      border-color 0.16s ease,
-      background 0.16s ease,
-      transform 0.16s ease;
+    transition: background 0.16s ease;
   }
 
   .deadline-item:hover {
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 7%, transparent);
+  }
+
+  .deadline-item:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .deadline-item.overdue {
-    border-color: transparent;
+    background: color-mix(in srgb, #ef4444 4%, transparent);
+  }
+
+  .deadline-item.overdue::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    border-radius: 999px;
+    background: color-mix(in srgb, #ef4444 70%, transparent);
+  }
+
+  .deadline-item.overdue:hover {
     background: color-mix(in srgb, #ef4444 8%, transparent);
-    box-shadow: none;
   }
 
   .deadline-title {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
-    color: var(--ws-text, #334155);
+    color: var(--ws-text-strong, #101828);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .deadline-pomos {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--ws-accent, #2563eb);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
 
   .deadline-head {
@@ -208,23 +240,23 @@
   }
 
   .deadline-state {
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d9e2ef) 34%, transparent);
+    border: none;
     border-radius: 999px;
-    padding: 1px 6px;
-    font-size: 9px;
+    padding: 2px 7px;
+    font-size: 10px;
     font-weight: 700;
-    color: var(--ws-muted, #64748b);
-    background: transparent;
+    color: var(--ws-muted, #71809b);
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 10%, transparent);
     flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     gap: 5px;
+    line-height: 1.4;
   }
 
   .deadline-state.overdue {
-    color: #b91c1c;
-    border-color: color-mix(in srgb, #ef4444 42%, var(--ws-border-soft, #d9e2ef));
-    background: color-mix(in srgb, #ef4444 6%, transparent);
+    color: #dc2626;
+    background: color-mix(in srgb, #ef4444 10%, transparent);
   }
 
   .deadline-alert-dot {
@@ -255,27 +287,32 @@
   }
 
   .deadline-actions {
-    margin-top: 5px;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 6px;
+    display: flex;
     gap: 4px;
   }
 
   .deadline-action-btn {
     flex: 1;
-    border: 1px solid transparent;
-    border-radius: 0;
-    background: transparent;
-    color: var(--ws-text, #334155);
+    border: none;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 7%, transparent);
+    color: var(--ws-text, #3a4557);
     font-size: 11px;
-    font-weight: 700;
-    min-height: 22px;
+    font-weight: 600;
+    min-height: 24px;
     cursor: pointer;
-    transition: all 0.14s ease;
+    transition: background 0.14s ease, color 0.14s ease;
   }
 
   .deadline-action-btn:hover {
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 6%, transparent);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 12%, transparent);
+    color: var(--ws-accent, #2563eb);
+  }
+
+  .deadline-action-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .deadline-block.compact .deadline-item {

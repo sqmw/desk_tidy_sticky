@@ -37,6 +37,8 @@
 | 搜索栏 | `toolbar/WorkspaceQueryBar.svelte` | 输入框内嵌放大镜图标,# 标签筛选钮 hover/active 统一 accent 浅染 |
 | 笔记卡片 | `panel/workbench/WorkbenchNoteGrid.svelte` | 卡片改 14px 圆角纯白面 + shadow-sm,hover 上浮 + shadow-md;日期/优先级/标签移到底部 meta 行(日期右对齐);详情按钮悬浮右上;操作条毛玻璃浮层,按钮 ghost 化;新增列表空态(复用 `emptyActiveTitle` 等既有文案键);正文 line-clamp 4→5 |
 | 标签栏 | `WorkspaceTagFilterRail.svelte` | 行样式与侧栏对齐(圆角、accent 激活、裸数字计数),补 `:focus-visible` |
+| 回顾页 | `review/WorkspaceReviewHub.svelte` + `WorkspaceReviewFilters.svelte` + `WorkspaceReviewLogList.svelte` + `WorkspaceReviewCalendar.svelte` | 第二轮(用户反馈"太丑"后重做):KPI 瓦片改纵排 label/value 平面卡;三个 tab 改分段控件;筛选区去掉白渐变大卡(暗色白条根因,audit H2),改为一行「放大镜搜索 + 两个下拉 + 清除」;已办列表改时间线形态(左轨道节点连线、来源徽章、时间右对齐、悬停显操作),删除「最近完成」徽章行冗余;补记已办改实心 accent 主按钮(dark 浅染变体);草稿卡/日历侧栏/日历格全部去 `#fff` 混色与 bevel,热力格与今日/选中态改为「accent 混 `--ws-card-bg`」,亮暗主题下色阶均成立。三修(用户反馈头部空卡难看):四张 KPI 卡合并为单张统计条(图标 + 数值/标签 + 细分隔线,≤1100px 变 2×2 保持分隔),分段 tab 与筛选合并为一行控制行(窄宽度下筛选整体换行占满第二行,`ReviewFilters` 内部搜索独占行断点收窄到 ≤640px),头部高度约减半 |
+| 专注页 | `WorkspaceFocusHubView.svelte` + `pomodoro/WorkspaceFocusTimer.svelte` + `WorkspaceFocusPlanner.svelte` + `WorkspaceFocusPlannerTaskItem.svelte` + `sidebar/WorkspaceSidebarDeadlines.svelte` | 计时器卡重构:去盒中盒与径向渐变,分段 tab(去 🍅 emoji),25:00 大字居中成为主角 + 任务名 + accent 细进度条,今日番茄数改右上 accent chip(SVG 番茄图标);规划器:表单控件统一(36px/圆角10/input token/焦点环),添加任务改实心 accent(替换深藏青渐变,audit M1),提醒行去盒改浅灰内嵌行,周几 chip 改 accent 浅染;任务行改两行制(标题+时间+番茄chip / 统计 meta 行),编辑/删除悬停显现,开始为 accent 浅染钮,进行中态由 teal 双层渐变改为 accent 浅染 + 左侧进度填充(语义色收敛);hub 外壳卡片扁平化,`--ws-text-2` 死 token 改 `--ws-muted`(audit H5),提醒/完成打卡通知卡扁平化,底部回顾摘要压成单行(文案+三统计+打开回顾 tinted 按钮,去 emoji);侧栏今日任务:超时从整卡红底改为左红条+红徽章+4% 红染,操作钮浅灰 pill,🍅 换 SVG。休息控制 tab 内部(`WorkspaceBreakControlBar`)与 `WorkspaceFocusStats` 未动,留下一轮。修正(用户反馈):`todayPomodoroScoreText` 上游(`WorkspaceFocusHub.svelte:1339`)已含 `x` 前缀,计时器 chip 里重复加 `x` 导致显示 `xx0`,已改为原样渲染。第二次修正(用户仍不满意居中堆叠):计时卡改为「正在专注」横条 —— 左侧 56px SVG 环形进度(`stroke-dashoffset` 驱动,中心番茄图标)+ 时间/任务名居左,分段 tab 与今日计数收右侧,休息控制态倒计时居左、面板在下;线性进度条移除,卡高约 90px,消除宽卡居中堆叠的空旷感。第三次修正(用户反馈环内有莫名小圆):删除环中心 18px 番茄图标(该尺寸下读不出形状,只剩歧义小圆);进度 <4% 时不渲染弧 —— 圆头线帽在弧长小于帽径时会退化成 12 点方向的孤立圆点,阈值取"弧长明显大于线帽"的下限 |
 | 详情抽屉 | `WorkspaceNoteInspector.svelte` + `WorkspaceNotesPane.svelte` | 用户确认后由分栏改为 side-peek 浮层:inspector 改为挂在 `workbench-shell` 上的绝对定位抽屉卡片(`clamp(340px, --inspector-width, 100%-56px)`、圆角 16、`shadow-lg`、毛玻璃底),打开/切换不再重排网格;`fly` 出入场动效(`prefers-reduced-motion` 降为 0ms);头部改为「日期 meta + × 图标关闭」,清理名不副实的 `.btn.danger` 与暗色橙红 hover(audit M10);拖宽把手移到抽屉左缘,复用原 `calcInspectorLayout` 状态机(含左缘 ≤56px 拖至全宽的 collapsed 态,对应 `.inspector.expanded`);shell 删除 inspector 相关网格列与 splitter,仅保留标签栏列 |
 
 ## 明确不动的部分
@@ -55,6 +57,6 @@
 ## 后续(回写主 TODO)
 
 1. Phase 1 全量 token 迁移(mini 面板与贴纸窗口共享注入)仍未开始,本轮结构 token 只挂在 workstation 根上。
-2. 四象限板 `WorkbenchQuadrantBoard` 与 Focus/Review hub 未按新卡片语言收敛。
+2. 四象限板 `WorkbenchQuadrantBoard` 与 Focus hub 未按新卡片语言收敛(Review hub 已在第二轮完成;其统计 tab 复用的 `WorkspaceFocusStats` 归 Focus hub 一并处理)。
 3. 布局器 sidebar 宽度棘轮效应(窗口变窄再变宽后侧栏不恢复)可在 Phase 4 处理。
 4. 抽屉查看态不显示标签/优先级(`NoteTagBar` 仅在编辑/控制态渲染,既有行为):候选改进是抽屉头部下方常显只读标签行。

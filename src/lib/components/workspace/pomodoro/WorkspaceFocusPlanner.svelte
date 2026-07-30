@@ -153,19 +153,14 @@
 
 <style>
   .planner-card {
-    border: 1px solid var(--ws-border, #dbe5f2);
-    border-radius: 14px;
-    background:
-      radial-gradient(circle at 100% 0, color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent), transparent 35%),
-      color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.78)) 92%, transparent);
-    backdrop-filter: blur(8px);
-    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 88%, transparent);
+    border-radius: var(--ws-radius-lg, 16px);
+    background: var(--ws-card-bg, #ffffff);
+    padding: 14px 16px;
     min-height: clamp(330px, 42vh, 560px);
     display: flex;
     flex-direction: column;
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent),
-      0 8px 22px color-mix(in srgb, #0f172a 10%, transparent);
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
   }
 
   .planner-head {
@@ -173,18 +168,21 @@
     justify-content: space-between;
     align-items: baseline;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
 
   .planner-head h3 {
     margin: 0;
-    font-size: clamp(13px, 0.82vw, 17px);
-    color: var(--ws-text-strong, #0f172a);
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ws-text-strong, #101828);
   }
 
   .planner-head span {
-    font-size: clamp(11px, 0.65vw, 13px);
-    color: var(--ws-muted, #64748b);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ws-muted, #71809b);
   }
 
   .planner-head-side {
@@ -212,29 +210,48 @@
   .planner-form :global(.time-text-24),
   .planner-form select,
   .planner-reminder-lead input {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 9px;
-    background: var(--ws-card-bg, #fff);
-    color: var(--ws-text, #334155);
-    font-size: clamp(12px, 0.72vw, 14px);
-    padding: 6px 8px;
-    height: clamp(34px, 2.3vw, 40px);
+    border: 1px solid var(--ws-input-border, #dfe6f0);
+    border-radius: 10px;
+    background: var(--ws-input-bg, #ffffff);
+    color: var(--ws-input-text, #101828);
+    font-size: 13px;
+    padding: 6px 10px;
+    height: 36px;
     outline: none;
-    box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .planner-form input:focus,
+  .planner-form :global(.time-text-24:focus-within),
+  .planner-form select:focus-visible,
+  .planner-reminder-lead input:focus {
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 45%, var(--ws-input-border, #dfe6f0));
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .btn {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
-    border-radius: 9px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text, #334155);
-    height: clamp(32px, 2.3vw, 40px);
-    padding: 0 10px;
-    font-size: clamp(12px, 0.72vw, 14px);
+    border: 1px solid var(--ws-border, #e3e9f2);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--ws-text, #3a4557);
+    height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+  }
+
+  .btn:hover {
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 8%, transparent);
+  }
+
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .field-add {
@@ -252,12 +269,12 @@
   .planner-reminder-toggle,
   .planner-reminder-lead,
   .planner-reminder-test {
-    min-height: clamp(34px, 2.3vw, 40px);
-    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #d6e0ee) 88%, transparent);
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--ws-card-bg, #fff) 92%, transparent);
-    color: var(--ws-text, #334155);
-    font-size: clamp(12px, 0.72vw, 14px);
+    min-height: 32px;
+    border: none;
+    border-radius: var(--ws-radius-sm, 8px);
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 6%, transparent);
+    color: var(--ws-text, #3a4557);
+    font-size: 12.5px;
     font-weight: 600;
     padding: 0 10px;
     display: flex;
@@ -267,7 +284,7 @@
   }
 
   .planner-reminder-test {
-    color: var(--ws-muted, #64748b);
+    color: var(--ws-muted, #71809b);
   }
 
   .planner-reminder-test .btn {
@@ -296,11 +313,10 @@
   }
 
   .field-duration-hint {
-    height: clamp(34px, 2.3vw, 40px);
-    border: 1px dashed var(--ws-border-soft, #d6e0ee);
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--ws-card-bg, #fff) 88%, transparent);
-    color: var(--ws-muted, #64748b);
+    height: 36px;
+    border: 1px dashed var(--ws-border-soft, #e7ecf5);
+    border-radius: 10px;
+    color: var(--ws-muted, #71809b);
     font-size: 12px;
     display: flex;
     align-items: center;
@@ -310,10 +326,25 @@
   }
 
   .btn.primary {
-    border-color: var(--ws-border-active, #2f4368);
-    background: linear-gradient(180deg, color-mix(in srgb, var(--ws-accent, #1d4ed8) 26%, #334155) 0%, #273a57 100%);
-    color: #f8fbff;
+    border: none;
+    background: var(--ws-accent, #2563eb);
+    color: #fff;
     font-weight: 700;
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+  }
+
+  .btn.primary:hover {
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 88%, #0f172a);
+  }
+
+  :global(.workspace.theme-dark) .btn.primary {
+    background: color-mix(in srgb, var(--ws-accent, #7aa2ff) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #7aa2ff) 42%, transparent);
+    color: var(--ws-text-strong, #eef2f9);
+  }
+
+  :global(.workspace.theme-dark) .btn.primary:hover {
+    background: color-mix(in srgb, var(--ws-accent, #7aa2ff) 32%, transparent);
   }
 
   .weekday-picker {
@@ -324,19 +355,26 @@
   }
 
   .day-chip {
-    border: 1px solid var(--ws-border-soft, #d6e0ee);
+    border: none;
     border-radius: 999px;
-    background: var(--ws-btn-bg, #fff);
-    color: var(--ws-text, #334155);
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 8%, transparent);
+    color: var(--ws-text, #3a4557);
     font-size: 11px;
-    padding: 4px 8px;
+    font-weight: 600;
+    padding: 5px 10px;
     cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease;
+  }
+
+  .day-chip:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .day-chip.active {
-    border-color: var(--ws-border-active, #94a3b8);
-    background: var(--ws-btn-active, #e8f0ff);
-    color: var(--ws-text-strong, #0f172a);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 14%, transparent);
+    color: var(--ws-accent, #2563eb);
+    font-weight: 700;
   }
 
   .task-list {

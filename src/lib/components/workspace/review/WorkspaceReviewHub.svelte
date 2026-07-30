@@ -256,53 +256,87 @@
 
 <section class="review-hub" data-no-drag="true">
   <header class="review-summary">
-    <div class="summary-card">
-      <span>{strings.workspaceReviewSummaryTodayFocus}</span>
-      <strong>{todayFocusMinutes}m</strong>
+    <div class="summary-item">
+      <span class="summary-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="8.4"></circle>
+          <path d="M12 7.6V12l3 1.8"></path>
+        </svg>
+      </span>
+      <div class="summary-copy">
+        <strong>{todayFocusMinutes}m</strong>
+        <span>{strings.workspaceReviewSummaryTodayFocus}</span>
+      </div>
     </div>
-    <div class="summary-card">
-      <span>{strings.workspaceReviewSummaryTodayDone}</span>
-      <strong>{todayDoneCount}</strong>
+    <div class="summary-item">
+      <span class="summary-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="8.4"></circle>
+          <path d="m8.6 12.2 2.3 2.3 4.5-4.7"></path>
+        </svg>
+      </span>
+      <div class="summary-copy">
+        <strong>{todayDoneCount}</strong>
+        <span>{strings.workspaceReviewSummaryTodayDone}</span>
+      </div>
     </div>
-    <div class="summary-card">
-      <span>{strings.workspaceReviewSummaryWeekDone}</span>
-      <strong>{weekDoneCount}</strong>
+    <div class="summary-item">
+      <span class="summary-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="5.5" width="16" height="14.5" rx="2.4"></rect>
+          <path d="M4 10h16M8.6 3.6v3.4M15.4 3.6v3.4"></path>
+          <path d="m9.6 14.6 1.8 1.8 3.4-3.5"></path>
+        </svg>
+      </span>
+      <div class="summary-copy">
+        <strong>{weekDoneCount}</strong>
+        <span>{strings.workspaceReviewSummaryWeekDone}</span>
+      </div>
     </div>
-    <div class="summary-card">
-      <span>{strings.workspaceReviewSummaryStreak}</span>
-      <strong>{recordStreakDays}d</strong>
+    <div class="summary-item">
+      <span class="summary-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3.6c.8 2.6-.9 4-2.1 5.4-1.3 1.5-2.5 3-2.5 5.3A6.4 6.4 0 0 0 12 20.6a6.4 6.4 0 0 0 6.6-6.3c0-3.4-2.3-5.1-3.6-7-.6 1-.9 2.2-.6 3.4-1.5-1.5-2.6-4.2-2.4-7.1z"></path>
+        </svg>
+      </span>
+      <div class="summary-copy">
+        <strong>{recordStreakDays}d</strong>
+        <span>{strings.workspaceReviewSummaryStreak}</span>
+      </div>
     </div>
   </header>
 
-  <div class="review-tabs" role="tablist" aria-label={strings.workspaceTabReview}>
-    {#each reviewTabs as tab (tab.key)}
-      <button
-        type="button"
-        role="tab"
-        class="review-tab-btn"
-        class:active={selectedTab === tab.key}
-        aria-selected={selectedTab === tab.key}
-        onclick={() => (selectedTab = tab.key)}
-      >
-        {tab.label}
-      </button>
-    {/each}
-  </div>
+  <div class="review-controls">
+    <div class="review-tabs" role="tablist" aria-label={strings.workspaceTabReview}>
+      {#each reviewTabs as tab (tab.key)}
+        <button
+          type="button"
+          role="tab"
+          class="review-tab-btn"
+          class:active={selectedTab === tab.key}
+          aria-selected={selectedTab === tab.key}
+          onclick={() => (selectedTab = tab.key)}
+        >
+          {tab.label}
+        </button>
+      {/each}
+    </div>
 
-  {#if selectedTab !== REVIEW_TAB_STATS}
-    <WorkspaceReviewFilters
-      {strings}
-      {rangeOptions}
-      selectedRange={selectedRangeKey}
-      {selectedTag}
-      tagOptions={reviewTagOptions}
-      {searchText}
-      onSelectRange={(/** @type {string} */ value) => (selectedRangeKey = value)}
-      onSelectTag={(/** @type {string} */ value) => (selectedTag = value)}
-      onChangeSearch={(/** @type {string} */ value) => (searchText = value)}
-      onClear={clearFilters}
-    />
-  {/if}
+    {#if selectedTab !== REVIEW_TAB_STATS}
+      <WorkspaceReviewFilters
+        {strings}
+        {rangeOptions}
+        selectedRange={selectedRangeKey}
+        {selectedTag}
+        tagOptions={reviewTagOptions}
+        {searchText}
+        onSelectRange={(/** @type {string} */ value) => (selectedRangeKey = value)}
+        onSelectTag={(/** @type {string} */ value) => (selectedTag = value)}
+        onChangeSearch={(/** @type {string} */ value) => (searchText = value)}
+        onClear={clearFilters}
+      />
+    {/if}
+  </div>
 
   <div
     class="review-shell"
@@ -311,24 +345,15 @@
     <section class="review-main-card">
       {#if selectedTab === REVIEW_TAB_LOG}
         <div class="review-log-stage">
-          <div class="done-log-composer">
-            <div class="composer-head">
-              <div class="composer-copy">
-                <div class="section-badge-row">
-                  <div class="section-badge">{strings.workspaceReviewLogBadge}</div>
-                  <span class="results-summary">{resultsSummary}</span>
-                </div>
-                <div class="section-title-row">
-                  <h3>{strings.workspaceReviewLogTitle}</h3>
-                  <button type="button" class="composer-btn inline" onclick={() => startDoneLogDraft()}>
-                    {strings.workspaceReviewCreateAction}
-                  </button>
-                  {#if hasActiveFilters}
-                    <span class="active-filter-chip">{strings.workspaceReviewFiltersActive}</span>
-                  {/if}
-                </div>
-              </div>
-            </div>
+          <div class="log-head">
+            <h3>{strings.workspaceReviewLogTitle}</h3>
+            <span class="results-summary">{resultsSummary}</span>
+            {#if hasActiveFilters}
+              <span class="active-filter-chip">{strings.workspaceReviewFiltersActive}</span>
+            {/if}
+            <button type="button" class="composer-btn" onclick={() => startDoneLogDraft()}>
+              {strings.workspaceReviewCreateAction}
+            </button>
           </div>
           {#if isCreatingDoneLog}
             <div class="done-log-draft-card">
@@ -451,99 +476,138 @@
   .review-hub {
     min-height: 0;
     display: grid;
-    gap: 10px;
+    gap: 12px;
     align-content: start;
   }
 
-  .review-summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .summary-card,
+  .review-summary,
   .review-main-card,
   .review-inspector-card {
-    border: 1px solid var(--ws-border, #dbe5f2);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 88%, transparent);
     border-radius: 14px;
-    background:
-      radial-gradient(circle at 100% 0, color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, transparent), transparent 42%),
-      color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.82)) 96%, transparent);
-    backdrop-filter: blur(8px);
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent),
-      0 8px 22px color-mix(in srgb, #0f172a 8%, transparent);
+    background: var(--ws-card-bg, #ffffff);
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
   }
 
-  .summary-card {
-    flex: 1 1 180px;
-    min-height: 58px;
-    padding: 10px 14px;
+  /* One stat strip instead of four separate cards: cells divided by hairlines. */
+  .review-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .summary-item {
+    position: relative;
+    min-width: 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 14px;
+    gap: 11px;
+    padding: 13px 16px;
   }
 
-  .summary-card span {
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 1.2;
-    color: color-mix(in srgb, var(--ws-text, #334155) 82%, var(--ws-muted, #64748b));
+  .summary-item:not(:first-child)::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 22%;
+    bottom: 22%;
+    width: 1px;
+    background: color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 90%, transparent);
   }
 
-  .summary-card strong {
-    font-size: clamp(18px, 1.35vw, 24px);
-    color: var(--ws-accent-strong, #163ea8);
-    line-height: 1.1;
+  .summary-icon {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    display: inline-grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 10%, transparent);
+    color: var(--ws-accent, #2563eb);
+  }
+
+  .summary-copy {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .summary-copy strong {
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ws-text-strong, #101828);
+    line-height: 1.15;
+  }
+
+  .summary-copy span {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--ws-muted, #71809b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .review-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .review-controls :global(.review-filters) {
+    flex: 1 1 320px;
+    min-width: 0;
+  }
+
+  @media (max-width: 1100px) {
+    .review-controls :global(.review-filters) {
+      flex-basis: 100%;
+    }
   }
 
   .review-tabs {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    flex: 0 0 auto;
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 12%, transparent);
   }
 
   .review-tab-btn {
-    min-height: 38px;
-    min-width: 92px;
-    padding: 0 18px;
-    border-radius: 999px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    font-size: 13px;
-    font-weight: 700;
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #fff 76%, transparent),
-      0 1px 2px color-mix(in srgb, #0f172a 4%, transparent);
+    min-height: 30px;
+    min-width: 76px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--ws-text, #3a4557);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
     transition:
-      border-color 0.16s ease,
       background 0.16s ease,
       color 0.16s ease,
-      box-shadow 0.16s ease,
-      transform 0.16s ease;
+      box-shadow 0.16s ease;
   }
 
   .review-tab-btn:hover {
-    border-color: var(--ws-border-hover, #c6d5e8);
-    background: var(--ws-btn-hover, #f4f8ff);
-    transform: translateY(-1px);
+    color: var(--ws-text-strong, #101828);
+  }
+
+  .review-tab-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .review-tab-btn.active {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 42%, var(--ws-border-active, #94a3b8));
-    color: var(--ws-accent-strong, #163ea8);
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 16%, #ffffff) 0%,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 9%, #eef4ff) 100%
-      );
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #ffffff 88%, transparent),
-      0 0 0 1px color-mix(in srgb, var(--ws-accent, #1d4ed8) 12%, transparent),
-      0 10px 24px color-mix(in srgb, var(--ws-accent, #1d4ed8) 12%, transparent);
+    background: var(--ws-card-bg, #ffffff);
+    color: var(--ws-text-strong, #101828);
+    font-weight: 700;
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.05));
   }
 
   .review-shell {
@@ -561,7 +625,8 @@
   .review-main-card,
   .review-inspector-card {
     min-height: clamp(360px, 56vh, 720px);
-    padding: 18px;
+    padding: 16px 18px;
+    border-radius: 16px;
   }
 
   .review-main-card {
@@ -578,79 +643,97 @@
     min-height: 0;
   }
 
+  .review-log-stage {
+    align-content: start;
+  }
+
   .review-stats-head {
     display: grid;
     gap: 12px;
     align-content: start;
   }
 
-  .done-log-composer {
-    display: grid;
-    gap: 10px;
-    padding: 0 0 6px;
-  }
-
-  .composer-head {
-    display: grid;
-    gap: 10px;
-  }
-
-  .composer-copy {
-    display: grid;
-    gap: 8px;
-  }
-
-  .composer-copy h3 {
-    margin: 0;
-  }
-
-  .composer-copy h3 {
-    font-size: 18px;
-    color: var(--ws-text-strong, #0f172a);
-  }
-
-  .section-badge-row,
-  .section-title-row {
+  .log-head {
     display: flex;
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+    padding-bottom: 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 80%, transparent);
+  }
+
+  .log-head h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ws-text-strong, #101828);
   }
 
   .results-summary {
-    color: var(--ws-muted, #64748b);
+    color: var(--ws-muted, #71809b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
 
   .active-filter-chip {
-    min-height: 24px;
-    padding: 0 10px;
+    min-height: 22px;
+    padding: 0 9px;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 16%, var(--ws-border-soft, #d9e2ef));
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 8%, #fff);
-    color: var(--ws-accent, #1d4ed8);
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 10%, transparent);
+    color: var(--ws-accent, #2563eb);
     font-size: 11px;
-    font-weight: 800;
+    font-weight: 700;
     display: inline-flex;
     align-items: center;
+  }
+
+  .composer-btn {
+    margin-left: auto;
+    min-height: 32px;
+    padding: 0 14px;
+    border-radius: var(--ws-radius-sm, 8px);
+    border: none;
+    background: var(--ws-accent, #2563eb);
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: var(--ws-shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+    transition: background 0.16s ease, transform 0.12s ease;
+  }
+
+  .composer-btn:hover {
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 88%, #0f172a);
+  }
+
+  .composer-btn:active {
+    transform: scale(0.98);
+  }
+
+  .composer-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
+  }
+
+  :global(.workspace.theme-dark) .composer-btn {
+    background: color-mix(in srgb, var(--ws-accent, #7aa2ff) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #7aa2ff) 42%, transparent);
+    color: var(--ws-text-strong, #eef2f9);
+  }
+
+  :global(.workspace.theme-dark) .composer-btn:hover {
+    background: color-mix(in srgb, var(--ws-accent, #7aa2ff) 32%, transparent);
   }
 
   .done-log-draft-card {
     display: grid;
     gap: 10px;
     padding: 14px;
-    border-radius: 16px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background:
-      linear-gradient(
-        180deg,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 7%, #ffffff) 0%,
-        color-mix(in srgb, var(--ws-accent, #1d4ed8) 3%, var(--ws-panel-bg, rgba(255, 255, 255, 0.86))) 100%
-      );
-    box-shadow:
-      inset 0 1px 0 color-mix(in srgb, #ffffff 88%, transparent),
-      0 8px 20px color-mix(in srgb, var(--ws-accent, #1d4ed8) 7%, transparent);
+    border-radius: var(--ws-radius-md, 12px);
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #2563eb) 22%, var(--ws-border-soft, #e7ecf5));
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 4%, var(--ws-card-bg, #ffffff));
   }
 
   .draft-card-head {
@@ -659,12 +742,12 @@
   }
 
   .draft-card-head strong {
-    color: var(--ws-text-strong, #0f172a);
+    color: var(--ws-text-strong, #101828);
     font-size: 14px;
   }
 
   .draft-card-head span {
-    color: var(--ws-muted, #64748b);
+    color: var(--ws-muted, #71809b);
     font-size: 12px;
     line-height: 1.5;
   }
@@ -682,9 +765,9 @@
   }
 
   .draft-field span {
-    color: var(--ws-muted, #64748b);
+    color: var(--ws-muted, #71809b);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
   }
 
   .draft-field-main {
@@ -694,54 +777,38 @@
   .draft-textarea,
   .draft-datetime-input {
     width: 100%;
-    min-height: 44px;
-    border-radius: 14px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: var(--ws-card-bg, #fff);
-    color: var(--ws-text, #334155);
-    font-size: 14px;
-    padding: 12px 14px;
+    min-height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--ws-input-border, #dfe6f0);
+    background: var(--ws-input-bg, #ffffff);
+    color: var(--ws-input-text, #101828);
+    font-size: 13.5px;
+    padding: 10px 12px;
     outline: none;
     box-sizing: border-box;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  .draft-textarea:focus,
+  .draft-datetime-input:focus {
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 45%, var(--ws-input-border, #dfe6f0));
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .draft-textarea {
-    min-height: 110px;
+    min-height: 100px;
     resize: vertical;
-  }
-
-  .composer-btn {
-    min-height: 44px;
-    padding: 0 16px;
-    border-radius: 14px;
-    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 22%, var(--ws-border-soft, #d9e2ef));
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 12%, #fff);
-    color: var(--ws-accent, #1d4ed8);
-    font-size: 13px;
-    font-weight: 800;
-  }
-
-  .composer-btn.inline {
-    min-height: 34px;
-    padding: 0 14px;
-    margin-left: auto;
   }
 
   .draft-card-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 8px;
   }
 
   @media (max-width: 1080px) {
     .draft-card-grid {
       grid-template-columns: 1fr;
-    }
-  }
-
-  @media (max-width: 720px) {
-    .composer-head {
-      gap: 10px;
     }
   }
 
@@ -756,29 +823,20 @@
     gap: 8px;
   }
 
-  .section-badge {
-    justify-self: start;
-    border-radius: 999px;
-    padding: 5px 10px;
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, #fff);
-    border: 1px solid color-mix(in srgb, var(--ws-accent, #1d4ed8) 20%, var(--ws-border-soft, #d9e2ef));
-    color: var(--ws-accent, #1d4ed8);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-  }
-
+  .review-stats-title-row h3,
   .review-inspector-card h3 {
     margin: 0;
-    font-size: clamp(18px, 1.2vw, 24px);
-    color: var(--ws-text-strong, #0f172a);
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--ws-text-strong, #101828);
   }
 
   .review-stats-copy p,
   .review-inspector-card p,
   .inspector-kicker {
     margin: 0;
-    color: var(--ws-muted, #64748b);
+    color: var(--ws-muted, #71809b);
     line-height: 1.65;
     font-size: 13px;
   }
@@ -802,20 +860,47 @@
   }
 
   .inspector-btn {
-    min-height: 36px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    background: var(--ws-btn-bg, #fbfdff);
-    color: var(--ws-text, #334155);
-    font-size: 12px;
-    font-weight: 700;
+    min-height: 32px;
+    padding: 0 14px;
+    border-radius: var(--ws-radius-sm, 8px);
+    border: 1px solid var(--ws-border, #e3e9f2);
+    background: transparent;
+    color: var(--ws-text, #3a4557);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+  }
+
+  .inspector-btn:hover {
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 8%, transparent);
+    color: var(--ws-text-strong, #101828);
+  }
+
+  .inspector-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .inspector-btn.primary {
-    border-color: color-mix(in srgb, var(--ws-accent, #1d4ed8) 22%, var(--ws-border-soft, #d9e2ef));
-    background: color-mix(in srgb, var(--ws-accent, #1d4ed8) 10%, #fff);
-    color: var(--ws-accent, #1d4ed8);
+    border: none;
+    background: var(--ws-accent, #2563eb);
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .inspector-btn.primary:hover {
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 88%, #0f172a);
+  }
+
+  :global(.workspace.theme-dark) .inspector-btn.primary {
+    background: color-mix(in srgb, var(--ws-accent, #7aa2ff) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-accent, #7aa2ff) 42%, transparent);
+    color: var(--ws-text-strong, #eef2f9);
+  }
+
+  :global(.workspace.theme-dark) .inspector-btn.primary:hover {
+    background: color-mix(in srgb, var(--ws-accent, #7aa2ff) 32%, transparent);
   }
 
   .calendar-inspector-list {
@@ -825,9 +910,9 @@
 
   .calendar-record,
   .calendar-empty {
-    border: 1px solid var(--ws-border-soft, #d9e2ef);
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--ws-panel-bg, rgba(255, 255, 255, 0.86)) 96%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 88%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--ws-muted, #71809b) 5%, transparent);
     padding: 10px 12px;
   }
 
@@ -835,16 +920,28 @@
     display: grid;
     gap: 4px;
     text-align: left;
+    cursor: pointer;
+    transition: background 0.16s ease, border-color 0.16s ease;
+  }
+
+  .calendar-record:hover {
+    background: color-mix(in srgb, var(--ws-accent, #2563eb) 8%, transparent);
+    border-color: color-mix(in srgb, var(--ws-accent, #2563eb) 24%, transparent);
+  }
+
+  .calendar-record:focus-visible {
+    outline: none;
+    box-shadow: var(--ws-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.16));
   }
 
   .calendar-record strong {
-    color: var(--ws-text-strong, #0f172a);
-    font-size: 14px;
+    color: var(--ws-text-strong, #101828);
+    font-size: 13.5px;
   }
 
   .calendar-record span,
   .calendar-empty {
-    color: var(--ws-muted, #64748b);
+    color: var(--ws-muted, #71809b);
     font-size: 12px;
     line-height: 1.5;
   }
@@ -852,6 +949,18 @@
   @media (max-width: 1100px) {
     .review-summary {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .summary-item:not(:first-child)::before {
+      display: none;
+    }
+
+    .summary-item:nth-child(even)::before {
+      display: block;
+    }
+
+    .summary-item:nth-child(n + 3) {
+      border-top: 1px solid color-mix(in srgb, var(--ws-border-soft, #e7ecf5) 90%, transparent);
     }
 
     .review-shell {
