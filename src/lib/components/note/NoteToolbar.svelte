@@ -60,58 +60,61 @@
   onpointerdown={keepEditorSelection}
 >
   <div class="toolbar-actions">
-    <button
-      type="button"
-      class="tool-btn"
-      class:active={!!note?.isAlwaysOnTop}
-      onclick={() => onToggleTopmost()}
-      title={note?.isAlwaysOnTop ? strings.pinToBottom : strings.pinToTop}
-    >
-      {#if note?.isAlwaysOnTop}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-          <rect x="5" y="14.5" width="14" height="4.5" rx="1.6"></rect>
-          <path d="M12 4.5v8"></path>
-          <path d="M8.8 9.6 12 12.8l3.2-3.2"></path>
-        </svg>
-      {:else}
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-          <rect x="5" y="4.8" width="14" height="4.5" rx="1.6"></rect>
-          <path d="M12 19.5v-8"></path>
-          <path d="M8.8 14.4 12 11.2l3.2 3.2"></path>
-        </svg>
+    <div class="tool-group">
+      <button
+        type="button"
+        class="tool-btn"
+        class:active={!!note?.isAlwaysOnTop}
+        onclick={() => onToggleTopmost()}
+        title={note?.isAlwaysOnTop ? strings.pinToBottom : strings.pinToTop}
+      >
+        {#if note?.isAlwaysOnTop}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <rect x="5" y="14.5" width="14" height="4.5" rx="1.6"></rect>
+            <path d="M12 4.5v8"></path>
+            <path d="M8.8 9.6 12 12.8l3.2-3.2"></path>
+          </svg>
+        {:else}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <rect x="5" y="4.8" width="14" height="4.5" rx="1.6"></rect>
+            <path d="M12 19.5v-8"></path>
+            <path d="M8.8 14.4 12 11.2l3.2 3.2"></path>
+          </svg>
+        {/if}
+      </button>
+
+      {#if note?.isPinned && !note?.isAlwaysOnTop}
+        <button
+          type="button"
+          class="tool-btn"
+          class:active={!!note?.isWallpaper}
+          onclick={() => onToggleWallpaper()}
+          title={note?.isWallpaper ? strings.pinToDesktopLayer : strings.pinToWallpaper}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <rect x="4.5" y="5" width="15" height="10" rx="2"></rect>
+            <path d="M6 19h12M7 13l3-3 3 3 2.5-2.5 2 2"></path>
+          </svg>
+        </button>
       {/if}
-    </button>
 
-    {#if note?.isPinned && !note?.isAlwaysOnTop}
-      <button
-        type="button"
-        class="tool-btn"
-        class:active={!!note?.isWallpaper}
-        onclick={() => onToggleWallpaper()}
-        title={note?.isWallpaper ? strings.pinToDesktopLayer : strings.pinToWallpaper}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-          <rect x="4.5" y="5" width="15" height="10" rx="2"></rect>
-          <path d="M6 19h12M7 13l3-3 3 3 2.5-2.5 2 2"></path>
-        </svg>
-      </button>
-    {/if}
+      {#if note?.isPinned && note?.isAlwaysOnTop}
+        <button
+          type="button"
+          class="tool-btn"
+          class:active={!!note?.autoHideEnabled}
+          onclick={() => onToggleAutoHide()}
+          title={note?.autoHideEnabled ? strings.stickyAutoHideDisable : strings.stickyAutoHideEnable}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <rect x="5" y="6" width="14" height="12" rx="2"></rect>
+            <path d="M3 12h4M17 12h4M12 4v4M12 16v4"></path>
+          </svg>
+        </button>
+      {/if}
+    </div>
 
-    {#if note?.isPinned && note?.isAlwaysOnTop}
-      <button
-        type="button"
-        class="tool-btn"
-        class:active={!!note?.autoHideEnabled}
-        onclick={() => onToggleAutoHide()}
-        title={note?.autoHideEnabled ? strings.stickyAutoHideDisable : strings.stickyAutoHideEnable}
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-          <rect x="5" y="6" width="14" height="12" rx="2"></rect>
-          <path d="M3 12h4M17 12h4M12 4v4M12 16v4"></path>
-        </svg>
-      </button>
-    {/if}
-
+    <div class="tool-group">
     <div class="tool-popover-anchor">
       <button
         type="button"
@@ -186,19 +189,6 @@
       {/if}
     </div>
 
-    <button
-      type="button"
-      class="tool-btn"
-      class:active={!!note?.isDone}
-      onclick={() => onToggleDone()}
-      title={note?.isDone ? strings.markUndone : strings.markDone}
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-        <circle cx="12" cy="12" r="8.5"></circle>
-        {#if note?.isDone}<path d="m8 12 2.7 2.7L16.5 9"></path>{/if}
-      </svg>
-    </button>
-
     <div class="tool-popover-anchor">
       <button
         type="button"
@@ -258,29 +248,47 @@
         </div>
       {/if}
     </div>
+    </div>
 
-    <button
-      type="button"
-      class="tool-btn"
-      onclick={() => onToggleArchive()}
-      title={note?.isArchived ? strings.unarchive : strings.archive}
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-        <path d="M4 7h16v13H4zM3 4h18v3H3zM9 12h6"></path>
-      </svg>
-    </button>
+    <div class="tool-group">
+      <button
+        type="button"
+        class="tool-btn"
+        class:active={!!note?.isDone}
+        onclick={() => onToggleDone()}
+        title={note?.isDone ? strings.markUndone : strings.markDone}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5"></circle>
+          {#if note?.isDone}<path d="m8 12 2.7 2.7L16.5 9"></path>{/if}
+        </svg>
+      </button>
 
-    <button type="button" class="tool-btn" onclick={() => onUnpin()} title={strings.unpinNote}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-        <path d="M8 4h8M9 4v7l-3 3h12l-3-3V4M12 14v7"></path>
-      </svg>
-    </button>
+      <button
+        type="button"
+        class="tool-btn"
+        onclick={() => onToggleArchive()}
+        title={note?.isArchived ? strings.unarchive : strings.archive}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M4 7h16v13H4zM3 4h18v3H3zM9 12h6"></path>
+        </svg>
+      </button>
 
-    <button type="button" class="tool-btn danger" onclick={() => onMoveToTrash()} title={strings.delete}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-        <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path>
-      </svg>
-    </button>
+      <button type="button" class="tool-btn" onclick={() => onUnpin()} title={strings.unpinNote}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M8 4h8M9 4v7l-3 3h12l-3-3V4M12 14v7"></path>
+        </svg>
+      </button>
+    </div>
+
+    <div class="tool-group danger-group">
+      <button type="button" class="tool-btn danger" onclick={() => onMoveToTrash()} title={strings.delete}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"></path>
+        </svg>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -309,14 +317,22 @@
     position: relative;
     left: auto;
     bottom: auto;
-    width: fit-content;
-    max-width: calc(100% - 20px);
+    width: max-content;
+    max-width: none;
     margin: 0 auto;
-    padding: 7px;
+    padding: 7px 9px;
     opacity: 1;
     pointer-events: auto;
     transform: none;
     box-sizing: border-box;
+    border-color: rgba(255, 255, 255, 0.68);
+    border-radius: 999px;
+    background: rgba(248, 250, 252, 0.78);
+    box-shadow:
+      0 8px 24px rgba(15, 23, 42, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(18px) saturate(1.14);
+    -webkit-backdrop-filter: blur(18px) saturate(1.14);
     transform-origin: top center;
     animation: outside-toolbar-enter 180ms cubic-bezier(0.2, 0.78, 0.2, 1) both;
   }
@@ -339,6 +355,33 @@
     gap: 3px;
     flex-wrap: wrap;
     justify-content: center;
+  }
+
+  .toolbar.outside .toolbar-actions {
+    gap: 7px;
+    flex-wrap: nowrap;
+  }
+
+  .tool-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex: 0 0 auto;
+  }
+
+  .toolbar.outside .tool-group + .tool-group {
+    padding-left: 8px;
+  }
+
+  .toolbar.outside .tool-group + .tool-group::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 7px;
+    width: 1px;
+    height: 16px;
+    background: rgba(100, 116, 139, 0.22);
   }
 
   .tool-btn {
@@ -379,6 +422,10 @@
   .tool-btn.danger:hover {
     background: #fef2f2;
     color: #991b1b;
+  }
+
+  .toolbar.outside .danger-group {
+    margin-left: 1px;
   }
 
   .tool-popover-anchor {

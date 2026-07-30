@@ -29,7 +29,12 @@ pub fn configure_note_panel_window(app: tauri::AppHandle, label: String) -> Resu
             return Ok(());
         };
 
+        window
+            .set_background_color(Some(tauri::window::Color(0, 0, 0, 0)))
+            .map_err(|e| e.to_string())?;
         let panel = window.to_panel().map_err(|e| e.to_string())?;
+        panel.set_opaque(false);
+        panel.set_has_shadow(false);
         panel.set_floating_panel(true);
         panel.set_style_mask(
             NS_WINDOW_STYLE_MASK_NONACTIVATING_PANEL | NS_WINDOW_STYLE_MASK_RESIZABLE,

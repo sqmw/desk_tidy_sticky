@@ -64,37 +64,72 @@ test("image markdown replaces only the active textarea selection", () => {
 
 test("external controls expand around the note without moving its rectangle", () => {
   const expanded = getExpandedNoteWindowFrame({
+    outerX: 120,
     outerY: 300,
+    currentWidth: 300,
     currentHeight: 420,
+    collapsedWidth: 0,
     collapsedHeight: 0,
     wasExpanded: false,
+    previousLeftReserve: 0,
     previousTopReserve: 0,
+    nextLeftReserve: 32,
+    nextRightReserve: 32,
     nextTopReserve: 58,
     nextBottomReserve: 74,
   });
   assert.deepEqual(expanded, {
+    outerX: 88,
     outerY: 242,
+    width: 364,
     height: 552,
+    collapsedWidth: 300,
     collapsedHeight: 420,
+    leftReserve: 32,
+    rightReserve: 32,
     topReserve: 58,
     bottomReserve: 74,
   });
+  assert.equal(expanded.outerX + expanded.leftReserve, 120);
   assert.equal(expanded.outerY + expanded.topReserve, 300);
 
-  const collapsed = getCollapsedNoteWindowFrame({
+  const remeasured = getExpandedNoteWindowFrame({
+    outerX: expanded.outerX,
     outerY: expanded.outerY,
+    currentWidth: expanded.width,
+    currentHeight: expanded.height,
+    collapsedWidth: expanded.collapsedWidth,
     collapsedHeight: expanded.collapsedHeight,
+    wasExpanded: true,
+    previousLeftReserve: expanded.leftReserve,
+    previousTopReserve: expanded.topReserve,
+    nextLeftReserve: 42,
+    nextRightReserve: 42,
+    nextTopReserve: 64,
+    nextBottomReserve: 80,
+  });
+  assert.equal(remeasured.outerX + remeasured.leftReserve, 120);
+  assert.equal(remeasured.outerY + remeasured.topReserve, 300);
+  assert.equal(remeasured.width, 384);
+  assert.equal(remeasured.height, 564);
+
+  const collapsed = getCollapsedNoteWindowFrame({
+    outerX: expanded.outerX,
+    outerY: expanded.outerY,
+    collapsedWidth: expanded.collapsedWidth,
+    collapsedHeight: expanded.collapsedHeight,
+    appliedLeftReserve: expanded.leftReserve,
     appliedTopReserve: expanded.topReserve,
   });
-  assert.deepEqual(collapsed, { outerY: 300, height: 420 });
+  assert.deepEqual(collapsed, { outerX: 120, outerY: 300, width: 300, height: 420 });
 });
 
 test("expanded window drag persists the note rectangle position", () => {
-  assert.deepEqual(getPersistedNotePosition({ x: 120, y: 242 }, 58, true), {
+  assert.deepEqual(getPersistedNotePosition({ x: 88, y: 242 }, { left: 32, top: 58 }, true), {
     x: 120,
     y: 300,
   });
-  assert.deepEqual(getPersistedNotePosition({ x: 120, y: 300 }, 58, false), {
+  assert.deepEqual(getPersistedNotePosition({ x: 120, y: 300 }, { left: 32, top: 58 }, false), {
     x: 120,
     y: 300,
   });

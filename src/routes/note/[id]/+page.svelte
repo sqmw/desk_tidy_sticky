@@ -65,10 +65,15 @@
   let noteBlockSurfaceEl = $state(/** @type {HTMLDivElement | null} */ (null));
   let outsideTopControlsEl = $state(/** @type {HTMLDivElement | null} */ (null));
   let outsideToolbarSlotEl = $state(/** @type {HTMLDivElement | null} */ (null));
+  let outsideTopControlsWidth = $state(0);
   let outsideTopControlsHeight = $state(0);
+  let outsideToolbarWidth = $state(0);
   let outsideToolbarHeight = $state(0);
+  let collapsedWindowWidth = $state(0);
   let collapsedWindowHeight = $state(0);
   let toolbarWindowExpanded = $state(false);
+  let appliedLeftControlsReserve = $state(0);
+  let appliedRightControlsReserve = $state(0);
   let appliedTopControlsReserve = $state(0);
   let appliedToolbarReserve = $state(0);
   let hasExternalTextChange = $state(false);
@@ -99,12 +104,14 @@
     typeof navigator !== "undefined" &&
     /win/i.test(String(navigator.userAgent || navigator.platform || ""));
   const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
-  const cssFrostBlur = $derived((hasNativeWindowFrost ? noteFrost * 4 : noteFrostBlur));
   const noteWindowRadius = $derived(isWindows ? "0px" : "12px");
   const canInteract = $derived(!globalControlDisabled || !!note?.isAlwaysOnTop);
   const isEffectiveTopmost = $derived(!!note?.isAlwaysOnTop || !globalControlDisabled);
   const isPinnedTopmostSticky = $derived(!!note?.isPinned && !!note?.isAlwaysOnTop);
   const showTopmostControls = $derived(isEffectiveTopmost && (isControlMode || isEditing));
+  const cssFrostBlur = $derived(
+    (hasNativeWindowFrost && !showTopmostControls ? noteFrost * 4 : noteFrostBlur),
+  );
   const allowHoverToolbar = $derived((isEffectiveTopmost ? false : canInteract));
   const noteCenterHudText = $derived.by(() => {
     if (showOpacityValue) {
@@ -134,6 +141,7 @@
   ].join(",");
   const POINTER_ACTIVATION_SUPPRESS_MS = 240;
   const OUTSIDE_CONTROLS_GAP_PX = 12;
+  const OUTSIDE_CONTROLS_SIDE_GAP_PX = 10;
   const NOTE_MIN_SIZE_PX = 220;
   const WINDOW_SIZE_PERSIST_DEBOUNCE_MS = 180;
   const WINDOW_SIZE_POLL_MS = 900;
@@ -142,6 +150,7 @@
   let windowSizePersistTimer = /** @type {ReturnType<typeof setTimeout> | null} */ (null);
   let windowSizePollTimer = /** @type {ReturnType<typeof setInterval> | null} */ (null);
   let lastPersistedWindowSizeKey = "";
+  let toolbarManagedResizeTargetWidth = 0;
   let toolbarManagedResizeTargetHeight = 0;
   let toolbarManagedResizeHoldUntil = 0;
   let windowFrameSyncQueue = Promise.resolve();
@@ -186,24 +195,41 @@
     return Math.max(0, outsideToolbarHeight + OUTSIDE_CONTROLS_GAP_PX);
   }
 
-  /** @param {number} targetHeight @param {number} [stableCollapsedHeight] */
-  function beginToolbarManagedResize(targetHeight, stableCollapsedHeight = 0) {
+  /**
+   * @param {number} targetWidth
+   * @param {number} targetHeight
+   * @param {number} [stableCollapsedWidth]
+   * @param {number} [stableCollapsedHeight]
+   */
+  function beginToolbarManagedResize(
+    targetWidth,
+    targetHeight,
+    stableCollapsedWidth = 0,
+    stableCollapsedHeight = 0,
+  ) {
+    toolbarManagedResizeTargetWidth = Math.max(NOTE_MIN_SIZE_PX, Math.round(targetWidth));
     toolbarManagedResizeTargetHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(targetHeight));
     toolbarManagedResizeHoldUntil = Date.now() + TOOLBAR_MANAGED_RESIZE_HOLD_MS;
+    if (stableCollapsedWidth > 0) {
+      collapsedWindowWidth = Math.max(NOTE_MIN_SIZE_PX, Math.round(stableCollapsedWidth));
+    }
     if (stableCollapsedHeight > 0) {
       collapsedWindowHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(stableCollapsedHeight));
     }
   }
 
   function clearToolbarManagedResize() {
+    toolbarManagedResizeTargetWidth = 0;
     toolbarManagedResizeTargetHeight = 0;
     toolbarManagedResizeHoldUntil = 0;
   }
 
-  /** @param {number} currentHeight */
-  function shouldSkipPersistenceForToolbarManagedResize(currentHeight) {
-    if (toolbarManagedResizeTargetHeight <= 0) return false;
+  /** @param {number} currentWidth @param {number} currentHeight */
+  function shouldSkipPersistenceForToolbarManagedResize(currentWidth, currentHeight) {
+    if (toolbarManagedResizeTargetWidth <= 0 || toolbarManagedResizeTargetHeight <= 0) return false;
     const withinTolerance =
+      Math.abs(currentWidth - toolbarManagedResizeTargetWidth) <=
+        TOOLBAR_MANAGED_RESIZE_TOLERANCE_PX &&
       Math.abs(currentHeight - toolbarManagedResizeTargetHeight) <= TOOLBAR_MANAGED_RESIZE_TOLERANCE_PX;
     const withinHold = Date.now() <= toolbarManagedResizeHoldUntil;
     if (!withinTolerance && !withinHold) {
@@ -227,11 +253,12 @@
   }
 
   /**
+   * @param {number} nextWidth
    * @param {number} nextHeight
    * @param {{ x: number; y: number } | null} nextOuterPosition
    */
-  async function applyWindowFrame(nextHeight, nextOuterPosition) {
-    const logicalWidth = Math.max(1, window.innerWidth || 1);
+  async function applyWindowFrame(nextWidth, nextHeight, nextOuterPosition) {
+    const logicalWidth = Math.max(NOTE_MIN_SIZE_PX, Math.round(nextWidth));
     const logicalHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(nextHeight));
     try {
       const operations = [
@@ -251,25 +278,37 @@
     }
   }
 
-  async function syncWindowHeightForOutsideToolbar() {
+  async function syncWindowFrameForOutsideControls() {
+    const currentWidth = Math.max(NOTE_MIN_SIZE_PX, window.innerWidth || NOTE_MIN_SIZE_PX);
     const currentHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
     if (!showTopmostControls) {
       if (!toolbarWindowExpanded) {
+        collapsedWindowWidth = currentWidth;
         collapsedWindowHeight = currentHeight;
         return;
       }
       const position = await getLogicalOuterPosition();
       const collapsedFrame = getCollapsedNoteWindowFrame({
+        outerX: position.x,
         outerY: position.y,
+        collapsedWidth: collapsedWindowWidth || currentWidth,
         collapsedHeight: collapsedWindowHeight || currentHeight,
+        appliedLeftReserve: appliedLeftControlsReserve,
         appliedTopReserve: appliedTopControlsReserve,
       });
       toolbarWindowExpanded = false;
-      beginToolbarManagedResize(collapsedFrame.height, collapsedFrame.height);
-      await applyWindowFrame(collapsedFrame.height, {
-        x: position.x,
+      beginToolbarManagedResize(
+        collapsedFrame.width,
+        collapsedFrame.height,
+        collapsedFrame.width,
+        collapsedFrame.height,
+      );
+      await applyWindowFrame(collapsedFrame.width, collapsedFrame.height, {
+        x: collapsedFrame.outerX,
         y: collapsedFrame.outerY,
       });
+      appliedLeftControlsReserve = 0;
+      appliedRightControlsReserve = 0;
       appliedTopControlsReserve = 0;
       appliedToolbarReserve = 0;
       return;
@@ -278,30 +317,56 @@
     const topReserve = getTopControlsWindowReserve();
     const bottomReserve = getToolbarWindowReserve();
     if (topReserve <= 0 || bottomReserve <= 0) return;
+    const baseWidth = toolbarWindowExpanded
+      ? collapsedWindowWidth || currentWidth
+      : currentWidth;
+    const desiredControlsWidth = Math.max(
+      baseWidth,
+      outsideTopControlsWidth + OUTSIDE_CONTROLS_SIDE_GAP_PX * 2,
+      outsideToolbarWidth + OUTSIDE_CONTROLS_SIDE_GAP_PX * 2,
+    );
+    const horizontalReserve = Math.max(0, Math.ceil((desiredControlsWidth - baseWidth) / 2));
     const position = await getLogicalOuterPosition();
     const expandedFrame = getExpandedNoteWindowFrame({
+      outerX: position.x,
       outerY: position.y,
+      currentWidth,
       currentHeight,
+      collapsedWidth: collapsedWindowWidth || currentWidth,
       collapsedHeight: collapsedWindowHeight || currentHeight,
       wasExpanded: toolbarWindowExpanded,
+      previousLeftReserve: appliedLeftControlsReserve,
       previousTopReserve: appliedTopControlsReserve,
+      nextLeftReserve: horizontalReserve,
+      nextRightReserve: horizontalReserve,
       nextTopReserve: topReserve,
       nextBottomReserve: bottomReserve,
     });
+    collapsedWindowWidth = expandedFrame.collapsedWidth;
     collapsedWindowHeight = expandedFrame.collapsedHeight;
     if (
       toolbarWindowExpanded &&
+      Math.abs(currentWidth - expandedFrame.width) < 1 &&
       Math.abs(currentHeight - expandedFrame.height) < 1 &&
+      Math.abs(appliedLeftControlsReserve - expandedFrame.leftReserve) < 1 &&
+      Math.abs(appliedRightControlsReserve - expandedFrame.rightReserve) < 1 &&
       Math.abs(appliedTopControlsReserve - topReserve) < 1
     ) {
       return;
     }
     toolbarWindowExpanded = true;
+    appliedLeftControlsReserve = expandedFrame.leftReserve;
+    appliedRightControlsReserve = expandedFrame.rightReserve;
     appliedTopControlsReserve = expandedFrame.topReserve;
     appliedToolbarReserve = expandedFrame.bottomReserve;
-    beginToolbarManagedResize(expandedFrame.height, expandedFrame.collapsedHeight);
-    await applyWindowFrame(expandedFrame.height, {
-      x: position.x,
+    beginToolbarManagedResize(
+      expandedFrame.width,
+      expandedFrame.height,
+      expandedFrame.collapsedWidth,
+      expandedFrame.collapsedHeight,
+    );
+    await applyWindowFrame(expandedFrame.width, expandedFrame.height, {
+      x: expandedFrame.outerX,
       y: expandedFrame.outerY,
     });
   }
@@ -309,15 +374,27 @@
   function queueWindowFrameSync() {
     windowFrameSyncQueue = windowFrameSyncQueue
       .catch(() => {})
-      .then(() => syncWindowHeightForOutsideToolbar())
+      .then(() => syncWindowFrameForOutsideControls())
       .catch((error) => {
-        console.error("syncWindowHeightForOutsideToolbar", error);
+        console.error("syncWindowFrameForOutsideControls", error);
       });
   }
 
   function handleViewportResize() {
+    const currentWidth = Math.max(NOTE_MIN_SIZE_PX, window.innerWidth || NOTE_MIN_SIZE_PX);
     const currentHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
-    if (toolbarWindowExpanded && showTopmostControls) return;
+    if (toolbarWindowExpanded && showTopmostControls) {
+      collapsedWindowWidth = Math.max(
+        NOTE_MIN_SIZE_PX,
+        currentWidth - appliedLeftControlsReserve - appliedRightControlsReserve,
+      );
+      collapsedWindowHeight = Math.max(
+        NOTE_MIN_SIZE_PX,
+        currentHeight - appliedTopControlsReserve - appliedToolbarReserve,
+      );
+      return;
+    }
+    collapsedWindowWidth = currentWidth;
     collapsedWindowHeight = currentHeight;
   }
 
@@ -334,7 +411,7 @@
   }
 
   async function getPersistableWindowSize() {
-    let width = Math.max(NOTE_MIN_SIZE_PX, Math.round(window.innerWidth || NOTE_MIN_SIZE_PX));
+    let rawWidth = Math.max(NOTE_MIN_SIZE_PX, Math.round(window.innerWidth || NOTE_MIN_SIZE_PX));
     let rawHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(window.innerHeight || NOTE_MIN_SIZE_PX));
     try {
       const currentWindow = getCurrentWindow();
@@ -343,15 +420,19 @@
         currentWindow.scaleFactor(),
       ]);
       const logicalSize = physicalSize.toLogical(scaleFactor);
-      width = Math.max(NOTE_MIN_SIZE_PX, Math.round(logicalSize.width || width));
+      rawWidth = Math.max(NOTE_MIN_SIZE_PX, Math.round(logicalSize.width || rawWidth));
       rawHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(logicalSize.height || rawHeight));
     } catch (e) {
       console.error("getPersistableWindowSize", e);
     }
-    const controlsReserve = toolbarWindowExpanded
+    const horizontalControlsReserve = toolbarWindowExpanded
+      ? appliedLeftControlsReserve + appliedRightControlsReserve
+      : 0;
+    const verticalControlsReserve = toolbarWindowExpanded
       ? appliedTopControlsReserve + appliedToolbarReserve
       : 0;
-    const height = Math.max(NOTE_MIN_SIZE_PX, rawHeight - controlsReserve);
+    const width = Math.max(NOTE_MIN_SIZE_PX, rawWidth - horizontalControlsReserve);
+    const height = Math.max(NOTE_MIN_SIZE_PX, rawHeight - verticalControlsReserve);
     return { width, height };
   }
 
@@ -399,9 +480,13 @@
   }
 
   function handleWindowResizePersistence() {
+    const currentWidth = Math.max(NOTE_MIN_SIZE_PX, window.innerWidth || NOTE_MIN_SIZE_PX);
     const currentHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
-    if (shouldSkipPersistenceForToolbarManagedResize(currentHeight)) return;
+    if (shouldSkipPersistenceForToolbarManagedResize(currentWidth, currentHeight)) return;
     handleViewportResize();
+    if (toolbarWindowExpanded && showTopmostControls) {
+      queueWindowFrameSync();
+    }
     scheduleWindowSizePersist();
   }
 
@@ -883,7 +968,10 @@
       if (!note) return;
       const persistedPosition = getPersistedNotePosition(
         position,
-        appliedTopControlsReserve,
+        {
+          left: appliedLeftControlsReserve,
+          top: appliedTopControlsReserve,
+        },
         toolbarWindowExpanded,
       );
       try {
@@ -1113,6 +1201,7 @@
     const unlistenPromises = [];
     const currentWindow = getCurrentWindow();
 
+    collapsedWindowWidth = Math.max(NOTE_MIN_SIZE_PX, window.innerWidth || NOTE_MIN_SIZE_PX);
     collapsedWindowHeight = Math.max(NOTE_MIN_SIZE_PX, window.innerHeight || NOTE_MIN_SIZE_PX);
     window.addEventListener("resize", handleWindowResizePersistence);
     unlistenPromises.push(currentWindow.onResized(() => handleWindowResizePersistence()));
@@ -1204,10 +1293,14 @@
 
   $effect(() => {
     const frost = noteFrost;
+    const controlsOutsideNote = showTopmostControls;
     let cancelled = false;
     const window = getCurrentWindow();
     queueMicrotask(async () => {
-      const applied = await applyNoteWindowNativeEffects(window.label, frost);
+      const applied = await applyNoteWindowNativeEffects(
+        window.label,
+        controlsOutsideNote ? 0 : frost,
+      );
       if (!cancelled) {
         hasNativeWindowFrost = applied;
       }
@@ -1220,38 +1313,48 @@
   $effect(() => {
     const slot = outsideTopControlsEl;
     if (!slot) {
+      outsideTopControlsWidth = 0;
       outsideTopControlsHeight = 0;
       return;
     }
-    const updateTopControlsHeight = () => {
-      outsideTopControlsHeight = slot.offsetHeight;
+    const updateTopControlsSize = () => {
+      const controls = /** @type {HTMLElement | null} */ (slot.firstElementChild);
+      outsideTopControlsWidth = controls?.offsetWidth || slot.offsetWidth;
+      outsideTopControlsHeight = controls?.offsetHeight || slot.offsetHeight;
     };
-    updateTopControlsHeight();
+    updateTopControlsSize();
     if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(updateTopControlsHeight);
+    const observer = new ResizeObserver(updateTopControlsSize);
     observer.observe(slot);
+    if (slot.firstElementChild) observer.observe(slot.firstElementChild);
     return () => observer.disconnect();
   });
 
   $effect(() => {
     const slot = outsideToolbarSlotEl;
     if (!slot) {
+      outsideToolbarWidth = 0;
       outsideToolbarHeight = 0;
       return;
     }
-    const updateToolbarHeight = () => {
-      outsideToolbarHeight = slot.offsetHeight;
+    const updateToolbarSize = () => {
+      const toolbar = /** @type {HTMLElement | null} */ (slot.firstElementChild);
+      outsideToolbarWidth = toolbar?.offsetWidth || slot.offsetWidth;
+      outsideToolbarHeight = toolbar?.offsetHeight || slot.offsetHeight;
     };
-    updateToolbarHeight();
+    updateToolbarSize();
     if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(updateToolbarHeight);
+    const observer = new ResizeObserver(updateToolbarSize);
     observer.observe(slot);
+    if (slot.firstElementChild) observer.observe(slot.firstElementChild);
     return () => observer.disconnect();
   });
 
   $effect(() => {
     showTopmostControls;
+    outsideTopControlsWidth;
     outsideTopControlsHeight;
+    outsideToolbarWidth;
     outsideToolbarHeight;
     void tick().then(queueWindowFrameSync);
   });
@@ -1267,6 +1370,7 @@
   data-toolbar-placement={showTopmostControls ? "outside" : "inside"}
   data-window-draggable={canInteract ? "true" : "false"}
   data-window-dragging={isWindowDragging ? "true" : "false"}
+  style="--note-body-width: {collapsedWindowWidth || note?.width || NOTE_MIN_SIZE_PX}px;"
   inert={notesRecoveryRequired}
   onpointerdown={noteWindowDrag.handleDragPointerDown}
   onpointermove={noteWindowDrag.onDragPointerMove}
@@ -1398,6 +1502,8 @@
   .note-top-controls-slot,
   .note-toolbar-slot {
     width: 100%;
+    display: flex;
+    justify-content: center;
   }
 
   .note-window {
@@ -1415,6 +1521,11 @@
     filter: drop-shadow(0 10px 24px rgba(15, 23, 42, 0.16));
     overflow: hidden;
     isolation: isolate;
+  }
+
+  .note-shell[data-toolbar-placement="outside"] .note-window {
+    width: var(--note-body-width);
+    justify-self: center;
   }
 
   .note-window.windows-flat {
