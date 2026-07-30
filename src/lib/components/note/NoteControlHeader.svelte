@@ -32,6 +32,7 @@
       {strings}
       isEditing={true}
       isControlMode={true}
+      external={true}
       priority={priority}
       {tags}
       {tagSuggestions}
@@ -43,35 +44,30 @@
 
 <style>
   .note-control-header {
-    width: 100%;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    width: fit-content;
+    max-width: calc(100% - 20px);
+    margin: 0 auto;
+    display: flex;
     align-items: center;
     gap: 8px;
-    padding: 0 10px;
     box-sizing: border-box;
+    transform-origin: bottom center;
+    animation: control-header-enter 180ms cubic-bezier(0.2, 0.78, 0.2, 1) both;
   }
 
   .note-control-header.windows {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .note-control-header.windows .control-exit {
-    grid-column: 2;
-  }
-
-  .note-control-header.windows .tag-area {
-    grid-column: 1;
-    grid-row: 1;
+    flex-direction: row-reverse;
   }
 
   .tag-area {
     min-width: 0;
+    max-width: calc(100% - 36px);
   }
 
   .control-exit {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
     display: grid;
     place-items: center;
     padding: 0;
@@ -99,7 +95,24 @@
   }
 
   .control-exit svg {
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
+  }
+
+  @keyframes control-header-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .note-control-header {
+      animation: none;
+    }
   }
 </style>

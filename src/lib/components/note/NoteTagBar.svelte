@@ -8,6 +8,7 @@
     tagSuggestions = /** @type {string[]} */ ([]),
     isEditing = false,
     isControlMode = false,
+    external = false,
     onChangePriority = () => {},
     onChangeTags = () => {},
   } = $props();
@@ -15,9 +16,7 @@
 </script>
 
 {#if showTagBar}
-  <div
-    class="note-tag-bar"
-  >
+  <div class="note-tag-bar" class:external>
     <div class="note-tag-editor">
       <NoteTagsEditor
         {strings}
@@ -42,6 +41,16 @@
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+
+  .note-tag-bar.external {
+    padding: 5px 7px;
+    border: 1px solid color-mix(in srgb, white 58%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, white 82%, transparent);
+    box-shadow: 0 7px 18px rgba(15, 23, 42, 0.14);
+    backdrop-filter: blur(16px) saturate(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.08);
   }
 
   .note-tag-editor {

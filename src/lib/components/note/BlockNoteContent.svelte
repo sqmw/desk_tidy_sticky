@@ -1140,7 +1140,7 @@
   }
 
   .note-block.rendered:not(.readonly) {
-    cursor: text;
+    cursor: grab;
   }
 
   .note-block.editing {

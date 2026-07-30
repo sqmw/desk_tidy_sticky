@@ -309,13 +309,16 @@
     position: relative;
     left: auto;
     bottom: auto;
-    width: calc(100% - 20px);
+    width: fit-content;
+    max-width: calc(100% - 20px);
     margin: 0 auto;
-    padding: 10px;
+    padding: 7px;
     opacity: 1;
     pointer-events: auto;
     transform: none;
     box-sizing: border-box;
+    transform-origin: top center;
+    animation: outside-toolbar-enter 180ms cubic-bezier(0.2, 0.78, 0.2, 1) both;
   }
 
   :global(.note-window[data-toolbar-visible="true"]:hover) .toolbar,
@@ -333,14 +336,14 @@
   .toolbar-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     flex-wrap: wrap;
     justify-content: center;
   }
 
   .tool-btn {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     flex: 0 0 auto;
     display: grid;
     place-items: center;
@@ -472,6 +475,23 @@
     display: block;
     width: 100%;
     margin: 0;
+  }
+
+  @keyframes outside-toolbar-enter {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toolbar.outside {
+      animation: none;
+    }
   }
 
 </style>

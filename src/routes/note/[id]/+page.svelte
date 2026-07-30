@@ -60,6 +60,7 @@
   let showFrostValue = $state(false);
   let isEditing = $state(false);
   let isControlMode = $state(false);
+  let isWindowDragging = $state(false);
   let blockNoteContentApi = $state(/** @type {any} */ (null));
   let noteBlockSurfaceEl = $state(/** @type {HTMLDivElement | null} */ (null));
   let outsideTopControlsEl = $state(/** @type {HTMLDivElement | null} */ (null));
@@ -874,6 +875,7 @@
     getIsAlwaysOnTop: () => isEffectiveTopmost,
     dismissFloatingPanels: dismissFloatingPanelsOnPointerDown,
     onDraggingChange: (dragging) => {
+      isWindowDragging = dragging;
       if (dragging) return;
       suppressPointerActivationUntil = getNow() + POINTER_ACTIVATION_SUPPRESS_MS;
     },
@@ -1263,6 +1265,8 @@
   class="note-shell"
   data-control-mode={showTopmostControls ? "true" : "false"}
   data-toolbar-placement={showTopmostControls ? "outside" : "inside"}
+  data-window-draggable={canInteract ? "true" : "false"}
+  data-window-dragging={isWindowDragging ? "true" : "false"}
   inert={notesRecoveryRequired}
   onpointerdown={noteWindowDrag.handleDragPointerDown}
   onpointermove={noteWindowDrag.onDragPointerMove}
@@ -1358,6 +1362,18 @@
     position: relative;
     width: 100%;
     height: 100%;
+  }
+
+  .note-shell[data-window-draggable="true"],
+  .note-shell[data-window-draggable="true"] .note-block-surface,
+  .note-shell[data-window-draggable="true"] :global(.note-block.rendered:not(.readonly)) {
+    cursor: grab;
+  }
+
+  .note-shell[data-window-dragging="true"],
+  .note-shell[data-window-dragging="true"] .note-block-surface,
+  .note-shell[data-window-dragging="true"] :global(.note-block.rendered:not(.readonly)) {
+    cursor: grabbing;
   }
 
   .loading {
