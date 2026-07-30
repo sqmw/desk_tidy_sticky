@@ -4,8 +4,6 @@
     strings,
     isEditing = false,
     isControlMode = false,
-    showControlExit = false,
-    isMac = false,
     note = null,
     showPalette = false,
     showTextColorPalette = false,
@@ -34,7 +32,6 @@
     onFrostWheel = () => {},
     onToggleDone = () => {},
     onToggleArchive = () => {},
-    onExitControlMode = () => {},
     onUnpin = () => {},
     onMoveToTrash = () => {},
     onSetBackgroundColor = () => {},
@@ -52,24 +49,6 @@
 
 </script>
 
-{#if showControlExit}
-  <button
-    type="button"
-    class="control-exit"
-    class:mac={isMac}
-    class:windows={!isMac}
-    onclick={() => onExitControlMode()}
-    title={strings.noteFinishEditing}
-    aria-label={strings.noteFinishEditing}
-    data-no-drag="true"
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-      <path d="M6 6l12 12"></path>
-      <path d="M18 6 6 18"></path>
-    </svg>
-  </button>
-{/if}
-
 <div
   class="toolbar"
   role="toolbar"
@@ -78,7 +57,6 @@
   class:editing={isEditing}
   class:control={isControlMode}
   class:outside={placement === "outside"}
-  data-no-drag="true"
   onpointerdown={keepEditorSelection}
 >
   <div class="toolbar-actions">
@@ -381,8 +359,7 @@
     color: #0f4c81;
   }
 
-  .tool-btn:focus-visible,
-  .control-exit:focus-visible {
+  .tool-btn:focus-visible {
     outline: 2px solid rgba(29, 78, 216, 0.42);
     outline-offset: 1px;
   }
@@ -390,39 +367,6 @@
   .tool-btn svg {
     width: 17px;
     height: 17px;
-  }
-
-  .control-exit {
-    position: absolute;
-    top: 8px;
-    z-index: 8;
-    width: 28px;
-    height: 28px;
-    display: grid;
-    place-items: center;
-    padding: 0;
-    border: 1px solid color-mix(in srgb, white 54%, transparent);
-    border-radius: 999px;
-    background: color-mix(in srgb, #ff5f57 72%, white);
-    color: rgba(122, 18, 18, 0.76);
-    box-shadow: 0 5px 14px rgba(15, 23, 42, 0.11);
-    cursor: pointer;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-
-  .control-exit.mac {
-    left: 10px;
-  }
-
-  .control-exit.windows {
-    right: 10px;
-    border-radius: 6px;
-  }
-
-  .control-exit svg {
-    width: 15px;
-    height: 15px;
   }
 
   .tool-btn.danger {

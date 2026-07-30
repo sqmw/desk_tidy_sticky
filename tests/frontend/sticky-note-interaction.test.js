@@ -7,6 +7,15 @@ import {
   estimateMarkdownCaretOffset,
   insertTextAtSelection,
 } from "../../src/lib/note/sticky-note-interaction.js";
+import {
+  getCollapsedNoteWindowFrame,
+  getExpandedNoteWindowFrame,
+  getPersistedNotePosition,
+} from "../../src/lib/note/note-window-frame.js";
+import {
+  createNoteWindowDragController,
+  NOTE_WINDOW_NON_DRAGGABLE_SELECTOR,
+} from "../../src/lib/note/note-window-drag.js";
 
 test("sticky reloads idle changes but preserves an active draft as a conflict", () => {
   const base = {
@@ -51,4 +60,111 @@ test("image markdown replaces only the active textarea selection", () => {
     text: "before ![image](asset://a)",
     caret: 26,
   });
+});
+
+test("external controls expand around the note without moving its rectangle", () => {
+  const expanded = getExpandedNoteWindowFrame({
+    outerY: 300,
+    currentHeight: 420,
+    collapsedHeight: 0,
+    wasExpanded: false,
+    previousTopReserve: 0,
+    nextTopReserve: 58,
+    nextBottomReserve: 74,
+  });
+  assert.deepEqual(expanded, {
+    outerY: 242,
+    height: 552,
+    collapsedHeight: 420,
+    topReserve: 58,
+    bottomReserve: 74,
+  });
+  assert.equal(expanded.outerY + expanded.topReserve, 300);
+
+  const collapsed = getCollapsedNoteWindowFrame({
+    outerY: expanded.outerY,
+    collapsedHeight: expanded.collapsedHeight,
+    appliedTopReserve: expanded.topReserve,
+  });
+  assert.deepEqual(collapsed, { outerY: 300, height: 420 });
+});
+
+test("expanded window drag persists the note rectangle position", () => {
+  assert.deepEqual(getPersistedNotePosition({ x: 120, y: 242 }, 58, true), {
+    x: 120,
+    y: 300,
+  });
+  assert.deepEqual(getPersistedNotePosition({ x: 120, y: 300 }, 58, false), {
+    x: 120,
+    y: 300,
+  });
+});
+
+test("note surface is not globally excluded from window dragging", () => {
+  assert.equal(NOTE_WINDOW_NON_DRAGGABLE_SELECTOR.includes("data-no-drag"), false);
+  assert.equal(NOTE_WINDOW_NON_DRAGGABLE_SELECTOR.includes(".note-conflict-notice"), true);
+});
+
+test("note surface drag moves the native window and persists its final position", async () => {
+  const moves = [];
+  const persisted = [];
+  const surface = {
+    setPointerCapture() {},
+    hasPointerCapture() {
+      return true;
+    },
+    releasePointerCapture() {},
+  };
+  const controller = createNoteWindowDragController({
+    getCurrentWindow: () => ({
+      outerPosition: async () => ({ x: 100, y: 200 }),
+      scaleFactor: async () => 1,
+    }),
+    moveWindow: async (position) => {
+      moves.push(position);
+    },
+    getCanInteract: () => true,
+    getIsEditing: () => false,
+    getIsAlwaysOnTop: () => true,
+    dismissFloatingPanels() {},
+    onPositionPersist: (position) => {
+      persisted.push(position);
+    },
+  });
+  const target = {
+    closest: (selector) => (selector === ".note-shell" ? surface : null),
+  };
+
+  controller.handleDragPointerDown({
+    button: 0,
+    pointerId: 7,
+    screenX: 10,
+    screenY: 10,
+    target,
+    currentTarget: surface,
+  });
+  controller.onDragPointerMove({
+    pointerId: 7,
+    buttons: 1,
+    screenX: 16,
+    screenY: 16,
+    preventDefault() {},
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  controller.onDragPointerMove({
+    pointerId: 7,
+    buttons: 1,
+    screenX: 26,
+    screenY: 31,
+    preventDefault() {},
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  controller.onDragPointerUp({
+    pointerId: 7,
+    currentTarget: surface,
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(moves, [{ x: 110, y: 215 }]);
+  assert.deepEqual(persisted, [{ x: 110, y: 215 }]);
 });

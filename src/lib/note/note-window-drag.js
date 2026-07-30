@@ -1,3 +1,21 @@
+export const NOTE_WINDOW_NON_DRAGGABLE_SELECTOR = [
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "a",
+  "label",
+  "summary",
+  "[contenteditable=\"true\"]",
+  ".command-popover",
+  ".note-tag-editor",
+  ".note-conflict-notice",
+  ".color-popover",
+  ".text-color-popover",
+  ".opacity-popover",
+  ".frost-popover",
+].join(",");
+
 /**
  * @param {{
  *   getCurrentWindow: () => {
@@ -14,24 +32,6 @@
  * }} input
  */
 export function createNoteWindowDragController(input) {
-  const NON_DRAGGABLE_SELECTOR = [
-    "button",
-    "input",
-    "select",
-    "textarea",
-    "a",
-    "label",
-    "summary",
-    "[contenteditable=\"true\"]",
-    "[data-no-drag=\"true\"]",
-    ".command-popover",
-    ".note-tag-editor",
-    ".color-popover",
-    ".text-color-popover",
-    ".opacity-popover",
-    ".frost-popover",
-  ].join(",");
-
   let dragWindowX = 0;
   let dragWindowY = 0;
   let lastDragScreenX = 0;
@@ -165,7 +165,7 @@ export function createNoteWindowDragController(input) {
     if (!input.getCanInteract()) return;
     const target = /** @type {HTMLElement | null} */ (event.target);
     input.dismissFloatingPanels(target);
-    if (target?.closest(NON_DRAGGABLE_SELECTOR)) {
+    if (target?.closest(NOTE_WINDOW_NON_DRAGGABLE_SELECTOR)) {
       return;
     }
     const isAlwaysOnTop = input.getIsAlwaysOnTop?.() ?? false;

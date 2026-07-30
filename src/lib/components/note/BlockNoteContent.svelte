@@ -987,7 +987,7 @@
   }
 </script>
 
-<div class="block-note-content" class:compact data-no-drag="true">
+<div class="block-note-content" class:compact>
   {#if blocks.length === 0}
     {#if editingEmpty}
       <div class="note-block editing empty-editing">

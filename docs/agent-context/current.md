@@ -2,7 +2,7 @@
 
 ## Situation
 
-The active delivery line is Sticky Window And Block Editor Overhaul. Storage recovery remains a release gate, while the current UI work removes control-mode window resizing, makes editing state explicit, and preserves active drafts during external updates.
+The active delivery line is Sticky Window And Block Editor Overhaul. Storage recovery remains a release gate, while the current UI work expands native-window controls around a fixed note rectangle, makes editing state explicit, and preserves active drafts during external updates.
 
 ## Current State
 
@@ -11,8 +11,8 @@ The active delivery line is Sticky Window And Block Editor Overhaul. Storage rec
 - Safe writes use synced same-directory temporary files, replacement without deleting the target first, and one last-known-good backup in the application data directory.
 - Workspace cards keep pointer single-click selection when the inspector is open, while a dedicated details button provides keyboard access without a nested button role.
 - Workspace note assembly and transient block-editor selection/cursor state now live in focused components/controllers.
-- Sticky control mode preserves the product's downward-expansion model: the note body keeps its size and coordinates while all toolbar actions remain directly visible below it. Narrow windows wrap the toolbar into additional rows and expand by the measured toolbar height.
-- Sticky text remains selectable through `data-no-drag` boundaries; blank note/window surfaces retain the existing drag behavior. Rendered blocks expose a separate keyboard edit control and pointer clicks estimate the Markdown caret position.
+- Sticky control mode preserves the note rectangle as a geometry invariant: exit/tag controls expand above it and all toolbar actions remain directly visible below it. Narrow windows measure both external control regions and expand by their actual wrapped heights.
+- Sticky dragging uses the original note-surface hit area again; form controls, links, editors and popovers remain excluded. Rendered blocks expose a separate keyboard edit control and pointer clicks estimate the Markdown caret position.
 - The block editor reports its active state to the route. External `notes_changed` events no longer replace an active draft; the route shows a recovery notice and requires an explicit reload.
 - Clipboard images are saved through the existing backend command and inserted into the active textarea selection. Failures leave the text draft unchanged and display an inline error.
 
@@ -26,7 +26,7 @@ make test
 git diff --check
 ```
 
-`make test` runs the Node frontend interaction tests and Rust unit tests. A local component preview verified all 10 toolbar actions at 288px width, with the toolbar wrapping downward. Ordered-list editing kept identical top/left coordinates with a 0.09px height rounding difference; h1 editing moved following content by only 0.20px of browser rounding. The full Tauri window workflow still needs a human visual pass on the target operating systems before release.
+`make test` runs the Node frontend interaction tests and Rust unit tests. A local component preview verified all 10 toolbar actions at 288px width, with the header and toolbar wrapping outside the fixed note rectangle. Ordered-list editing kept identical top/left coordinates with a 0.09px height rounding difference; h1 editing moved following content by only 0.20px of browser rounding. Pure frame tests verify expand/collapse coordinate conservation and expanded-window drag persistence. The full Tauri window workflow still needs a human visual pass on the target operating systems before release.
 
 The configured Windows compilation target could not be completed in this environment because the active toolchain reported its standard library as unavailable. No toolchain was installed or changed; verify the Windows-only replacement branch on the Windows build runner before release.
 
