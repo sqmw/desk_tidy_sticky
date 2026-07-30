@@ -2,7 +2,7 @@
 
 ## Situation
 
-The active delivery line is Notes Storage Safety And Architecture Governance. It removes the previously identified JSON overwrite and multi-window lost-update risks while preserving the existing note schema.
+The active delivery line is Sticky Window And Block Editor Overhaul. Storage recovery remains a release gate, while the current UI work removes control-mode window resizing, makes editing state explicit, and preserves active drafts during external updates.
 
 ## Current State
 
@@ -11,6 +11,10 @@ The active delivery line is Notes Storage Safety And Architecture Governance. It
 - Safe writes use synced same-directory temporary files, replacement without deleting the target first, and one last-known-good backup in the application data directory.
 - Workspace cards keep pointer single-click selection when the inspector is open, while a dedicated details button provides keyboard access without a nested button role.
 - Workspace note assembly and transient block-editor selection/cursor state now live in focused components/controllers.
+- Sticky control mode preserves the product's downward-expansion model: the note body keeps its size and coordinates while all toolbar actions remain directly visible below it. Narrow windows wrap the toolbar into additional rows and expand by the measured toolbar height.
+- Sticky text remains selectable through `data-no-drag` boundaries; blank note/window surfaces retain the existing drag behavior. Rendered blocks expose a separate keyboard edit control and pointer clicks estimate the Markdown caret position.
+- The block editor reports its active state to the route. External `notes_changed` events no longer replace an active draft; the route shows a recovery notice and requires an explicit reload.
+- Clipboard images are saved through the existing backend command and inserted into the active textarea selection. Failures leave the text draft unchanged and display an inline error.
 
 ## Verification
 
@@ -22,13 +26,15 @@ make test
 git diff --check
 ```
 
-`make test` runs the Node frontend interaction tests and Rust unit tests. The full desktop window workflow still needs a human visual pass on the target operating systems before release.
+`make test` runs the Node frontend interaction tests and Rust unit tests. A local component preview verified all 10 toolbar actions at 288px width, with the toolbar wrapping downward. Ordered-list editing kept identical top/left coordinates with a 0.09px height rounding difference; h1 editing moved following content by only 0.20px of browser rounding. The full Tauri window workflow still needs a human visual pass on the target operating systems before release.
 
 The configured Windows compilation target could not be completed in this environment because the active toolchain reported its standard library as unavailable. No toolchain was installed or changed; verify the Windows-only replacement branch on the Windows build runner before release.
 
 ## Risks And Recovery
 
 - Accepted release gate: no release or package promotion occurs before the recovery UI and normal note flows receive a desktop smoke test.
+- The caret estimate is deliberately best-effort because rendered Markdown and source Markdown are not layout-identical. Precise rich-text caret mapping remains outside the single-textarea architecture.
+- External changes preserve the local draft but are not automatically merged. Reload explicitly discards that draft, so the warning keeps the action visible and user-controlled.
 - Recovery state deliberately does not rebuild, move, or overwrite user data. The user can open the application data directory and inspect `notes.json` plus the previous valid backup.
 - Runtime data is outside the synchronized working tree. Do not move it into repository-relative storage.
 
