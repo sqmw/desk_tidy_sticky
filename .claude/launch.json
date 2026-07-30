@@ -1,0 +1,10 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vite-dev-attach",
+      "url": "http://localhost:1420",
+      "port": 1420
+    }
+  ]
+}
