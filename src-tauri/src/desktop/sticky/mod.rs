@@ -13,8 +13,8 @@ mod panel_window;
 
 pub use auto_hide::{
     clear_active_topmost_editing_sticky, hide_active_topmost_editing_sticky, hide_note_to_edge,
-    mark_active_topmost_editing_sticky, reveal_note_from_edge, set_note_auto_hide_enabled,
-    shortcut_hide_or_reveal, toggle_hidden_stickies,
+    mark_active_topmost_editing_sticky, normalize_note_window_position, reveal_note_from_edge,
+    set_note_auto_hide_enabled, shortcut_hide_or_reveal, toggle_hidden_stickies,
 };
 pub use effects::apply_note_window_frost;
 use effects::{apply_note_window_frost_by_label, sync_note_window_frost_by_id};

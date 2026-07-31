@@ -26,6 +26,14 @@ struct Rect {
     height: f64,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct WindowGeometry {
+    outer: Rect,
+    body: Rect,
+    body_offset_x: f64,
+    body_offset_y: f64,
+}
+
 impl Rect {
     fn right(self) -> f64 {
         self.x + self.width
@@ -48,8 +56,23 @@ impl Rect {
     }
 }
 
-fn emit_notes_changed(app: &tauri::AppHandle) {
-    let _ = app.emit("notes_changed", ());
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StickyMetadataChangedEvent {
+    kind: &'static str,
+    note_id: String,
+    window_layer_changed: bool,
+}
+
+fn emit_notes_changed(app: &tauri::AppHandle, id: &str) {
+    let _ = app.emit(
+        "notes_changed",
+        StickyMetadataChangedEvent {
+            kind: "metadata",
+            note_id: id.to_string(),
+            window_layer_changed: false,
+        },
+    );
 }
 
 fn is_auto_hide_eligible(note: &notes::Note) -> bool {
@@ -84,6 +107,26 @@ fn window_rect(window: &tauri::WebviewWindow) -> Result<Rect, String> {
     })
 }
 
+fn note_window_geometry(note: &notes::Note, outer: Rect) -> WindowGeometry {
+    let body_width = note.width.unwrap_or(outer.width).clamp(1.0, outer.width);
+    let body_height = note.height.unwrap_or(outer.height).clamp(1.0, outer.height);
+    let max_offset_x = (outer.width - body_width).max(0.0);
+    let max_offset_y = (outer.height - body_height).max(0.0);
+    let body_offset_x = clamp(note.x.unwrap_or(outer.x) - outer.x, 0.0, max_offset_x);
+    let body_offset_y = clamp(note.y.unwrap_or(outer.y) - outer.y, 0.0, max_offset_y);
+    WindowGeometry {
+        outer,
+        body: Rect {
+            x: outer.x + body_offset_x,
+            y: outer.y + body_offset_y,
+            width: body_width,
+            height: body_height,
+        },
+        body_offset_x,
+        body_offset_y,
+    }
+}
+
 fn monitor_rects(app: &tauri::AppHandle) -> Result<Vec<Rect>, String> {
     let monitors = app.available_monitors().map_err(|e| e.to_string())?;
     let rects = monitors
@@ -95,13 +138,12 @@ fn monitor_rects(app: &tauri::AppHandle) -> Result<Vec<Rect>, String> {
             } else {
                 1.0
             };
-            let position = monitor.position();
-            let size = monitor.size();
+            let work_area = monitor.work_area();
             Rect {
-                x: position.x as f64 / scale,
-                y: position.y as f64 / scale,
-                width: size.width as f64 / scale,
-                height: size.height as f64 / scale,
+                x: work_area.position.x as f64 / scale,
+                y: work_area.position.y as f64 / scale,
+                width: work_area.size.width as f64 / scale,
+                height: work_area.size.height as f64 / scale,
             }
         })
         .collect::<Vec<_>>();
@@ -171,34 +213,41 @@ fn nearest_edge(window: Rect, monitor: Rect, preferred: Option<&str>) -> &'stati
         .unwrap_or("left")
 }
 
-fn hidden_position(window: Rect, monitor: Rect, edge: &str) -> (f64, f64) {
+fn hidden_position(body: Rect, monitor: Rect, edge: &str) -> (f64, f64) {
     match edge {
         "left" => (
-            monitor.x - window.width + HIDDEN_SLIVER_PX,
-            clamp(window.y, monitor.y, monitor.bottom() - window.height),
+            monitor.x - body.width + HIDDEN_SLIVER_PX,
+            clamp(body.y, monitor.y, monitor.bottom() - body.height),
         ),
         "right" => (
             monitor.right() - HIDDEN_SLIVER_PX,
-            clamp(window.y, monitor.y, monitor.bottom() - window.height),
+            clamp(body.y, monitor.y, monitor.bottom() - body.height),
         ),
         "top" => (
-            clamp(window.x, monitor.x, monitor.right() - window.width),
-            monitor.y - window.height + HIDDEN_SLIVER_PX,
+            clamp(body.x, monitor.x, monitor.right() - body.width),
+            monitor.y - body.height + HIDDEN_SLIVER_PX,
         ),
         "bottom" => (
-            clamp(window.x, monitor.x, monitor.right() - window.width),
+            clamp(body.x, monitor.x, monitor.right() - body.width),
             monitor.bottom() - HIDDEN_SLIVER_PX,
         ),
-        _ => (window.x, window.y),
+        _ => (body.x, body.y),
     }
 }
 
-fn visible_position(note: &notes::Note, window: Rect, monitor: Rect) -> (f64, f64) {
-    let x = note.auto_hide_visible_x.unwrap_or(window.x);
-    let y = note.auto_hide_visible_y.unwrap_or(window.y);
+fn visible_position(note: &notes::Note, body: Rect, monitor: Rect) -> (f64, f64) {
+    let x = note.auto_hide_visible_x.unwrap_or(body.x);
+    let y = note.auto_hide_visible_y.unwrap_or(body.y);
     (
-        clamp(x, monitor.x, monitor.right() - window.width),
-        clamp(y, monitor.y, monitor.bottom() - window.height),
+        clamp(x, monitor.x, monitor.right() - body.width),
+        clamp(y, monitor.y, monitor.bottom() - body.height),
+    )
+}
+
+fn outer_position_for_body(geometry: WindowGeometry, body_position: (f64, f64)) -> (f64, f64) {
+    (
+        body_position.0 - geometry.body_offset_x,
+        body_position.1 - geometry.body_offset_y,
     )
 }
 
@@ -260,7 +309,7 @@ pub fn set_note_auto_hide_enabled(
     let notes = notes_store::with_notes_store(&app, || {
         notes_service::update_note_auto_hide_enabled(&id, enabled, mode)
     })?;
-    emit_notes_changed(&app);
+    emit_notes_changed(&app, &id);
     Ok(notes)
 }
 
@@ -289,25 +338,26 @@ fn hide_note_to_edge_unlocked(
     let Some(window) = app.get_webview_window(label.as_str()) else {
         return Ok(None);
     };
-    let rect = window_rect(&window)?;
-    let monitor = resolve_window_monitor(app, rect)?;
+    let geometry = note_window_geometry(&note, window_rect(&window)?);
+    let monitor = resolve_window_monitor(app, geometry.body)?;
     let edge = if normalized_reason == AUTO_HIDE_REASON_OVERFLOW {
-        let Some(edge) = overflow_edge(rect, monitor) else {
+        let Some(edge) = overflow_edge(geometry.body, monitor) else {
             return Ok(None);
         };
         edge
     } else {
-        nearest_edge(rect, monitor, note.auto_hide_edge.as_deref())
+        nearest_edge(geometry.body, monitor, note.auto_hide_edge.as_deref())
     };
-    let hidden = hidden_position(rect, monitor, edge);
-    move_window_without_activation(window, hidden.0, hidden.1)?;
+    let hidden_body = hidden_position(geometry.body, monitor, edge);
+    let hidden_outer = outer_position_for_body(geometry, hidden_body);
+    move_window_without_activation(window, hidden_outer.0, hidden_outer.1)?;
     let updated = notes_service::update_note_auto_hide_state(
         id,
         edge,
         AUTO_HIDE_STATE_HIDDEN,
         Some(normalized_reason),
-        Some((rect.x, rect.y)),
-        Some(hidden),
+        Some((geometry.body.x, geometry.body.y)),
+        Some(hidden_body),
     )?;
     Ok(Some(StickyAutoHideResult {
         note: updated,
@@ -333,11 +383,12 @@ fn reveal_note_from_edge_unlocked(
     let Some(window) = app.get_webview_window(label.as_str()) else {
         return Ok(None);
     };
-    let rect = window_rect(&window)?;
-    let monitor = resolve_window_monitor(app, rect)?;
-    let visible = visible_position(&note, rect, monitor);
+    let geometry = note_window_geometry(&note, window_rect(&window)?);
+    let monitor = resolve_window_monitor(app, geometry.body)?;
+    let visible = visible_position(&note, geometry.body, monitor);
+    let visible_outer = outer_position_for_body(geometry, visible);
     let _ = window.show();
-    move_window_without_activation(window, visible.0, visible.1)?;
+    move_window_without_activation(window, visible_outer.0, visible_outer.1)?;
     let edge = note.auto_hide_edge.as_deref().unwrap_or("left").to_string();
     let updated = notes_service::update_note_auto_hide_state(
         id,
@@ -356,6 +407,73 @@ fn reveal_note_from_edge_unlocked(
     }))
 }
 
+fn normalize_note_window_position_unlocked(
+    app: &tauri::AppHandle,
+    id: &str,
+) -> Result<Option<StickyAutoHideResult>, String> {
+    let Some(note) = notes_service::find_note(id)? else {
+        return Ok(None);
+    };
+    if !note.is_pinned || note.is_archived || note.is_deleted {
+        return Ok(None);
+    }
+    let Some(window) = app.get_webview_window(note_window_label(id).as_str()) else {
+        return Ok(None);
+    };
+    let geometry = note_window_geometry(&note, window_rect(&window)?);
+    let monitor = resolve_window_monitor(app, geometry.body)?;
+
+    if note.auto_hide_state.as_deref() == Some(AUTO_HIDE_STATE_HIDDEN) {
+        let edge = nearest_edge(geometry.body, monitor, note.auto_hide_edge.as_deref());
+        let hidden_body = hidden_position(geometry.body, monitor, edge);
+        let hidden_outer = outer_position_for_body(geometry, hidden_body);
+        let moved = (geometry.outer.x - hidden_outer.0).abs() > 0.5
+            || (geometry.outer.y - hidden_outer.1).abs() > 0.5;
+        if moved {
+            move_window_without_activation(window, hidden_outer.0, hidden_outer.1)?;
+        }
+        let updated =
+            notes_service::normalize_note_auto_hide_position(id, None, Some(hidden_body))?;
+        return Ok(Some(StickyAutoHideResult {
+            note: updated,
+            edge: edge.to_string(),
+            state: AUTO_HIDE_STATE_HIDDEN.to_string(),
+            reason: "normalize".to_string(),
+            moved,
+        }));
+    }
+    if !note.auto_hide_enabled && note.auto_hide_state.is_none() {
+        return Ok(None);
+    }
+
+    let visible = (
+        clamp(
+            geometry.body.x,
+            monitor.x,
+            monitor.right() - geometry.body.width,
+        ),
+        clamp(
+            geometry.body.y,
+            monitor.y,
+            monitor.bottom() - geometry.body.height,
+        ),
+    );
+    let visible_outer = outer_position_for_body(geometry, visible);
+    let moved = (geometry.outer.x - visible_outer.0).abs() > 0.5
+        || (geometry.outer.y - visible_outer.1).abs() > 0.5;
+    if moved {
+        move_window_without_activation(window, visible_outer.0, visible_outer.1)?;
+    }
+    let updated = notes_service::normalize_note_auto_hide_position(id, Some(visible), None)?;
+    Ok(Some(StickyAutoHideResult {
+        note: updated,
+        edge: note.auto_hide_edge.unwrap_or_else(|| "none".to_string()),
+        state: AUTO_HIDE_STATE_VISIBLE.to_string(),
+        reason: "normalize".to_string(),
+        moved,
+    }))
+}
+
 #[tauri::command]
 pub fn hide_note_to_edge(
     app: tauri::AppHandle,
@@ -365,7 +483,7 @@ pub fn hide_note_to_edge(
     let result =
         notes_store::with_notes_store(&app, || hide_note_to_edge_unlocked(&app, &id, &reason))?;
     if result.is_some() {
-        emit_notes_changed(&app);
+        emit_notes_changed(&app, &id);
     }
     Ok(result)
 }
@@ -377,9 +495,17 @@ pub fn reveal_note_from_edge(
 ) -> Result<Option<StickyAutoHideResult>, String> {
     let result = notes_store::with_notes_store(&app, || reveal_note_from_edge_unlocked(&app, &id))?;
     if result.is_some() {
-        emit_notes_changed(&app);
+        emit_notes_changed(&app, &id);
     }
     Ok(result)
+}
+
+#[tauri::command]
+pub fn normalize_note_window_position(
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<Option<StickyAutoHideResult>, String> {
+    notes_store::with_notes_store(&app, || normalize_note_window_position_unlocked(&app, &id))
 }
 
 #[tauri::command]
@@ -396,7 +522,7 @@ pub fn hide_active_topmost_editing_sticky(
         hide_note_to_edge_unlocked(&app, &id, AUTO_HIDE_REASON_SHORTCUT)
     })?;
     if result.is_some() {
-        emit_notes_changed(&app);
+        emit_notes_changed(&app, &id);
     }
     Ok(result)
 }
@@ -427,7 +553,9 @@ pub fn toggle_hidden_stickies(app: tauri::AppHandle) -> Result<Vec<StickyAutoHid
         Ok(results)
     })?;
     if !results.is_empty() {
-        emit_notes_changed(&app);
+        for result in &results {
+            emit_notes_changed(&app, &result.note.id);
+        }
     }
     Ok(results)
 }
@@ -475,6 +603,37 @@ mod tests {
         assert_eq!(hidden_position(window, monitor, "right"), (992.0, 120.0));
         assert_eq!(hidden_position(window, monitor, "top"), (100.0, -212.0));
         assert_eq!(hidden_position(window, monitor, "bottom"), (100.0, 792.0));
+    }
+
+    #[test]
+    fn body_geometry_keeps_expanded_controls_outside_edge_math() {
+        let outer = rect(68.0, 62.0, 364.0, 552.0);
+        let mut note = notes::Note::new("test".to_string(), true);
+        note.x = Some(100.0);
+        note.y = Some(120.0);
+        note.width = Some(300.0);
+        note.height = Some(420.0);
+        let geometry = note_window_geometry(&note, outer);
+
+        assert_eq!(geometry.body.x, 100.0);
+        assert_eq!(geometry.body.y, 120.0);
+        assert_eq!(geometry.body.width, 300.0);
+        assert_eq!(geometry.body.height, 420.0);
+        assert_eq!(
+            outer_position_for_body(geometry, (-292.0, 120.0)),
+            (-324.0, 62.0)
+        );
+    }
+
+    #[test]
+    fn visible_position_clamps_disconnected_monitor_coordinates() {
+        let monitor = rect(0.0, 24.0, 1000.0, 736.0);
+        let body = rect(-1500.0, 900.0, 300.0, 220.0);
+        let mut note = notes::Note::new("test".to_string(), true);
+        note.auto_hide_visible_x = Some(-1500.0);
+        note.auto_hide_visible_y = Some(900.0);
+
+        assert_eq!(visible_position(&note, body, monitor), (0.0, 540.0));
     }
 
     #[test]

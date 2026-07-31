@@ -288,6 +288,33 @@ pub fn update_note_auto_hide_state(
         .ok_or_else(|| "note not found".to_string())
 }
 
+pub fn normalize_note_auto_hide_position(
+    id: &str,
+    visible_position: Option<(f64, f64)>,
+    hidden_position: Option<(f64, f64)>,
+) -> Result<Note, String> {
+    let notes = mutate_note(id, None, |n| {
+        if let Some((x, y)) = visible_position {
+            n.auto_hide_visible_x = Some(x);
+            n.auto_hide_visible_y = Some(y);
+            if n.auto_hide_state.as_deref() != Some(AUTO_HIDE_STATE_HIDDEN) {
+                n.x = Some(x);
+                n.y = Some(y);
+            }
+        }
+        if let Some((x, y)) = hidden_position {
+            n.auto_hide_hidden_x = Some(x);
+            n.auto_hide_hidden_y = Some(y);
+            n.x = Some(x);
+            n.y = Some(y);
+        }
+    })?;
+    notes
+        .into_iter()
+        .find(|note| note.id == id)
+        .ok_or_else(|| "note not found".to_string())
+}
+
 pub fn hidden_notes() -> Result<Vec<Note>, String> {
     Ok(load_notes_from_file()?
         .into_iter()

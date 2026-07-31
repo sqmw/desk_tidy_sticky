@@ -8,6 +8,11 @@ import {
   insertTextAtSelection,
 } from "../../src/lib/note/sticky-note-interaction.js";
 import {
+  createStickyEdgeRevealController,
+  getStickyEdgeRevealDistance,
+  normalizeStickyEdgeWheel,
+} from "../../src/lib/note/sticky-edge-reveal.js";
+import {
   getCollapsedNoteWindowFrame,
   getExpandedNoteWindowFrame,
   getPersistedNotePosition,
@@ -17,18 +22,27 @@ import {
   NOTE_WINDOW_NON_DRAGGABLE_SELECTOR,
 } from "../../src/lib/note/note-window-drag.js";
 
-test("sticky reloads idle changes but preserves an active draft as a conflict", () => {
+test("sticky reports conflicts only when a text event meets an unsaved draft", () => {
   const base = {
     changedNoteId: "note-a",
     noteId: "note-a",
+    eventKind: "text",
     ignoreUntil: 0,
     now: 100,
   };
-  assert.equal(classifyStickyNoteChange({ ...base, isEditing: false }), "reload");
-  assert.equal(classifyStickyNoteChange({ ...base, isEditing: true }), "conflict");
+  assert.equal(classifyStickyNoteChange({ ...base, hasUnsavedDraft: false }), "reload");
+  assert.equal(classifyStickyNoteChange({ ...base, hasUnsavedDraft: true }), "conflict");
   assert.equal(
-    classifyStickyNoteChange({ ...base, changedNoteId: "note-b", isEditing: true }),
+    classifyStickyNoteChange({ ...base, changedNoteId: "note-b", hasUnsavedDraft: true }),
     "unrelated",
+  );
+  assert.equal(
+    classifyStickyNoteChange({
+      ...base,
+      eventKind: "metadata",
+      hasUnsavedDraft: true,
+    }),
+    "metadata",
   );
 });
 
@@ -37,12 +51,49 @@ test("sticky ignores its own short-lived notes_changed echo", () => {
     classifyStickyNoteChange({
       changedNoteId: "note-a",
       noteId: "note-a",
-      isEditing: true,
+      eventKind: "text",
+      hasUnsavedDraft: true,
       ignoreUntil: 150,
       now: 100,
     }),
     "local",
   );
+});
+
+test("edge reveal wheel normalizes platform units without relying on scroll sign", () => {
+  assert.deepEqual(normalizeStickyEdgeWheel({ deltaX: -2, deltaY: 3, deltaMode: 1 }), {
+    x: 32,
+    y: 48,
+  });
+  assert.equal(getStickyEdgeRevealDistance("top", { x: 2, y: 18 }), 18);
+  assert.equal(getStickyEdgeRevealDistance("bottom", { x: 2, y: 18 }), 18);
+  assert.equal(getStickyEdgeRevealDistance("left", { x: 12, y: 30 }), 19.5);
+});
+
+test("hidden edge reveals after one deliberate trackpad gesture and debounces repeats", async () => {
+  let now = 100;
+  let revealCount = 0;
+  const controller = createStickyEdgeRevealController({
+    getEdge: () => "top",
+    isHidden: () => true,
+    now: () => now,
+    threshold: 28,
+    onReveal: async () => {
+      revealCount += 1;
+    },
+  });
+  const event = {
+    deltaX: 0,
+    deltaY: -16,
+    deltaMode: 0,
+    preventDefault() {},
+    stopPropagation() {},
+  };
+
+  assert.equal(await controller.handleWheel(event), false);
+  now += 40;
+  assert.equal(await controller.handleWheel(event), true);
+  assert.equal(revealCount, 1);
 });
 
 test("rendered block click estimates a caret within the selected markdown line", () => {

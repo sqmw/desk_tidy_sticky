@@ -52,6 +52,7 @@
   /** @type {string | null} */
   let activeBlockId = $state(null);
   let activeBlockDraft = $state("");
+  let activeBlockInitialDraft = $state("");
   /** @type {import("$lib/markdown/blocks/block-parser.js").MarkdownBlock | null} */
   let activeBlockOriginal = $state(null);
   /** @type {HTMLTextAreaElement | null} */
@@ -142,6 +143,7 @@
     const editable = parseMarkdownInlineStylesForEditing(block.markdown);
     activeBlockDraft = editable.text;
     activeInlineColorRanges = editable.ranges;
+    activeBlockInitialDraft = getActiveBlockMarkdownDraft();
     editorController.beginEditing(editable.text);
     activeBlockOriginal = block;
     hideCommandSuggestions();
@@ -200,6 +202,7 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
+    activeBlockInitialDraft = "";
     activeInlineColorRanges = [];
     editorController.clearEditing();
     hideCommandSuggestions();
@@ -218,6 +221,7 @@
     activeBlockId = null;
     activeBlockOriginal = null;
     activeBlockDraft = "";
+    activeBlockInitialDraft = "";
     activeInlineColorRanges = [];
     editorController.clearEditing();
     hideCommandSuggestions();
@@ -473,6 +477,12 @@
 
   export function commitEditingSession() {
     return commitActiveEditor();
+  }
+
+  export function hasUnsavedDraft() {
+    if (editingEmpty) return emptyDraft.length > 0;
+    if (!activeBlockOriginal) return false;
+    return getActiveBlockMarkdownDraft() !== activeBlockInitialDraft;
   }
 
   /**

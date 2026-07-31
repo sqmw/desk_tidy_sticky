@@ -22,6 +22,7 @@
     resolveNoteId,
   } from "$lib/note/note-window-actions.js";
   import { createNoteWindowDragController } from "$lib/note/note-window-drag.js";
+  import { createStickyEdgeRevealController } from "$lib/note/sticky-edge-reveal.js";
   import {
     getCollapsedNoteWindowFrame,
     getExpandedNoteWindowFrame,
@@ -77,6 +78,7 @@
   let appliedTopControlsReserve = $state(0);
   let appliedToolbarReserve = $state(0);
   let hasExternalTextChange = $state(false);
+  let isRevealingFromEdge = $state(false);
   let ignoreNotesChangedUntil = 0;
   let suppressPointerActivationUntil = $state(0);
   let tagSuggestions = $state(/** @type {string[]} */ ([]));
@@ -490,7 +492,7 @@
     scheduleWindowSizePersist();
   }
 
-  async function loadNote() {
+  async function loadNote({ preserveText = false } = {}) {
     try {
       const snapshot = await loadNoteWindowSnapshot({
         invoke,
@@ -501,8 +503,9 @@
       });
       tagSuggestions = snapshot.tagSuggestions;
       if (snapshot.note) {
+        const currentText = text;
         note = snapshot.note;
-        text = snapshot.text;
+        text = preserveText ? currentText : snapshot.text;
         opacityDraft = snapshot.opacityDraft;
         frostDraft = snapshot.frostDraft;
         const width = typeof snapshot.note.width === "number" ? Math.round(snapshot.note.width) : null;
@@ -643,7 +646,15 @@
   }
 
   async function hideToEdgeAfterOverflowIfNeeded() {
-    if (!note || !isPinnedTopmostSticky || !note.autoHideEnabled || isEditing) return;
+    if (
+      !note ||
+      !isPinnedTopmostSticky ||
+      !note.autoHideEnabled ||
+      isEditing ||
+      isControlMode
+    ) {
+      return;
+    }
     try {
       const result = await invoke("hide_note_to_edge", {
         id: resolveNoteId(note, noteId),
@@ -654,6 +665,44 @@
       }
     } catch (e) {
       reportNoteStorageFailure("hideToEdgeAfterOverflowIfNeeded", e);
+    }
+  }
+
+  async function revealFromEdge() {
+    if (!note || note.autoHideState !== "hidden" || isRevealingFromEdge) return;
+    isRevealingFromEdge = true;
+    try {
+      ignoreNotesChangedUntil = Date.now() + 750;
+      const result = await invoke("reveal_note_from_edge", {
+        id: resolveNoteId(note, noteId),
+      });
+      if (result?.note) {
+        note = result.note;
+      }
+    } catch (e) {
+      reportNoteStorageFailure("revealFromEdge", e);
+    } finally {
+      isRevealingFromEdge = false;
+    }
+  }
+
+  const stickyEdgeReveal = createStickyEdgeRevealController({
+    getEdge: () => String(note?.autoHideEdge || ""),
+    isHidden: () => note?.autoHideState === "hidden",
+    onReveal: revealFromEdge,
+  });
+
+  async function normalizeNoteWindowPosition() {
+    if (!note) return;
+    try {
+      const result = await invoke("normalize_note_window_position", {
+        id: resolveNoteId(note, noteId),
+      });
+      if (result?.note) {
+        note = result.note;
+      }
+    } catch (e) {
+      reportNoteStorageFailure("normalizeNoteWindowPosition", e);
     }
   }
 
@@ -1235,11 +1284,14 @@
       listen("notes_changed", async (event) => {
         const payload = /** @type {{ kind?: unknown; noteId?: unknown; windowLayerChanged?: unknown } | null | undefined } */ (event.payload);
         const changedNoteId = typeof payload?.noteId === "string" ? payload.noteId : "";
+        const eventKind = typeof payload?.kind === "string" ? payload.kind : "full";
         const windowLayerChanged = payload?.windowLayerChanged !== false;
+        const hasUnsavedDraft = !!blockNoteContentApi?.hasUnsavedDraft?.();
         const changeKind = classifyStickyNoteChange({
           changedNoteId,
           noteId,
-          isEditing,
+          eventKind,
+          hasUnsavedDraft,
           ignoreUntil: ignoreNotesChangedUntil,
         });
         if (changeKind === "unrelated" || changeKind === "local") return;
@@ -1247,7 +1299,7 @@
           hasExternalTextChange = true;
           return;
         }
-        await loadNote();
+        await loadNote({ preserveText: changeKind === "metadata" && hasUnsavedDraft });
         if (!windowLayerChanged) {
           return;
         }
@@ -1259,8 +1311,9 @@
     void refreshNotesStorageRecoveryState();
     loadLocale()
       .then(loadGlobalControlState)
-      .then(loadNote)
+      .then(() => loadNote())
       .then(async () => {
+        await normalizeNoteWindowPosition();
         await disableWindowsNativeShadow();
         await applyInteractionPolicy();
         await applyZOrderAndParent();
@@ -1397,11 +1450,23 @@
       class:windows-flat={isWindows}
       data-toolbar-visible={allowHoverToolbar ? "true" : "false"}
       data-control-mode={showTopmostControls ? "true" : "false"}
+      data-auto-hide-state={note.autoHideState || "visible"}
       style="--note-radius: {noteWindowRadius}; --note-tint: {noteBackground}; --note-text-color: {noteTextColor}; --frost-blur: {cssFrostBlur}px; --frost-overlay: {noteFrostOverlay}; --frost-glow: {noteFrostGlow}; --note-border-alpha: {noteBorderAlpha}; --note-inner-highlight-alpha: {noteInnerHighlightAlpha};"
       onclick={handleNoteClick}
       onkeydown={handleNoteKeydown}
       ondblclick={handleNoteDoubleClick}
     >
+      {#if note.autoHideState === "hidden"}
+        <button
+          class="edge-reveal-handle edge-{note.autoHideEdge || 'left'}"
+          type="button"
+          aria-label={strings.noteRevealFromEdge}
+          title={strings.noteRevealFromEdge}
+          disabled={isRevealingFromEdge}
+          onclick={revealFromEdge}
+          onwheel={(event) => stickyEdgeReveal.handleWheel(event)}
+        ></button>
+      {/if}
       <div class="note-frost-layer" aria-hidden="true"></div>
       <div class="note-content">
         {#if hasExternalTextChange}
@@ -1531,6 +1596,55 @@
   .note-window.windows-flat {
     --note-radius: 0px;
     filter: none;
+  }
+
+  .edge-reveal-handle {
+    position: absolute;
+    z-index: 8;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: color-mix(in srgb, var(--note-text-color) 42%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, white 46%, transparent);
+    cursor: pointer;
+  }
+
+  .edge-reveal-handle.edge-top,
+  .edge-reveal-handle.edge-bottom {
+    left: 50%;
+    width: min(72px, 42%);
+    height: 8px;
+    transform: translateX(-50%);
+    cursor: ns-resize;
+  }
+
+  .edge-reveal-handle.edge-top {
+    bottom: 0;
+    border-radius: 6px 6px 0 0;
+  }
+
+  .edge-reveal-handle.edge-bottom {
+    top: 0;
+    border-radius: 0 0 6px 6px;
+  }
+
+  .edge-reveal-handle.edge-left,
+  .edge-reveal-handle.edge-right {
+    top: 50%;
+    width: 8px;
+    height: min(72px, 42%);
+    transform: translateY(-50%);
+    cursor: ew-resize;
+  }
+
+  .edge-reveal-handle.edge-left {
+    right: 0;
+    border-radius: 6px 0 0 6px;
+  }
+
+  .edge-reveal-handle.edge-right {
+    left: 0;
+    border-radius: 0 6px 6px 0;
   }
 
   .note-frost-layer {
