@@ -82,7 +82,7 @@
 
 优先级：medium
 
-目标：实现已钉在桌面且置顶显示的贴纸隐藏能力：拖动溢出屏幕边界时可溢边隐藏，快捷键可隐藏最近编辑过的顶层贴纸；存在隐藏贴纸时，快捷键优先恢复显示。
+目标：实现已钉在桌面且置顶显示的贴纸隐藏能力，并闭环屏幕边缘直接唤回、显示器切换可达性和元数据事件隔离。
 
 关联文档：
 
@@ -92,7 +92,10 @@
 
 1. 已实现 Note 持久化字段、Rust 统一隐藏 / 显示命令、`activeTopmostEditingNoteId` tracker、`Ctrl+Shift+H` 全局快捷键、贴纸工具栏“溢边隐藏”开关和拖动溢边触发。
 2. 验证已通过：`cargo test --manifest-path src-tauri/Cargo.toml sticky::auto_hide`、`make check`、`make build`。真实运行验证使用临时 `HOME` 启动开发版 Tauri，并设置 `DESK_TIDY_STICKY_RUNTIME_CHECK=sticky_auto_hide`；日志已出现 `hide active note`、`reveal hidden note`、`hide overflowed note`、`reveal overflow hidden note` 和 `sticky_auto_hide PASS`。
-3. 后续候选入口：面板 / workstation 卡片上的“显示隐藏贴纸”按钮和托盘入口，先不阻塞当前两种隐藏触发模式验收。
+3. 2026-07-31 修复外置工具栏导致的正文可见边丢失：边缘计算改用正文矩形，屏幕范围改用 monitor work area，窗口就绪时归一化失效坐标。
+4. 2026-07-31 增加四边 `wheel` 手势唤回和点击兜底；自动隐藏事件改为 metadata，外部更新提示只由真实未提交草稿与文本事件共同触发。
+5. 自动验证：`pnpm check`、13 项前端测试、5 项 `sticky::auto_hide` Rust 测试通过。待验收：macOS / Windows 实机双指手势、首次隐藏柄命中和运行中断开显示器。
+6. 后续候选入口：面板 / workstation 卡片上的“显示隐藏贴纸”按钮和托盘入口，不阻塞当前边缘闭环验收。
 
 ### Workstation UI Cleanup
 
