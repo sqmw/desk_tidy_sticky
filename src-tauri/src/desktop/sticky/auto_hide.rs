@@ -235,6 +235,33 @@ fn hidden_position(body: Rect, monitor: Rect, edge: &str) -> (f64, f64) {
     }
 }
 
+fn hidden_restore_reference(note: &notes::Note, fallback: Rect, edge: &str) -> Rect {
+    let visible_x = note.auto_hide_visible_x;
+    let visible_y = note.auto_hide_visible_y;
+    let hidden_x = note.auto_hide_hidden_x.or(note.x);
+    let hidden_y = note.auto_hide_hidden_y.or(note.y);
+    let (x, y) = match edge {
+        "left" | "right" => (
+            hidden_x.or(visible_x).unwrap_or(fallback.x),
+            visible_y.or(hidden_y).unwrap_or(fallback.y),
+        ),
+        "top" | "bottom" => (
+            visible_x.or(hidden_x).unwrap_or(fallback.x),
+            hidden_y.or(visible_y).unwrap_or(fallback.y),
+        ),
+        _ => (
+            visible_x.or(hidden_x).unwrap_or(fallback.x),
+            visible_y.or(hidden_y).unwrap_or(fallback.y),
+        ),
+    };
+    Rect {
+        x,
+        y,
+        width: fallback.width,
+        height: fallback.height,
+    }
+}
+
 fn visible_position(note: &notes::Note, body: Rect, monitor: Rect) -> (f64, f64) {
     let x = note.auto_hide_visible_x.unwrap_or(body.x);
     let y = note.auto_hide_visible_y.unwrap_or(body.y);
@@ -421,11 +448,13 @@ fn normalize_note_window_position_unlocked(
         return Ok(None);
     };
     let geometry = note_window_geometry(&note, window_rect(&window)?);
-    let monitor = resolve_window_monitor(app, geometry.body)?;
 
     if note.auto_hide_state.as_deref() == Some(AUTO_HIDE_STATE_HIDDEN) {
-        let edge = nearest_edge(geometry.body, monitor, note.auto_hide_edge.as_deref());
-        let hidden_body = hidden_position(geometry.body, monitor, edge);
+        let edge_hint = note.auto_hide_edge.as_deref().unwrap_or("");
+        let restore_reference = hidden_restore_reference(&note, geometry.body, edge_hint);
+        let monitor = resolve_window_monitor(app, restore_reference)?;
+        let edge = nearest_edge(restore_reference, monitor, note.auto_hide_edge.as_deref());
+        let hidden_body = hidden_position(restore_reference, monitor, edge);
         let hidden_outer = outer_position_for_body(geometry, hidden_body);
         let moved = (geometry.outer.x - hidden_outer.0).abs() > 0.5
             || (geometry.outer.y - hidden_outer.1).abs() > 0.5;
@@ -446,6 +475,7 @@ fn normalize_note_window_position_unlocked(
         return Ok(None);
     }
 
+    let monitor = resolve_window_monitor(app, geometry.body)?;
     let visible = (
         clamp(
             geometry.body.x,
@@ -603,6 +633,47 @@ mod tests {
         assert_eq!(hidden_position(window, monitor, "right"), (992.0, 120.0));
         assert_eq!(hidden_position(window, monitor, "top"), (100.0, -212.0));
         assert_eq!(hidden_position(window, monitor, "bottom"), (100.0, 792.0));
+    }
+
+    #[test]
+    fn hidden_restore_keeps_distinct_positions_after_windows_recreates_offscreen_windows() {
+        let monitor = rect(0.0, 0.0, 2560.0, 1440.0);
+        let restarted_body = rect(160.0, 0.0, 300.0, 300.0);
+        let mut first = notes::Note::new("first".to_string(), true);
+        first.auto_hide_edge = Some("top".to_string());
+        first.auto_hide_visible_x = Some(140.0);
+        first.auto_hide_visible_y = Some(-125.33333333333331);
+        first.auto_hide_hidden_x = Some(126.66666666666669);
+        first.auto_hide_hidden_y = Some(-292.0);
+        let mut second = notes::Note::new("second".to_string(), true);
+        second.auto_hide_edge = Some("top".to_string());
+        second.auto_hide_visible_x = Some(1876.6666666666667);
+        second.auto_hide_visible_y = Some(-173.33333333333334);
+        second.auto_hide_hidden_x = Some(177.33333333333334);
+        second.auto_hide_hidden_y = Some(-292.0);
+        let mut right = notes::Note::new("right".to_string(), true);
+        right.auto_hide_edge = Some("right".to_string());
+        right.auto_hide_visible_x = Some(2446.6666666666665);
+        right.auto_hide_visible_y = Some(640.0);
+        right.auto_hide_hidden_x = Some(2552.0);
+        right.auto_hide_hidden_y = Some(174.66666666666666);
+
+        let first_reference = hidden_restore_reference(&first, restarted_body, "top");
+        let second_reference = hidden_restore_reference(&second, restarted_body, "top");
+        let right_reference = hidden_restore_reference(&right, restarted_body, "right");
+
+        assert_eq!(
+            hidden_position(first_reference, monitor, "top"),
+            (140.0, -292.0)
+        );
+        assert_eq!(
+            hidden_position(second_reference, monitor, "top"),
+            (1876.6666666666667, -292.0)
+        );
+        assert_eq!(
+            hidden_position(right_reference, monitor, "right"),
+            (2552.0, 640.0)
+        );
     }
 
     #[test]
