@@ -44,6 +44,7 @@
     NOTE_COLORS,
     NOTE_TEXT_COLORS,
     hexToRgba,
+    resolveNoteSurfaceAlpha,
     toColorPickerHex,
   } from "$lib/note/note-theme.js";
   /** @type {any} */
@@ -105,7 +106,8 @@
   const isWindows =
     typeof navigator !== "undefined" &&
     /win/i.test(String(navigator.userAgent || navigator.platform || ""));
-  const noteBackground = $derived(hexToRgba(noteBgColor, noteOpacity));
+  const noteSurfaceAlpha = $derived(resolveNoteSurfaceAlpha(noteOpacity, noteFrost));
+  const noteBackground = $derived(hexToRgba(noteBgColor, noteSurfaceAlpha));
   const noteWindowRadius = $derived(isWindows ? "0px" : "12px");
   const canInteract = $derived(!globalControlDisabled || !!note?.isAlwaysOnTop);
   const isEffectiveTopmost = $derived(!!note?.isAlwaysOnTop || !globalControlDisabled);
@@ -1578,7 +1580,7 @@
     display: flex;
     flex-direction: column;
     border-radius: var(--note-radius);
-    background: var(--note-tint, transparent);
+    background: transparent;
     background-clip: padding-box;
     border: 1px solid rgba(255, 255, 255, var(--note-border-alpha, 0.22));
     clip-path: inset(0 round var(--note-radius));
@@ -1595,7 +1597,12 @@
 
   .note-window.windows-flat {
     --note-radius: 0px;
+    background: var(--note-tint, transparent);
     filter: none;
+  }
+
+  .note-window.windows-flat .note-frost-layer {
+    background-color: transparent;
   }
 
   .edge-reveal-handle {

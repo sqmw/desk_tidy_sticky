@@ -1,4 +1,5 @@
 import { adjustInlineColorRangesForTextChange } from "$lib/markdown/note-markdown.js";
+import { shouldDeferKeydownToIme as shouldDeferKeydownToImeEvent } from "$lib/note/sticky-note-interaction.js";
 
 /**
  * Owns transient editor-session state that must survive focus changes without
@@ -9,6 +10,7 @@ export function createBlockNoteEditorController() {
   let rememberedSelection = null;
   let previousDraft = "";
   let suppressBlurUntil = 0;
+  let isComposing = false;
 
   return {
     /** @param {string} draft */
@@ -20,6 +22,20 @@ export function createBlockNoteEditorController() {
     clearEditing() {
       previousDraft = "";
       rememberedSelection = null;
+      isComposing = false;
+    },
+
+    beginComposition() {
+      isComposing = true;
+    },
+
+    endComposition() {
+      isComposing = false;
+    },
+
+    /** @param {KeyboardEvent | { isComposing?: boolean; keyCode?: number }} event */
+    shouldDeferKeydownToIme(event) {
+      return shouldDeferKeydownToImeEvent(event, isComposing);
     },
 
     /** @param {Array<{ start: number; end: number; color: string }>} ranges @param {string} nextDraft */

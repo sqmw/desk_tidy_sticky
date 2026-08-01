@@ -738,6 +738,14 @@
     editorController.rememberSelection(editorEl);
   }
 
+  function handleCompositionStart() {
+    editorController.beginComposition();
+  }
+
+  function handleCompositionEnd() {
+    editorController.endComposition();
+  }
+
   /** @param {ClipboardEvent} event */
   async function handleEditorPaste(event) {
     const imageItem = Array.from(event.clipboardData?.items || []).find(
@@ -796,6 +804,7 @@
 
   /** @param {KeyboardEvent} event */
   async function handleEditorKeydown(event) {
+    if (editorController.shouldDeferKeydownToIme(event)) return;
     if (showCommandSuggestions && commandSuggestionItems.length > 0) {
       if (event.key === "ArrowDown") {
         event.preventDefault();
@@ -1024,6 +1033,8 @@
           {placeholder}
           spellcheck="false"
           oninput={handleEditorInput}
+          oncompositionstart={handleCompositionStart}
+          oncompositionend={handleCompositionEnd}
           onpaste={handleEditorPaste}
           onkeydown={handleEditorKeydown}
           onblur={handleEmptyEditorBlur}
@@ -1052,6 +1063,8 @@
             rows={Math.max(1, block.rawLines.length)}
             spellcheck="false"
             oninput={handleEditorInput}
+            oncompositionstart={handleCompositionStart}
+            oncompositionend={handleCompositionEnd}
             onpaste={handleEditorPaste}
             onselect={rememberEditorSelection}
             onkeyup={rememberEditorSelection}

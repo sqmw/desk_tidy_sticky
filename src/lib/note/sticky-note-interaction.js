@@ -19,6 +19,17 @@ export function classifyStickyNoteChange(input) {
 }
 
 /**
+ * Lets the input method consume candidate navigation and confirmation keys
+ * before block-level Enter/Tab/arrow shortcuts run.
+ *
+ * @param {KeyboardEvent | { isComposing?: boolean; keyCode?: number }} event
+ * @param {boolean} compositionActive
+ */
+export function shouldDeferKeydownToIme(event, compositionActive) {
+  return compositionActive || event.isComposing === true || event.keyCode === 229;
+}
+
+/**
  * Provides a stable, best-effort caret position when switching from rendered
  * Markdown to a textarea without pretending the two layouts are identical.
  *

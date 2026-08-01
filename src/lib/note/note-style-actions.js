@@ -8,14 +8,20 @@ const WHEEL_STEP = 0.02;
  * @param {number} value
  */
 export function clampNoteOpacity(value) {
-  return Math.max(OPACITY_MIN, Math.min(OPACITY_MAX, Number(value) || OPACITY_MAX));
+  const numeric = Number(value);
+  return Number.isFinite(numeric)
+    ? Math.max(OPACITY_MIN, Math.min(OPACITY_MAX, numeric))
+    : OPACITY_MAX;
 }
 
 /**
  * @param {number} value
  */
 export function clampNoteFrost(value) {
-  return Math.max(FROST_MIN, Math.min(FROST_MAX, Number(value) || FROST_MIN));
+  const numeric = Number(value);
+  return Number.isFinite(numeric)
+    ? Math.max(FROST_MIN, Math.min(FROST_MAX, numeric))
+    : FROST_MIN;
 }
 
 /**

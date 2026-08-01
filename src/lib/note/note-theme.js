@@ -3,6 +3,25 @@ export const DEFAULT_NOTE_TEXT_COLOR = "#1f2937";
 export const DEFAULT_NOTE_OPACITY = 1;
 export const DEFAULT_NOTE_FROST = 0.22;
 
+const FROST_SURFACE_REVEAL = 0.42;
+
+/**
+ * Frost needs visible desktop content to blur. It therefore reduces only the
+ * color veil, while the opacity control remains the upper bound.
+ *
+ * @param {number} opacity
+ * @param {number} frost
+ */
+export function resolveNoteSurfaceAlpha(opacity, frost) {
+  const safeOpacity = Number.isFinite(Number(opacity))
+    ? Math.max(0, Math.min(1, Number(opacity)))
+    : DEFAULT_NOTE_OPACITY;
+  const safeFrost = Number.isFinite(Number(frost))
+    ? Math.max(0, Math.min(1, Number(frost)))
+    : DEFAULT_NOTE_FROST;
+  return safeOpacity * (1 - safeFrost * FROST_SURFACE_REVEAL);
+}
+
 export const NOTE_COLORS = [
   "#fff9c4",
   "#ffe0b2",

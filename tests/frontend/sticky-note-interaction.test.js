@@ -6,6 +6,7 @@ import {
   classifyStickyNoteChange,
   estimateMarkdownCaretOffset,
   insertTextAtSelection,
+  shouldDeferKeydownToIme,
 } from "../../src/lib/note/sticky-note-interaction.js";
 import {
   createStickyEdgeRevealController,
@@ -21,6 +22,11 @@ import {
   createNoteWindowDragController,
   NOTE_WINDOW_NON_DRAGGABLE_SELECTOR,
 } from "../../src/lib/note/note-window-drag.js";
+import {
+  clampNoteFrost,
+  clampNoteOpacity,
+} from "../../src/lib/note/note-style-actions.js";
+import { resolveNoteSurfaceAlpha } from "../../src/lib/note/note-theme.js";
 
 test("sticky reports conflicts only when a text event meets an unsaved draft", () => {
   const base = {
@@ -58,6 +64,25 @@ test("sticky ignores its own short-lived notes_changed echo", () => {
     }),
     "local",
   );
+});
+
+test("IME composition owns Enter before block editing shortcuts", () => {
+  const enter = { isComposing: false, keyCode: 13 };
+
+  assert.equal(shouldDeferKeydownToIme(enter, true), true);
+  assert.equal(shouldDeferKeydownToIme(enter, false), false);
+  assert.equal(shouldDeferKeydownToIme({ isComposing: true, keyCode: 13 }, false), true);
+  assert.equal(shouldDeferKeydownToIme({ isComposing: false, keyCode: 229 }, false), true);
+});
+
+test("note opacity preserves zero and frost reveals the blurred surface", () => {
+  assert.equal(clampNoteOpacity(0), 0);
+  assert.equal(clampNoteOpacity(Number.NaN), 1);
+  assert.equal(clampNoteFrost(0), 0);
+  assert.equal(clampNoteFrost(Number.NaN), 0);
+  assert.equal(resolveNoteSurfaceAlpha(1, 0), 1);
+  assert.ok(Math.abs(resolveNoteSurfaceAlpha(1, 1) - 0.58) < 1e-9);
+  assert.ok(resolveNoteSurfaceAlpha(0.6, 1) < resolveNoteSurfaceAlpha(0.6, 0));
 });
 
 test("edge reveal wheel normalizes platform units without relying on scroll sign", () => {
