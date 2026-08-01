@@ -108,6 +108,8 @@
 
 当前实现把边缘检测放在 Rust 侧 `src-tauri/src/desktop/sticky/auto_hide.rs`。原生窗口在控制态会包含顶部、底部和左右透明预留，因此先由 note 的正文尺寸和持久化位置推导 `WindowGeometry`，所有边缘检测、隐藏位置和恢复夹取都只使用正文矩形；移动原生窗口前再减去运行时预留偏移。这样编辑浮岛不会吃掉屏幕内必须保留的可见边。
 
+Windows 重建离屏窗口时可能先把初始位置夹取到屏内或默认区域。隐藏状态的 `normalize_note_window_position` 因此不能把新窗口的临时实际位置当成持久化真相：左右边恢复沿 Y 轴优先使用 `autoHideVisibleY`，上下边恢复沿 X 轴优先使用 `autoHideVisibleX`，垂直于边缘的坐标继续由持久化隐藏坐标确定显示器参考。这样总开关关闭再开启时，同一边上的多张贴纸仍保持各自位置，已有错误隐藏坐标也能从保留的可见坐标自动纠正。
+
 显示器边界使用 Tauri `Monitor::work_area()`，避开 macOS 菜单栏和 Windows 任务栏。`normalize_note_window_position` 在贴纸窗口首次就绪时执行：hidden 状态沿既有边严格保留 `8px` 正文可见边，visible 状态把正文完整夹取到最近显示器工作区；原显示器已断开时不继续保留失效屏外坐标。
 
 溢边隐藏不再使用“靠近边缘”作为唯一判断。第一版应以窗口 rect 是否超出当前 monitor 为主要信号：
