@@ -13,29 +13,54 @@ mod discovery;
 static mut WORKER_W: HWND = HWND(0 as *mut c_void);
 static mut WALLPAPER_WORKER_W: HWND = HWND(0 as *mut c_void);
 
+fn null_hwnd() -> HWND {
+    HWND(std::ptr::null_mut())
+}
+
+fn parent_matches(parent: HWND, expected_parent: HWND, desktop: HWND) -> bool {
+    parent == expected_parent || (expected_parent == desktop && parent.0.is_null())
+}
+
+unsafe fn read_parent(hwnd: HWND) -> Result<HWND, u32> {
+    SetLastError(WIN32_ERROR(0));
+    match GetParent(hwnd) {
+        Ok(parent) => Ok(parent),
+        Err(_) => {
+            let code = GetLastError().0;
+            // windows-rs maps a NULL HWND to Err even though Win32 uses NULL + error 0
+            // for a valid top-level window with no parent.
+            if code == 0 {
+                Ok(null_hwnd())
+            } else {
+                Err(code)
+            }
+        }
+    }
+}
+
 fn set_parent_checked(hwnd: HWND, expected_parent: HWND, phase: &str) -> Result<bool, String> {
     unsafe {
         let desktop = GetDesktopWindow();
-        if matches!(GetParent(hwnd), Ok(parent) if parent == expected_parent) {
-            return Ok(false);
-        }
-        // Some WebView hosts report top-level as NULL parent even when desktop-parented.
-        if expected_parent == desktop && matches!(GetParent(hwnd), Ok(parent) if parent.0.is_null())
+        if matches!(read_parent(hwnd), Ok(parent) if parent_matches(parent, expected_parent, desktop))
         {
             return Ok(false);
         }
 
         SetLastError(WIN32_ERROR(0));
         let _ = SetParent(hwnd, expected_parent);
-        if matches!(GetParent(hwnd), Ok(parent) if parent == expected_parent) {
+        let set_parent_error = GetLastError().0;
+        let parent_after = read_parent(hwnd);
+        if matches!(parent_after, Ok(parent) if parent_matches(parent, expected_parent, desktop)) {
             return Ok(true);
         }
-        // Some WebView hosts report top-level as NULL parent even after reparenting to desktop.
-        if expected_parent == desktop && matches!(GetParent(hwnd), Ok(parent) if parent.0.is_null())
-        {
-            return Ok(true);
-        }
-        let code = GetLastError().0;
+        let code = if set_parent_error != 0 {
+            set_parent_error
+        } else {
+            match parent_after {
+                Err(code) => code,
+                Ok(_) => 0,
+            }
+        };
         Err(format!(
             "SetParent {} failed with Win32 error {}",
             phase, code
@@ -269,9 +294,11 @@ pub fn detach_from_worker_w(hwnd_isize: isize) -> Result<(), String> {
             return Err("detach_from_worker_w target hwnd invalid".to_string());
         }
 
-        let desktop = GetDesktopWindow();
-        if let Err(first_err) = set_parent_checked(hwnd, desktop, "detach") {
-            if let Err(second_err) = set_parent_checked(hwnd, desktop, "detach_retry") {
+        apply_top_level_style(hwnd);
+
+        let top_level = null_hwnd();
+        if let Err(first_err) = set_parent_checked(hwnd, top_level, "detach") {
+            if let Err(second_err) = set_parent_checked(hwnd, top_level, "detach_retry") {
                 eprintln!(
                     "detach_from_worker_w retry failed: first={}, second={}",
                     first_err, second_err
@@ -279,12 +306,38 @@ pub fn detach_from_worker_w(hwnd_isize: isize) -> Result<(), String> {
             }
         }
 
-        apply_top_level_style(hwnd);
-
         // Keep window as top-level; caller decides whether to promote topmost.
         let flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED;
         let _ = SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
         let _ = SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, flags);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hwnd(value: usize) -> HWND {
+        HWND(value as *mut c_void)
+    }
+
+    #[test]
+    fn top_level_parent_matches_null_only() {
+        let desktop = hwnd(1);
+        let worker = hwnd(2);
+
+        assert!(parent_matches(null_hwnd(), null_hwnd(), desktop));
+        assert!(!parent_matches(worker, null_hwnd(), desktop));
+    }
+
+    #[test]
+    fn desktop_fallback_accepts_webview_top_level_parent() {
+        let desktop = hwnd(1);
+        let worker = hwnd(2);
+
+        assert!(parent_matches(desktop, desktop, desktop));
+        assert!(parent_matches(null_hwnd(), desktop, desktop));
+        assert!(!parent_matches(worker, desktop, desktop));
+    }
 }
