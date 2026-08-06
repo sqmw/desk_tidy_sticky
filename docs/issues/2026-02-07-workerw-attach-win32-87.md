@@ -9,7 +9,7 @@
 - 代码首次 `SetParent(hwnd, WORKER_W)` 命中无效参数（87），直接失败返回。
 
 ## Fix
-文件：`src-tauri/src/windows.rs`
+文件：`src-tauri/src/platform/windows/workerw/mod.rs`
 
 - 在 `attach_to_worker_w` 增加一次性重试策略：
   1. 首次 attach 失败且错误含 `Win32 error 87`；
@@ -26,6 +26,17 @@
   - 对 `Win32 error 0/87` 做一次重试（其余错误不重试）。
 - 效果：
   - `toggleZOrder` 在置底 -> 置顶切换时稳定性提升，减少前端报错。
+
+## 2026-08-06 Detach Regression Closure
+
+- 现象：Windows 开发版启动时按置顶贴纸数量打印 `detach_from_worker_w retry failed ... Win32 error 0`。
+- 根因：模块拆分后的实现再次使用 `SetParent(hwnd, DesktopWindow)` 表达脱离，并直接依赖 `windows-rs` 的 `GetParent` 返回值。Win32 以 `NULL parent + GetLastError()==0` 表示合法顶层窗口，但绑定层会把空句柄包装成 `Err`，导致成功状态无法被识别。
+- 修复：
+  - 新增父窗口读取适配，显式把 `NULL + error 0` 解码为合法空父窗口，其他错误码继续返回失败。
+  - `detach_from_worker_w` 先恢复 `WS_POPUP` 顶层样式，再执行 `SetParent(hwnd, NULL)`；最终父窗口为空才视为成功。
+  - 保留 desktop fallback 对 WebView 顶层空父窗口的兼容语义，不改变 WorkerW / wallpaper WorkerW 附着策略。
+- 自动验证：macOS 通用门禁通过；Syncthing 同步后的 Windows 原生 `cargo check` 与 21 项 Rust 测试通过，其中 2 项覆盖顶层空父窗口和 desktop fallback。
+- 待实机验收：开发版启动及置底 -> 置顶切换不再打印 error 0，贴纸保持正确层级与拖动能力。
 
 ## Follow-up (Multi-WorkerW + Bottom Fallback)
 - 新要求：
