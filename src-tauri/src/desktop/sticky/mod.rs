@@ -7,6 +7,8 @@ use crate::runtime::GlobalControlState;
 use tauri::{Emitter, Manager};
 
 mod auto_hide;
+#[cfg(any(target_os = "windows", test))]
+mod display_recovery;
 mod effects;
 mod layer;
 mod panel_window;
@@ -16,6 +18,8 @@ pub use auto_hide::{
     mark_active_topmost_editing_sticky, normalize_note_window_position, reveal_note_from_edge,
     set_note_auto_hide_enabled, shortcut_hide_or_reveal, toggle_hidden_stickies,
 };
+#[cfg(target_os = "windows")]
+pub use display_recovery::{schedule_hidden_note_recovery, StickyDisplayRecoveryState};
 pub use effects::apply_note_window_frost;
 use effects::{apply_note_window_frost_by_label, sync_note_window_frost_by_id};
 pub use layer::apply_overlay_input_state;

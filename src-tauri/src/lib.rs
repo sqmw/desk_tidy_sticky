@@ -66,6 +66,9 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init());
 
+    #[cfg(target_os = "windows")]
+    let builder = builder.manage(desktop::StickyDisplayRecoveryState::default());
+
     #[cfg(target_os = "macos")]
     let builder = builder.plugin(tauri_nspanel::init());
 
@@ -210,7 +213,14 @@ pub fn run() {
             _ => {}
         }
 
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(target_os = "windows")]
+        if let tauri::RunEvent::WindowEvent { label, event, .. } = event {
+            if matches!(event, tauri::WindowEvent::Moved(_)) {
+                desktop::schedule_hidden_note_recovery(app_handle, &label);
+            }
+        }
+
+        #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
         let _ = (app_handle, event);
     });
 }

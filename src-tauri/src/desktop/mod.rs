@@ -19,6 +19,8 @@ pub(crate) use sticky::{
     toggle_overlay_interaction, toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply,
     unpin_window_from_desktop,
 };
+#[cfg(target_os = "windows")]
+pub(crate) use sticky::{schedule_hidden_note_recovery, StickyDisplayRecoveryState};
 pub(crate) use tray::{build_tray, update_tray_texts};
 
 mod panel;

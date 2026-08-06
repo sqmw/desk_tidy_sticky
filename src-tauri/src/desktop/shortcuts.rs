@@ -1,4 +1,8 @@
 use std::str::FromStr;
+#[cfg(target_os = "windows")]
+use std::sync::{Arc, Mutex};
+#[cfg(any(target_os = "windows", test))]
+use std::time::{Duration, Instant};
 
 use crate::{
     desktop::{show_preferred_panel_window, sync_panel_window_shell_state, PANEL_WINDOW_LABELS},
@@ -17,6 +21,37 @@ const STATUS_CONFLICT: &str = "conflict";
 const STATUS_INVALID: &str = "invalid";
 const STATUS_DISABLED: &str = "disabled";
 const STATUS_ERROR: &str = "error";
+#[cfg(any(target_os = "windows", test))]
+const STICKY_SHORTCUT_MIN_PRESS_DURATION: Duration = Duration::from_millis(30);
+#[cfg(any(target_os = "windows", test))]
+const STICKY_SHORTCUT_MAX_PRESS_DURATION: Duration = Duration::from_secs(2);
+
+#[cfg(any(target_os = "windows", test))]
+#[derive(Default)]
+struct StickyShortcutIntent {
+    pressed_at: Option<Instant>,
+}
+
+#[cfg(any(target_os = "windows", test))]
+impl StickyShortcutIntent {
+    fn handle(&mut self, state: ShortcutState, now: Instant) -> bool {
+        match state {
+            ShortcutState::Pressed => {
+                self.pressed_at = Some(now);
+                false
+            }
+            ShortcutState::Released => self
+                .pressed_at
+                .take()
+                .map(|pressed_at| {
+                    let duration = now.saturating_duration_since(pressed_at);
+                    (STICKY_SHORTCUT_MIN_PRESS_DURATION..=STICKY_SHORTCUT_MAX_PRESS_DURATION)
+                        .contains(&duration)
+                })
+                .unwrap_or(false),
+        }
+    }
+}
 
 #[derive(Copy, Clone)]
 enum ShortcutAction {
@@ -179,8 +214,22 @@ fn register_binding(app: &tauri::AppHandle, binding: &mut DesiredShortcutBinding
                 })
         }
         ShortcutAction::ToggleStickyHide => {
+            #[cfg(target_os = "windows")]
+            let intent = Arc::new(Mutex::new(StickyShortcutIntent::default()));
             app.global_shortcut()
                 .on_shortcut(shortcut, move |app, _, event| {
+                    #[cfg(target_os = "windows")]
+                    {
+                        let accepted = intent
+                            .lock()
+                            .map(|mut intent| intent.handle(event.state, Instant::now()))
+                            .unwrap_or(false);
+                        if accepted {
+                            crate::desktop::shortcut_hide_or_reveal(app);
+                        }
+                    }
+
+                    #[cfg(not(target_os = "windows"))]
                     if event.state == ShortcutState::Pressed {
                         crate::desktop::shortcut_hide_or_reveal(app);
                     }
@@ -241,4 +290,36 @@ fn handle_overlay_shortcut(app: &tauri::AppHandle) {
     let interaction_disabled = state.toggle();
     crate::desktop::apply_overlay_input_state(app, interaction_disabled);
     let _ = app.emit("global_control_changed", interaction_disabled);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sticky_shortcut_rejects_instantaneous_wake_pair() {
+        let start = Instant::now();
+        let mut intent = StickyShortcutIntent::default();
+
+        assert!(!intent.handle(ShortcutState::Pressed, start));
+        assert!(!intent.handle(ShortcutState::Released, start + Duration::from_millis(5)));
+    }
+
+    #[test]
+    fn sticky_shortcut_accepts_deliberate_press_and_release() {
+        let start = Instant::now();
+        let mut intent = StickyShortcutIntent::default();
+
+        assert!(!intent.handle(ShortcutState::Pressed, start));
+        assert!(intent.handle(ShortcutState::Released, start + Duration::from_millis(80)));
+    }
+
+    #[test]
+    fn sticky_shortcut_rejects_stale_press_across_sleep() {
+        let start = Instant::now();
+        let mut intent = StickyShortcutIntent::default();
+
+        assert!(!intent.handle(ShortcutState::Pressed, start));
+        assert!(!intent.handle(ShortcutState::Released, start + Duration::from_secs(3)));
+    }
 }

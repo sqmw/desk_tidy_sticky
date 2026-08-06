@@ -90,6 +90,12 @@ fn clamp(value: f64, min: f64, max: f64) -> f64 {
     value.clamp(min, max)
 }
 
+fn position_matches(position: Option<f64>, expected: f64) -> bool {
+    position
+        .map(|position| (position - expected).abs() <= 0.5)
+        .unwrap_or(false)
+}
+
 fn window_rect(window: &tauri::WebviewWindow) -> Result<Rect, String> {
     let position = window.outer_position().map_err(|e| e.to_string())?;
     let size = window.outer_size().map_err(|e| e.to_string())?;
@@ -461,8 +467,15 @@ fn normalize_note_window_position_unlocked(
         if moved {
             move_window_without_activation(window, hidden_outer.0, hidden_outer.1)?;
         }
-        let updated =
-            notes_service::normalize_note_auto_hide_position(id, None, Some(hidden_body))?;
+        let stored_position_matches = position_matches(note.auto_hide_hidden_x, hidden_body.0)
+            && position_matches(note.auto_hide_hidden_y, hidden_body.1)
+            && position_matches(note.x, hidden_body.0)
+            && position_matches(note.y, hidden_body.1);
+        let updated = if stored_position_matches {
+            note
+        } else {
+            notes_service::normalize_note_auto_hide_position(id, None, Some(hidden_body))?
+        };
         return Ok(Some(StickyAutoHideResult {
             note: updated,
             edge: edge.to_string(),
@@ -536,6 +549,22 @@ pub fn normalize_note_window_position(
     id: String,
 ) -> Result<Option<StickyAutoHideResult>, String> {
     notes_store::with_notes_store(&app, || normalize_note_window_position_unlocked(&app, &id))
+}
+
+#[cfg(target_os = "windows")]
+pub(super) fn recover_hidden_note_window_position(
+    app: tauri::AppHandle,
+    id: String,
+) -> Result<Option<StickyAutoHideResult>, String> {
+    notes_store::with_notes_store(&app, || {
+        let Some(note) = notes_service::find_note(&id)? else {
+            return Ok(None);
+        };
+        if note.auto_hide_state.as_deref() != Some(AUTO_HIDE_STATE_HIDDEN) {
+            return Ok(None);
+        }
+        normalize_note_window_position_unlocked(&app, &id)
+    })
 }
 
 #[tauri::command]
@@ -633,6 +662,13 @@ mod tests {
         assert_eq!(hidden_position(window, monitor, "right"), (992.0, 120.0));
         assert_eq!(hidden_position(window, monitor, "top"), (100.0, -212.0));
         assert_eq!(hidden_position(window, monitor, "bottom"), (100.0, 792.0));
+    }
+
+    #[test]
+    fn position_match_tolerates_subpixel_window_rounding() {
+        assert!(position_matches(Some(100.0), 100.4));
+        assert!(!position_matches(Some(100.0), 100.6));
+        assert!(!position_matches(None, 100.0));
     }
 
     #[test]
