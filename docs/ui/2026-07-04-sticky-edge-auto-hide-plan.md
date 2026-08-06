@@ -196,6 +196,7 @@ Windows：
 - 自动隐藏需要避开 Aero Snap 干扰，继续保留现有 no-snap 策略。
 - 桌面层 / WorkerW 层移动后要重同步 z-order，避免收起后被送到图标下不可见。
 - 收起位置应保留 `hiddenSliverPx`，不能完全移出屏幕。
+- Windows 在显示器关闭再开启时可能产生非用户触发的全局快捷键 Pressed/Released 对，并把离屏窗口移回工作区。贴纸隐藏快捷键因此只在 30ms 至 2s 内完成的按下/释放后执行；`note-*` 的原生 Moved 事件按窗口防抖，若持久化状态仍为 hidden，则只调用既有归一化恢复原沿边位置和 8px 可见边。该恢复不得把 hidden 改成 visible，也不得无条件重新隐藏所有贴纸。
 
 macOS：
 
@@ -270,7 +271,8 @@ Phase 4：平台回归与补强
 8. macOS 第一次隐藏和第一次显示都一次生效。
 9. 上 / 下边用垂直双指滚动唤回，左 / 右边接受水平双指滚动；鼠标滚轮作为四边兼容兜底。
 10. 未修改活动块时，颜色、层级、自动隐藏等 metadata 更新不显示“草稿尚未保存”；只有实际草稿遇到同一笔记的文本更新才显示。
-9. `make check`、edge 计算 smoke、Windows/macOS 手动回归通过。
+11. `make check`、edge 计算 smoke、Windows/macOS 手动回归通过。
+12. Windows 关闭显示器再开启后，hidden 贴纸仍停留在原来的贴边收起位置；亮屏事件不会批量切换为 visible，系统若临时搬动窗口会在防抖后恢复 8px 可见边。
 
 ## 待确认
 
