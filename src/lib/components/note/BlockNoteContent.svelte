@@ -19,6 +19,7 @@
   import { applyLineIndentToText } from "$lib/markdown/editor-indent.js";
   import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
   import { createBlockNoteEditorController } from "$lib/note/block-note-editor-controller.js";
+  import { applyStructuralTextChange } from "$lib/note/block-structural-commit.js";
   import {
     estimateMarkdownCaretOffset,
     insertTextAtSelection,
@@ -181,6 +182,58 @@
     editorEl?.focus?.();
   }
 
+  function clearActiveBlockState() {
+    activeBlockId = null;
+    activeBlockOriginal = null;
+    activeBlockDraft = "";
+    activeBlockInitialDraft = "";
+    activeInlineColorRanges = [];
+    editorController.clearEditing();
+    hideCommandSuggestions();
+  }
+
+  function captureEditingSession() {
+    return {
+      activeBlockId,
+      activeBlockDraft,
+      activeBlockInitialDraft,
+      activeBlockOriginal,
+      activeInlineColorRanges,
+    };
+  }
+
+  /** @param {ReturnType<typeof captureEditingSession>} snapshot */
+  function restoreEditingSession(snapshot) {
+    activeBlockId = snapshot.activeBlockId;
+    activeBlockOriginal = snapshot.activeBlockOriginal;
+    activeBlockDraft = snapshot.activeBlockDraft;
+    activeBlockInitialDraft = snapshot.activeBlockInitialDraft;
+    activeInlineColorRanges = snapshot.activeInlineColorRanges;
+    editorController.beginEditing(snapshot.activeBlockDraft);
+  }
+
+  function clearPendingCaret() {
+    pendingActiveStartLine = null;
+    pendingCaretOffset = null;
+    pendingCaretAtEnd = false;
+  }
+
+  /**
+   * @param {string} nextText
+   * @param {ReturnType<typeof captureEditingSession>} snapshot
+   */
+  function commitStructuralTextChange(nextText, snapshot) {
+    return applyStructuralTextChange({
+      nextText,
+      snapshot,
+      // Wrapped because the callback props are untyped `$props()` entries.
+      save: (value) => onTextChange(value),
+      restore: restoreEditingSession,
+      clearPendingCaret,
+      onConflict: () => onConflict(),
+    });
+  }
+
   async function commitActiveBlock() {
     if (!activeBlockOriginal) {
       activeBlockId = null;
@@ -199,13 +252,7 @@
         return false;
       }
     }
-    activeBlockId = null;
-    activeBlockOriginal = null;
-    activeBlockDraft = "";
-    activeBlockInitialDraft = "";
-    activeInlineColorRanges = [];
-    editorController.clearEditing();
-    hideCommandSuggestions();
+    clearActiveBlockState();
     return true;
   }
 
@@ -218,18 +265,12 @@
     }
     const split = getEnterSplit(activeBlockOriginal);
     const inserted = splitBlockMarkdown(text, activeBlockOriginal, split.before, split.after);
-    activeBlockId = null;
-    activeBlockOriginal = null;
-    activeBlockDraft = "";
-    activeBlockInitialDraft = "";
-    activeInlineColorRanges = [];
-    editorController.clearEditing();
-    hideCommandSuggestions();
+    const snapshot = captureEditingSession();
+    clearActiveBlockState();
     pendingActiveStartLine = inserted.nextStartLine;
     pendingCaretOffset = split.caretOffset ?? null;
     pendingCaretAtEnd = !!split.caretAtEnd;
-    await onTextChange(inserted.text);
-    return true;
+    return await commitStructuralTextChange(inserted.text, snapshot);
   }
 
   async function addSameBlockAfterActive() {
@@ -257,16 +298,11 @@
     }
     const insert = getSameBlockInsert(activeBlockOriginal);
     const inserted = splitBlockMarkdown(text, activeBlockOriginal, getActiveBlockMarkdownDraft(), insert.markdown);
-    activeBlockId = null;
-    activeBlockOriginal = null;
-    activeBlockDraft = "";
-    activeInlineColorRanges = [];
-    editorController.clearEditing();
-    hideCommandSuggestions();
+    const snapshot = captureEditingSession();
+    clearActiveBlockState();
     pendingActiveStartLine = inserted.nextStartLine + insert.activeLineOffset;
     pendingCaretAtEnd = true;
-    await onTextChange(inserted.text);
-    return true;
+    return await commitStructuralTextChange(inserted.text, snapshot);
   }
 
   /**
@@ -315,16 +351,14 @@
         }
       : mergeBlockIntoPreviousMarkdown(text, previousBlock, activeBlockOriginal, draft);
 
-    activeBlockId = null;
-    activeBlockOriginal = null;
-    activeBlockDraft = "";
-    activeInlineColorRanges = [];
-    editorController.clearEditing();
-    hideCommandSuggestions();
+    const snapshot = captureEditingSession();
+    clearActiveBlockState();
     pendingActiveStartLine = next.startLine;
     pendingCaretOffset = next.caretOffset;
     pendingCaretAtEnd = currentIsEmpty;
-    await onTextChange(next.text);
+    await commitStructuralTextChange(next.text, snapshot);
+    // Backspace at a block boundary is always consumed, saved or not: the caller
+    // must not fall through to the browser's default deletion.
     return true;
   }
 
@@ -453,12 +487,7 @@
   }
 
   function cancelActiveBlock() {
-    activeBlockId = null;
-    activeBlockOriginal = null;
-    activeBlockDraft = "";
-    activeInlineColorRanges = [];
-    editorController.clearEditing();
-    hideCommandSuggestions();
+    clearActiveBlockState();
   }
 
   function cancelEmptyEditor() {
@@ -758,18 +787,17 @@
     try {
       const markdown = await onPasteImage(file);
       if (!markdown) throw new Error("save clipboard image returned no markdown");
-      const draft = editingEmpty ? emptyDraft : activeBlockDraft;
+      const draft = getEditorDraft();
       const inserted = insertTextAtSelection(
         draft,
         editorEl.selectionStart ?? draft.length,
         editorEl.selectionEnd ?? editorEl.selectionStart ?? draft.length,
         markdown,
       );
-      if (editingEmpty) {
-        emptyDraft = inserted.text;
-      } else {
-        activeBlockDraft = inserted.text;
-      }
+      // Route through setEditorDraft so the inline colour ranges shift with the
+      // inserted markdown. Assigning activeBlockDraft directly would leave them
+      // anchored to pre-insert offsets and paint the wrong characters on commit.
+      setEditorDraft(inserted.text);
       await tick();
       resizeEditor();
       editorEl?.focus?.();

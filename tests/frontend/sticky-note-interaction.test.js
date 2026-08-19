@@ -27,6 +27,55 @@ import {
   clampNoteOpacity,
 } from "../../src/lib/note/note-style-actions.js";
 import { resolveNoteSurfaceAlpha } from "../../src/lib/note/note-theme.js";
+import { applyStructuralTextChange } from "../../src/lib/note/block-structural-commit.js";
+
+function createStructuralCommitHarness(saveResult) {
+  const calls = { restored: [], conflicts: 0, pendingCleared: 0, saved: [] };
+  const snapshot = { activeBlockId: "paragraph:2:2:abc", activeBlockDraft: "half typed" };
+  return {
+    calls,
+    snapshot,
+    run: () =>
+      applyStructuralTextChange({
+        nextText: "rewritten document",
+        snapshot,
+        save: async (nextText) => {
+          calls.saved.push(nextText);
+          return saveResult;
+        },
+        restore: (restoredSnapshot) => calls.restored.push(restoredSnapshot),
+        clearPendingCaret: () => (calls.pendingCleared += 1),
+        onConflict: () => (calls.conflicts += 1),
+      }),
+  };
+}
+
+test("a rejected structural rewrite restores the torn-down editing session", async () => {
+  const harness = createStructuralCommitHarness(false);
+
+  assert.equal(await harness.run(), false);
+  assert.deepEqual(harness.calls.saved, ["rewritten document"]);
+  assert.deepEqual(harness.calls.restored, [harness.snapshot]);
+  assert.equal(harness.calls.pendingCleared, 1);
+  assert.equal(harness.calls.conflicts, 1);
+});
+
+test("a persisted structural rewrite keeps the new document and reports no conflict", async () => {
+  const harness = createStructuralCommitHarness(true);
+
+  assert.equal(await harness.run(), true);
+  assert.deepEqual(harness.calls.restored, []);
+  assert.equal(harness.calls.pendingCleared, 0);
+  assert.equal(harness.calls.conflicts, 0);
+});
+
+test("a save handler that returns nothing counts as persisted", async () => {
+  const harness = createStructuralCommitHarness(undefined);
+
+  assert.equal(await harness.run(), true);
+  assert.deepEqual(harness.calls.restored, []);
+  assert.equal(harness.calls.conflicts, 0);
+});
 
 test("sticky reports conflicts only when a text event meets an unsaved draft", () => {
   const base = {
