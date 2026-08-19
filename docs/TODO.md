@@ -6,6 +6,26 @@
 
 ## Active
 
+### <a id="todo-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY：贴纸数据安全 P0 修复
+
+状态：in_progress（步骤见 [STEPS 活跃块](STEPS.md#steps-t-stk-p0-data-safety)）
+
+优先级：high
+
+任务定义 v1：
+
+- 是什么：修复 `docs/issues/2026-08-10-sticky-full-scan.md` 判定为 P0 的四条数据安全缺陷——A1 控制态尺寸被后端按扩展窗口持久化、A2 已隐藏贴纸重复隐藏覆盖可见坐标、A3 隐藏态切换层级后贴纸留在屏幕外且唤不回、A4 块编辑器三条写入路径吞掉保存失败；并入同函数的 A5（`activeBlockInitialDraft` 未重置）与 C1（图片粘贴绕过内联色重算）。
+- 边界：不包含 B1 混合 DPI 坐标空间口径、B2 macOS `order_out` 生命周期取舍、F4 release devtools 策略，以及扫描文档 P1-P3 的其余条目；不改动视觉 token、暗色与巨型文件拆分。
+- 做完算什么：六条各有代码修复与对应自动化测试（不可自动化的须写明原因）；`make check`、Rust 测试、前端测试与 `git diff --check` 全绿；扫描文档逐条标记状态。
+
+关联文档：
+
+- `docs/issues/2026-08-10-sticky-full-scan.md`（问题台账、批次划分与第 8 节修复记录）
+
+进度（2026-08-10）：六条代码修复与自动化测试全部完成，`make check` / `make test` / `git diff --check` 全绿，Rust 测试 19 → 31、前端测试 15 → 18。
+
+当前下一步：仅剩实机冒烟验收（扫描文档第 8 节 5 项），未通过前不转 `done`。自动化门禁覆盖不到窗口几何、层级切换与存储恢复态这三类真实运行行为。
+
 ### UI Design System Overhaul
 
 状态：Phase 0 done（2026-07-26）；workstation 视觉重设计第一轮 done（2026-07-26）；Phase 1 全量 token 迁移未开始
@@ -63,6 +83,7 @@
 关联文档:
 
 - `docs/ui/2026-07-27-sticky-window-audit.md`(全量核查报告 + S1-S6 分期方案)
+- `docs/issues/2026-08-10-sticky-full-scan.md`（贴纸链路全量问题扫描：数据正确性 / 窗口生命周期 / 资源 / 债务对账 + P0-P3 批次）
 
 本轮范围（2026-07-29）：
 
@@ -89,6 +110,7 @@
 关联文档：
 
 - `docs/ui/2026-07-04-sticky-edge-auto-hide-plan.md`
+- `docs/issues/2026-08-10-sticky-full-scan.md`（本专题相关：A2 重复隐藏覆盖可见坐标、A3 隐藏态切层级丢贴纸、B1 混合 DPI 坐标空间、B5 归位无条件写盘、B7 恢复线程并发）
 
 当前下一步：
 
@@ -101,6 +123,7 @@
 7. 自动验证：macOS `make check`、15 项前端测试和 19 项 Rust 测试通过；Syncthing 同步后的 Windows 原生 `cargo check` 与 19 项 Rust 测试通过，覆盖快捷键意图门禁、陈旧事件拒绝、多窗口位移防抖、隐藏坐标恢复和数据安全。待验收：Windows 实机关屏/亮屏后仍保持原收起位置、关闭/开启桌面贴纸后的同边多贴纸间距、macOS / Windows 实机双指手势、首次隐藏柄命中和运行中断开显示器。
 8. 2026-08-06 闭环 Windows WorkerW 脱离回归：恢复顶层样式后使用 `SetParent(hwnd, NULL)`，并显式识别 `NULL + error 0` 为合法顶层状态；Windows 原生 `cargo check` 与 21 项 Rust 测试通过。待实机验收：启动及置底 -> 置顶切换不再打印 detach error 0，层级与拖动正常。
 9. 后续候选入口：面板 / workstation 卡片上的“显示隐藏贴纸”按钮和托盘入口，不阻塞当前边缘闭环验收。
+10. 2026-08-10 全量扫描的 P0 数据安全项已在 [T-STK-P0-DATA-SAFETY](#todo-t-stk-p0-data-safety) 下修复：A2 已隐藏贴纸重复隐藏覆盖可见坐标、A3 隐藏态切换层级后贴纸留在屏幕外且唤不回，两条均属本专题；剩余实机冒烟见该条目。本专题原有的待验收项不受影响。
 
 ### Workstation UI Cleanup
 
