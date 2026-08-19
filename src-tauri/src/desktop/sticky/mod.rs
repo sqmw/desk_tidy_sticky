@@ -3,7 +3,7 @@ use crate::notes::{self, service as notes_service, store as notes_store, NoteSor
 use crate::platform::{macos, run_macos_window_op};
 #[cfg(target_os = "windows")]
 use crate::platform::{window_hwnd_isize, windows};
-use crate::runtime::GlobalControlState;
+use crate::runtime::{GlobalControlState, StickyWindowReserveState};
 use tauri::{Emitter, Manager};
 
 mod auto_hide;
@@ -13,6 +13,7 @@ mod effects;
 mod layer;
 mod panel_window;
 
+use auto_hide::reveal_hidden_note_before_state_change;
 pub use auto_hide::{
     clear_active_topmost_editing_sticky, hide_active_topmost_editing_sticky, hide_note_to_edge,
     mark_active_topmost_editing_sticky, normalize_note_window_position, reveal_note_from_edge,
@@ -214,6 +215,9 @@ pub fn toggle_z_order_and_apply(
     sort_mode: String,
 ) -> Result<Vec<notes::Note>, String> {
     let notes = notes_store::with_notes_store(&app, || {
+        // Leaving the always-on-top layer clears the auto-hide runtime, so bring a
+        // hidden window back on screen while it is still eligible to be revealed.
+        reveal_hidden_note_before_state_change(&app, &id);
         notes_service::toggle_z_order(&id, parse_sort_mode(sort_mode.as_str()))
     })?;
     if let Some(updated) = notes.iter().find(|n| n.id == id) {
@@ -252,6 +256,9 @@ pub fn toggle_wallpaper_layer_and_apply(
     sort_mode: String,
 ) -> Result<Vec<notes::Note>, String> {
     let notes = notes_store::with_notes_store(&app, || {
+        // Same reason as toggle_z_order_and_apply: the wallpaper layer clears the
+        // auto-hide runtime, so the window must leave its edge parking spot first.
+        reveal_hidden_note_before_state_change(&app, &id);
         notes_service::toggle_wallpaper_layer(&id, parse_sort_mode(sort_mode.as_str()))
     })?;
     if let Some(updated) = notes.iter().find(|n| n.id == id) {
@@ -294,6 +301,25 @@ pub fn get_overlay_interaction(app: tauri::AppHandle) -> Result<bool, String> {
     } else {
         Err("GlobalControlState not found".to_string())
     }
+}
+
+/// Publishes the transparent control-mode reserve a note window currently holds.
+///
+/// The note window is the only place that knows how far it grew, so it reports the
+/// totals here and `persist_note_window_size` subtracts them. Reporting `0, 0`
+/// (collapsed, or on mount) forgets the entry, which keeps a window that closed
+/// while expanded from inflating the size of the next one.
+#[tauri::command]
+pub fn set_note_window_reserve(
+    app: tauri::AppHandle,
+    id: String,
+    horizontal: f64,
+    vertical: f64,
+) -> Result<(), String> {
+    let Some(state) = app.try_state::<StickyWindowReserveState>() else {
+        return Err("StickyWindowReserveState not found".to_string());
+    };
+    state.set(&id, horizontal, vertical)
 }
 
 #[tauri::command]

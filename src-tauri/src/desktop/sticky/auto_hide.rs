@@ -79,6 +79,10 @@ fn is_auto_hide_eligible(note: &notes::Note) -> bool {
     note.is_pinned && note.is_always_on_top && !note.is_archived && !note.is_deleted
 }
 
+fn is_already_hidden(note: &notes::Note) -> bool {
+    note.auto_hide_state.as_deref() == Some(AUTO_HIDE_STATE_HIDDEN)
+}
+
 fn note_window_label(id: &str) -> String {
     format!("note-{}", id)
 }
@@ -331,6 +335,26 @@ pub fn clear_active_topmost_editing_sticky(
     Ok(())
 }
 
+/// Brings a hidden note back on screen before a command clears its auto-hide runtime.
+///
+/// Clearing the runtime fields reclaims the stored coordinates, but only this call
+/// moves the live window; without it a hidden note would keep its offscreen frame
+/// until the next restart. Failure is non-fatal: the storage-side reclaim in
+/// `clear_auto_hide_runtime` still leaves a recoverable position.
+///
+/// Callers must already hold the notes store.
+pub(super) fn reveal_hidden_note_before_state_change(app: &tauri::AppHandle, id: &str) {
+    let Ok(Some(note)) = notes_service::find_note(id) else {
+        return;
+    };
+    if !is_already_hidden(&note) {
+        return;
+    }
+    if let Err(error) = reveal_note_from_edge_unlocked(app, id) {
+        eprintln!("reveal hidden sticky before state change failed for {id}: {error}");
+    }
+}
+
 #[tauri::command]
 pub fn set_note_auto_hide_enabled(
     app: tauri::AppHandle,
@@ -340,6 +364,9 @@ pub fn set_note_auto_hide_enabled(
 ) -> Result<Vec<notes::Note>, String> {
     let mode = super::parse_sort_mode(sort_mode.as_str());
     let notes = notes_store::with_notes_store(&app, || {
+        if !enabled {
+            reveal_hidden_note_before_state_change(&app, &id);
+        }
         notes_service::update_note_auto_hide_enabled(&id, enabled, mode)
     })?;
     emit_notes_changed(&app, &id);
@@ -356,6 +383,13 @@ fn hide_note_to_edge_unlocked(
     };
     if !is_auto_hide_eligible(&note) {
         clear_active_if_matches(app, id);
+        return Ok(None);
+    }
+    // Hiding is idempotent. Without this guard a second hide would treat the
+    // current offscreen body rectangle as the "visible" anchor and overwrite the
+    // only coordinates reveal can restore from. The remaining sliver is draggable,
+    // so a user nudging a hidden note is enough to reach this path.
+    if is_already_hidden(&note) {
         return Ok(None);
     }
     let normalized_reason = match reason {
@@ -401,7 +435,11 @@ fn hide_note_to_edge_unlocked(
     }))
 }
 
-fn reveal_note_from_edge_unlocked(
+/// Moves a hidden note back to its visible anchor and resets the auto-hide state.
+///
+/// Callers must already hold the notes store; layer-changing commands use this to
+/// bring a hidden window back on screen *before* clearing its auto-hide runtime.
+pub(super) fn reveal_note_from_edge_unlocked(
     app: &tauri::AppHandle,
     id: &str,
 ) -> Result<Option<StickyAutoHideResult>, String> {
@@ -741,6 +779,45 @@ mod tests {
         note.auto_hide_visible_y = Some(900.0);
 
         assert_eq!(visible_position(&note, body, monitor), (0.0, 540.0));
+    }
+
+    #[test]
+    fn hiding_is_skipped_once_a_note_is_already_hidden() {
+        let mut note = notes::Note::new("sticky".to_string(), true);
+        note.is_always_on_top = true;
+        note.auto_hide_enabled = true;
+        assert!(!is_already_hidden(&note));
+
+        note.auto_hide_state = Some(AUTO_HIDE_STATE_VISIBLE.to_string());
+        assert!(!is_already_hidden(&note));
+
+        note.auto_hide_state = Some(AUTO_HIDE_STATE_HIDDEN.to_string());
+        assert!(is_already_hidden(&note));
+    }
+
+    #[test]
+    fn re_hiding_an_offscreen_body_would_write_an_offscreen_visible_anchor() {
+        // Documents what the is_already_hidden guard prevents: a second hide feeds
+        // the parked body rectangle back in as the "visible" anchor, and reveal can
+        // only clamp that back to the monitor edge instead of the original spot.
+        let monitor = rect(0.0, 0.0, 1000.0, 800.0);
+        let visible_body = rect(420.0, 260.0, 300.0, 220.0);
+
+        let parked = hidden_position(visible_body, monitor, "left");
+        let parked_body = rect(parked.0, parked.1, visible_body.width, visible_body.height);
+        let parked_again = hidden_position(parked_body, monitor, "left");
+
+        assert_eq!(parked, parked_again);
+        assert_ne!(parked_body.x, visible_body.x);
+
+        let mut note = notes::Note::new("sticky".to_string(), true);
+        note.auto_hide_visible_x = Some(parked_body.x);
+        note.auto_hide_visible_y = Some(parked_body.y);
+        assert_eq!(
+            visible_position(&note, parked_body, monitor),
+            (0.0, 260.0),
+            "a clobbered anchor can only be clamped to the monitor edge"
+        );
     }
 
     #[test]

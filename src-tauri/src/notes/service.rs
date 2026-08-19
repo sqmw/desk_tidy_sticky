@@ -84,6 +84,22 @@ where
 }
 
 fn clear_auto_hide_runtime(note: &mut Note) {
+    // Hiding rewrites note.x/y to the offscreen parking coordinates. Dropping the
+    // runtime fields without reclaiming them would leave the window outside every
+    // monitor with no anchor left to recover from, so restore the visible anchor
+    // first and fall back to "no stored position" when it is missing.
+    if note.auto_hide_state.as_deref() == Some(AUTO_HIDE_STATE_HIDDEN) {
+        match (note.auto_hide_visible_x, note.auto_hide_visible_y) {
+            (Some(x), Some(y)) => {
+                note.x = Some(x);
+                note.y = Some(y);
+            }
+            _ => {
+                note.x = None;
+                note.y = None;
+            }
+        }
+    }
     note.auto_hide_state = None;
     note.auto_hide_edge = None;
     note.auto_hide_reason = None;
@@ -212,6 +228,62 @@ mod tests {
 
         assert_eq!(error, NOTE_NOT_FOUND_ERROR_CODE);
         assert!(!path.exists());
+    }
+
+    fn hidden_note_at_edge() -> Note {
+        let mut note = Note::new("hidden".to_string(), true);
+        note.is_always_on_top = true;
+        note.auto_hide_enabled = true;
+        note.auto_hide_state = Some(AUTO_HIDE_STATE_HIDDEN.to_string());
+        note.auto_hide_edge = Some("left".to_string());
+        note.auto_hide_visible_x = Some(420.0);
+        note.auto_hide_visible_y = Some(260.0);
+        note.auto_hide_hidden_x = Some(-292.0);
+        note.auto_hide_hidden_y = Some(260.0);
+        // Hiding parks note.x/y on the offscreen coordinates.
+        note.x = Some(-292.0);
+        note.y = Some(260.0);
+        note
+    }
+
+    #[test]
+    fn clearing_auto_hide_runtime_reclaims_the_visible_anchor() {
+        let mut note = hidden_note_at_edge();
+
+        clear_auto_hide_runtime(&mut note);
+
+        assert_eq!(note.x, Some(420.0));
+        assert_eq!(note.y, Some(260.0));
+        assert_eq!(note.auto_hide_state, None);
+        assert_eq!(note.auto_hide_visible_x, None);
+        assert_eq!(note.auto_hide_hidden_x, None);
+    }
+
+    #[test]
+    fn clearing_auto_hide_runtime_drops_offscreen_position_without_an_anchor() {
+        let mut note = hidden_note_at_edge();
+        note.auto_hide_visible_x = None;
+        note.auto_hide_visible_y = None;
+
+        clear_auto_hide_runtime(&mut note);
+
+        // No anchor to reclaim: keeping the offscreen coordinates would hide the
+        // window forever, so fall back to platform-chosen placement instead.
+        assert_eq!(note.x, None);
+        assert_eq!(note.y, None);
+    }
+
+    #[test]
+    fn clearing_auto_hide_runtime_keeps_the_position_of_a_visible_note() {
+        let mut note = Note::new("visible".to_string(), true);
+        note.x = Some(100.0);
+        note.y = Some(120.0);
+        note.auto_hide_enabled = true;
+
+        clear_auto_hide_runtime(&mut note);
+
+        assert_eq!(note.x, Some(100.0));
+        assert_eq!(note.y, Some(120.0));
     }
 }
 

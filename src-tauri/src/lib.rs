@@ -24,10 +24,11 @@ use desktop::{
     hide_note_to_edge, hide_panel_window, initialize_shortcut_settings,
     mark_active_topmost_editing_sticky, minimize_panel_window, move_note_window_without_activation,
     normalize_note_window_position, pin_window_to_desktop, reveal_note_from_edge,
-    set_note_auto_hide_enabled, show_preferred_panel_window, sync_all_note_window_layers,
-    sync_note_window_layer, sync_panel_window_shell_state, toggle_hidden_stickies,
-    toggle_overlay_interaction, toggle_wallpaper_layer_and_apply, toggle_z_order_and_apply,
-    unpin_window_from_desktop, update_shortcut_settings, update_tray_texts,
+    set_note_auto_hide_enabled, set_note_window_reserve, show_preferred_panel_window,
+    sync_all_note_window_layers, sync_note_window_layer, sync_panel_window_shell_state,
+    toggle_hidden_stickies, toggle_overlay_interaction, toggle_wallpaper_layer_and_apply,
+    toggle_z_order_and_apply, unpin_window_from_desktop, update_shortcut_settings,
+    update_tray_texts,
 };
 use markdown_storage::{
     export_current_notes_to_markdown, get_markdown_storage_snapshot,
@@ -47,7 +48,7 @@ use platform::window_hwnd_isize;
 use preferences::{get_preferences, set_preferences};
 use runtime::{
     ActiveTopmostStickyState, BreakOverlayPresentationState, BreakReminderWatchState,
-    GlobalControlState, ShortcutRuntimeState,
+    GlobalControlState, ShortcutRuntimeState, StickyWindowReserveState,
 };
 use tauri::Manager;
 
@@ -59,6 +60,7 @@ pub fn run() {
         .manage(BreakOverlayPresentationState::default())
         .manage(ShortcutRuntimeState::default())
         .manage(ActiveTopmostStickyState::default())
+        .manage(StickyWindowReserveState::default())
         .manage(notes::store::NotesStore::default())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             show_preferred_panel_window(app);
@@ -178,6 +180,7 @@ pub fn run() {
             sync_note_window_layer,
             sync_all_note_window_layers,
             move_note_window_without_activation,
+            set_note_window_reserve,
             apply_window_no_snap_by_label,
             update_tray_texts,
             toggle_overlay_interaction,

@@ -3,7 +3,20 @@ use crate::notes::{
     assets as note_assets, repository, service as notes_service, store as notes_store, Note,
     NoteSortMode,
 };
+use crate::runtime::StickyWindowReserveState;
 use tauri::{Emitter, LogicalPosition, Manager};
+
+const NOTE_MIN_EXTENT_PX: f64 = 220.0;
+
+/// Converts a native window extent into the stored note-body extent.
+fn note_body_extent(outer_extent: f64, reserve: f64) -> f64 {
+    let reserve = if reserve.is_finite() && reserve > 0.0 {
+        reserve
+    } else {
+        0.0
+    };
+    (outer_extent - reserve).max(NOTE_MIN_EXTENT_PX)
+}
 
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -166,8 +179,15 @@ pub fn persist_note_window_size(
     } else {
         1.0
     };
-    let width = (size.width as f64 / scale).max(220.0);
-    let height = (size.height as f64 / scale).max(220.0);
+    // The native frame includes the control-mode reserve, but the stored size is
+    // the note body. Measuring the frame without subtracting what the window
+    // reserved would grow the note on every control-mode open/close round trip.
+    let (horizontal_reserve, vertical_reserve) = app
+        .try_state::<StickyWindowReserveState>()
+        .map(|state| state.get(&id))
+        .unwrap_or((0.0, 0.0));
+    let width = note_body_extent(size.width as f64 / scale, horizontal_reserve);
+    let height = note_body_extent(size.height as f64 / scale, vertical_reserve);
     run_notes_operation(&app, || notes_service::update_note_size(&id, width, height))?;
     if emit_event.unwrap_or(true) {
         emit_notes_changed(&app);
@@ -497,4 +517,33 @@ pub fn reorder_notes(
     })?;
     emit_notes_changed(&app);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn control_mode_reserve_is_subtracted_from_the_native_frame() {
+        // 300x420 body plus 64px of side reserve and 116px of top/bottom reserve.
+        assert_eq!(note_body_extent(364.0, 64.0), 300.0);
+        assert_eq!(note_body_extent(536.0, 116.0), 420.0);
+    }
+
+    #[test]
+    fn a_collapsed_window_persists_its_native_frame_unchanged() {
+        assert_eq!(note_body_extent(300.0, 0.0), 300.0);
+    }
+
+    #[test]
+    fn subtraction_never_falls_below_the_minimum_note_extent() {
+        assert_eq!(note_body_extent(240.0, 116.0), NOTE_MIN_EXTENT_PX);
+        assert_eq!(note_body_extent(120.0, 0.0), NOTE_MIN_EXTENT_PX);
+    }
+
+    #[test]
+    fn invalid_reserves_are_ignored_instead_of_shrinking_the_note() {
+        assert_eq!(note_body_extent(364.0, f64::NAN), 364.0);
+        assert_eq!(note_body_extent(364.0, -64.0), 364.0);
+    }
 }

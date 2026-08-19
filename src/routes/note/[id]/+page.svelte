@@ -414,6 +414,21 @@
     windowSizePollTimer = null;
   }
 
+  /**
+   * Transparent space control mode reserves around the note body, in logical px.
+   *
+   * Single source of truth for both the local size persistence path and the
+   * `set_note_window_reserve` report the backend uses when the panel closes this
+   * window on our behalf.
+   */
+  function getAppliedControlsReserve() {
+    if (!toolbarWindowExpanded) return { horizontal: 0, vertical: 0 };
+    return {
+      horizontal: appliedLeftControlsReserve + appliedRightControlsReserve,
+      vertical: appliedTopControlsReserve + appliedToolbarReserve,
+    };
+  }
+
   async function getPersistableWindowSize() {
     let rawWidth = Math.max(NOTE_MIN_SIZE_PX, Math.round(window.innerWidth || NOTE_MIN_SIZE_PX));
     let rawHeight = Math.max(NOTE_MIN_SIZE_PX, Math.round(window.innerHeight || NOTE_MIN_SIZE_PX));
@@ -429,15 +444,30 @@
     } catch (e) {
       console.error("getPersistableWindowSize", e);
     }
-    const horizontalControlsReserve = toolbarWindowExpanded
-      ? appliedLeftControlsReserve + appliedRightControlsReserve
-      : 0;
-    const verticalControlsReserve = toolbarWindowExpanded
-      ? appliedTopControlsReserve + appliedToolbarReserve
-      : 0;
-    const width = Math.max(NOTE_MIN_SIZE_PX, rawWidth - horizontalControlsReserve);
-    const height = Math.max(NOTE_MIN_SIZE_PX, rawHeight - verticalControlsReserve);
+    const reserve = getAppliedControlsReserve();
+    const width = Math.max(NOTE_MIN_SIZE_PX, rawWidth - reserve.horizontal);
+    const height = Math.max(NOTE_MIN_SIZE_PX, rawHeight - reserve.vertical);
     return { width, height };
+  }
+
+  /**
+   * Publishes the current control-mode reserve so `persist_note_window_size` can
+   * subtract it. The panel closes sticky windows through that backend command, and
+   * it measures the native frame — which includes the reserve — after this window
+   * has already lost the chance to persist its own body size.
+   */
+  async function reportControlsReserveToBackend() {
+    if (!noteId) return;
+    const reserve = getAppliedControlsReserve();
+    try {
+      await invoke("set_note_window_reserve", {
+        id: noteId,
+        horizontal: reserve.horizontal,
+        vertical: reserve.vertical,
+      });
+    } catch (error) {
+      console.error("set_note_window_reserve", error);
+    }
   }
 
   async function persistWindowSize({ force = false } = {}) {
@@ -652,6 +682,10 @@
       !note ||
       !isPinnedTopmostSticky ||
       !note.autoHideEnabled ||
+      // The remaining sliver is draggable, so a hidden note can reach this path.
+      // Re-hiding would hand the backend its offscreen rectangle as the new visible
+      // anchor; the backend rejects that too, this just avoids the round trip.
+      note.autoHideState === "hidden" ||
       isEditing ||
       isControlMode
     ) {
@@ -1412,6 +1446,17 @@
     outsideToolbarWidth;
     outsideToolbarHeight;
     void tick().then(queueWindowFrameSync);
+  });
+
+  $effect(() => {
+    // Runs once on mount with a zero reserve, which also clears any entry left by
+    // a previous window that closed while its controls were expanded.
+    toolbarWindowExpanded;
+    appliedLeftControlsReserve;
+    appliedRightControlsReserve;
+    appliedTopControlsReserve;
+    appliedToolbarReserve;
+    void reportControlsReserveToBackend();
   });
 
 </script>
