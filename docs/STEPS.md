@@ -25,10 +25,16 @@
 S1 产出：版本化 manifest、后端解析/能力准入、恶意输入测试。通过是缺权限或非法包明确拒绝；失败是声明即授权或校验过程执行代码。详细边界见[实施基线](plugins/implementation-baseline.md)。
 
 ```tracking-step
-{"id":"T-PLUGIN-PLATFORM-VALIDATION/S2","name":"隔离运行与宿主身份验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":2,"status":"未开始","evidence":[]}
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/S2","name":"隔离运行与宿主身份验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":2,"status":"进行中","evidence":["E-002：可信 Rust 会话、严格请求分派、内存命名空间、配额原子失败和生命周期撤销已实现；9项新增测试，58 Rust/31前端通过","自审补强 reauthorize 失败仍撤销旧授权；候选安装失败保留旧会话是独立语义；真实 JS 容器、传输来源绑定、持久化及移动运行仍未验证"]}
 ```
 
 S2 产出：独立 JS 包运行、宿主绑定身份、独立存储及越权反例；原生命令、父页面与其他插件访问均须拒绝。未通过前不开放安装入口。
+
+E-002 先实现容器无关的可信会话与受控调用模块：身份由宿主连接持有，不从消息取 pluginId；撤销串行生效；测试内存存储不代替产品持久化。此纯模块不改变主线可用性，不属于侵入式 Probe；原生容器验证仍按 Probe 门禁。
+
+```tracking-execution
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/E-002","name":"插件隔离运行与身份验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","status":"succeeded","authorization":"2026-09-10 用户：可以，继续推进；续接既有可行性实现授权，不发布或迁移用户数据","scope":"推进 S2 可信会话、调用撤销、插件独立数据空间与反向测试；运行容器和真实 IPC 验证不以纯模块结果替代","steps":["T-PLUGIN-PLATFORM-VALIDATION/S2"],"evidence":["交付 broker 及9项反例测试；会话不接受消息身份、停用撤销不删内存数据、跨插件同键隔离、超限不覆盖","自审发现策略变更须与失败安装区别处理，新增先撤销再准入接口及三层策略回归；58 Rust/31前端、tracking_check、diff检查通过","实施基线/导航/TODO同步；无新依赖，无安装版、真实数据或 IPC 权限修改；本批只完成 S2 会话层，不宣告容器可用"],"stop_reason":null}
+```
 
 ```tracking-step
 {"id":"T-PLUGIN-PLATFORM-VALIDATION/S3","name":"双移动端安装与提醒验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":3,"status":"未开始","evidence":[]}
