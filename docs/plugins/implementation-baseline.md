@@ -43,6 +43,10 @@
 
 ### 未通过前不得开放安装
 
+阶段证据入口：同级 `desk_tidy_sticky--probe--js-connection/PROBE.md` 与 `docs/evidence.md`（P-JS-CONNECTION-01，提交 `518d2ed`）。E-003 实际运行外部 JS → 系统 JavaScriptCore 独立子进程 → 专属管道 → base Rust broker，六项真实连接测试两次通过。此处只登记可追溯工件，不进行实现 Promotion；当前选用系统引擎是 macOS 验证载体，不冻结移动技术。运行时没有 DOM/Node/网络/通用原生 API；桥接由 Rust 固定 Session，不接受消息身份。具体命令、拒绝结果与限制见 Probe 证据。
+
+尚不能推出：现有 Tauri IPC 已安全、iOS 可使用同类子进程、Android 可沿用 JavaScriptCore、支持 Web UI、进程内存有硬上限，或 Rust 重启后数据已保留。进入 S3 前仍需补持久化/旧会话不复活等 S2 证据；Probe 继续保留，不改产品源码或真实数据。
+
 1. 外部 JS 包须独立加载；不读取父页面、其他插件或核心笔记，不直接调用任意原生命令；伪造 pluginId 无效。单测准入通过不证明运行沙箱通过。
 2. 不在当前特权 WebView 中直接执行第三方脚本。Tauri Android/Linux 对 iframe IPC 来源不可区分，应用注册命令默认开放，不能仅删除 Tauri 全局变量或改变 iframe origin 当作完整隔离。[官方边界](https://v2.tauri.app/security/capabilities/)
 3. Android/iOS 各自记录模拟器/真机、系统版本、签名渠道、包导入、锁屏提醒、修改/停用取消、撤权与重启结果；不得用前台计时器替代系统调度。

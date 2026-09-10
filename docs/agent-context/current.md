@@ -7,6 +7,7 @@ The current user-authorized delivery line is [M-EXT-01](../TODO.md#m-ext-01), st
 ## Current State
 
 - Plugin admission and the host-only session broker remain unconnected to application IPC. The broker validates storage requests, namespaces in-memory data and revokes stale handles; these tests do not prove JS runtime isolation or durable storage. See the [contract](../plugins/implementation-baseline.md). Policy changes must reauthorize fail-closed; failed candidate installation is a distinct lifecycle operation.
+- E-003 adds real external JS connection evidence in sibling Probe `desk_tidy_sticky--probe--js-connection` at `518d2ed`: six JavaScriptCore child-process/pipe integration tests pass. This does not change product IPC or prove persistence/mobile deployment. Follow the contract's evidence route; do not copy Probe code into the product without explicit promotion and normal implementation review.
 
 - Review remediation R01–R12 has source changes and regression evidence in the [remediation plan](../plans/2026-09-10-review-remediation.md). Task acceptance remains in [TODO](../TODO.md#t-project-review-fix); physical mixed-DPI and login-startup smoke tests are not implied by automated tests.
 - Closing a workspace inspector never deletes a stored note. Editor failures preserve drafts with retry/reload actions; reload explicitly discards the draft. Text commands require `expectedText`, checked under `NotesStore`; text events identify `sourceWindow` instead of suppressing other writers by time.

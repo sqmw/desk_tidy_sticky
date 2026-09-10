@@ -30,6 +30,12 @@ S1 产出：版本化 manifest、后端解析/能力准入、恶意输入测试�
 
 S2 产出：独立 JS 包运行、宿主绑定身份、独立存储及越权反例；原生命令、父页面与其他插件访问均须拒绝。未通过前不开放安装入口。
 
+E-003 使用同级独立工程 `desk_tidy_sticky--probe--js-connection`（P-JS-CONNECTION-01）验证外部 JS → JavaScriptCore 子进程 → 专属管道 → Rust broker。Parent base 为 `6233f8653c66ff60a80fc0b2c50a71cbb0486c34`；Probe 期间主项目只读，不接产品 IPC。选择系统 JS 引擎避免新增在线依赖，不冻结 Android 路线；身份、绕过 SDK、停用、超时分别实测，持久化与移动仍是后续门。
+
+```tracking-execution
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/E-003","name":"真实 JS 插件与可信连接验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","status":"succeeded","authorization":"2026-09-10 用户明确要求独立验证工程、真实外部 JS 与可信 Rust 连接及越权反例；不影响安装版和用户数据","scope":"S2 独立 Probe 实现、实际管道身份验证与样例；不将桌面/内存证据代替持久化或移动结果","steps":["T-PLUGIN-PLATFORM-VALIDATION/S2"],"evidence":["Probe P-JS-CONNECTION-01 提交518d2ed，外部entry.js实际通过JavaScriptCore子进程/固定会话管道调用Rust broker；6项集成测试两次通过","A/B隔离、伪造身份与任意命令拒绝、无环境DOM/Node/Tauri绑定、停用后存活JS旧回调撤销、无限循环与调用配额终止均有实测","自审核对三个规则快照SHA256与base相同、无通用原生导出、固定连接Session、超时及自建进程清理；未做OS沙箱/引擎漏洞审计","实验操作暂停后仅回写Parent状态/证据入口，无源码Promotion；Probe仍active/pending，S2仍进行中；持久化、内存上界及双移动端未验证"],"stop_reason":null}
+```
+
 E-002 先实现容器无关的可信会话与受控调用模块：身份由宿主连接持有，不从消息取 pluginId；撤销串行生效；测试内存存储不代替产品持久化。此纯模块不改变主线可用性，不属于侵入式 Probe；原生容器验证仍按 Probe 门禁。
 
 ```tracking-execution
