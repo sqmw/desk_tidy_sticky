@@ -20,6 +20,7 @@
   import { applySourceCommandInsert, findSourceCommandToken } from "$lib/note/source-command.js";
   import { createBlockNoteEditorController } from "$lib/note/block-note-editor-controller.js";
   import { applyStructuralTextChange } from "$lib/note/block-structural-commit.js";
+  import { createSingleFlightCommit } from "$lib/note/text-commit.js";
   import {
     estimateMarkdownCaretOffset,
     insertTextAtSelection,
@@ -64,6 +65,8 @@
   let pendingActiveStartLine = $state(null);
   let pendingCaretAtEnd = $state(false);
   let structuralSavePending = $state(false);
+  let savePending = $state(false);
+  const runEditorCommit = createSingleFlightCommit();
   /** @type {number | null} */
   let pendingCaretOffset = $state(null);
   /** @type {Array<{ start: number; end: number; color: string }>} */
@@ -237,7 +240,16 @@
     }); } finally { structuralSavePending = false; }
   }
 
-  async function commitActiveBlock() {
+  function commitActiveBlock() {
+    return runEditorCommit(async () => {
+      savePending = true;
+      try { return await commitActiveBlockOnce(); }
+      catch { onConflict(); return false; }
+      finally { savePending = false; }
+    });
+  }
+
+  async function commitActiveBlockOnce() {
     if (!activeBlockOriginal) {
       activeBlockId = null;
       return true;
@@ -260,6 +272,7 @@
   }
 
   async function splitActiveBlockAfter() {
+    if (savePending || structuralSavePending) return false;
     if (!activeBlockOriginal) return false;
     if (!blockRangeMatches(text, activeBlockOriginal)) {
       cancelActiveBlock();
@@ -277,6 +290,7 @@
   }
 
   async function addSameBlockAfterActive() {
+    if (savePending || structuralSavePending) return false;
     if (!activeBlockOriginal) return false;
     if (activeBlockOriginal.type === "task_block" || isTaskLineDraft(activeBlockDraft)) {
       appendTaskLineToActiveDraft();
@@ -470,7 +484,16 @@
     return Math.max(1, Number(lastNumber || 0) + 1);
   }
 
-  async function commitEmptyEditor() {
+  function commitEmptyEditor() {
+    return runEditorCommit(async () => {
+      savePending = true;
+      try { return await commitEmptyEditorOnce(); }
+      catch { onConflict(); return false; }
+      finally { savePending = false; }
+    });
+  }
+
+  async function commitEmptyEditorOnce() {
     const nextText = emptyDraft;
     if (nextText !== text) {
       const saved = await onTextChange(nextText);
@@ -485,6 +508,7 @@
   }
 
   async function commitActiveEditor() {
+    if (structuralSavePending) return false;
     if (editingEmpty) return commitEmptyEditor();
     return commitActiveBlock();
   }
@@ -780,6 +804,7 @@
 
   /** @param {ClipboardEvent} event */
   async function handleEditorPaste(event) {
+    if (savePending || structuralSavePending) { event.preventDefault(); return; }
     const imageItem = Array.from(event.clipboardData?.items || []).find(
       (item) => item.kind === "file" && item.type.startsWith("image/"),
     );
@@ -835,6 +860,7 @@
 
   /** @param {KeyboardEvent} event */
   async function handleEditorKeydown(event) {
+    if (savePending || structuralSavePending) return;
     if (editorController.shouldDeferKeydownToIme(event)) return;
     if (showCommandSuggestions && commandSuggestionItems.length > 0) {
       if (event.key === "ArrowDown") {
@@ -1059,6 +1085,7 @@
         <textarea
           bind:this={editorEl}
           bind:value={emptyDraft}
+          readonly={savePending || structuralSavePending}
           class="block-editor"
           rows="2"
           {placeholder}
@@ -1090,6 +1117,7 @@
           <textarea
             bind:this={editorEl}
             bind:value={activeBlockDraft}
+            readonly={savePending || structuralSavePending}
             class="block-editor"
             rows={Math.max(1, block.rawLines.length)}
             spellcheck="false"

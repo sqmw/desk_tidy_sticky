@@ -19,3 +19,14 @@ export function shouldPreserveEditorDocument(input) {
   const ownSave = input.saving && input.currentId === input.incomingId && input.incomingText === input.savingText;
   return changed && (input.dirty || input.saving) && !ownSave;
 }
+
+/** Coalesce blur and explicit close so they observe the same save result. */
+export function createSingleFlightCommit() {
+  /** @type {Promise<boolean> | null} */
+  let pending = null;
+  /** @param {() => Promise<boolean>} operation */
+  return (operation) => {
+    if (!pending) pending = Promise.resolve().then(operation).finally(() => { pending = null; });
+    return pending;
+  };
+}

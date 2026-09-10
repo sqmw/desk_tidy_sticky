@@ -16,6 +16,8 @@
 
 执行基线：[整改方案 @v1](plans/2026-09-10-review-remediation.md)；[步骤与执行](STEPS.md#t-project-review-fix)。发现证据保留在 [R01–R12 报告](reviews/2026-09-10-project-review.md)。
 
+交接：R01–R12 已有源码修复与自动回归，结果见方案 S1–S5 证据。当前只剩更新后的正式构建登录/托盘唤醒与 Windows 真机混合 DPI 隐藏/拖动验收；已安装应用尚未替换。Task 不以本轮执行结束或单测通过代替这两项验收。
+
 ### <a id="todo-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY：贴纸数据安全 P0 修复
 
 状态：in_progress（步骤见 [STEPS 活跃块](STEPS.md#steps-t-stk-p0-data-safety)）

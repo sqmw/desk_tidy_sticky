@@ -1,7 +1,7 @@
 // @ts-nocheck -- Node test harness, matching the existing frontend test convention.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { commitNoteText, shouldPreserveEditorDocument } from '../../src/lib/note/text-commit.js';
+import { commitNoteText, shouldPreserveEditorDocument, createSingleFlightCommit } from '../../src/lib/note/text-commit.js';
 import { applyStructuralTextChange } from '../../src/lib/note/block-structural-commit.js';
 import { createWorkspaceInspectorActions } from '../../src/lib/workspace/controllers/workspace-inspector-actions.js';
 import { classifyStickyNoteChange } from '../../src/lib/note/sticky-note-interaction.js';
@@ -44,4 +44,14 @@ test('dirty editor preserves external text and note switches but accepts own sav
 
 test('a same-note external event during the former cooldown is never local',()=>{
   assert.equal(classifyStickyNoteChange({noteId:'n',changedNoteId:'n',eventKind:'text',sourceWindow:'workspace',currentWindow:'note-n',ignoreUntil:10000,now:100,hasUnsavedDraft:true}),'conflict');
+});
+
+test('blur and close await the same write, and failure remains retryable', async()=>{
+  const run=createSingleFlightCommit();let count=0, release;
+  const gate=new Promise(r=>release=r);
+  const save=async()=>{count++;await gate;return false;};
+  const first=run(save), second=run(save);
+  assert.equal(first,second);release();
+  assert.deepEqual(await Promise.all([first,second]),[false,false]);
+  assert.equal(count,1);assert.equal(await run(async()=>true),true);
 });

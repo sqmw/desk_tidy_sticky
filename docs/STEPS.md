@@ -45,11 +45,11 @@ Step 4：继续全量审查缺陷整改，自启门禁与混合 DPI。先按[方
 Step 5：继续全量审查缺陷整改，综合验证与收口。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
 
 ```tracking-step
-{"id":"T-PROJECT-REVIEW-FIX/S5","name":"综合验证与收口","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":5,"status":"进行中","evidence":[]}
+{"id":"T-PROJECT-REVIEW-FIX/S5","name":"综合验证与收口","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":5,"status":"进行中","evidence":["R01–R12 源码与自动回归完成；31 前端、41 macOS Rust、43 Windows 原生测试通过；Windows 59 Rust/配置文件 SHA256 对齐","Svelte 0/0、前端生产构建、macOS release cargo check 通过；六条真实浏览器组件 DOM 场景通过","review 修正失焦/关闭并发、失败可重试及冲突旧文档操作边界；仍待正式登录托盘唤醒、Windows 实机多屏隐藏/拖动验收，步骤保留进行中"]}
 ```
 
 ```tracking-execution
-{"id":"T-PROJECT-REVIEW-FIX/E-001","name":"整改方案落地与分批修复","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","status":"running","authorization":"2026-09-10 用户：整理好方案文档，然后按照文档开始处理review发现的问题","scope":"R01–R12 实现、验证、文档与分批提交；不操作真实用户数据/进程/登录项","steps":["T-PROJECT-REVIEW-FIX/S1","T-PROJECT-REVIEW-FIX/S2","T-PROJECT-REVIEW-FIX/S3","T-PROJECT-REVIEW-FIX/S4","T-PROJECT-REVIEW-FIX/S5"],"evidence":["方案 plans/2026-09-10-review-remediation.md @v1"],"stop_reason":null}
+{"id":"T-PROJECT-REVIEW-FIX/E-001","name":"整改方案落地与分批修复","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","status":"succeeded","authorization":"2026-09-10 用户：整理好方案文档，然后按照文档开始处理review发现的问题","scope":"R01–R12 实现、验证、文档与分批提交；不操作真实用户数据/进程/登录项","steps":["T-PROJECT-REVIEW-FIX/S1","T-PROJECT-REVIEW-FIX/S2","T-PROJECT-REVIEW-FIX/S3","T-PROJECT-REVIEW-FIX/S4","T-PROJECT-REVIEW-FIX/S5"],"evidence":["方案先行提交 1952bc7；S1 4bcbbd3、S2 9138ce6、S3 db9ce89、S4 1451b90；S5 组合修复及验证见本执行收口提交","本轮实现和可执行验证完成；31 前端/41 macOS Rust/43 Windows Rust、六条 DOM、release check；Task 因平台实机验收未转 done"],"stop_reason":null}
 ```
 
 ### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1

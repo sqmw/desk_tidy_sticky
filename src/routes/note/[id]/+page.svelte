@@ -79,6 +79,7 @@
   let appliedTopControlsReserve = $state(0);
   let appliedToolbarReserve = $state(0);
   let hasExternalTextChange = $state(false);
+  let hasSaveFailure = $state(false);
   let isRevealingFromEdge = $state(false);
   let suppressPointerActivationUntil = $state(0);
   let tagSuggestions = $state(/** @type {string[]} */ ([]));
@@ -648,8 +649,10 @@
         expectedText,
         sortMode: "custom",
       });
+      hasSaveFailure = false;
       return true;
     } catch (e) {
+      hasSaveFailure = true;
       if (String(e).includes("note_text_conflict")) hasExternalTextChange = true;
       reportNoteStorageFailure("save", e);
       return false;
@@ -817,13 +820,14 @@
   }
 
   function handleEditorConflict() {
-    hasExternalTextChange = true;
+    hasSaveFailure = true;
   }
 
   async function reloadAfterExternalChange() {
     blockNoteContentApi?.cancelEditingSession?.();
     isEditing = false;
     hasExternalTextChange = false;
+    hasSaveFailure = false;
     await loadNote();
   }
 
@@ -1513,10 +1517,11 @@
       {/if}
       <div class="note-frost-layer" aria-hidden="true"></div>
       <div class="note-content">
-        {#if hasExternalTextChange}
+        {#if hasExternalTextChange || hasSaveFailure}
           <div class="note-conflict-notice" role="alert">
-            <span>{strings.noteExternalChange}</span>
-            <button type="button" onclick={reloadAfterExternalChange}>
+            <span>{strings.noteSaveConflict}</span>
+            <button type="button" disabled={hasExternalTextChange} onpointerdown={(event) => event.preventDefault()} onclick={() => blockNoteContentApi?.commitEditingSession?.()}>{strings.noteRetrySave}</button>
+            <button type="button" onpointerdown={(event) => event.preventDefault()} onclick={reloadAfterExternalChange}>
               {strings.noteReloadExternal}
             </button>
           </div>

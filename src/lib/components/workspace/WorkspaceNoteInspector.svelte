@@ -4,6 +4,7 @@
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
   import BlockNoteContent from "$lib/components/note/BlockNoteContent.svelte";
   import { shouldPreserveEditorDocument } from "$lib/note/text-commit.js";
+  import { toggleTaskLineAt, appendTaskLineAfterBlock } from "$lib/markdown/task-list.js";
 
   let {
     strings,
@@ -46,7 +47,7 @@
 
   /** @param {string} nextText */
   async function saveBlockText(nextText) {
-    if (!note || conflict || saving) return false;
+    if (!note || saving) return false;
     saving = true;
     savingText = nextText;
     try {
@@ -54,6 +55,7 @@
       if (saved === false) { conflict = true; return false; }
       editorText = nextText;
       note = { ...note, text: nextText };
+      conflict = false;
       return true;
     } catch {
       conflict = true;
@@ -114,8 +116,8 @@
         priority={note.priority ?? null}
         tags={Array.isArray(note.tags) ? note.tags : []}
         {tagSuggestions}
-        onChangePriority={onChangePriority}
-        onChangeTags={onChangeTags}
+        onChangePriority={(/** @type {number | null} */ value) => { if (!conflict) onChangePriority(value); }}
+        onChangeTags={(/** @type {string[]} */ value) => { if (!conflict) onChangeTags(value); }}
       />
     </div>
 
@@ -123,20 +125,21 @@
       {#if conflict}
         <div class="editor-conflict" role="alert">
           <span>{strings.noteSaveConflict}</span>
-          <button type="button" onclick={reloadDocument}>{strings.noteReloadExternal}</button>
+          <button type="button" disabled={saving} onpointerdown={(event) => event.preventDefault()} onclick={() => editorApi?.commitEditingSession?.()}>{strings.noteRetrySave}</button>
+          <button type="button" disabled={saving} onpointerdown={(event) => event.preventDefault()} onclick={reloadDocument}>{strings.noteReloadExternal}</button>
         </div>
       {/if}
       <BlockNoteContent
         bind:this={editorApi}
         text={editorText}
         compact
-        interactiveTasks
+        interactiveTasks={!conflict && !saving}
         editTrigger="click"
         placeholder={strings.noteEditorPlaceholder}
         onTextChange={saveBlockText}
         onConflict={() => { conflict = true; }}
-        onToggleTask={onToggleTask}
-        onAppendTask={onAppendTask}
+        onToggleTask={(/** @type {number} */ line) => { const next = toggleTaskLineAt(editorText, line); if (next != null) void saveBlockText(next); }}
+        onAppendTask={(/** @type {number} */ line) => { const next = appendTaskLineAfterBlock(editorText, line); if (next != null) void saveBlockText(next); }}
       />
     </div>
   </aside>

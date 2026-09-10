@@ -270,7 +270,9 @@
     shouldUseReviewDevStats ? reviewDevFixtures.focusSnapshot : baseReviewFocusSnapshot,
   );
 
-  const inspectorNote = $derived.by(() => getWorkspaceInspectorNote(renderedNotes, inspectorNoteId));
+  // A text/tag update may remove a row from the current filter without deleting
+  // the document. Keep the active editor bound to the full note collection.
+  const inspectorNote = $derived.by(() => getWorkspaceInspectorNote(notes, inspectorNoteId));
 
   const windowSync = createWindowSync({
     getNotes: () => notes,
