@@ -198,21 +198,19 @@ pub fn persist_note_window_size(
 #[tauri::command]
 pub fn update_note_text(
     app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
     id: String,
     text: String,
+    expected_text: String,
     sort_mode: String,
 ) -> Result<Vec<Note>, String> {
     let notes = run_notes_operation(&app, || {
-        notes_service::update_note_text(&id, text, parse_sort_mode(sort_mode.as_str()))
+        notes_service::update_note_text(&id, text, &expected_text, parse_sort_mode(sort_mode.as_str()))
     })?;
-    emit_notes_changed_event(
-        &app,
-        NotesChangedEvent {
-            kind: "text",
-            note_id: Some(id),
-            window_layer_changed: false,
-        },
-    );
+    let _ = app.emit("notes_changed", serde_json::json!({
+        "kind": "text", "noteId": id, "windowLayerChanged": false,
+        "sourceWindow": window.label(),
+    }));
     Ok(notes)
 }
 

@@ -1015,7 +1015,7 @@
     if (!draft) return;
     focusCompletedReviewSaving = true;
     try {
-      await onCreateDoneLog(draft, []);
+      if (await onCreateDoneLog(draft, []) === false) return;
       lastDismissedFocusCompletedReviewPromptKey = "";
       focusCompletedReviewPrompt = null;
     } catch (error) {

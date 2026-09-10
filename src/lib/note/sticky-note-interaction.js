@@ -6,14 +6,16 @@
  *   noteId: string;
  *   eventKind: string;
  *   hasUnsavedDraft: boolean;
- *   ignoreUntil: number;
+ *   sourceWindow?: string;
+ *   currentWindow?: string;
+ *   ignoreUntil?: number;
  *   now?: number;
  * }} input
  * @returns {"unrelated" | "local" | "metadata" | "conflict" | "reload"}
  */
 export function classifyStickyNoteChange(input) {
   if (input.changedNoteId && input.changedNoteId !== input.noteId) return "unrelated";
-  if ((input.now ?? Date.now()) <= input.ignoreUntil) return "local";
+  if (input.sourceWindow && input.sourceWindow === input.currentWindow) return "local";
   if (input.eventKind === "metadata") return "metadata";
   return input.hasUnsavedDraft ? "conflict" : "reload";
 }

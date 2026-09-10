@@ -54,29 +54,9 @@ export function createWorkspaceInspectorActions(deps) {
     deps.setInspectorListCollapsed(false);
   }
 
-  /**
-   * @param {string} noteId
-   */
-  async function discardPendingEditorDraft(noteId) {
-    try {
-      await deps.invoke("permanently_delete_note", { id: noteId });
-      await deps.loadNotes();
-      await deps.syncWindows();
-    } catch (e) {
-      reportError("discardPendingEditorDraft(workspace)", e);
-    } finally {
-      deps.setPendingEditorDraft(null);
-      closeInspector();
-    }
-  }
-
   async function handleInspectorClose() {
-    const inspectorNote = deps.getInspectorNote();
-    const pendingEditorDraft = deps.getPendingEditorDraft();
-    if (inspectorNote && pendingEditorDraft && pendingEditorDraft.id === String(inspectorNote.id)) {
-      await discardPendingEditorDraft(String(inspectorNote.id));
-      return;
-    }
+    // Closing a view never owns deletion; even a new placeholder is a stored note.
+    deps.setPendingEditorDraft(null);
     closeInspector();
   }
 

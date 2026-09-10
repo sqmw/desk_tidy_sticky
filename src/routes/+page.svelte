@@ -305,11 +305,13 @@
       await invoke("update_note_text", {
         id: editingNote.id,
         text: transformed,
+        expectedText: editingNote.text,
         sortMode,
       });
       await loadNotes();
     } catch (e) {
       reportNoteStorageFailure("submitEdit", e);
+      return;
     }
     showEditDialog = false;
     editingNote = null;

@@ -101,7 +101,7 @@ test("sticky reports conflicts only when a text event meets an unsaved draft", (
   );
 });
 
-test("sticky ignores its own short-lived notes_changed echo", () => {
+test("sticky ignores only the originating window, never a timed external update", () => {
   assert.equal(
     classifyStickyNoteChange({
       changedNoteId: "note-a",
@@ -110,6 +110,8 @@ test("sticky ignores its own short-lived notes_changed echo", () => {
       hasUnsavedDraft: true,
       ignoreUntil: 150,
       now: 100,
+      sourceWindow: "note-note-a",
+      currentWindow: "note-note-a",
     }),
     "local",
   );

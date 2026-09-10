@@ -63,6 +63,7 @@
   /** @type {number | null} */
   let pendingActiveStartLine = $state(null);
   let pendingCaretAtEnd = $state(false);
+  let structuralSavePending = $state(false);
   /** @type {number | null} */
   let pendingCaretOffset = $state(null);
   /** @type {Array<{ start: number; end: number; color: string }>} */
@@ -87,6 +88,7 @@
   );
 
   $effect(() => {
+    if (structuralSavePending) return;
     if (pendingActiveStartLine == null) return;
     void tick().then(() => {
       if (pendingActiveStartLine == null) return;
@@ -222,8 +224,9 @@
    * @param {string} nextText
    * @param {ReturnType<typeof captureEditingSession>} snapshot
    */
-  function commitStructuralTextChange(nextText, snapshot) {
-    return applyStructuralTextChange({
+  async function commitStructuralTextChange(nextText, snapshot) {
+    structuralSavePending = true;
+    try { return await applyStructuralTextChange({
       nextText,
       snapshot,
       // Wrapped because the callback props are untyped `$props()` entries.
@@ -231,7 +234,7 @@
       restore: restoreEditingSession,
       clearPendingCaret,
       onConflict: () => onConflict(),
-    });
+    }); } finally { structuralSavePending = false; }
   }
 
   async function commitActiveBlock() {

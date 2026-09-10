@@ -223,7 +223,7 @@
     const text = String(draftDoneLogText || "").trim();
     if (!text) return;
     const completedAt = normalizeDraftDoneLogCompletedAt();
-    await onCreateDoneLog(text, [], completedAt);
+    if (await onCreateDoneLog(text, [], completedAt) === false) return;
     cancelDoneLogDraft();
   }
 

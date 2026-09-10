@@ -80,7 +80,6 @@
   let appliedToolbarReserve = $state(0);
   let hasExternalTextChange = $state(false);
   let isRevealingFromEdge = $state(false);
-  let ignoreNotesChangedUntil = 0;
   let suppressPointerActivationUntil = $state(0);
   let tagSuggestions = $state(/** @type {string[]} */ ([]));
   let hasNativeWindowFrost = $state(false);
@@ -639,17 +638,19 @@
     });
   }
 
-  async function save() {
+  /** @param {string} nextText @param {string} expectedText */
+  async function save(nextText, expectedText) {
     if (!note || hasExternalTextChange) return false;
     try {
-      ignoreNotesChangedUntil = Date.now() + 750;
       await invoke("update_note_text", {
         id: resolveNoteId(note, noteId),
-        text,
+        text: nextText,
+        expectedText,
         sortMode: "custom",
       });
       return true;
     } catch (e) {
+      if (String(e).includes("note_text_conflict")) hasExternalTextChange = true;
       reportNoteStorageFailure("save", e);
       return false;
     }
@@ -708,7 +709,6 @@
     if (!note || note.autoHideState !== "hidden" || isRevealingFromEdge) return;
     isRevealingFromEdge = true;
     try {
-      ignoreNotesChangedUntil = Date.now() + 750;
       const result = await invoke("reveal_note_from_edge", {
         id: resolveNoteId(note, noteId),
       });
@@ -772,13 +772,9 @@
     void markActiveTopmostEditingSticky();
     const scrollPosition = rememberNoteBlockScroll();
     const previousText = text;
-    text = nextText;
-    await restoreNoteBlockScroll(scrollPosition);
-    const saved = await save();
-    if (!saved) {
-      text = previousText;
-      return false;
-    }
+    const saved = await save(nextText, previousText);
+    if (!saved) return false;
+    if (text === previousText) text = nextText;
     await restoreNoteBlockScroll(scrollPosition);
     return true;
   }
@@ -1318,7 +1314,7 @@
 
     unlistenPromises.push(
       listen("notes_changed", async (event) => {
-        const payload = /** @type {{ kind?: unknown; noteId?: unknown; windowLayerChanged?: unknown } | null | undefined } */ (event.payload);
+        const payload = /** @type {{ kind?: unknown; noteId?: unknown; windowLayerChanged?: unknown; sourceWindow?: string } | null | undefined } */ (event.payload);
         const changedNoteId = typeof payload?.noteId === "string" ? payload.noteId : "";
         const eventKind = typeof payload?.kind === "string" ? payload.kind : "full";
         const windowLayerChanged = payload?.windowLayerChanged !== false;
@@ -1328,7 +1324,8 @@
           noteId,
           eventKind,
           hasUnsavedDraft,
-          ignoreUntil: ignoreNotesChangedUntil,
+          sourceWindow: payload?.sourceWindow,
+          currentWindow: currentWindow.label,
         });
         if (changeKind === "unrelated" || changeKind === "local") return;
         if (changeKind === "conflict") {

@@ -84,7 +84,7 @@ export function createNoteCommands(deps) {
    */
   async function saveDoneLog(text, tags = [], completedAt = null) {
     const content = expandNoteCommands(String(text || "").trim()).trim();
-    if (!content) return;
+    if (!content) return false;
     try {
       const sortMode = deps.getSortMode();
       await deps.invoke("add_done_log", {
@@ -94,8 +94,10 @@ export function createNoteCommands(deps) {
         completedAt: completedAt ? String(completedAt) : null,
       });
       await loadNotes();
+      return true;
     } catch (e) {
       reportError("saveDoneLog", e);
+      return false;
     }
   }
 

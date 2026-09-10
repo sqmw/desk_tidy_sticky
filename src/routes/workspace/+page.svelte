@@ -1,5 +1,6 @@
 <script>
   import { onMount } from "svelte";
+  import { commitNoteText } from "$lib/note/text-commit.js";
   import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { emit, listen } from "@tauri-apps/api/event";
@@ -462,20 +463,16 @@
   const { openInspectorView, openInspectorEdit, closeInspector, handleInspectorClose, createNoteFromWorkspaceComposer } =
     inspectorActions;
 
-  /** @param {string} nextText */
-  async function updateInspectorNoteText(nextText) {
-    if (!inspectorNote || typeof nextText !== "string") return;
-    try {
-      await invoke("update_note_text", {
-        id: inspectorNote.id,
-        text: nextText,
-        sortMode,
-      });
-      await loadNotes();
-      inspectorDraftText = nextText;
-    } catch (error) {
-      reportNoteStorageFailure("updateInspectorNoteText", error);
-    }
+  /** @param {string} nextText @param {string} [expectedText] @param {string} [id] */
+  async function updateInspectorNoteText(nextText, expectedText = inspectorNote?.text || "", id = inspectorNote?.id) {
+    if (!id || typeof nextText !== "string") return false;
+    const saved = await commitNoteText({ invoke, id, text: nextText, expectedText, sortMode,
+      onError: (/** @type {unknown} */ error) => reportNoteStorageFailure("updateInspectorNoteText", error),
+    });
+    if (!saved) return false;
+    if (pendingEditorDraft?.id === id) pendingEditorDraft = null;
+    await loadNotes();
+    return true;
   }
 
   /** @param {number} lineIndex */

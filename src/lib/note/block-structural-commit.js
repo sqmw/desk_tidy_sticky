@@ -21,7 +21,12 @@
  * @returns {Promise<boolean>} whether the rewrite was persisted
  */
 export async function applyStructuralTextChange(input) {
-  const saved = await input.save(input.nextText);
+  let saved;
+  try {
+    saved = await input.save(input.nextText);
+  } catch {
+    saved = false;
+  }
   if (saved === false) {
     input.clearPendingCaret();
     input.restore(input.snapshot);

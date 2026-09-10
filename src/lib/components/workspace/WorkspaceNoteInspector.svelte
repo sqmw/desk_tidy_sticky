@@ -3,10 +3,11 @@
   import { cubicOut } from "svelte/easing";
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
   import BlockNoteContent from "$lib/components/note/BlockNoteContent.svelte";
+  import { shouldPreserveEditorDocument } from "$lib/note/text-commit.js";
 
   let {
     strings,
-    note = null,
+    note: incomingNote = null,
     draftText = $bindable(""),
     tagSuggestions = /** @type {string[]} */ ([]),
     formatDate,
@@ -20,6 +21,60 @@
     onStartResize = /** @type {(event: PointerEvent) => void} */ (() => {}),
     onResetWidth = /** @type {(event: MouseEvent) => void} */ (() => {}),
   } = $props();
+
+  let note = $state(/** @type {any} */ (null));
+  let editorText = $state("");
+  let editorApi = $state(/** @type {any} */ (null));
+  let conflict = $state(false);
+  let saving = $state(false);
+  let savingText = $state(/** @type {string | null} */ (null));
+
+  $effect(() => {
+    const nextText = incomingNote?.text || "";
+    if (note && shouldPreserveEditorDocument({
+      currentId: note.id, incomingId: incomingNote?.id || "", currentText: editorText,
+      incomingText: nextText, dirty: !!editorApi?.hasUnsavedDraft?.(), saving, savingText,
+    })) {
+      conflict = true;
+      return;
+    }
+    // An in-flight save owns its local buffer until its result is known.
+    if (saving) return;
+    note = incomingNote;
+    editorText = nextText;
+  });
+
+  /** @param {string} nextText */
+  async function saveBlockText(nextText) {
+    if (!note || conflict || saving) return false;
+    saving = true;
+    savingText = nextText;
+    try {
+      const saved = await onBlockTextChange(nextText, editorText, note.id);
+      if (saved === false) { conflict = true; return false; }
+      editorText = nextText;
+      note = { ...note, text: nextText };
+      return true;
+    } catch {
+      conflict = true;
+      return false;
+    } finally {
+      saving = false;
+      savingText = null;
+    }
+  }
+
+  function reloadDocument() {
+    editorApi?.cancelEditingSession?.();
+    note = incomingNote;
+    editorText = incomingNote?.text || "";
+    conflict = false;
+  }
+
+  async function closeEditor() {
+    if (await editorApi?.commitEditingSession?.() === false) return;
+    onClose();
+  }
 
   const reduceMotion =
     typeof window !== "undefined" &&
@@ -45,7 +100,7 @@
         class="close-btn"
         title={strings.close}
         aria-label={strings.close}
-        onclick={() => onClose()}
+        onclick={closeEditor}
       >
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
           <path d="m6 6 12 12M18 6 6 18"></path>
@@ -65,13 +120,21 @@
     </div>
 
     <div class="content editor-content">
+      {#if conflict}
+        <div class="editor-conflict" role="alert">
+          <span>{strings.noteSaveConflict}</span>
+          <button type="button" onclick={reloadDocument}>{strings.noteReloadExternal}</button>
+        </div>
+      {/if}
       <BlockNoteContent
-        text={draftText}
+        bind:this={editorApi}
+        text={editorText}
         compact
         interactiveTasks
         editTrigger="click"
         placeholder={strings.noteEditorPlaceholder}
-        onTextChange={onBlockTextChange}
+        onTextChange={saveBlockText}
+        onConflict={() => { conflict = true; }}
         onToggleTask={onToggleTask}
         onAppendTask={onAppendTask}
       />
@@ -80,6 +143,8 @@
 {/if}
 
 <style>
+  .editor-conflict { padding: 10px; margin-bottom: 8px; background: #fff7ed; color: #7c2d12; border-radius: 8px; }
+  .editor-conflict button { margin-left: 8px; padding: 4px 8px; border: 1px solid currentColor; border-radius: 4px; }
   .inspector {
     position: absolute;
     top: 0;

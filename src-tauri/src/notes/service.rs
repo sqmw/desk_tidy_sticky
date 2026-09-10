@@ -79,7 +79,7 @@ where
     if let Some(mode) = sort_mode {
         sort_notes(&mut context.current_notes, mode);
     }
-    save_notes_to_file(&context.current_notes)?;
+    notes_repository::write_notes_to_path(&context.current_path, &context.current_notes)?;
     Ok(merged_notes_from_context(&context))
 }
 
@@ -211,6 +211,21 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
     use uuid::Uuid;
+
+    #[test]
+    fn stale_text_cannot_overwrite_a_newer_writer() {
+        let dir = std::env::temp_dir().join(format!("desk-tidy-text-cas-{}", Uuid::new_v4()));
+        let path = dir.join("notes.json");
+        let note = Note::new("original".into(), false);
+        let mut context = notes_repository::NotesContext { current_path: path.clone(), current_notes: vec![note.clone()], legacy_files: vec![] };
+        update_note_text_in_context(&mut context, &note.id, "writer one".into(), "original", NoteSortMode::Custom).unwrap();
+        let bytes = std::fs::read(&path).unwrap();
+        assert_eq!(update_note_text_in_context(&mut context, &note.id, "writer two".into(), "original", NoteSortMode::Custom).unwrap_err(), "note_text_conflict");
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        update_note_text_in_context(&mut context, &note.id, "updated".into(), "writer one", NoteSortMode::Custom).unwrap();
+        assert_eq!(notes_repository::read_notes_from_path(&path).unwrap()[0].text, "updated");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn missing_note_id_returns_an_error_without_persisting() {
@@ -428,9 +443,23 @@ where
 pub fn update_note_text(
     id: &str,
     text: String,
+    expected_text: &str,
     sort_mode: NoteSortMode,
 ) -> Result<Vec<Note>, String> {
-    mutate_note(id, Some(sort_mode), |n| {
+    let mut context = notes_repository::load_notes_context()?;
+    update_note_text_in_context(&mut context, id, text, expected_text, sort_mode)
+}
+
+fn update_note_text_in_context(
+    context: &mut notes_repository::NotesContext,
+    id: &str, text: String, expected_text: &str, sort_mode: NoteSortMode,
+) -> Result<Vec<Note>, String> {
+    let current = merged_notes_from_context(context).into_iter().find(|note| note.id == id)
+        .ok_or_else(note_not_found_error)?;
+    if current.text != expected_text {
+        return Err("note_text_conflict".to_string());
+    }
+    mutate_note_in_context(context, id, Some(sort_mode), |n| {
         n.text = text;
         n.updated_at = chrono_now();
     })
