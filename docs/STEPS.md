@@ -27,13 +27,13 @@ Step 1：继续全量审查缺陷整改，编辑保存与冲突安全。先按[�
 Step 2：继续全量审查缺陷整改，偏好与笔记存储完整性。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
 
 ```tracking-step
-{"id":"T-PROJECT-REVIEW-FIX/S2","name":"偏好与笔记存储完整性","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":2,"status":"进行中","evidence":[]}
+{"id":"T-PROJECT-REVIEW-FIX/S2","name":"偏好与笔记存储完整性","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":2,"status":"已完成","evidence":["R04/R05/R07 实现；24 前端/36 Rust 回归通过；review 确认三个偏好写入口共用锁内 patch，坏文件不覆盖；原子替换抽为 runtime 独立模块"]}
 ```
 
 Step 3：继续全量审查缺陷整改，Markdown 往返与刷新渲染。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
 
 ```tracking-step
-{"id":"T-PROJECT-REVIEW-FIX/S3","name":"Markdown 往返与刷新渲染","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":3,"status":"未开始","evidence":[]}
+{"id":"T-PROJECT-REVIEW-FIX/S3","name":"Markdown 往返与刷新渲染","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":3,"status":"进行中","evidence":[]}
 ```
 
 Step 4：继续全量审查缺陷整改，自启门禁与混合 DPI。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。

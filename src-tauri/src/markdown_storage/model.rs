@@ -1,4 +1,4 @@
-use crate::preferences::{read_preferences, write_preferences, PanelPreferences};
+use crate::preferences::{read_preferences, patch_preferences};
 use crate::runtime::paths;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -146,10 +146,10 @@ pub fn apply_storage_preferences(
     let resolved_root = resolve_root_path(&normalized_mode, &normalized_root)?;
     ensure_storage_directories(&resolved_root)?;
 
-    let mut prefs: PanelPreferences = read_preferences().unwrap_or_default();
-    prefs.markdown_storage_mode = normalized_mode.clone();
-    prefs.markdown_storage_root = normalized_root.clone();
-    write_preferences(&prefs)?;
+    patch_preferences(serde_json::json!({
+        "markdownStorageMode": normalized_mode,
+        "markdownStorageRoot": normalized_root,
+    }))?;
 
     snapshot_from_values(&normalized_mode, &normalized_root)
 }

@@ -1,8 +1,13 @@
 use crate::notes::{compat::flutter_legacy, domain::normalize_note_review_semantics, Note};
 use crate::runtime::paths;
-use std::fs::{self, OpenOptions};
-use std::io::{self, Write};
+use std::fs;
+#[cfg(test)]
+use std::io;
+use crate::runtime::atomic_file::write_bytes_atomically;
+#[cfg(test)]
+use crate::runtime::atomic_file::write_bytes_atomically_with;
 use std::path::{Path, PathBuf};
+#[cfg(test)]
 use uuid::Uuid;
 
 pub(crate) const LEGACY_MIGRATION_BATCH_SIZE: usize = 12;
@@ -32,87 +37,25 @@ fn notes_file() -> Result<PathBuf, String> {
 }
 
 pub(crate) fn read_notes_from_path(path: &Path) -> Result<Vec<Note>, String> {
-    flutter_legacy::load_notes_best_effort(path)
+    let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let raw: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    // Accept the historical envelope, but never repair or skip current records.
+    let items = if raw.is_array() { raw } else {
+        raw.get("notes").filter(|v| v.is_array()).cloned()
+            .ok_or_else(|| "notes json must contain an array".to_string())?
+    };
+    let notes: Vec<Note> = serde_json::from_value(items).map_err(|e| e.to_string())?;
+    let mut ids = std::collections::HashSet::new();
+    if notes.iter().any(|note| note.id.trim().is_empty() || !ids.insert(note.id.clone())) {
+        return Err("notes contain an empty or duplicate id".into());
+    }
+    Ok(notes)
 }
 
 fn backup_path(path: &Path) -> PathBuf {
     path.with_extension("json.bak")
 }
 
-fn temp_path(path: &Path) -> Result<PathBuf, String> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| "notes storage path has no parent directory".to_string())?;
-    let file_name = path
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or_else(|| "notes storage path has no file name".to_string())?;
-    Ok(parent.join(format!(".{file_name}.{}.tmp", Uuid::new_v4())))
-}
-
-#[cfg(not(target_os = "windows"))]
-fn replace_file(temp_path: &Path, target_path: &Path) -> io::Result<()> {
-    fs::rename(temp_path, target_path)
-}
-
-#[cfg(target_os = "windows")]
-fn replace_file(temp_path: &Path, target_path: &Path) -> io::Result<()> {
-    use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
-    use windows::Win32::Storage::FileSystem::{
-        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
-    };
-
-    let temp_wide: Vec<u16> = temp_path
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    let target_wide: Vec<u16> = target_path
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-    unsafe {
-        MoveFileExW(
-            PCWSTR(temp_wide.as_ptr()),
-            PCWSTR(target_wide.as_ptr()),
-            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
-        )
-        .map_err(|error| io::Error::other(error.to_string()))
-    }
-}
-
-fn write_bytes_atomically_with<F>(path: &Path, content: &[u8], replace: F) -> Result<(), String>
-where
-    F: FnOnce(&Path, &Path) -> io::Result<()>,
-{
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let temp_path = temp_path(path)?;
-    let write_result = (|| -> Result<(), String> {
-        let mut temp_file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp_path)
-            .map_err(|e| e.to_string())?;
-        temp_file.write_all(content).map_err(|e| e.to_string())?;
-        temp_file.sync_all().map_err(|e| e.to_string())?;
-        drop(temp_file);
-        replace(&temp_path, path).map_err(|e| e.to_string())?;
-        Ok(())
-    })();
-
-    if write_result.is_err() {
-        let _ = fs::remove_file(&temp_path);
-    }
-    write_result
-}
-
-fn write_bytes_atomically(path: &Path, content: &[u8]) -> Result<(), String> {
-    write_bytes_atomically_with(path, content, replace_file)
-}
 
 fn recovery_required_error(path: &Path, error: impl std::fmt::Display) -> String {
     eprintln!(
@@ -290,6 +233,25 @@ pub(crate) fn upsert_current_note(context: &mut NotesContext, note: Note) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn partially_malformed_current_notes_block_rewrites() {
+        let dir = std::env::temp_dir().join(format!("desk-tidy-strict-{}", Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("notes.json");
+        let valid = Note::new("keep me".into(), false);
+        for bad in [serde_json::json!("bad record"), serde_json::json!({"id":"broken", "text":77})] {
+            let raw = serde_json::to_vec(&serde_json::json!([valid, bad])).unwrap();
+            fs::write(&path, &raw).unwrap();
+            assert!(load_current_notes(&path).unwrap_err().starts_with(RECOVERY_REQUIRED_ERROR_CODE));
+            assert!(write_notes_to_path(&path, &[]).is_err());
+            assert_eq!(fs::read(&path).unwrap(), raw);
+        }
+        let envelope = serde_json::to_vec(&serde_json::json!({"notes":[valid]})).unwrap();
+        fs::write(&path, envelope).unwrap();
+        assert_eq!(read_notes_from_path(&path).unwrap().len(), 1);
+        fs::remove_dir_all(dir).unwrap();
+    }
 
     fn test_directory() -> PathBuf {
         let path =

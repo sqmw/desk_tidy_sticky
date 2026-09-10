@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use crate::{
     desktop::{show_preferred_panel_window, sync_panel_window_shell_state, PANEL_WINDOW_LABELS},
-    preferences::{read_preferences, write_preferences},
+    preferences::{read_preferences, patch_preferences},
     runtime::{
         GlobalControlState, ShortcutBindingSnapshot, ShortcutRuntimeState, ShortcutSettingsSnapshot,
     },
@@ -86,11 +86,11 @@ pub fn update_shortcut_settings(
     overlay_shortcut: String,
     sticky_hide_shortcut: String,
 ) -> Result<ShortcutSettingsSnapshot, String> {
-    let mut prefs = read_preferences()?;
-    prefs.panel_shortcut = panel_shortcut.trim().to_string();
-    prefs.overlay_shortcut = overlay_shortcut.trim().to_string();
-    prefs.sticky_hide_shortcut = sticky_hide_shortcut.trim().to_string();
-    write_preferences(&prefs)?;
+    patch_preferences(serde_json::json!({
+        "panelShortcut": panel_shortcut.trim(),
+        "overlayShortcut": overlay_shortcut.trim(),
+        "stickyHideShortcut": sticky_hide_shortcut.trim(),
+    }))?;
     apply_shortcut_preferences(&app)
 }
 

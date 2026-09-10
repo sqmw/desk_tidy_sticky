@@ -6,6 +6,6 @@ pub fn get_preferences() -> Result<PanelPreferences, String> {
 }
 
 #[tauri::command]
-pub fn set_preferences(prefs: PanelPreferences) -> Result<(), String> {
-    model::write_preferences(&prefs)
+pub fn set_preferences(updates: serde_json::Value) -> Result<PanelPreferences, String> {
+    model::patch_preferences(updates)
 }

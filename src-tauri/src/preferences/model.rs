@@ -6,7 +6,7 @@ pub const DEFAULT_PANEL_SHORTCUT: &str = "Ctrl+Shift+N";
 pub const DEFAULT_OVERLAY_SHORTCUT: &str = "Ctrl+Shift+O";
 pub const DEFAULT_STICKY_HIDE_SHORTCUT: &str = "Ctrl+Shift+H";
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PanelPreferences {
     #[serde(default = "default_true")]
@@ -222,18 +222,18 @@ fn default_focus_break_session_json() -> String {
 }
 
 pub fn read_preferences() -> Result<PanelPreferences, String> {
-    let path = prefs_path()?;
-    if !path.exists() {
-        return Ok(PanelPreferences::default());
-    }
-    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&content).map_err(|e| e.to_string())
+    super::repository::read(&prefs_path()?)
 }
 
-pub fn write_preferences(prefs: &PanelPreferences) -> Result<(), String> {
-    let path = prefs_path()?;
-    let content = serde_json::to_string_pretty(prefs).map_err(|e| e.to_string())?;
-    std::fs::write(&path, content).map_err(|e| e.to_string())
+impl Default for PanelPreferences {
+    fn default() -> Self {
+        // Keep first-run values identical to serde's per-field compatibility defaults.
+        serde_json::from_value(serde_json::json!({})).expect("valid preference defaults")
+    }
+}
+
+pub fn patch_preferences(updates: serde_json::Value) -> Result<PanelPreferences, String> {
+    super::repository::patch(&prefs_path()?, updates)
 }
 
 pub fn read_show_panel_on_startup() -> bool {

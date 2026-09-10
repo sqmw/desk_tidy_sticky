@@ -6,3 +6,4 @@ pub(crate) use state::{
     BreakReminderWatchState, GlobalControlState, ShortcutBindingSnapshot, ShortcutRuntimeState,
     ShortcutSettingsSnapshot, StickyWindowReserveState,
 };
+pub(crate) mod atomic_file;

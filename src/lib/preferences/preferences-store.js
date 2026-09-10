@@ -22,11 +22,8 @@ export async function getPreferences(invoke) {
  */
 export async function updatePreferences(invoke, updates) {
   const task = async () => {
-    // Always merge against the latest backend snapshot because mini/workspace
-    // run in separate webviews with independent JS module caches.
-    const base = await getPreferences(invoke);
-    const next = { ...base, ...updates };
-    await invoke("set_preferences", { prefs: next });
+    // Backend owns the entire read/merge/write transaction across all webviews.
+    const next = await invoke("set_preferences", { updates: { ...updates } });
     prefsCache = next;
     await broadcastPreferencesChanged({ ...updates });
   };
