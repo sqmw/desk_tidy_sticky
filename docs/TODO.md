@@ -18,7 +18,7 @@
 
 归属 Task：[T-PLUGIN-PLATFORM-VALIDATION](#t-plugin-platform-validation)、[T-PLUGIN-HOST](#t-plugin-host)、[T-MOBILE-BASE](#t-mobile-base)、[T-TIMETABLE-PLUGIN](#t-timetable-plugin)、[T-EXT-CROSSPLATFORM-ACCEPTANCE](#t-ext-crossplatform-acceptance)。
 
-依据：[D-EXT-001](DECISIONS.md#d-ext-001)；[规划草案](plans/2026-09-10-plugins-mobile-timetable.md)。首个前置决策：iOS 分发渠道和插件运行形态；不隐含批准任意原生代码执行。
+依据：[D-EXT-001](DECISIONS.md#d-ext-001)、[D-EXT-002](DECISIONS.md#d-ext-002)；[规划 v2](plans/2026-09-10-plugins-mobile-timetable.md)。iOS 当前按非 App Store 首发规划，未来上架单独评估；首选 JS/TS 插件验证，具体容器、签名安装方式和能力集仍需验证。
 
 计划外占比：结构化活跃记录口径为 1/6；存量六项活跃记录缺少里程碑归属字段，不能据此给出全项目比例，本轮不补造历史归属。
 
@@ -29,7 +29,7 @@
 <a id="t-plugin-platform-validation"></a>
 
 ```tracking-task
-{"id":"T-PLUGIN-PLATFORM-VALIDATION","name":"跨端插件运行与分发可行性","goal":"明确第三方插件在Android/iOS目标渠道可落地的运行边界","scope":"外部插件包加载、隔离与权限拒绝、用户文件导入和系统提醒最小验证；不构建完整商店或重写宿主","acceptance":"两端都有目标设备/渠道证据或清楚的不可行结论；能据此选择运行形态；不以桌面成功替代手机结果","dependencies":[],"version":"v1","mode":"staged","status":"pending","execution_ref":"","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001"]}
+{"id":"T-PLUGIN-PLATFORM-VALIDATION","name":"跨端插件运行与分发可行性","goal":"明确第三方插件在Android/iOS目标渠道可落地的运行边界","scope":"外部插件包加载、隔离与权限拒绝、用户文件导入和系统提醒最小验证；不构建完整商店或重写宿主","acceptance":"两端都有目标设备/渠道证据或清楚的不可行结论；能据此选择运行形态；不以桌面成功替代手机结果","dependencies":[],"version":"v1","mode":"staged","status":"pending","execution_ref":"","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002"]}
 ```
 
 待开始（不预建步骤块）；范围与平台限制见[规划草案](plans/2026-09-10-plugins-mobile-timetable.md)。
@@ -39,7 +39,7 @@
 <a id="t-plugin-host"></a>
 
 ```tracking-task
-{"id":"T-PLUGIN-HOST","name":"第三方插件宿主","goal":"用户无需重编宿主即可安装、启停和升级遵循协议的第三方插件","scope":"插件包校验、宿主协议、权限与存储隔离、扩展点、生命周期和异常处理；不含在线商店/付费平台","acceptance":"外部测试插件走正常安装路径；越权调用被拒；停用撤销其提醒，数据处置明确；升级失败可恢复且核心笔记不受损","dependencies":["T-PLUGIN-PLATFORM-VALIDATION"],"version":"v1","mode":"staged","status":"pending","execution_ref":"","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001"]}
+{"id":"T-PLUGIN-HOST","name":"第三方插件宿主","goal":"用户无需重编宿主即可安装、启停和升级遵循协议的第三方插件","scope":"插件包校验、宿主协议、权限与存储隔离、扩展点、生命周期和异常处理；不含在线商店/付费平台","acceptance":"外部测试插件走正常安装路径；越权调用被拒；停用撤销其提醒，数据处置明确；升级失败可恢复且核心笔记不受损","dependencies":["T-PLUGIN-PLATFORM-VALIDATION"],"version":"v1","mode":"staged","status":"pending","execution_ref":"","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002"]}
 ```
 
 待开始（不预建步骤块）；范围与平台限制见[规划草案](plans/2026-09-10-plugins-mobile-timetable.md)。
@@ -49,7 +49,7 @@
 <a id="t-mobile-base"></a>
 
 ```tracking-task
-{"id":"T-MOBILE-BASE","name":"Android 与 iOS 基础客户端","goal":"在两种移动平台提供可用的基础笔记与插件承载入口","scope":"平台依赖拆分、触屏页面、应用存储、文件选择和手动导入导出、通知权限；不承诺桌面置顶/托盘等能力；无自动同步","acceptance":"Android/iOS 真机可运行；基础笔记与文件往返通过；插件承载与宿主合同接通；权限拒绝有解释，桌面行为回归通过","dependencies":["T-PLUGIN-PLATFORM-VALIDATION"],"version":"v1","mode":"staged","status":"pending","execution_ref":"","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001"]}
+{"id":"T-MOBILE-BASE","name":"Android 与 iOS 基础客户端","goal":"在两种移动平台提供可用的基础笔记与插件承载入口","scope":"平台依赖拆分、触屏页面、应用存储、文件选择和手动导入导出、通知权限；不承诺桌面置顶/托盘等能力；无自动同步","acceptance":"Android/iOS 真机可运行；基础笔记与文件往返通过；插件承载与宿主合同接通；权限拒绝有解释，桌面行为回归通过","dependencies":["T-PLUGIN-PLATFORM-VALIDATION"],"version":"v1","mode":"staged","status":"pending","execution_ref":"","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002"]}
 ```
 
 待开始（不预建步骤块）；范围与平台限制见[规划草案](plans/2026-09-10-plugins-mobile-timetable.md)。
@@ -271,12 +271,16 @@
 <a id="t-plugin-mobile-plan"></a>
 
 ```tracking-task
-{"id":"T-PLUGIN-MOBILE-PLAN","name":"插件与移动端里程碑规划","version":"v1","mode":"lightweight","status":"done","goal":"把用户确认的插件、Android/iOS与课表目标转成可审阅的里程碑规划","scope":"仅产品范围、候选架构、数据合同方向、任务依赖与验收；不实施业务代码、不冻结尚未选择的运行形态或分发渠道","acceptance":"三个范围选择准确入档；主 TODO 有里程碑及任务归属；课表数据和提醒生命周期有验收；iOS渠道与运行形态待决策明确","execution_ref":"archive/2026-09-10-plugin-mobile-planning.md#t-plugin-mobile-plan","acceptance_evidence":["D-EXT-001 准确记录用户三个范围选择；M-EXT-01 与五项pending Task归属明确","plans/2026-09-10-plugins-mobile-timetable.md 包含数据、权限、提醒验收与iOS渠道待决策；未修改业务源码"],"unplanned_reason":"用户提出新里程碑并回答范围问题"}
+{"id":"T-PLUGIN-MOBILE-PLAN","name":"插件与移动端里程碑规划","version":"v1","mode":"lightweight","status":"done","goal":"把用户确认的插件、Android/iOS与课表目标转成可审阅的里程碑规划","scope":"仅产品范围、候选架构、数据合同方向、任务依赖与验收；不实施业务代码、不冻结尚未选择的运行形态或分发渠道","acceptance":"三个范围选择准确入档；主 TODO 有里程碑及任务归属；课表数据和提醒生命周期有验收；iOS渠道与运行形态待决策明确","execution_ref":"archive/2026-09-10-plugin-mobile-planning.md#t-plugin-mobile-plan","acceptance_evidence":["D-EXT-001 准确记录用户三个范围选择；M-EXT-01 与五项pending Task归属明确","plans/2026-09-10-plugins-mobile-timetable.md 包含数据、权限、提醒验收与iOS渠道待决策；未修改业务源码","E-002：D-EXT-002 记录当前非商店首发且保留未来选择；规划 v2 明确 JS/TS 首选、业务协议与平台/渠道分离及审核证据边界"],"unplanned_reason":"用户提出新里程碑并回答范围问题"}
 ```
 
 目的意图：把用户已决定的产品范围落到单一里程碑与可审阅草案；方案中的技术候选不冒充已批准实现。界面与第三方运行权限的成本在实施前可见。
 
 [执行证据](archive/2026-09-10-plugin-mobile-planning.md#t-plugin-mobile-plan)。
+
+E-002 目的意图：把用户当前非 App Store 首发的选择与未来上架兼容区分，保留 JS/TS 首选路线但不冻结容器实现，不把“首期不上架”解释为无限权限。
+
+[E-002 执行证据](archive/2026-09-10-plugin-mobile-planning.md#e-002)。
 
 ### T-PROJECT-REVIEW · 当前项目全量审查
 
