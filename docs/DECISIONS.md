@@ -2,6 +2,18 @@
 
 仅保存当前有效产品/架构决策。Task 与 Milestone 的状态只在 [TODO](TODO.md)；候选方案不是生效决策。
 
+## D-EXT-003 · 分阶段实施与默认拒绝门禁
+
+<a id="d-ext-003"></a>
+
+- 日期：2026-09-10；状态：accepted（用户授权按候选方向开始实施，非运行容器冻结）。
+- 归属：T-PLUGIN-PLATFORM-VALIDATION @v1 / E-001。
+- 决定：先落地 Rust manifest/能力准入纯模块，随后验证隔离容器、调用身份和移动提醒；无生产安装入口、无用户数据迁移。首批格式为 `manifestVersion: 1`、`hostApi: 1` 的开发合同，未发布稳定 SDK。
+- 依据：Tauri 官方说明 Android/Linux 无法区分嵌入 iframe 与窗口的 IPC 来源，且应用 invoke_handler 命令默认对全部窗口开放。因此否决“现有特权页面内嵌 iframe + SDK 包装即可开放安装”，不否决所有隔离 Web 方案。
+- 安全门：平台支持、发行策略、用户授权取交集；声明不产生授权；后端实际调用仍需绑定身份与重新检查。
+- 回退：首批模块未接入运行路径，可通过反向提交撤销，无数据回迁。后续侵入移动壳实验另建 Probe，真实证据后再决策。
+- 方案与来源：[实施基线](plugins/implementation-baseline.md)、[Tauri capabilities](https://v2.tauri.app/security/capabilities/)。
+
 ## D-EXT-001 · 插件、双移动端与课表的产品范围
 
 <a id="d-ext-001"></a>

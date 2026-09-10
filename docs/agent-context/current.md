@@ -2,7 +2,7 @@
 
 ## Situation
 
-The active delivery line is Sticky Window And Block Editor Overhaul. Storage recovery remains a release gate, while the current UI work expands native-window controls around a fixed note rectangle, makes editing state explicit, and preserves active drafts during external updates.
+The current user-authorized delivery line is [M-EXT-01](../TODO.md#m-ext-01), starting with T-PLUGIN-PLATFORM-VALIDATION. See the [implementation baseline](../plugins/implementation-baseline.md) and [execution](../STEPS.md#t-plugin-platform-validation). Earlier desktop acceptance gates remain open; new plugin work does not supersede them.
 
 ## Current State
 

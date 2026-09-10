@@ -2,13 +2,50 @@
 
 主 STEPS：承载正在推进的 Task 的宏观步骤序列与执行位置。任务级状态只在 [Project TODO](TODO.md) 维护，本文件只维护步骤状态。
 
-活跃步骤块数量：**1**
+活跃步骤块数量：**2**
 
 步骤状态取值：`未开始` / `进行中` / `受阻` / `已完成` / `已跳过`
 
 ---
 
 ## 活跃步骤块
+
+### T-PLUGIN-PLATFORM-VALIDATION · 跨端插件运行与分发可行性 @v1
+
+<a id="t-plugin-platform-validation"></a>
+
+回链：[Task](TODO.md#t-plugin-platform-validation)。所有者 Codex /root；single-writer。
+
+目的意图：落实第三方包的验证合同，再验证移动容器与系统提醒；不改用户数据、安装版或当前窗口权限。授权：2026-09-10 用户要求整理方案、更新项目状态与执行文档并开始落地。正式纯模块与回归测试保留在主项目；可能破坏主线的移动壳实验须另建 Probe。
+
+```tracking-step
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/S1","name":"执行基线与包准入合同","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":1,"status":"已完成","evidence":["Rust manifest 严格解析与平台/渠道/用户能力交集已实现；8 项新增正反测试；49 Rust、31 前端测试通过","review 核对未注册命令、未修改 capability、未执行入口；补强未声明但已授权能力不泄露反例；git diff --check 与 tracking_check 通过"]}
+```
+
+S1 产出：版本化 manifest、后端解析/能力准入、恶意输入测试。通过是缺权限或非法包明确拒绝；失败是声明即授权或校验过程执行代码。详细边界见[实施基线](plugins/implementation-baseline.md)。
+
+```tracking-step
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/S2","name":"隔离运行与宿主身份验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":2,"status":"未开始","evidence":[]}
+```
+
+S2 产出：独立 JS 包运行、宿主绑定身份、独立存储及越权反例；原生命令、父页面与其他插件访问均须拒绝。未通过前不开放安装入口。
+
+```tracking-step
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/S3","name":"双移动端安装与提醒验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":3,"status":"未开始","evidence":[]}
+```
+
+S3 产出：Android/iOS 安装渠道、文件选择、后台/锁屏/撤权/取消通知的设备证据；模拟器和真机结果分开。工具链缺失不判定产品不可行。
+
+```tracking-step
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/S4","name":"证据审查与运行路线决策","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":4,"status":"未开始","evidence":[]}
+```
+
+S4 根据 S2/S3 证据选择容器，记录限制与后续任务放行；缺任一关键平台证据不关闭 Task。
+
+```tracking-execution
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/E-001","name":"跨端插件最小闭环落地","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","status":"succeeded","authorization":"2026-09-10 用户：整理方案文档、更新项目状态和执行文档、开始落地；覆盖可行性实现及验证，不发布或迁移用户数据","scope":"本次完成首批 S1 后端合同与移动环境预检；完整运行闭环由后续 S2/S3 推进，不重写现有宿主","steps":["T-PLUGIN-PLATFORM-VALIDATION/S1"],"evidence":["规划 v3、实施基线 v1、D-EXT-003、TODO/STEPS/上下文同步；首批 Rust 模块及 fixture/反向测试落地","49 Rust 与31前端测试通过；自审补强未声明能力反例；无安装/数据/权限迁移","Android SDK/targets/AVD 已有但无连接设备；iOS 无可用模拟器与 Rust target；未做移动运行或通知实测","本执行成功仅指启动实施并交付 S1；S2–S4 未完成，Task/Milestone 保持 in_progress"],"stop_reason":null}
+```
+
 
 ### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1
 

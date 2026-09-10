@@ -10,7 +10,7 @@
 
 <a id="m-ext-01"></a>
 
-状态：pending（产品范围确认，业务实现尚未开始）。
+状态：in_progress（进入跨端插件可行性实施；尚未开放安装）。
 
 目标：桌面、Android、iOS 可安装第三方插件，以课表 JSON 导入、展示和提醒形成首个闭环；首期手动导入导出，自动同步后续单独规划。
 
@@ -18,7 +18,7 @@
 
 归属 Task：[T-PLUGIN-PLATFORM-VALIDATION](#t-plugin-platform-validation)、[T-PLUGIN-HOST](#t-plugin-host)、[T-MOBILE-BASE](#t-mobile-base)、[T-TIMETABLE-PLUGIN](#t-timetable-plugin)、[T-EXT-CROSSPLATFORM-ACCEPTANCE](#t-ext-crossplatform-acceptance)。
 
-依据：[D-EXT-001](DECISIONS.md#d-ext-001)、[D-EXT-002](DECISIONS.md#d-ext-002)；[规划 v2](plans/2026-09-10-plugins-mobile-timetable.md)。iOS 当前按非 App Store 首发规划，未来上架单独评估；首选 JS/TS 插件验证，具体容器、签名安装方式和能力集仍需验证。
+依据：[D-EXT-001](DECISIONS.md#d-ext-001)、[D-EXT-002](DECISIONS.md#d-ext-002)、[D-EXT-003](DECISIONS.md#d-ext-003)；[规划 v3](plans/2026-09-10-plugins-mobile-timetable.md)。iOS 当前按非 App Store 首发规划，未来上架单独评估；首选 JS/TS 插件验证，具体容器、签名安装方式和能力集仍需验证。
 
 计划外占比：结构化活跃记录口径为 1/6；存量六项活跃记录缺少里程碑归属字段，不能据此给出全项目比例，本轮不补造历史归属。
 
@@ -29,10 +29,10 @@
 <a id="t-plugin-platform-validation"></a>
 
 ```tracking-task
-{"id":"T-PLUGIN-PLATFORM-VALIDATION","name":"跨端插件运行与分发可行性","goal":"明确第三方插件在Android/iOS目标渠道可落地的运行边界","scope":"外部插件包加载、隔离与权限拒绝、用户文件导入和系统提醒最小验证；不构建完整商店或重写宿主","acceptance":"两端都有目标设备/渠道证据或清楚的不可行结论；能据此选择运行形态；不以桌面成功替代手机结果","dependencies":[],"version":"v1","mode":"staged","status":"pending","execution_ref":"","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002"]}
+{"id":"T-PLUGIN-PLATFORM-VALIDATION","name":"跨端插件运行与分发可行性","goal":"明确第三方插件在Android/iOS目标渠道可落地的运行边界","scope":"外部插件包加载、隔离与权限拒绝、用户文件导入和系统提醒最小验证；不构建完整商店或重写宿主","acceptance":"两端都有目标设备/渠道证据或清楚的不可行结论；能据此选择运行形态；不以桌面成功替代手机结果","dependencies":[],"version":"v1","mode":"staged","status":"in_progress","execution_ref":"STEPS.md#t-plugin-platform-validation","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002","D-EXT-003"]}
 ```
 
-待开始（不预建步骤块）；范围与平台限制见[规划草案](plans/2026-09-10-plugins-mobile-timetable.md)。
+当前执行：[步骤与证据](STEPS.md#t-plugin-platform-validation)；[实施基线](plugins/implementation-baseline.md)。先建立后端可测试合同，不把准入校验当作运行隔离通过。
 
 ### T-PLUGIN-HOST · 第三方插件宿主
 

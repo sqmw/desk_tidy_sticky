@@ -4,6 +4,8 @@ This is the first-read route for people and agents. Read the active documents be
 
 ## Active
 
+- [Plugin Implementation Baseline](plugins/implementation-baseline.md): backend manifest/admission contract, source/test routes and runtime release gates.
+
 - [Plugins, Mobile And Timetable Milestone](plans/2026-09-10-plugins-mobile-timetable.md): confirmed product scope, proposed host/platform boundaries and course JSON acceptance; runtime/distribution choices remain open.
 - [Project Decisions](DECISIONS.md): accepted product and architecture choices; task state remains in TODO.
 

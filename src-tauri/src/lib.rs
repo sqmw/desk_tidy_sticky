@@ -3,6 +3,9 @@ mod desktop;
 mod markdown_storage;
 mod notes;
 mod platform;
+// Admission foundation only; no runtime/IPC exposure until isolation validation passes.
+#[allow(dead_code)]
+mod plugins;
 mod preferences;
 mod runtime;
 mod runtime_checks;

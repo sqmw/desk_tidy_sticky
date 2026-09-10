@@ -1,0 +1,11 @@
+{
+  "manifestVersion": 1,
+  "hostApi": 1,
+  "id": "org.example.timetable",
+  "name": "课表验证样例",
+  "version": "0.1.0",
+  "dataVersion": 1,
+  "entry": "dist/main.js",
+  "platforms": ["macos", "windows", "android", "ios"],
+  "permissions": { "required": ["storage"], "optional": ["reminders"] }
+}
