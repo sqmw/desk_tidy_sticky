@@ -1,5 +1,5 @@
-import { parseTaskLine } from "$lib/markdown/task-list.js";
-import { isSafeInlineColor } from "$lib/markdown/inline-style.js";
+import { parseTaskLine } from "./task-list.js";
+import { isSafeInlineColor } from "./inline-style.js";
 
 /**
  * @param {string} text
@@ -208,11 +208,19 @@ function renderInlineCore(inline, allowSafeSpan) {
     tokenMap = extracted.tokenMap;
   }
   out = escapeHtml(out);
+  // Decode only the entities emitted by escapeHtml, then encode attributes once.
+  /** @param {string | undefined} value */
+  const originalText = (value) => String(value ?? "").replaceAll("&lt;", "<").replaceAll("&gt;", ">").replaceAll("&quot;", '"').replaceAll("&#39;", "'").replaceAll("&amp;", "&");
+  /** @type {Map<string, string>} */
+  const imageTokens = new Map();
   out = out.replace(
     /!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;([^&]*)&quot;)?\)(?:\{([^}]*)\})?/g,
     (_all, alt, src, title, meta) => {
-    if (!isSafeUrl(src, { allowRelative: true, allowDataImage: true })) return _all;
-      return buildImageTag({ alt, src, title, meta });
+      const originalSrc = originalText(src);
+      if (!isSafeUrl(originalSrc, { allowRelative: true, allowDataImage: true })) return _all;
+      const token = `@@IMAGE_TOKEN_${imageTokens.size}@@`;
+      imageTokens.set(token, buildImageTag({ alt: originalText(alt), src: originalSrc, title: originalText(title), meta: originalText(meta) }));
+      return token;
     },
   );
   out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
@@ -221,6 +229,9 @@ function renderInlineCore(inline, allowSafeSpan) {
   out = out.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
   out = out.replace(/(?<!["'(>])(https?:\/\/[^\s<)]+)/g, '<a href="$1" target="_blank" rel="noreferrer">$1</a>');
   for (const [token, html] of tokenMap.entries()) {
+    out = out.replaceAll(token, html);
+  }
+  for (const [token, html] of imageTokens.entries()) {
     out = out.replaceAll(token, html);
   }
   return out;

@@ -6,7 +6,7 @@ import {
   normalizeMarkdownStorageMode,
   normalizeMarkdownStorageRoot,
   setMarkdownStoragePreferences,
-} from "$lib/workspace/storage/markdown-storage-service.js";
+} from "../storage/markdown-storage-service.js";
 
 /**
  * @param {{
@@ -18,6 +18,7 @@ import {
  *   setMarkdownStorageExporting: (next: boolean) => void;
  *   setMarkdownStorageImporting: (next: boolean) => void;
  *   onNotesStorageError?: (source: string, error: unknown) => void;
+ *   onImported?: () => Promise<void>;
  * }} deps
  */
 export function createWorkspaceStorageActions(deps) {
@@ -74,6 +75,8 @@ export function createWorkspaceStorageActions(deps) {
     deps.setMarkdownStorageImporting(true);
     try {
       const summary = await importMarkdownFromStorageRoot(deps.invoke);
+      // Persistence succeeded even if a later UI refresh fails.
+      try { await deps.onImported?.(); } catch (error) { console.error("refresh imported notes", error); }
       return {
         ok: true,
         summary,

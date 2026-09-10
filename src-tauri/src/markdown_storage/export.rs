@@ -69,7 +69,7 @@ pub fn export_current_notes_to_markdown() -> Result<MarkdownExportSummary, Strin
     })
 }
 
-fn render_markdown_document(
+pub(super) fn render_markdown_document(
     note: &Note,
     attachments_root: &PathBuf,
 ) -> Result<(String, usize), String> {
@@ -112,6 +112,7 @@ fn render_markdown_document(
     out.push_str("record_kind: ");
     out.push_str(&yaml_scalar(export_kind(note)));
     out.push('\n');
+    out.push_str(if note.is_done { "is_done: true\n" } else { "is_done: false\n" });
     out.push_str("source: ");
     out.push_str(&yaml_scalar(EXPORT_SOURCE));
     out.push('\n');

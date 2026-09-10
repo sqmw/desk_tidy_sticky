@@ -10,6 +10,7 @@ use crate::markdown_storage::model::{
     apply_storage_preferences, snapshot_from_preferences, MarkdownStorageSnapshot,
 };
 use crate::notes::store as notes_store;
+use tauri::Emitter;
 
 #[tauri::command]
 pub fn get_markdown_storage_snapshot() -> Result<MarkdownStorageSnapshot, String> {
@@ -35,7 +36,10 @@ pub fn export_current_notes_to_markdown(
 pub fn import_markdown_from_storage_root(
     app: tauri::AppHandle,
 ) -> Result<MarkdownImportSummary, String> {
-    notes_store::with_notes_store(&app, import_service)
+    let summary = notes_store::with_notes_store(&app, import_service)?;
+    // Only publish after a successful commit; existing editors decide how to retain drafts.
+    let _ = app.emit("notes_changed", serde_json::json!({"kind":"text", "windowLayerChanged":true}));
+    Ok(summary)
 }
 
 #[tauri::command]

@@ -45,6 +45,7 @@ struct ParsedMarkdownDocument {
     updated_at: Option<String>,
     completed_at: Option<String>,
     record_kind: Option<String>,
+    is_done: Option<bool>,
     body: String,
 }
 
@@ -221,6 +222,11 @@ fn parse_markdown_document(input: &str) -> ParsedMarkdownDocument {
             index += 1;
             continue;
         }
+        if let Some(value) = line.strip_prefix("is_done:") {
+            parsed.is_done = match value.trim() { "true" => Some(true), "false" => Some(false), _ => None };
+            index += 1;
+            continue;
+        }
         if let Some(value) = line.strip_prefix("tags:") {
             let inline = value.trim();
             if inline == "[]" {
@@ -282,6 +288,7 @@ fn build_imported_note(
         updated_at,
         completed_at,
         record_kind,
+        is_done,
         body,
     } = parsed;
 
@@ -292,6 +299,8 @@ fn build_imported_note(
     };
     let normalized_created_at = created_at.unwrap_or_else(|| now.clone());
     let normalized_updated_at = updated_at.unwrap_or_else(|| normalized_created_at.clone());
+    // Old exports did not include is_done, but retained completed_at for ordinary notes.
+    let done = is_done.unwrap_or(note_kind == RECORD_KIND_DONE_LOG || completed_at.as_deref().is_some_and(|v| !v.trim().is_empty()));
     let resolved_note_id = note_id.unwrap_or_else(|| Uuid::new_v4().to_string());
     let (mut text, attachments_imported) = rewrite_markdown_attachments_for_import(
         &resolved_note_id,
@@ -324,12 +333,12 @@ fn build_imported_note(
         updated_at: normalized_updated_at,
         is_pinned: false,
         is_archived: false,
-        is_done: note_kind == RECORD_KIND_DONE_LOG,
+        is_done: done,
         is_deleted: false,
         is_always_on_top: false,
         is_wallpaper: false,
         record_kind: note_kind.to_string(),
-        completed_at: if note_kind == RECORD_KIND_DONE_LOG {
+        completed_at: if done {
             completed_at.or_else(|| Some(now.clone()))
         } else {
             None
@@ -381,4 +390,35 @@ fn fallback_title_for_path(path: &Path, note_kind: &str) -> String {
                 "Imported note".to_string()
             }
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::markdown_storage::export::render_markdown_document;
+
+    #[test]
+    fn completion_state_survives_markdown_round_trip() {
+        for (kind, done) in [(RECORD_KIND_NOTE, false), (RECORD_KIND_NOTE, true), (RECORD_KIND_DONE_LOG, true)] {
+            let mut note = Note::new("# round trip".into(), false);
+            note.record_kind = kind.into(); note.is_done = done;
+            note.completed_at = done.then(|| note.updated_at.clone());
+            let (raw, _) = render_markdown_document(&note, &std::env::temp_dir()).unwrap();
+            let (imported, _) = build_imported_note(Path::new("example.md"), IMPORT_KIND_NOTE, parse_markdown_document(&raw)).unwrap();
+            assert_eq!(imported.is_done, done); assert_eq!(imported.completed_at, note.completed_at);
+            assert_eq!(imported.record_kind, kind);
+            let mut existing = note.clone(); merge_imported_note(&mut existing, imported);
+            assert_eq!(existing.is_done, done); assert_eq!(existing.completed_at, note.completed_at);
+        }
+    }
+
+    #[test]
+    fn old_exports_use_completed_at_but_explicit_false_wins() {
+        for (flag, expected) in [("", true), ("is_done: false\n", false)] {
+            let raw = format!("---\nrecord_kind: note\ncompleted_at: '2026-09-10T12:00:00Z'\n{flag}---\n\n# example");
+            let (note, _) = build_imported_note(Path::new("example.md"), IMPORT_KIND_NOTE, parse_markdown_document(&raw)).unwrap();
+            assert_eq!(note.is_done, expected);
+            assert_eq!(note.completed_at.is_some(), expected);
+        }
+    }
 }

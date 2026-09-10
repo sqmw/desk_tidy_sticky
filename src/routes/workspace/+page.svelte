@@ -427,6 +427,7 @@
   const { loadPrefs, savePrefs } = routePreferences;
 
   const workspaceStorageActions = createWorkspaceStorageActions({
+    onImported: () => loadNotes(),
     invoke,
     onNotesStorageError: reportNoteStorageFailure,
     setMarkdownStorageMode: (next) => {
