@@ -4,6 +4,9 @@ This is the first-read route for people and agents. Read the active documents be
 
 ## Active
 
+- [Plugins, Mobile And Timetable Milestone](plans/2026-09-10-plugins-mobile-timetable.md): confirmed product scope, proposed host/platform boundaries and course JSON acceptance; runtime/distribution choices remain open.
+- [Project Decisions](DECISIONS.md): accepted product and architecture choices; task state remains in TODO.
+
 - [Review Remediation Plan](plans/2026-09-10-review-remediation.md): R01–R12 implementation contracts, source routes, ordered batches and regression gates.
 
 - [Project TODO](TODO.md): single source of truth for active work, stage status, and completed-item index.
