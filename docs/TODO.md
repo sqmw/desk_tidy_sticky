@@ -11,12 +11,12 @@
 <a id="t-project-review-fix"></a>
 
 ```tracking-task
-{"id":"T-PROJECT-REVIEW-FIX","name":"全量审查缺陷整改","version":"v1","mode":"staged","status":"in_progress","goal":"消除全量审查确认的数据损失和功能缺陷","scope":"报告 R01–R12；窗口现场疑点先取证，不把未经证实的激活顺序作为修复基线；跨进程隔离方案另核对授权","acceptance":"R01–R12 各自反例通过对应回归验证；原有检查通过，真实窗口与 Windows 差异明确验收；数据丢失、失败回滚和并发更新路径有反向测试","execution_ref":"STEPS.md#t-project-review-fix","acceptance_evidence":[],"priority":"high","unplanned_reason":"2026-09-10 全量 review 发现；用户已授权编写方案并按文档实施","dependencies":["T-PROJECT-REVIEW"]}
+{"id":"T-PROJECT-REVIEW-FIX","name":"全量审查缺陷整改","version":"v1","mode":"staged","status":"blocked","goal":"消除全量审查确认的数据损失和功能缺陷","scope":"报告 R01–R12；窗口现场疑点先取证，不把未经证实的激活顺序作为修复基线；跨进程隔离方案另核对授权","acceptance":"R01–R12 各自反例通过对应回归验证；原有检查通过，真实窗口与 Windows 差异明确验收；数据丢失、失败回滚和并发更新路径有反向测试","execution_ref":"STEPS.md#t-project-review-fix","acceptance_evidence":[],"priority":"high","unplanned_reason":"2026-09-10 全量 review 发现；用户已授权编写方案并按文档实施","dependencies":["T-PROJECT-REVIEW"]}
 ```
 
 执行基线：[整改方案 @v1](plans/2026-09-10-review-remediation.md)；[步骤与执行](STEPS.md#t-project-review-fix)。发现证据保留在 [R01–R12 报告](reviews/2026-09-10-project-review.md)。
 
-交接：R01–R12 已有源码修复与自动回归，结果见方案 S1–S5 证据。当前只剩更新后的正式构建登录/托盘唤醒与 Windows 真机混合 DPI 隐藏/拖动验收；已安装应用尚未替换。Task 不以本轮执行结束或单测通过代替这两项验收。
+交接：R01–R12 源码与自动回归完成，1.2.6 已更新到本机安装位置，真实 launchd 启动及原生编辑关闭通过，见 [安装验收](releases/2026-09-10-local-1.2.6-acceptance.md)。托盘直接点击结果待反馈；Windows 仅发现一块活动物理屏幕，混合 DPI 双屏与真实重启未验收。Task 不以安装完成或单测通过代替这些现场证据。
 
 ### <a id="todo-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY：贴纸数据安全 P0 修复
 

@@ -2,13 +2,42 @@
 
 主 STEPS：承载正在推进的 Task 的宏观步骤序列与执行位置。任务级状态只在 [Project TODO](TODO.md) 维护，本文件只维护步骤状态。
 
-活跃步骤块数量：**2**
+活跃步骤块数量：**1**
 
 步骤状态取值：`未开始` / `进行中` / `受阻` / `已完成` / `已跳过`
 
 ---
 
 ## 活跃步骤块
+
+### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1
+
+- 回链 TODO 条目：[T-STK-P0-DATA-SAFETY](TODO.md#todo-t-stk-p0-data-safety)
+- 块所有者：Claude Code 会话 `97c43058`
+- 写入模式：`single-writer`
+- 执行授权：`implicit` — 来源：用户 2026-08-10 指令“开始修复”，紧接在上一轮“P0 四条要不要本轮落地”的提问之后；范围：扫描文档 P0 批次 A1/A2/A3/A4 加同函数的 A5/C1。四项均为可逆代码修复，不触及冻结基线与架构取舍，故不升级为 `explicit`。
+- 最近更新：2026-08-10
+
+**目的意图**：把 `docs/issues/2026-08-10-sticky-full-scan.md` 判定为 P0 的四条数据安全缺陷从"有台账"推进到"已修复且有自动化回归"，消除贴纸尺寸单调膨胀、隐藏贴纸丢失可见锚点、隐藏态切层级后贴纸永久失踪、块编辑器静默丢内容这四类用户不可逆损失。顺带并入 A5、C1 两条与 P0 同文件同函数、独立提交反而增加噪音的修复。明确不含 B1 混合 DPI 坐标空间口径、B2 macOS 窗口生命周期取舍、F4 devtools 发布策略，这三条需要先与用户定方向。
+
+**宏观步骤**
+
+| # | 步骤 | 状态 | 完成判据 | 实测结果 |
+| --- | --- | --- | --- | --- |
+| 1 | A2 + A3：后端隐藏态守卫与坐标回收 | 已完成 | `hide_note_to_edge_unlocked` 对 hidden 幂等；`clear_auto_hide_runtime` 在 hidden 时回收 `x/y`；三条仍保留活窗口的命令先唤回再改层级；新增 Rust 测试覆盖幂等与坐标回收 | 新增 `is_already_hidden` 守卫与 `reveal_hidden_note_before_state_change`；Rust 测试 19 → 24 全绿 |
+| 2 | A1：控制态预留量归口前端 | 已完成 | 新增预留量运行态与上报命令；`persist_note_window_size` 扣除预留后再写盘；前端在扩窗/收窗两处上报；新增 Rust 测试覆盖扣减与缺省回落 | 新增 `StickyWindowReserveState` + `set_note_window_reserve` + `note_body_extent`；前端改为单一 `getAppliedControlsReserve()` 算式并由 `$effect` 上报；Rust 测试 24 → 31 全绿。已知残留：收起动画期间约 1ms 的上报/缩窗非原子窗口，记入扫描文档第 8 节 |
+| 3 | A4 + A5 + C1：块编辑器写入路径 | 已完成 | 分块/追加/合并三处检查保存返回值并回滚草稿；`activeBlockInitialDraft` 三处补清；图片粘贴改走 `setEditorDraft`；新增前端测试覆盖保存失败回滚 | 抽出 `block-structural-commit.js` 纯函数（`block-note-editor-controller.js` 依赖 `$lib` 别名，`node --test` 无法加载，故另立模块）；前端测试 15 → 18 全绿 |
+| 4 | 自动化验证与文档回写 | 已完成 | `make check`、Rust 测试、前端测试、`git diff --check` 全绿；扫描文档六条标记状态 | svelte-check 0 error / 0 warning；`cargo check` 无警告；31 项 Rust + 18 项前端测试通过；扫描文档新增第 8 节修复记录 |
+| 5 | 实机冒烟验收 | 未开始 | 扫描文档第 8 节列出的 5 项冒烟全部通过；通过后 TODO 条目转 `done` 并按归档规则移出本块 | — |
+
+**步骤变更记录**
+
+- 2026-08-10 建块，绑定定义版本 v1。
+- 2026-08-10 步骤 1-4 完成。追加步骤 5：自动化门禁不覆盖窗口几何、层级切换与存储恢复态这三类真实运行行为，任务在实机冒烟前不转 `done`。定义版本不变（未改变任务边界与完成定义，只把原本隐含的验收拆成显式步骤）。
+
+---
+
+## 挂起步骤块
 
 ### T-PROJECT-REVIEW-FIX · 全量审查缺陷整改 @v1
 
@@ -45,7 +74,7 @@ Step 4：继续全量审查缺陷整改，自启门禁与混合 DPI。先按[方
 Step 5：继续全量审查缺陷整改，综合验证与收口。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
 
 ```tracking-step
-{"id":"T-PROJECT-REVIEW-FIX/S5","name":"综合验证与收口","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":5,"status":"进行中","evidence":["R01–R12 源码与自动回归完成；31 前端、41 macOS Rust、43 Windows 原生测试通过；Windows 59 Rust/配置文件 SHA256 对齐","Svelte 0/0、前端生产构建、macOS release cargo check 通过；六条真实浏览器组件 DOM 场景通过","review 修正失焦/关闭并发、失败可重试及冲突旧文档操作边界；仍待正式登录托盘唤醒、Windows 实机多屏隐藏/拖动验收，步骤保留进行中"]}
+{"id":"T-PROJECT-REVIEW-FIX/S5","name":"综合验证与收口","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":5,"status":"受阻","evidence":["R01–R12 源码与自动回归完成；31 前端、41 macOS Rust、43 Windows 原生测试通过；Windows 59 Rust/配置文件 SHA256 对齐","Svelte 0/0、前端生产构建、macOS release cargo check 通过；六条真实浏览器组件 DOM 场景通过","review 修正失焦/关闭并发、失败可重试及冲突旧文档操作边界；仍待正式登录托盘唤醒、Windows 实机多屏隐藏/拖动验收，步骤保留进行中","E-002：1.2.6 原生构建/签名/安装完成，真实 LaunchAgent 重载后 running；原生新建编辑关闭通过；26 条原笔记业务内容保持","现场门：托盘点击工具无法定位系统区域，已询问结果；Windows仅1块活动物理屏；真正重启未执行"]}
 ```
 
 ```tracking-execution
@@ -55,39 +84,9 @@ Step 5：继续全量审查缺陷整改，综合验证与收口。先按[方案]
 E-002 目的意图：把已验证源码推进到实际安装和自启使用；用户追加授权覆盖 E-001 曾排除的本机生命周期/登录项操作。Task 目标与验收不变，仍推进 S5；按“盘点备份 → 构建安装 → 自启/窗口与屏幕验证”执行，保留旧工件，不自动覆盖用户笔记。
 
 ```tracking-execution
-{"id":"T-PROJECT-REVIEW-FIX/E-002","name":"正式构建安装与平台验收","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","status":"running","authorization":"2026-09-10 用户：你直接继续推进，给你所有权限；覆盖本任务正式构建、本机备份安装、相关应用退出启动、自启登记和平台验收；不对外发布","scope":"继续 S5，部署本机正式构建并验证真实启动链；保留备份和用户数据；Windows 实际屏幕能力先取证","steps":["T-PROJECT-REVIEW-FIX/S5"],"evidence":["本轮开始无 Desk Tidy Sticky 运行实例；安装版1.2.5；发现现有产品名 LaunchAgent，待核对"],"stop_reason":null}
+{"id":"T-PROJECT-REVIEW-FIX/E-002","name":"正式构建安装与平台验收","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","status":"paused","authorization":"2026-09-10 用户：你直接继续推进，给你所有权限；覆盖本任务正式构建、本机备份安装、相关应用退出启动、自启登记和平台验收；不对外发布","scope":"继续 S5，部署本机正式构建并验证真实启动链；保留备份和用户数据；Windows 实际屏幕能力先取证","steps":["T-PROJECT-REVIEW-FIX/S5"],"evidence":["源码 e4c254a，正式1.2.6安装版签名核验通过，二进制SHA d107715c69397a05364093f74d33acb591e953ecfd2ff3bb707fddf6035a9d11","原生新建→编辑→关闭样例成功并归档，26条原笔记正文/业务状态及原偏好保持；备份完整","现有LaunchAgent正确路径未变；首次OS_REASON_CODESIGNING后bootout/bootstrap重新登记，PID5687稳定running","Windows WMI仅1活动物理显示器；系统托盘UI不可定位，已请求一次用户点击结果；详情见 releases/2026-09-10-local-1.2.6-acceptance.md"],"stop_reason":"恢复条件：取得托盘直接点击结果与真实登录验收窗口，并具备Windows混合DPI双屏；无需重复授权本任务已获批操作"}
 ```
 
-### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1
-
-- 回链 TODO 条目：[T-STK-P0-DATA-SAFETY](TODO.md#todo-t-stk-p0-data-safety)
-- 块所有者：Claude Code 会话 `97c43058`
-- 写入模式：`single-writer`
-- 执行授权：`implicit` — 来源：用户 2026-08-10 指令“开始修复”，紧接在上一轮“P0 四条要不要本轮落地”的提问之后；范围：扫描文档 P0 批次 A1/A2/A3/A4 加同函数的 A5/C1。四项均为可逆代码修复，不触及冻结基线与架构取舍，故不升级为 `explicit`。
-- 最近更新：2026-08-10
-
-**目的意图**：把 `docs/issues/2026-08-10-sticky-full-scan.md` 判定为 P0 的四条数据安全缺陷从"有台账"推进到"已修复且有自动化回归"，消除贴纸尺寸单调膨胀、隐藏贴纸丢失可见锚点、隐藏态切层级后贴纸永久失踪、块编辑器静默丢内容这四类用户不可逆损失。顺带并入 A5、C1 两条与 P0 同文件同函数、独立提交反而增加噪音的修复。明确不含 B1 混合 DPI 坐标空间口径、B2 macOS 窗口生命周期取舍、F4 devtools 发布策略，这三条需要先与用户定方向。
-
-**宏观步骤**
-
-| # | 步骤 | 状态 | 完成判据 | 实测结果 |
-| --- | --- | --- | --- | --- |
-| 1 | A2 + A3：后端隐藏态守卫与坐标回收 | 已完成 | `hide_note_to_edge_unlocked` 对 hidden 幂等；`clear_auto_hide_runtime` 在 hidden 时回收 `x/y`；三条仍保留活窗口的命令先唤回再改层级；新增 Rust 测试覆盖幂等与坐标回收 | 新增 `is_already_hidden` 守卫与 `reveal_hidden_note_before_state_change`；Rust 测试 19 → 24 全绿 |
-| 2 | A1：控制态预留量归口前端 | 已完成 | 新增预留量运行态与上报命令；`persist_note_window_size` 扣除预留后再写盘；前端在扩窗/收窗两处上报；新增 Rust 测试覆盖扣减与缺省回落 | 新增 `StickyWindowReserveState` + `set_note_window_reserve` + `note_body_extent`；前端改为单一 `getAppliedControlsReserve()` 算式并由 `$effect` 上报；Rust 测试 24 → 31 全绿。已知残留：收起动画期间约 1ms 的上报/缩窗非原子窗口，记入扫描文档第 8 节 |
-| 3 | A4 + A5 + C1：块编辑器写入路径 | 已完成 | 分块/追加/合并三处检查保存返回值并回滚草稿；`activeBlockInitialDraft` 三处补清；图片粘贴改走 `setEditorDraft`；新增前端测试覆盖保存失败回滚 | 抽出 `block-structural-commit.js` 纯函数（`block-note-editor-controller.js` 依赖 `$lib` 别名，`node --test` 无法加载，故另立模块）；前端测试 15 → 18 全绿 |
-| 4 | 自动化验证与文档回写 | 已完成 | `make check`、Rust 测试、前端测试、`git diff --check` 全绿；扫描文档六条标记状态 | svelte-check 0 error / 0 warning；`cargo check` 无警告；31 项 Rust + 18 项前端测试通过；扫描文档新增第 8 节修复记录 |
-| 5 | 实机冒烟验收 | 未开始 | 扫描文档第 8 节列出的 5 项冒烟全部通过；通过后 TODO 条目转 `done` 并按归档规则移出本块 | — |
-
-**步骤变更记录**
-
-- 2026-08-10 建块，绑定定义版本 v1。
-- 2026-08-10 步骤 1-4 完成。追加步骤 5：自动化门禁不覆盖窗口几何、层级切换与存储恢复态这三类真实运行行为，任务在实机冒烟前不转 `done`。定义版本不变（未改变任务边界与完成定义，只把原本隐含的验收拆成显式步骤）。
-
----
-
-## 挂起步骤块
-
-无。
 
 ## 关闭步骤块
 
