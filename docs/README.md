@@ -4,6 +4,8 @@ This is the first-read route for people and agents. Read the active documents be
 
 ## Active
 
+- [Review Remediation Plan](plans/2026-09-10-review-remediation.md): R01–R12 implementation contracts, source routes, ordered batches and regression gates.
+
 - [Project TODO](TODO.md): single source of truth for active work, stage status, and completed-item index.
 - [Project STEPS](STEPS.md): macro step sequence and execution position for tasks currently in progress. Task status stays in TODO.
 - [2026-09-10 Project Review](reviews/2026-09-10-project-review.md): cross-domain findings, isolated reproductions, source navigation, and remaining verification limits; disposition stays in Project TODO.

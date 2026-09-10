@@ -2,13 +2,55 @@
 
 主 STEPS：承载正在推进的 Task 的宏观步骤序列与执行位置。任务级状态只在 [Project TODO](TODO.md) 维护，本文件只维护步骤状态。
 
-活跃步骤块数量：**1**
+活跃步骤块数量：**2**
 
 步骤状态取值：`未开始` / `进行中` / `受阻` / `已完成` / `已跳过`
 
 ---
 
 ## 活跃步骤块
+
+### T-PROJECT-REVIEW-FIX · 全量审查缺陷整改 @v1
+
+<a id="t-project-review-fix"></a>
+
+回链：[Task](TODO.md#t-project-review-fix)。所有者 Codex /root；single-writer；2026-09-10。
+
+目的意图：先形成可执行整改方案，再按批次修复 R01–R12；保留现有数据与架构，原审查证据不覆盖。与 Task@v1 对账：不含未确认登录现场根因及跨进程隔离迁移。授权：用户本轮要求编写方案并按文档开始处理，覆盖实现、测试与提交。
+
+Step 1：继续全量审查缺陷整改，编辑保存与冲突安全。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
+
+```tracking-step
+{"id":"T-PROJECT-REVIEW-FIX/S1","name":"编辑保存与冲突安全","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":1,"status":"进行中","evidence":[]}
+```
+
+Step 2：继续全量审查缺陷整改，偏好与笔记存储完整性。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
+
+```tracking-step
+{"id":"T-PROJECT-REVIEW-FIX/S2","name":"偏好与笔记存储完整性","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":2,"status":"未开始","evidence":[]}
+```
+
+Step 3：继续全量审查缺陷整改，Markdown 往返与刷新渲染。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
+
+```tracking-step
+{"id":"T-PROJECT-REVIEW-FIX/S3","name":"Markdown 往返与刷新渲染","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":3,"status":"未开始","evidence":[]}
+```
+
+Step 4：继续全量审查缺陷整改，自启门禁与混合 DPI。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
+
+```tracking-step
+{"id":"T-PROJECT-REVIEW-FIX/S4","name":"自启门禁与混合 DPI","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":4,"status":"未开始","evidence":[]}
+```
+
+Step 5：继续全量审查缺陷整改，综合验证与收口。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
+
+```tracking-step
+{"id":"T-PROJECT-REVIEW-FIX/S5","name":"综合验证与收口","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":5,"status":"未开始","evidence":[]}
+```
+
+```tracking-execution
+{"id":"T-PROJECT-REVIEW-FIX/E-001","name":"整改方案落地与分批修复","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","status":"running","authorization":"2026-09-10 用户：整理好方案文档，然后按照文档开始处理review发现的问题","scope":"R01–R12 实现、验证、文档与分批提交；不操作真实用户数据/进程/登录项","steps":["T-PROJECT-REVIEW-FIX/S1","T-PROJECT-REVIEW-FIX/S2","T-PROJECT-REVIEW-FIX/S3","T-PROJECT-REVIEW-FIX/S4","T-PROJECT-REVIEW-FIX/S5"],"evidence":["方案 plans/2026-09-10-review-remediation.md @v1"],"stop_reason":null}
+```
 
 ### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1
 

@@ -11,10 +11,10 @@
 <a id="t-project-review-fix"></a>
 
 ```tracking-task
-{"id":"T-PROJECT-REVIEW-FIX","name":"全量审查缺陷整改","version":"v1","mode":"staged","status":"pending","goal":"消除全量审查确认的数据损失和功能缺陷","scope":"报告 R01–R12；窗口现场疑点先取证，不把未经证实的激活顺序作为修复基线；跨进程隔离方案另核对授权","acceptance":"R01–R12 各自反例通过对应回归验证；原有检查通过，真实窗口与 Windows 差异明确验收；数据丢失、失败回滚和并发更新路径有反向测试","execution_ref":"","acceptance_evidence":[],"priority":"high","unplanned_reason":"2026-09-10 全量 review 发现；用户本轮仅授权审查，整改待授权","dependencies":["T-PROJECT-REVIEW"]}
+{"id":"T-PROJECT-REVIEW-FIX","name":"全量审查缺陷整改","version":"v1","mode":"staged","status":"in_progress","goal":"消除全量审查确认的数据损失和功能缺陷","scope":"报告 R01–R12；窗口现场疑点先取证，不把未经证实的激活顺序作为修复基线；跨进程隔离方案另核对授权","acceptance":"R01–R12 各自反例通过对应回归验证；原有检查通过，真实窗口与 Windows 差异明确验收；数据丢失、失败回滚和并发更新路径有反向测试","execution_ref":"STEPS.md#t-project-review-fix","acceptance_evidence":[],"priority":"high","unplanned_reason":"2026-09-10 全量 review 发现；用户已授权编写方案并按文档实施","dependencies":["T-PROJECT-REVIEW"]}
 ```
 
-待开始（不预建步骤块）。发现证据与逐项验收：[R01–R12 报告](reviews/2026-09-10-project-review.md)。该条目统一承接跨轮处置，其他审计文档不维护其状态。
+执行基线：[整改方案 @v1](plans/2026-09-10-review-remediation.md)；[步骤与执行](STEPS.md#t-project-review-fix)。发现证据保留在 [R01–R12 报告](reviews/2026-09-10-project-review.md)。
 
 ### <a id="todo-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY：贴纸数据安全 P0 修复
 
