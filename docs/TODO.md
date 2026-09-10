@@ -32,7 +32,7 @@
 {"id":"T-PLUGIN-PLATFORM-VALIDATION","name":"跨端插件运行与分发可行性","goal":"明确第三方插件在Android/iOS目标渠道可落地的运行边界","scope":"外部插件包加载、隔离与权限拒绝、用户文件导入和系统提醒最小验证；不构建完整商店或重写宿主","acceptance":"两端都有目标设备/渠道证据或清楚的不可行结论；能据此选择运行形态；不以桌面成功替代手机结果","dependencies":[],"version":"v1","mode":"staged","status":"in_progress","execution_ref":"STEPS.md#t-plugin-platform-validation","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002","D-EXT-003"]}
 ```
 
-当前执行：[步骤与证据](STEPS.md#t-plugin-platform-validation)；[实施基线](plugins/implementation-baseline.md)。S2 已在独立 macOS Probe 跑通真实外部 JS 与固定会话管道，6项集成反例通过；持久化、产品容器/IPC及移动验证仍未通过，不开放安装。
+当前执行：[步骤与证据](STEPS.md#t-plugin-platform-validation)；[实施基线](plugins/implementation-baseline.md)。S2 最小Probe链路与真实Rust重启持久化通过，进入S3移动前置准备；产品容器/IPC、双移动端和提醒仍未通过，不开放安装。
 
 ### T-PLUGIN-HOST · 第三方插件宿主
 

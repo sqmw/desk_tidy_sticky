@@ -6,6 +6,8 @@ The current user-authorized delivery line is [M-EXT-01](../TODO.md#m-ext-01), st
 
 ## Current State
 
+- E-004 Probe `3e85be7` adds durable storage and actual Rust process restart evidence (14 tests plus two explicitly run child-host tests). Old sessions are not stored or restored. S2's minimal validation gate is complete; S3 begins mobile prerequisites. Product IPC, mobile runtime/notifications and resource-hardening are not implied; see [current execution](../STEPS.md#t-plugin-platform-validation).
+
 - Plugin admission and the host-only session broker remain unconnected to application IPC. The broker validates storage requests, namespaces in-memory data and revokes stale handles; these tests do not prove JS runtime isolation or durable storage. See the [contract](../plugins/implementation-baseline.md). Policy changes must reauthorize fail-closed; failed candidate installation is a distinct lifecycle operation.
 - E-003 adds real external JS connection evidence in sibling Probe `desk_tidy_sticky--probe--js-connection` at `518d2ed`: six JavaScriptCore child-process/pipe integration tests pass. This does not change product IPC or prove persistence/mobile deployment. Follow the contract's evidence route; do not copy Probe code into the product without explicit promotion and normal implementation review.
 

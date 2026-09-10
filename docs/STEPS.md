@@ -25,10 +25,14 @@
 S1 产出：版本化 manifest、后端解析/能力准入、恶意输入测试。通过是缺权限或非法包明确拒绝；失败是声明即授权或校验过程执行代码。详细边界见[实施基线](plugins/implementation-baseline.md)。
 
 ```tracking-step
-{"id":"T-PLUGIN-PLATFORM-VALIDATION/S2","name":"隔离运行与宿主身份验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":2,"status":"进行中","evidence":["E-002：可信 Rust 会话、严格请求分派、内存命名空间、配额原子失败和生命周期撤销已实现；9项新增测试，58 Rust/31前端通过","自审补强 reauthorize 失败仍撤销旧授权；候选安装失败保留旧会话是独立语义；真实 JS 容器、传输来源绑定、持久化及移动运行仍未验证"]}
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/S2","name":"隔离运行与宿主身份验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":2,"status":"已完成","evidence":["E-002：可信 Rust 会话、严格请求分派、内存命名空间、配额原子失败和生命周期撤销已实现；9项新增测试，58 Rust/31前端通过","自审补强 reauthorize 失败仍撤销旧授权；候选安装失败保留旧会话是独立语义；真实 JS 容器、传输来源绑定、持久化及移动运行仍未验证","E-004 Probe3e85be7：外部JS读写持久化、真实Rust进程重启（49755→49758）、旧句柄重放及存活JS旧回调拒绝；14项主测试+2次子进程入口通过","S2完成限定最小Probe链路，不代表产品IPC接入、移动容器或内存硬上界通过；剩余平台/容器裁决在S3/S4"]}
 ```
 
 S2 产出：独立 JS 包运行、宿主绑定身份、独立存储及越权反例；原生命令、父页面与其他插件访问均须拒绝。未通过前不开放安装入口。
+
+```tracking-execution
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/E-004","name":"插件持久化与重启验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","status":"succeeded","authorization":"用户确认下一批补持久化，验证数据保留且旧会话不复活，再进入S3；仅独立Probe测试数据，不迁移用户数据","scope":"S2 Probe文件持久化、写入失败保护、真实Rust进程重启与旧会话拒绝；核对S3前置条件","steps":["T-PLUGIN-PLATFORM-VALIDATION/S2","T-PLUGIN-PLATFORM-VALIDATION/S3"],"evidence":["Probe3e85be7：持久化与真实进程重启通过，旧权限不落盘且重放被拒绝；14项主测试通过，ignored入口被显式启动两次各通过","自审修正悬空符号链接误当空数据；替换前失败回滚、替换后不确定阻止调用、坏文件不覆盖、排他锁与删除持久化通过","S3前置环境复核已开始；尚无移动安装、导入或通知结果；未做断电/引擎漏洞/内存硬上界审计","暂停Probe实验操作后仅回写Parent记录，不进行源码Promotion；安装版和用户笔记未改动"],"stop_reason":null}
+```
 
 E-003 使用同级独立工程 `desk_tidy_sticky--probe--js-connection`（P-JS-CONNECTION-01）验证外部 JS → JavaScriptCore 子进程 → 专属管道 → Rust broker。Parent base 为 `6233f8653c66ff60a80fc0b2c50a71cbb0486c34`；Probe 期间主项目只读，不接产品 IPC。选择系统 JS 引擎避免新增在线依赖，不冻结 Android 路线；身份、绕过 SDK、停用、超时分别实测，持久化与移动仍是后续门。
 
@@ -43,7 +47,7 @@ E-002 先实现容器无关的可信会话与受控调用模块：身份由宿�
 ```
 
 ```tracking-step
-{"id":"T-PLUGIN-PLATFORM-VALIDATION/S3","name":"双移动端安装与提醒验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":3,"status":"未开始","evidence":[]}
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/S3","name":"双移动端安装与提醒验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":3,"status":"进行中","evidence":["E-004 持久化门通过后进入移动前置准备：adb无设备，Android两项API35 AVD与Rust targets存在；iOS无可用模拟器与编译target；尚未运行手机端或验证通知"]}
 ```
 
 S3 产出：Android/iOS 安装渠道、文件选择、后台/锁屏/撤权/取消通知的设备证据；模拟器和真机结果分开。工具链缺失不判定产品不可行。
