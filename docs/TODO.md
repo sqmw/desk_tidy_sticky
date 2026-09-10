@@ -6,6 +6,16 @@
 
 ## Active
 
+### T-PROJECT-REVIEW-FIX · 全量审查缺陷整改
+
+<a id="t-project-review-fix"></a>
+
+```tracking-task
+{"id":"T-PROJECT-REVIEW-FIX","name":"全量审查缺陷整改","version":"v1","mode":"staged","status":"pending","goal":"消除全量审查确认的数据损失和功能缺陷","scope":"报告 R01–R12；窗口现场疑点先取证，不把未经证实的激活顺序作为修复基线；跨进程隔离方案另核对授权","acceptance":"R01–R12 各自反例通过对应回归验证；原有检查通过，真实窗口与 Windows 差异明确验收；数据丢失、失败回滚和并发更新路径有反向测试","execution_ref":"","acceptance_evidence":[],"priority":"high","unplanned_reason":"2026-09-10 全量 review 发现；用户本轮仅授权审查，整改待授权","dependencies":["T-PROJECT-REVIEW"]}
+```
+
+待开始（不预建步骤块）。发现证据与逐项验收：[R01–R12 报告](reviews/2026-09-10-project-review.md)。该条目统一承接跨轮处置，其他审计文档不维护其状态。
+
 ### <a id="todo-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY：贴纸数据安全 P0 修复
 
 状态：in_progress（步骤见 [STEPS 活跃块](STEPS.md#steps-t-stk-p0-data-safety)）
@@ -185,6 +195,16 @@
 - 不恢复旧 `contenteditable BlockEditor`，避免历史 caret 跳动问题回归。
 
 ## Done
+
+### T-PROJECT-REVIEW · 当前项目全量审查
+
+<a id="t-project-review"></a>
+
+```tracking-task
+{"id":"T-PROJECT-REVIEW","name":"当前项目全量审查","version":"v1","mode":"staged","status":"done","goal":"审查当前项目全部功能域并交付有触发条件、代码证据和验证边界的风险报告","scope":"029a623 基线的源码、配置、测试与文档；不修复业务代码，不操作真实用户数据或登录项","acceptance":"覆盖存储、编辑器、窗口、启动、专注休息、导入导出、安全和构建域；高优先级发现有可复查证据并排除重复与误报；运行现有检查并披露平台及运行验证限制；报告与跨轮处理项从主 TODO 可达","execution_ref":"archive/2026-09-10-project-review-execution.md#t-project-review","acceptance_evidence":["reviews/2026-09-10-project-review.md：功能域矩阵、8 P1/4 P2 证据和平台限制","现有 check/test/frontend build 通过；隔离反例验证；T-PROJECT-REVIEW-FIX 承接整改"],"priority":"high","unplanned_reason":"用户 2026-09-10 请求全量 review","dependencies":[]}
+```
+
+[审查报告](reviews/2026-09-10-project-review.md) · [执行证据](archive/2026-09-10-project-review-execution.md#t-project-review)。审查完成不表示缺陷已修复。
 
 ### 2026-07-15：Notes storage safety and architecture governance
 

@@ -6,6 +6,7 @@ This is the first-read route for people and agents. Read the active documents be
 
 - [Project TODO](TODO.md): single source of truth for active work, stage status, and completed-item index.
 - [Project STEPS](STEPS.md): macro step sequence and execution position for tasks currently in progress. Task status stays in TODO.
+- [2026-09-10 Project Review](reviews/2026-09-10-project-review.md): cross-domain findings, isolated reproductions, source navigation, and remaining verification limits; disposition stays in Project TODO.
 - [Current Agent Context](agent-context/current.md): current delivery line, risks, validation commands, and accepted gaps.
 - [Notes Storage Safety](architecture/2026-07-15-notes-storage-safety-and-governance.md): storage recovery and component-boundary design.
 - [Make Commands](build/make-commands.md): portable local verification and build entry points.

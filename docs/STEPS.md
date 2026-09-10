@@ -43,4 +43,6 @@
 
 ## 关闭步骤块
 
+- [当前项目全量审查执行证据](archive/2026-09-10-project-review-execution.md#t-project-review)
+
 已关闭步骤块归档至 `docs/archive/steps-closed.md`（首次归档时创建）。
