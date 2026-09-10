@@ -52,6 +52,12 @@ Step 5：继续全量审查缺陷整改，综合验证与收口。先按[方案]
 {"id":"T-PROJECT-REVIEW-FIX/E-001","name":"整改方案落地与分批修复","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","status":"succeeded","authorization":"2026-09-10 用户：整理好方案文档，然后按照文档开始处理review发现的问题","scope":"R01–R12 实现、验证、文档与分批提交；不操作真实用户数据/进程/登录项","steps":["T-PROJECT-REVIEW-FIX/S1","T-PROJECT-REVIEW-FIX/S2","T-PROJECT-REVIEW-FIX/S3","T-PROJECT-REVIEW-FIX/S4","T-PROJECT-REVIEW-FIX/S5"],"evidence":["方案先行提交 1952bc7；S1 4bcbbd3、S2 9138ce6、S3 db9ce89、S4 1451b90；S5 组合修复及验证见本执行收口提交","本轮实现和可执行验证完成；31 前端/41 macOS Rust/43 Windows Rust、六条 DOM、release check；Task 因平台实机验收未转 done"],"stop_reason":null}
 ```
 
+E-002 目的意图：把已验证源码推进到实际安装和自启使用；用户追加授权覆盖 E-001 曾排除的本机生命周期/登录项操作。Task 目标与验收不变，仍推进 S5；按“盘点备份 → 构建安装 → 自启/窗口与屏幕验证”执行，保留旧工件，不自动覆盖用户笔记。
+
+```tracking-execution
+{"id":"T-PROJECT-REVIEW-FIX/E-002","name":"正式构建安装与平台验收","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","status":"running","authorization":"2026-09-10 用户：你直接继续推进，给你所有权限；覆盖本任务正式构建、本机备份安装、相关应用退出启动、自启登记和平台验收；不对外发布","scope":"继续 S5，部署本机正式构建并验证真实启动链；保留备份和用户数据；Windows 实际屏幕能力先取证","steps":["T-PROJECT-REVIEW-FIX/S5"],"evidence":["本轮开始无 Desk Tidy Sticky 运行实例；安装版1.2.5；发现现有产品名 LaunchAgent，待核对"],"stop_reason":null}
+```
+
 ### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1
 
 - 回链 TODO 条目：[T-STK-P0-DATA-SAFETY](TODO.md#todo-t-stk-p0-data-safety)
