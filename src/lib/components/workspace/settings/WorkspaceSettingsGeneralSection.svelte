@@ -8,6 +8,7 @@
     strings,
     locale = resolveAppLocale(),
     isAutostartEnabled = false,
+    autostartAvailable = false,
     showPanelOnStartup = false,
     shortcutSettings,
     shortcutSettingsSaving = false,
@@ -73,11 +74,13 @@
     <label class="setting-toggle">
       <span class="setting-toggle-copy">
         <span class="setting-toggle-title">{strings.autoStart}</span>
+        {#if !autostartAvailable}<span class="setting-toggle-hint">{strings.autostartUnavailable}</span>{/if}
       </span>
       <span class="toggle-switch">
         <input
           type="checkbox"
           checked={isAutostartEnabled}
+          disabled={!autostartAvailable}
           onchange={(e) => toggleAutostart(/** @type {HTMLInputElement} */ (e.currentTarget).checked)}
         />
         <span class="toggle-slider"></span>

@@ -39,13 +39,13 @@ Step 3：继续全量审查缺陷整改，Markdown 往返与刷新渲染。先�
 Step 4：继续全量审查缺陷整改，自启门禁与混合 DPI。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
 
 ```tracking-step
-{"id":"T-PROJECT-REVIEW-FIX/S4","name":"自启门禁与混合 DPI","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":4,"status":"进行中","evidence":[]}
+{"id":"T-PROJECT-REVIEW-FIX/S4","name":"自启门禁与混合 DPI","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":4,"status":"已完成","evidence":["R10/R11 实现；30 前端/41 Rust 通过、Svelte 0/0；review 基于 Tao macOS 源码保留其逐屏反转换，仅 Windows 统一 scale；平台实机验收留 S5"]}
 ```
 
 Step 5：继续全量审查缺陷整改，综合验证与收口。先按[方案](plans/2026-09-10-review-remediation.md)核对本批合同，再实现并验证对应反例；本批完成后才推进下一批。产出、验收、边界与风险见方案同序行，代码改动须回归并审查。
 
 ```tracking-step
-{"id":"T-PROJECT-REVIEW-FIX/S5","name":"综合验证与收口","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":5,"status":"未开始","evidence":[]}
+{"id":"T-PROJECT-REVIEW-FIX/S5","name":"综合验证与收口","task_id":"T-PROJECT-REVIEW-FIX","task_version":"v1","number":5,"status":"进行中","evidence":[]}
 ```
 
 ```tracking-execution

@@ -7,6 +7,7 @@ use crate::runtime::{GlobalControlState, StickyWindowReserveState};
 use tauri::{Emitter, Manager};
 
 mod auto_hide;
+mod geometry_space;
 #[cfg(any(target_os = "windows", test))]
 mod display_recovery;
 mod effects;

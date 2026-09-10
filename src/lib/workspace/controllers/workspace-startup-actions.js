@@ -1,6 +1,8 @@
 /**
  * @param {{
  *   autostartEnable: () => Promise<void>;
+ *   getAutostartAvailable: () => Promise<boolean>;
+ *   setAutostartAvailable: (available: boolean) => void;
  *   autostartDisable: () => Promise<void>;
  *   autostartIsEnabled: () => Promise<boolean>;
  *   setAutostartEnabled: (next: boolean) => void;
@@ -8,8 +10,12 @@
  * }} deps
  */
 export function createWorkspaceStartupActions(deps) {
+  let available = false;
   async function initAutostart() {
     try {
+      available = await deps.getAutostartAvailable();
+      deps.setAutostartAvailable(available);
+      if (!available) { deps.setAutostartEnabled(false); return; }
       deps.setAutostartEnabled(await deps.autostartIsEnabled());
     } catch (error) {
       console.error("initAutostart(workspace)", error);
@@ -18,6 +24,7 @@ export function createWorkspaceStartupActions(deps) {
 
   /** @param {boolean} enabled */
   async function toggleAutostart(enabled) {
+    if (!available) return;
     try {
       if (enabled) {
         await deps.autostartEnable();

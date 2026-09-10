@@ -3,6 +3,7 @@ use crate::notes::{
     AUTO_HIDE_REASON_SHORTCUT, AUTO_HIDE_STATE_HIDDEN, AUTO_HIDE_STATE_VISIBLE,
 };
 use crate::runtime::ActiveTopmostStickyState;
+use super::geometry_space::{Rect, from_physical, select_monitor};
 use tauri::{Emitter, Manager};
 
 const OVERFLOW_HIDE_THRESHOLD_PX: f64 = 1.0;
@@ -19,41 +20,11 @@ pub struct StickyAutoHideResult {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct Rect {
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-}
-
-#[derive(Debug, Clone, Copy)]
 struct WindowGeometry {
     outer: Rect,
     body: Rect,
     body_offset_x: f64,
     body_offset_y: f64,
-}
-
-impl Rect {
-    fn right(self) -> f64 {
-        self.x + self.width
-    }
-
-    fn bottom(self) -> f64 {
-        self.y + self.height
-    }
-
-    fn center_x(self) -> f64 {
-        self.x + self.width / 2.0
-    }
-
-    fn center_y(self) -> f64 {
-        self.y + self.height / 2.0
-    }
-
-    fn contains_point(self, x: f64, y: f64) -> bool {
-        x >= self.x && x <= self.right() && y >= self.y && y <= self.bottom()
-    }
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -100,7 +71,7 @@ fn position_matches(position: Option<f64>, expected: f64) -> bool {
         .unwrap_or(false)
 }
 
-fn window_rect(window: &tauri::WebviewWindow) -> Result<Rect, String> {
+fn window_rect(window: &tauri::WebviewWindow) -> Result<(Rect, f64), String> {
     let position = window.outer_position().map_err(|e| e.to_string())?;
     let size = window.outer_size().map_err(|e| e.to_string())?;
     let raw_scale = window.scale_factor().map_err(|e| e.to_string())?;
@@ -109,12 +80,12 @@ fn window_rect(window: &tauri::WebviewWindow) -> Result<Rect, String> {
     } else {
         1.0
     };
-    Ok(Rect {
-        x: position.x as f64 / scale,
-        y: position.y as f64 / scale,
-        width: (size.width as f64 / scale).max(1.0),
-        height: (size.height as f64 / scale).max(1.0),
-    })
+    Ok((from_physical(Rect {
+        x: position.x as f64,
+        y: position.y as f64,
+        width: size.width as f64,
+        height: size.height as f64,
+    }, scale), scale))
 }
 
 fn note_window_geometry(note: &notes::Note, outer: Rect) -> WindowGeometry {
@@ -137,24 +108,26 @@ fn note_window_geometry(note: &notes::Note, outer: Rect) -> WindowGeometry {
     }
 }
 
-fn monitor_rects(app: &tauri::AppHandle) -> Result<Vec<Rect>, String> {
+fn monitor_rects(app: &tauri::AppHandle, window_scale: f64) -> Result<Vec<Rect>, String> {
+    #[cfg(not(target_os = "windows"))]
+    let _ = window_scale;
     let monitors = app.available_monitors().map_err(|e| e.to_string())?;
     let rects = monitors
         .into_iter()
         .map(|monitor| {
-            let raw_scale = monitor.scale_factor();
-            let scale = if raw_scale.is_finite() && raw_scale > 0.0 {
-                raw_scale
-            } else {
-                1.0
-            };
+            // Windows returns global physical desktop coordinates. macOS Tao
+            // constructs physical positions from points using each screen scale.
+            #[cfg(target_os = "windows")]
+            let scale = window_scale;
+            #[cfg(not(target_os = "windows"))]
+            let scale = monitor.scale_factor();
             let work_area = monitor.work_area();
-            Rect {
-                x: work_area.position.x as f64 / scale,
-                y: work_area.position.y as f64 / scale,
-                width: work_area.size.width as f64 / scale,
-                height: work_area.size.height as f64 / scale,
-            }
+            from_physical(Rect {
+                x: work_area.position.x as f64,
+                y: work_area.position.y as f64,
+                width: work_area.size.width as f64,
+                height: work_area.size.height as f64,
+            }, scale)
         })
         .collect::<Vec<_>>();
     if rects.is_empty() {
@@ -163,26 +136,8 @@ fn monitor_rects(app: &tauri::AppHandle) -> Result<Vec<Rect>, String> {
     Ok(rects)
 }
 
-fn resolve_window_monitor(app: &tauri::AppHandle, rect: Rect) -> Result<Rect, String> {
-    let rects = monitor_rects(app)?;
-    let center_x = rect.center_x();
-    let center_y = rect.center_y();
-    if let Some(monitor) = rects
-        .iter()
-        .copied()
-        .find(|monitor| monitor.contains_point(center_x, center_y))
-    {
-        return Ok(monitor);
-    }
-
-    rects
-        .into_iter()
-        .min_by(|a, b| {
-            let da = (a.center_x() - center_x).powi(2) + (a.center_y() - center_y).powi(2);
-            let db = (b.center_x() - center_x).powi(2) + (b.center_y() - center_y).powi(2);
-            da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
-        })
-        .ok_or_else(|| "no monitor available".to_string())
+fn resolve_window_monitor(app: &tauri::AppHandle, rect: Rect, window_scale: f64) -> Result<Rect, String> {
+    select_monitor(&monitor_rects(app, window_scale)?, rect)
 }
 
 fn overflow_edge(window: Rect, monitor: Rect) -> Option<&'static str> {
@@ -405,8 +360,9 @@ fn hide_note_to_edge_unlocked(
     let Some(window) = app.get_webview_window(label.as_str()) else {
         return Ok(None);
     };
-    let geometry = note_window_geometry(&note, window_rect(&window)?);
-    let monitor = resolve_window_monitor(app, geometry.body)?;
+    let (outer, window_scale) = window_rect(&window)?;
+    let geometry = note_window_geometry(&note, outer);
+    let monitor = resolve_window_monitor(app, geometry.body, window_scale)?;
     let edge = if normalized_reason == AUTO_HIDE_REASON_OVERFLOW {
         let Some(edge) = overflow_edge(geometry.body, monitor) else {
             return Ok(None);
@@ -454,8 +410,9 @@ pub(super) fn reveal_note_from_edge_unlocked(
     let Some(window) = app.get_webview_window(label.as_str()) else {
         return Ok(None);
     };
-    let geometry = note_window_geometry(&note, window_rect(&window)?);
-    let monitor = resolve_window_monitor(app, geometry.body)?;
+    let (outer, window_scale) = window_rect(&window)?;
+    let geometry = note_window_geometry(&note, outer);
+    let monitor = resolve_window_monitor(app, geometry.body, window_scale)?;
     let visible = visible_position(&note, geometry.body, monitor);
     let visible_outer = outer_position_for_body(geometry, visible);
     let _ = window.show();
@@ -491,12 +448,13 @@ fn normalize_note_window_position_unlocked(
     let Some(window) = app.get_webview_window(note_window_label(id).as_str()) else {
         return Ok(None);
     };
-    let geometry = note_window_geometry(&note, window_rect(&window)?);
+    let (outer, window_scale) = window_rect(&window)?;
+    let geometry = note_window_geometry(&note, outer);
 
     if note.auto_hide_state.as_deref() == Some(AUTO_HIDE_STATE_HIDDEN) {
         let edge_hint = note.auto_hide_edge.as_deref().unwrap_or("");
         let restore_reference = hidden_restore_reference(&note, geometry.body, edge_hint);
-        let monitor = resolve_window_monitor(app, restore_reference)?;
+        let monitor = resolve_window_monitor(app, restore_reference, window_scale)?;
         let edge = nearest_edge(restore_reference, monitor, note.auto_hide_edge.as_deref());
         let hidden_body = hidden_position(restore_reference, monitor, edge);
         let hidden_outer = outer_position_for_body(geometry, hidden_body);
@@ -526,7 +484,7 @@ fn normalize_note_window_position_unlocked(
         return Ok(None);
     }
 
-    let monitor = resolve_window_monitor(app, geometry.body)?;
+    let monitor = resolve_window_monitor(app, geometry.body, window_scale)?;
     let visible = (
         clamp(
             geometry.body.x,

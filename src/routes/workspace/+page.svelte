@@ -139,6 +139,7 @@
   let workspaceSidebarManualSplitRatio = $state(0.42);
   let themeTransitionShape = $state("circle");
   let isAutostartEnabled = $state(false);
+  let autostartAvailable = $state(false);
   let showPanelOnStartup = $state(false);
   let markdownStorageMode = $state("app_default");
   let markdownStorageRoot = $state("");
@@ -624,6 +625,8 @@
   } = workspaceSettingsActions;
 
   const startupActions = createWorkspaceStartupActions({
+    getAutostartAvailable: () => invoke("is_autostart_available"),
+    setAutostartAvailable: (next) => { autostartAvailable = next; },
     autostartEnable,
     autostartDisable,
     autostartIsEnabled,
@@ -1037,6 +1040,7 @@
   themeVarStyle={workspaceThemeVarStyle}
   {locale}
   {isAutostartEnabled}
+  {autostartAvailable}
   bind:showPanelOnStartup
   storageMode={markdownStorageMode}
   storageRoot={markdownStorageRoot}

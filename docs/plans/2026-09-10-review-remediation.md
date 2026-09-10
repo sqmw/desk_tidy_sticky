@@ -52,6 +52,14 @@ Markdown front matter 新增 `is_done`；兼容旧导出的 completed_at，显�
 
 28 前端/38 Rust 测试通过，Svelte 0/0；回归覆盖三类完成状态、旧导出、导入成功/失败刷新、URL 查询参数/引号/实体和图片内 URL 不二次解析。未访问网络图片或真实 Markdown 数据目录。
 
+### S4 实现证据
+
+新增 `desktop/startup.rs` 的能力查询，debug 不注册自启插件，mini/workspace 两处基于后端能力禁用开关并显示原因；release 路径沿插件实际 executable，不自动改用户登录项。测试证明 unavailable 时读/开/关均不调用插件，available 时保留显式开关。
+
+几何计算拆入 `sticky/geometry_space.rs`，Windows 所有 monitor rect 使用 window_rect 捕获的同一 scale。核对锁定 Tao 0.34.5 macOS 实现后确认其 physical position 由全局逻辑坐标乘各屏 scale 构造，因此 macOS 继续按各屏 scale 还原逻辑坐标，避免跨平台误改。该差异是 R11 同一目标内的平台适配细化，不更换数据契约。混合 DPI、负坐标和边界半开区间测试通过。
+
+本机 Svelte 0/0，30 前端/41 Rust 测试通过；Windows 原生编译/多屏与正式登录启动尚待 S5 平台验收，未宣称已复现原菜单栏故障。
+
 每批独立提交，包含文档与测试；回退使用相应 Git 提交的逆向变更，不自动覆盖用户工作区。已有审查报告与历史验证不改写。
 
 - 严格校验可能揭露过去被宽松解析掩盖的坏记录：进入恢复提示而不是“修好”或覆盖原件。

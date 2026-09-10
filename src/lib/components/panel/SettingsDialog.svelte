@@ -7,6 +7,7 @@
     strings,
     showSettings = $bindable(),
     isAutostartEnabled,
+    autostartAvailable = false,
     showPanelOnStartup = $bindable(),
     shortcutSettings,
     shortcutSettingsSaving = false,
@@ -68,11 +69,12 @@
         <div class="settings-section">
           <h4>{strings.general}</h4>
           <label class="setting-item">
-            <span class="setting-label">{strings.autoStart}</span>
+            <span class="setting-label" title={!autostartAvailable ? strings.autostartUnavailable : ""}>{strings.autoStart}{#if !autostartAvailable}<small> · {strings.autostartUnavailable}</small>{/if}</span>
             <div class="toggle-switch">
               <input
                 type="checkbox"
                 checked={isAutostartEnabled}
+                disabled={!autostartAvailable}
                 onchange={(e) =>
                   toggleAutostart(
                     /** @type {HTMLInputElement} */ (e.target).checked,

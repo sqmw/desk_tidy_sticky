@@ -63,6 +63,7 @@
   let proMode = $state(false);
   let showStickyToggleOnHome = $state(true);
   let isAutostartEnabled = $state(false);
+  let autostartAvailable = $state(false);
   let showPanelOnStartup = $state(false);
   let shortcutSettings = $state(createDefaultShortcutSettings());
   let shortcutSettingsSaving = $state(false);
@@ -245,6 +246,8 @@
 
   async function initAutostart() {
     try {
+      autostartAvailable = await invoke("is_autostart_available");
+      if (!autostartAvailable) { isAutostartEnabled = false; return; }
       isAutostartEnabled = await autostartIsEnabled();
     } catch (e) {
       console.error("initAutostart", e);
@@ -275,6 +278,7 @@
 
   /** @param {boolean} enabled */
   async function toggleAutostart(enabled) {
+    if (!autostartAvailable) return;
     try {
       if (enabled) {
         await autostartEnable();
@@ -602,6 +606,7 @@
   {strings}
   bind:showSettings
   {isAutostartEnabled}
+  {autostartAvailable}
   bind:showPanelOnStartup
   {toggleAutostart}
   {savePrefs}

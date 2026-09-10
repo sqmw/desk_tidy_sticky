@@ -51,6 +51,7 @@ use runtime::{
     GlobalControlState, ShortcutRuntimeState, StickyWindowReserveState,
 };
 use tauri::Manager;
+use desktop::is_autostart_available;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -88,10 +89,11 @@ pub fn run() {
                     }
                 }
 
-                let _ = app.handle().plugin(tauri_plugin_autostart::init(
+                #[cfg(not(debug_assertions))]
+                app.handle().plugin(tauri_plugin_autostart::init(
                     tauri_plugin_autostart::MacosLauncher::LaunchAgent,
                     Some(vec![]),
-                ));
+                ))?;
                 desktop::build_tray(app)?;
 
                 #[cfg(target_os = "macos")]
@@ -125,6 +127,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            is_autostart_available,
             load_notes,
             get_notes_storage_status,
             open_notes_data_directory,

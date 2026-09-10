@@ -24,6 +24,8 @@ pub(crate) use sticky::{schedule_hidden_note_recovery, StickyDisplayRecoveryStat
 pub(crate) use tray::{build_tray, update_tray_texts};
 
 mod panel;
+mod startup;
+pub(crate) use startup::is_autostart_available;
 mod shortcuts;
 mod sticky;
 mod tray;

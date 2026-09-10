@@ -11,6 +11,7 @@
     show = $bindable(false),
     locale = resolveAppLocale(),
     isAutostartEnabled = false,
+    autostartAvailable = false,
     showPanelOnStartup = $bindable(false),
     shortcutSettings,
     shortcutSettingsSaving = false,
@@ -136,6 +137,7 @@
           {strings}
           {locale}
           {isAutostartEnabled}
+          {autostartAvailable}
           {showPanelOnStartup}
           {shortcutSettings}
           {shortcutSettingsSaving}
