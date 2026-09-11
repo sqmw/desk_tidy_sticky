@@ -18,3 +18,13 @@
 .plugin-product .table-scroll{overflow-x:auto}.plugin-product table{width:100%;border-collapse:collapse;text-align:left;font-size:14px}.plugin-product caption{text-align:left;color:#53647c;margin:12px 0}.plugin-product th,.plugin-product td{padding:12px 8px;border-bottom:1px solid #e3e8f0;max-width:220px;overflow-wrap:anywhere}
 .plugin-product .courses{list-style:none;padding:0;margin:18px 0 0}.plugin-product .courses li{border-top:1px solid #e3e8f0;padding:16px 0}.plugin-product .courses li div{display:flex;justify-content:space-between;color:#53647c;font-size:13px;margin-bottom:6px}
 @media(max-width:560px){.plugin-product nav{padding:10px 12px}.plugin-product nav strong{display:none}.plugin-product .content{padding:20px 12px}.plugin-product section{padding:18px}.plugin-product .title-row{align-items:flex-start}}
+.plugin-product.embedded{height:auto;min-height:0;flex:1;padding:12px 8px 28px;background:transparent;color:var(--ws-text,#202938)}
+.plugin-product[hidden],.plugin-product [hidden]{display:none!important}
+.plugin-product.embedded :is(section,dialog){background:var(--ws-card-bg,#fff);border-color:var(--ws-border,#dce2ed)}
+.plugin-product.embedded :is(.muted,.eyebrow,small,summary,caption,.courses li div){color:var(--ws-muted,#53647c)}
+.plugin-product.embedded :is(button,textarea,input[type=date],.file,.confirmation,.badge){background:var(--ws-input-bg,var(--ws-card-bg,#fff));color:var(--ws-text,#202938);border-color:var(--ws-border,#bac7dc)}
+.plugin-product.embedded button.primary{background:var(--ws-accent,#245bd5);color:var(--ws-accent-contrast,#fff);border-color:var(--ws-accent,#245bd5)}
+.plugin-product.embedded :is(th,td,.courses li){border-color:var(--ws-border,#dce2ed)}
+.plugin-product.embedded .empty{color:var(--ws-muted,#53647c)}
+.plugin-product.embedded .error{background:color-mix(in srgb,var(--ws-card-bg,#fff) 90%,#bd352b);color:var(--ws-text,#202938)}
+.plugin-product.embedded .success{background:color-mix(in srgb,var(--ws-card-bg,#fff) 90%,#239063);color:var(--ws-text,#202938)}

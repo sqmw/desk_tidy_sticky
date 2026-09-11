@@ -4,7 +4,8 @@ This is the first-read route for people and agents. Read the active documents be
 
 ## Active
 
-- [Workspace Plugin Integration Plan](plugins/workspace-integration-plan.md): next Mac batch design; plugins and timetable inside the workspace, with draft protection and acceptance gates. Documentation only; not implemented yet.
+- [Workspace Plugin Integration](plugins/workspace-integration-implementation.md): current Mac in-workspace navigation, draft protection, reusable components and verification boundaries.
+- [Workspace Plugin Integration Plan](plugins/workspace-integration-plan.md): design contract and acceptance gates; original planning context retained.
 - [Mac Plugin First Implementation](plugins/mac-product-flow.md): existing separate-window implementation, reusable components and historical native acceptance evidence.
 
 - [Installable Timetable v0.1](plugins/timetable-v01.md): current product-integration contract, simulator acceptance and restricted-package safety gate.

@@ -35,6 +35,7 @@
     compact = false,
     interactiveTasks = false,
     readonly = false,
+    active = true,
     editTrigger = "click",
     placeholder = "",
     editBlockLabel = "Edit block",
@@ -535,6 +536,11 @@
     return commitActiveEditor();
   }
 
+  export async function waitForPendingSave() {
+    if (structuralSavePending) return false;
+    return await runEditorCommit.wait();
+  }
+
   export function hasUnsavedDraft() {
     if (editingEmpty) return emptyDraft.length > 0;
     if (!activeBlockOriginal) return false;
@@ -838,6 +844,7 @@
 
   /** @param {FocusEvent} event */
   async function handleEditorBlur(event) {
+    if (!active) return;
     if (event.currentTarget !== editorEl) return;
     if (shouldSuppressEditorBlur()) {
       await tick();
@@ -849,6 +856,7 @@
 
   /** @param {FocusEvent} event */
   async function handleEmptyEditorBlur(event) {
+    if (!active) return;
     if (event.currentTarget !== editorEl) return;
     if (shouldSuppressEditorBlur()) {
       await tick();

@@ -25,8 +25,10 @@ export function createSingleFlightCommit() {
   /** @type {Promise<boolean> | null} */
   let pending = null;
   /** @param {() => Promise<boolean>} operation */
-  return (operation) => {
+  const run = (/** @type {() => Promise<boolean>} */ operation) => {
     if (!pending) pending = Promise.resolve().then(operation).finally(() => { pending = null; });
     return pending;
   };
+  // Navigation may await an existing blur save without creating a new save.
+  return Object.assign(run, { wait: () => pending ?? Promise.resolve(true) });
 }

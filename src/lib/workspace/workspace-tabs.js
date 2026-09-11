@@ -1,6 +1,8 @@
 export const WORKSPACE_MAIN_TAB_NOTES = "notes";
 export const WORKSPACE_MAIN_TAB_FOCUS = "focus";
 export const WORKSPACE_MAIN_TAB_REVIEW = "review";
+export const WORKSPACE_MAIN_TAB_PLUGINS = "plugins";
+export const WORKSPACE_MAIN_TAB_TIMETABLE = "timetable";
 export const WORKSPACE_NOTE_VIEW_ACTIVE = "active";
 export const WORKSPACE_NOTE_VIEW_TODO = "todo";
 export const WORKSPACE_NOTE_VIEW_QUADRANT = "quadrant";
@@ -18,6 +20,8 @@ export const WORKSPACE_MAIN_TABS = [
   WORKSPACE_MAIN_TAB_NOTES,
   WORKSPACE_MAIN_TAB_FOCUS,
   WORKSPACE_MAIN_TAB_REVIEW,
+  WORKSPACE_MAIN_TAB_PLUGINS,
+  WORKSPACE_MAIN_TAB_TIMETABLE,
 ];
 export const WORKSPACE_NOTE_VIEW_MODES = [
   WORKSPACE_NOTE_VIEW_ACTIVE,
@@ -29,6 +33,8 @@ export const WORKSPACE_NOTE_VIEW_MODES = [
 
 /** @param {unknown} value */
 export function normalizeWorkspaceMainTab(value) {
+  if (value === WORKSPACE_MAIN_TAB_PLUGINS) return WORKSPACE_MAIN_TAB_PLUGINS;
+  if (value === WORKSPACE_MAIN_TAB_TIMETABLE) return WORKSPACE_MAIN_TAB_TIMETABLE;
   if (value === WORKSPACE_MAIN_TAB_FOCUS) return WORKSPACE_MAIN_TAB_FOCUS;
   if (value === WORKSPACE_MAIN_TAB_REVIEW) return WORKSPACE_MAIN_TAB_REVIEW;
   return WORKSPACE_MAIN_TAB_NOTES;

@@ -1,5 +1,7 @@
 <script>
   import { onMount } from "svelte";
+  import WorkspacePluginPanel from "$lib/plugins/WorkspacePluginPanel.svelte";
+  import { createWorkspaceNavigation } from "$lib/workspace/navigation-guard.js";
   import { commitNoteText } from "$lib/note/text-commit.js";
   import { invoke } from "@tauri-apps/api/core";
   import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -94,6 +96,9 @@
   /** @type {any[]} */
   let notes = $state([]);
   let mainTab = $state(WORKSPACE_MAIN_TAB_NOTES);
+  let notesPaneApi = $state(/** @type {any} */ (null));
+  let pluginPaneApi = $state(/** @type {any} */ (null));
+  let navigationError = $state("");
   let sortMode = $state("custom");
   let viewMode = $state("active");
   let initialViewMode = $state("last");
@@ -399,7 +404,7 @@
     }
     if ("sortMode" in patch) sortMode = patch.sortMode;
     if ("locale" in patch) locale = patch.locale;
-    if ("mainTab" in patch) mainTab = patch.mainTab;
+    if ("mainTab" in patch && patch.mainTab !== mainTab) void setMainTab(patch.mainTab);
     if ("stickiesVisible" in patch) stickiesVisible = patch.stickiesVisible;
     if ("showPanelOnStartup" in patch) showPanelOnStartup = patch.showPanelOnStartup;
     if ("workspaceTheme" in patch) workspaceTheme = patch.workspaceTheme;
@@ -691,14 +696,21 @@
   const { setViewMode, setSelectedTag, setInitialViewMode, setSortMode, setLanguage } =
     workspaceNoteViewActions;
 
+  const navigateMainTab = createWorkspaceNavigation({
+    current: () => mainTab,
+    canLeave: async () => {
+      navigationError = "";
+      if (mainTab === WORKSPACE_MAIN_TAB_NOTES && await notesPaneApi?.canNavigate() === false) {
+        navigationError = "笔记尚未成功保存或存在冲突，请先重试保存或处理冲突。"; return false;
+      }
+      return (await pluginPaneApi?.canLeave()) !== false;
+    },
+    resolve: async (target) => await pluginPaneApi?.resolveTarget(target) ?? target,
+    apply: async (target) => { mainTab = target; await savePrefs({ workspaceMainTab: target }); },
+    error: (message) => { navigationError = message; },
+  });
   /** @param {string} tab */
-  async function setMainTab(tab) {
-    mainTab = normalizeWorkspaceMainTab(tab);
-    if (mainTab !== WORKSPACE_MAIN_TAB_NOTES) {
-      closeInspector();
-    }
-    await savePrefs({ workspaceMainTab: mainTab });
-  }
+  async function setMainTab(tab) { await navigateMainTab(normalizeWorkspaceMainTab(tab)); }
 
   function openReviewStats() {
     reviewTab = "stats";
@@ -944,8 +956,11 @@
       onHide={hideWindow}
     />
 
-    {#if mainTab === WORKSPACE_MAIN_TAB_NOTES}
+    {#if navigationError}<p class="navigation-error" role="alert">{navigationError}</p>{/if}
+    <div class="notes-pane" class:hidden={mainTab !== WORKSPACE_MAIN_TAB_NOTES} inert={mainTab !== WORKSPACE_MAIN_TAB_NOTES}>
       <WorkspaceNotesPane
+        bind:this={notesPaneApi}
+        active={mainTab === WORKSPACE_MAIN_TAB_NOTES}
         {strings}
         {viewMode}
         renderedNotes={renderedNotes}
@@ -992,9 +1007,11 @@
         onAppendInspectorTask={appendInspectorTask}
         onInspectorTextChange={updateInspectorNoteText}
       />
-    {/if}
+    </div>
 
-    <section class="focus-pane" class:hidden={mainTab !== WORKSPACE_MAIN_TAB_FOCUS}>
+    <WorkspacePluginPanel bind:this={pluginPaneApi} view={mainTab} navigate={setMainTab} availability={(enabled) => { if (!enabled && mainTab === 'timetable') void setMainTab('plugins'); }}/>
+
+    <section class="focus-pane" class:hidden={mainTab !== WORKSPACE_MAIN_TAB_FOCUS} inert={mainTab !== WORKSPACE_MAIN_TAB_FOCUS}>
       <WorkspaceFocusHub
         {strings}
         compact={stageLayout.focusCompact}
@@ -1014,7 +1031,7 @@
       />
     </section>
 
-    <section class="review-pane" class:hidden={mainTab !== WORKSPACE_MAIN_TAB_REVIEW}>
+    <section class="review-pane" class:hidden={mainTab !== WORKSPACE_MAIN_TAB_REVIEW} inert={mainTab !== WORKSPACE_MAIN_TAB_REVIEW}>
       <WorkspaceReviewHub
         {strings}
         notes={reviewNotes}
@@ -1186,6 +1203,10 @@
     padding: 12px 16px 14px 8px;
     cursor: default;
   }
+
+  .notes-pane{min-height:0;min-width:0;flex:1;display:flex;flex-direction:column;gap:12px}
+  .notes-pane.hidden{display:none}
+  .navigation-error{padding:10px 14px;color:var(--ws-text);background:var(--ws-card-bg);border:1px solid #bd6860;border-radius:8px}
 
   .focus-pane,
   .review-pane {

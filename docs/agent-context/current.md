@@ -6,6 +6,8 @@ The current delivery line is installable timetable v0.1 in the main Tauri produc
 
 ## Current State
 
+- E-003 implements the D-EXT-007 workspace integration. Sidebar plugin/timetable entries now switch workspace content; notes stay mounted/inert when hidden, navigation waits existing saves and blocks conflicts, and confirmations use in-window dialogs. See [implementation evidence](../plugins/workspace-integration-implementation.md) for Mac/DOM results and compatibility boundaries. Earlier documentation-only wording below describes E-002, not current code.
+
 - D-EXT-007 / [workspace integration plan v1](../plugins/workspace-integration-plan.md) is the next Mac product design: sidebar entries switch the existing workspace content, not a separate OS window. This turn is documentation only; code still has the separately-windowed 303a375 behavior. Preserve drafts and block failed-save navigation before embedding existing components; do not expand mobile/framework/native adapters. Current execution: T-PLUGIN-HOST/E-002, with later implementation not yet started.
 
 - D-EXT-006 now prioritizes the Mac product experience: sidebar plugin management, installed timetable entry, import preview/confirmation and saved-course display. No mobile packaging, new notification adaptation or generic framework expansion in this batch. See [Mac product flow](../plugins/mac-product-flow.md). Existing native changes remain preserved.

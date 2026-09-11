@@ -77,7 +77,7 @@
   <div class="sidebar-body">
     <div class="sidebar-block modules-block">
       <WorkspaceSidebarModules {strings} {collapsed} {mainTabs} {mainTab} {onSetMainTab} />
-      <WorkspacePluginLinks {collapsed}/>
+      <WorkspacePluginLinks {collapsed} {mainTab} onNavigate={onSetMainTab}/>
     </div>
     <div class="sidebar-section-divider" aria-hidden="true"></div>
 

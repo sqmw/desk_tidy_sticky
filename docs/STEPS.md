@@ -31,7 +31,7 @@
 主窗口方案先明确页面、草稿与验收边界；本轮只整理文档。后续实施须取得开始代码工作的指令，不把本执行作为代码实施证据。
 
 ```tracking-step
-{"id":"T-PLUGIN-HOST/S5","name":"Mac主窗口接入与交互验收","task_id":"T-PLUGIN-HOST","task_version":"v1","number":4,"status":"未开始","evidence":[]}
+{"id":"T-PLUGIN-HOST/S5","name":"Mac主窗口接入与交互验收","task_id":"T-PLUGIN-HOST","task_version":"v1","number":4,"status":"已完成","evidence":["Mac主窗口插件/课表切换、原生安装/JSON导入/保存/停用/重启保留通过；真实组件回归覆盖笔记草稿、保存失败阻止导航、导入离开确认、日期保持和单Worker回收；40前端/check0错误0警告/编辑器六场景/前端构建通过，见workspace-integration-implementation.md；完整第三方/移动/提醒门仍未完成"]}
 ```
 
 获准实施后按[方案第6节](plugins/workspace-integration-plan.md#6-拟实施顺序与验收)先保护草稿，再接入页面并复跑Mac闭环；不以前轮独立窗口证据替代。本阶段期间不推进移动适配。
@@ -53,6 +53,10 @@
 {"id":"T-PLUGIN-HOST/E-002","name":"插件主窗口接入方案整理","task_id":"T-PLUGIN-HOST","task_version":"v1","status":"succeeded","authorization":"2026-09-11 用户：就按照你的调研结果整理方案文档；仅文档、计划和决策记录，不改代码/应用/用户数据","scope":"记录同主窗口产品设计、草稿保护、复用导航、实施顺序与验收；同步索引和任务记录，保留独立窗口旧证据","steps":["T-PLUGIN-HOST/S4"],"evidence":["已交付docs/plugins/workspace-integration-plan.md@v1并登记D-EXT-007；索引/TODO/STEPS对齐，旧独立窗口合同与实测保留；本轮仅文档，代码/应用/用户数据未改","已review方案与源码路由；本地链接检查、tracking_check及git diff --check通过。S5代码接入未开始，须后续启动实施。"],"stop_reason":null}
 ```
 
+
+```tracking-execution
+{"id":"T-PLUGIN-HOST/E-003","name":"Mac主窗口插件接入与交互回归","task_id":"T-PLUGIN-HOST","task_version":"v1","status":"succeeded","authorization":"2026-09-11 用户：按照方案开始落地；覆盖workspace-integration-plan.md的Mac主窗口接入、草稿保护、验证及文档提交；不扩移动适配或插件权限","scope":"先导航保护，再嵌入管理/课表与窗内确认，最后Mac隔离数据和自动回归；保留现有原生未提交改动及用户数据","steps":["T-PLUGIN-HOST/S5"],"evidence":["按D-EXT-007复用业务组件进入工作台内容区，不再默认调用新建窗口；保留笔记状态、等待现有保存并两次检查导航；窗内对话框含Tab/Shift+Tab圈定","40项前端、check0/0、编辑器六项DOM、插件原五组及同窗口组装回归通过；Mac隔离测试包安装/导入/保存/停用/进程重开/深色目检通过，最终revision5课程保留且提醒队列空；实际通知弹出不在本次已测范围","review补齐目标查询期间保存竞态和对话框焦点循环；源码/用户数据无迁移，原生既有未提交改动及旧兼容路由保留，见实施记录"],"stop_reason":null}
+```
 
 ### T-MOBILE-BASE · Android 与 iOS 基础客户端 @v2
 

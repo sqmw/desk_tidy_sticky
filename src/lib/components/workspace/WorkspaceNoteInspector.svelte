@@ -1,4 +1,5 @@
 <script>
+  import { tick } from "svelte";
   import { fly } from "svelte/transition";
   import { cubicOut } from "svelte/easing";
   import NoteTagBar from "$lib/components/note/NoteTagBar.svelte";
@@ -8,6 +9,7 @@
 
   let {
     strings,
+    active = true,
     note: incomingNote = null,
     draftText = $bindable(""),
     tagSuggestions = /** @type {string[]} */ ([]),
@@ -78,6 +80,12 @@
     onClose();
   }
 
+  export async function canNavigate() {
+    await tick();
+    if (await editorApi?.waitForPendingSave?.() === false) return false;
+    return !saving && !conflict;
+  }
+
   const reduceMotion =
     typeof window !== "undefined" &&
     !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -130,6 +138,7 @@
         </div>
       {/if}
       <BlockNoteContent
+        {active}
         bind:this={editorApi}
         text={editorText}
         compact

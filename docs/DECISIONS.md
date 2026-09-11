@@ -13,6 +13,7 @@
 - 保持：复用安装、课表与存储；不改包摘要白名单、Worker/Rust权限边界、移动/提醒验收或数据格式。不结束当前应用，不删除旧窗口与未提交改动。
 - 否决：默认另开业务窗口；把独立页面整页套进工作台；只加tab但仍在切换时直接关闭编辑器；借UI改造重新扩建框架。
 - 实施合同、来源及恢复：[主窗口接入方案](plugins/workspace-integration-plan.md)。关联提交：本条所在提交；历史入口：[Mac首版](plugins/mac-product-flow.md)。
+- 后续授权：用户在方案提交25c8340后明确「按照方案开始落地」，E-003开始代码实施；原E-002仅文档的授权范围与证据不改写。实施结果见[实施记录](plugins/workspace-integration-implementation.md)。
 
 ## D-EXT-006 · Mac 插件产品流程优先
 

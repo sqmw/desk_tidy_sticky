@@ -6,6 +6,7 @@
 
   let {
     strings,
+    active = true,
     viewMode,
     renderedNotes = [],
     openViewOnClick = false,
@@ -51,6 +52,8 @@
     onAppendInspectorTask = () => {},
     onInspectorTextChange = () => {},
   } = $props();
+  let inspectorApi = $state(/** @type {any} */ (null));
+  export async function canNavigate() { return (await inspectorApi?.canNavigate?.()) !== false; }
 </script>
 
 <WorkspaceToolbar
@@ -107,6 +110,8 @@
   {/if}
   {#if inspectorOpen && inspectorNote}
     <WorkspaceNoteInspector
+      bind:this={inspectorApi}
+      {active}
       {strings}
       note={inspectorNote}
       bind:draftText={inspectorDraftText}

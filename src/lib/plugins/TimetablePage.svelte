@@ -53,6 +53,7 @@
     });
   }
   function cancel() { preview = null; importing = false; error = ''; notice = '已取消导入，已保存课表未改变。'; }
+  export function discardImport() { cancel(); }
 </script>
 
 <header><p class="eyebrow">已安装插件 · 课表 v0.1</p><div class="title-row"><h1>课表</h1><button class="primary" disabled={busy || !runtime || importing} onclick={() => { importing = true; error = ''; notice = ''; }}>导入课表</button></div><p class="muted">你的课程、学期与上课提醒，都在这里。</p></header>

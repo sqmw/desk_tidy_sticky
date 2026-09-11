@@ -20,6 +20,7 @@
       type="button"
       class="main-nav-row"
       class:active={mainTab === tab.key}
+      onpointerdown={(event) => event.preventDefault()}
       onclick={() => onSetMainTab(tab.key)}
       title={tab.label}
     >
