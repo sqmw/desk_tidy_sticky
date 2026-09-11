@@ -6,6 +6,8 @@ The current user-authorized delivery line is [M-EXT-01](../TODO.md#m-ext-01), st
 
 ## Current State
 
+- Current S3 gate: Android course sample in Probe `34b8a94` passed actual emulator import, Rust persistence/reopen, background notification, cancellation and rejection cases. iOS adapter `e106caf` builds/installs/starts and notification consent passed, but document-picker automation cannot interact; E-006 is paused awaiting one manual file selection. Preserve the simulator and resume the same execution. No product code promotion or true-device acceptance.
+
 - E-004 Probe `3e85be7` adds durable storage and actual Rust process restart evidence (14 tests plus two explicitly run child-host tests). Old sessions are not stored or restored. S2's minimal validation gate is complete; S3 begins mobile prerequisites. Product IPC, mobile runtime/notifications and resource-hardening are not implied; see [current execution](../STEPS.md#t-plugin-platform-validation).
 
 - Plugin admission and the host-only session broker remain unconnected to application IPC. The broker validates storage requests, namespaces in-memory data and revokes stale handles; these tests do not prove JS runtime isolation or durable storage. See the [contract](../plugins/implementation-baseline.md). Policy changes must reauthorize fail-closed; failed candidate installation is a distinct lifecycle operation.

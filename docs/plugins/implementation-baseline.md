@@ -62,4 +62,6 @@ S2/S3 的侵入式移动壳验证使用独立 Probe；只有实际验证成立�
 
 E-005新增可操作Android样例，独立Probe提交`34b8a94`，代码/操作/平台失败与实测见其`docs/android-sample.md`。现有14项回归保留；在Android模拟器实际导入外部JS/JSON、Rust持久化重开、后台通知与取消通过。单验证槽不是产品安装器，无Parent源码Promotion；iOS同例由E-006继续。APK为本地debug构建，不发布主程序版本。
 
+E-006：Probe提交`e106caf`，iOS官方runtime和Rust模拟器target已补齐；同JS/JSON的iPhone16模拟器app已构建、安装、启动并授权通知。系统文件选择器工具不能点击，已请求最小人工操作，执行暂停；不将此判为业务不可行。最新弹窗时序修正已编译，未替换等待用户操作的现场。恢复与具体证据见Probe `docs/ios-sample.md`，Task状态只见TODO。
+
 首批验证：Rust 正反测试、现有前端测试、差异检查与任务追踪检查。具体结果写 STEPS；不重复手写 Task 状态。新模块未接运行路径，反向提交即可撤销，无安装版本或数据 schema 迁移。模块接入前移除仅用于待接线阶段的 dead_code 允许，并补真实 IPC 身份测试。
