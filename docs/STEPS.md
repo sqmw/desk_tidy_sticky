@@ -86,6 +86,16 @@
 {"id":"T-TIMETABLE-PLUGIN/E-001","name":"课表 v0.1 包与规则","task_id":"T-TIMETABLE-PLUGIN","task_version":"v1","status":"succeeded","authorization":"2026-09-11 用户明确要求课表v0.1产品接入与双模拟器闭环；D-EXT-004","scope":"按固定包合同实现学期/节次/周次/课程/提前提醒及每日视图；高级例外仍未完成","steps":["T-TIMETABLE-PLUGIN/S1"],"evidence":["a30f4ed课表v0.1包及构建摘要、JSON样例和规则测试完成；保留32条计划/两时区限制，主程序使用闭环待宿主验收"],"stop_reason":null}
 ```
 
+课表视觉阶段：用户针对每日大卡片截图要求重新设计；先实现周视图展示映射，再替换页面层级并回归导入/切页安全。仅调整共享课表UI，不改插件包规则和原生接口。
+
+```tracking-step
+{"id":"T-TIMETABLE-PLUGIN/S2","name":"课表周视图与视觉重设计","task_id":"T-TIMETABLE-PLUGIN","task_version":"v1","number":2,"status":"已完成","evidence":["周次导航、七天网格、跨节/重叠课程、今天突出、课程详情及按需设置完成；43前端测试、Svelte0/0、生产构建和真实组件/Worker回归通过；密集/稀疏/亮暗/窄窗口目检及深色标题对比度断言通过，见ui/2026-09-11-timetable-week-view.md"]}
+```
+
+```tracking-execution
+{"id":"T-TIMETABLE-PLUGIN/E-002","name":"课表周视图与视觉重设计","task_id":"T-TIMETABLE-PLUGIN","task_version":"v1","status":"succeeded","authorization":"2026-09-11 用户提供课表页截图并明确重新设计一下这里；承接周课表主视图、紧凑导航、课程色块与次要设置的讨论","scope":"课表周视图、详情/提醒按需展开、主题/密度、日期周次展示及前端回归；不改包白名单、存储合同、提醒调度或移动适配","steps":["T-TIMETABLE-PLUGIN/S2"],"evidence":["按用户截图重做共享课表UI，默认周网格、紧凑导航、稳定柔和彩色课程块、今天突出；去除每日/提醒巨型卡片，详情和权限说明按需打开","43前端/check0错误0警告/生产前端构建/真实组件与实际Worker浏览器回归通过；补周次边界、跨年、单双周来源、冲突排列、课程详情、10课程8节亮暗与窄窗口、色块多色及深色标题对比度>=4.5断言","已review样式优先级、日历日期运算、规则来源和历史保护；插件包/摘要/Rust/数据协议未改，用户数据及现有应用未替换。丰富样例仅在测试替身中，不冒充新原生安装/提醒验收。"],"stop_reason":null}
+```
+
 ### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1
 
 - 回链 TODO 条目：[T-STK-P0-DATA-SAFETY](TODO.md#todo-t-stk-p0-data-safety)

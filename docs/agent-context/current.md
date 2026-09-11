@@ -6,6 +6,8 @@ The current delivery line is installable timetable v0.1 in the main Tauri produc
 
 ## Current State
 
+- Timetable UI now prioritizes a compact weekly grid, not large daily/reminder cards. Week navigation, course details and secondary settings reuse the existing external Worker/JSON contract; see [week-view design and evidence](../ui/2026-09-11-timetable-week-view.md). Ownership: T-TIMETABLE-PLUGIN/E-002. No native adapter or plugin-package changes in this batch.
+
 - E-003 implements the D-EXT-007 workspace integration. Sidebar plugin/timetable entries now switch workspace content; notes stay mounted/inert when hidden, navigation waits existing saves and blocks conflicts, and confirmations use in-window dialogs. See [implementation evidence](../plugins/workspace-integration-implementation.md) for Mac/DOM results and compatibility boundaries. Earlier documentation-only wording below describes E-002, not current code.
 
 - D-EXT-007 / [workspace integration plan v1](../plugins/workspace-integration-plan.md) is the next Mac product design: sidebar entries switch the existing workspace content, not a separate OS window. This turn is documentation only; code still has the separately-windowed 303a375 behavior. Preserve drafts and block failed-save navigation before embedding existing components; do not expand mobile/framework/native adapters. Current execution: T-PLUGIN-HOST/E-002, with later implementation not yet started.

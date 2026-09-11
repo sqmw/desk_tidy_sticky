@@ -4,6 +4,8 @@ This is the first-read route for people and agents. Read the active documents be
 
 ## Active
 
+- [Timetable Week View](ui/2026-09-11-timetable-week-view.md): current timetable visual design, week navigation, course grid, settings/details and regression coverage.
+
 - [Workspace Plugin Integration](plugins/workspace-integration-implementation.md): current Mac in-workspace navigation, draft protection, reusable components and verification boundaries.
 - [Workspace Plugin Integration Plan](plugins/workspace-integration-plan.md): design contract and acceptance gates; original planning context retained.
 - [Mac Plugin First Implementation](plugins/mac-product-flow.md): existing separate-window implementation, reusable components and historical native acceptance evidence.
