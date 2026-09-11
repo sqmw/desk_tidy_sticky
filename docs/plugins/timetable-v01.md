@@ -11,6 +11,8 @@
 
 ## 最小模块与验收顺序
 
+当前顺序由D-EXT-005调整为**Mac完整可用流程优先 → Tauri移动运行 → 仅补暴露出的适配缺口**。下列功能范围保留，但移动构建/验收不再插在Mac基本保存流程之前。停止新增独立原生验证壳。
+
 1. 原生安装与数据边界：包预检→显示权限→确认→原子写入独立目录；打开/停用/卸载；卸载移除代码引用但保留业务数据，避免无确认丢数据。拒绝坏包/坏状态，核心笔记不参与。
 2. 官方JS课表：学期开始日、时区、总周数、节次起止、课程/周次、提前提醒；导入整体验证后替换，同一ID重复导入不追加。今日或简单周视图。v0.1先不实现调停课例外编辑/高级合并。
 3. 主程序薄移动启动：保留桌面启动逻辑，移动端只开启本批插件页与必要存储/通知；复用同一产品仓库与应用身份，不复制Probe壳冒充正式接入。
@@ -36,6 +38,7 @@ Probe P-JS-CONNECTION-01以已知功能证据及未满足的安全边界结束�
 - `src-tauri/src/plugins/package.rs` / `installed.rs` / `commands.rs`：固定包校验、独立状态文件、权限确认/版本冲突和生命周期；不使用Probe持久化文件或其JNI壳。
 - `src-tauri/src/plugins/notifications.rs`：宿主通知ID与平台适配。当前桌面仅显示课表，尚无系统定时提醒；移动通知必须在产品内另测。
 - `src/lib/plugins/runtime.ts`：已审查代码的独立Worker；4秒执行超时终止，不宣称这是任意代码的硬内存沙箱。
+- `src/lib/plugins/wire.js`：JSON消息边界，去除前端响应式Proxy，避免保存/重开时DataCloneError；编码/发送失败不留下超时请求。对应`tests/frontend/plugin-worker-wire.test.js`。
 - `src/routes/plugins/+page.svelte`：本地包导入、权限确认、开关/卸载、JSON校验预览/替换、每日课程；桌面工作台通过独立插件窗口进入，避免切走笔记编辑页面。
 - `src-tauri/src/desktop_app.rs` / `mobile_app.rs`：主程序平台启动分离；桌面文件以crate-root include保留原Tauri命令宏作用域。移动页仍属同一Tauri产品，不是改名后的Probe。
 - `tests/frontend/timetable-v01.test.js`、Rust plugins测试：周次/节次/时区/坏输入/提醒数量、包篡改与损坏状态拒绝。

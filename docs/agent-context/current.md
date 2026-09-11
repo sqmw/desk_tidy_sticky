@@ -6,6 +6,8 @@ The current delivery line is installable timetable v0.1 in the main Tauri produc
 
 ## Current State
 
+- D-EXT-005 is the active sequencing decision: finish the usable Mac product flow first; pause mobile packaging/interactive acceptance and do not expand Probe work. Shared Worker Proxy serialization and visible feedback are the immediate fix. Keep the existing platform adapters and evidence; do not rebuild three business implementations.
+
 - Current batch is installable timetable v0.1 in the product, per [D-EXT-004](../DECISIONS.md#d-ext-004) and [product baseline](../plugins/timetable-v01.md). Simulator acceptance replaces the true-device gate only for this milestone. Exact reviewed package digests gate installation; arbitrary third-party execution remains closed pending isolation/resource validation. Product plugin page, native state/lifecycle and mobile boot paths are new implementations, not copied Probe shells.
 
 - Current S3 evidence: Android Probe `34b8a94` and iOS evidence `e79ec60` both cover the same external JS/JSON course import, Rust persistence/reopen, background notification and cancellation on simulators. The user completed iOS file selection; E-006 succeeded after latest-build regression. True-device/channel, permission/reboot matrix and resource/security validation remain open. No product code promotion.

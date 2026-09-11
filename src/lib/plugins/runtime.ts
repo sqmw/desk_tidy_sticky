@@ -1,3 +1,5 @@
+import { encodePluginMessage } from './wire.js';
+
 /** Only reviewed package source returned by Rust may reach this runner. */
 export function createPluginRuntime(source: string) {
   const moduleUrl=URL.createObjectURL(new Blob([source],{type:'text/javascript'}));
@@ -24,6 +26,17 @@ export function createPluginRuntime(source: string) {
   worker.onerror=()=>close('插件执行失败，请重新打开');
   return {close,call(action:string,input:any,extra:Record<string,unknown>={}):Promise<any>{
     if(closed)return Promise.reject(new Error('插件已停止'));
-    return new Promise((resolve,reject)=>{const id=++sequence;const timer=setTimeout(()=>close('插件执行超时，已终止'),4000);pending.set(id,{resolve,reject,timer});worker.postMessage({id,action,input,...extra});});
+    return new Promise((resolve,reject)=>{
+      const id=++sequence;
+      // Serialize before registering a pending request: proxies cannot be cloned.
+      const message=encodePluginMessage({id,action,input,...extra});
+      const timer=setTimeout(()=>close('插件执行超时，已终止'),4000);
+      pending.set(id,{resolve,reject,timer});
+      try { worker.postMessage(message); }
+      catch(error) {
+        clearTimeout(timer);pending.delete(id);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
   }};
 }

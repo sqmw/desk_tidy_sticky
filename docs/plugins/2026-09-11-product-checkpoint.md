@@ -21,6 +21,10 @@ Android最新APK已构建，首次产品APK安装完成，dtplugin与JSON已复�
 
 ## 实现/安全自审
 
+用户反馈“校验/保存后没提示”的根因已定位：Svelte将draft变成Proxy，预览使用普通解析结果所以成功；保存和重开视图把Proxy直接postMessage给Worker，浏览器structuredClone抛DataCloneError，Rust保存未被调用（revision仍1、data=null）。失败提示在上方视口外，加上post失败残留超时任务，使后续操作更难辨认。
+
+修复：Worker消息按JSON合同先序列化为普通数据；编码失败不登记请求，post失败清理pending/计时器；校验/保存明确反馈并在操作区显示错误。新增3项传输反例测试，37项前端测试/check零错误；这不是数据恢复操作，没有手写原生state伪装保存。产品重建/模拟器保存复验仍需记录结果。
+
 按完整包字节摘要验证，不信任包自报ID；预检/安装/打开均检查。包换行由gitattributes固定，防止跨平台checkout改变摘要。Worker只加载已批准源码，UI不注入插件HTML；这仍不是任意代码硬内存隔离保证。
 
 数据独立保存于Tauri app_data_dir的plugins-v01/state.json，native窗口来源、状态版本及enabled在锁内校验；生命周期取消宿主分配的通知ID，插件不提供系统ID。原生移动通知调用放到异步命令执行，避免阻塞WebView线程。取消/保存失败会显示错误或未生效状态，不隐瞒跨系统非原子边界。
