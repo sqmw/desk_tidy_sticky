@@ -2,7 +2,7 @@
 
 ## Situation
 
-The current user-authorized delivery line is [M-EXT-01](../TODO.md#m-ext-01), starting with T-PLUGIN-PLATFORM-VALIDATION. See the [implementation baseline](../plugins/implementation-baseline.md) and [execution](../STEPS.md#t-plugin-platform-validation). Earlier desktop acceptance gates remain open; new plugin work does not supersede them.
+The current delivery line is installable timetable v0.1 in the main Tauri product, under T-PLUGIN-HOST with mobile/timetable Tasks. Feasibility Probe is closed under the user-approved simulator baseline; this does not waive arbitrary-code security gates. See the [product checkpoint](../plugins/2026-09-11-product-checkpoint.md) and [current executions](../STEPS.md#t-plugin-host). Earlier desktop review gates remain separate.
 
 ## Current State
 

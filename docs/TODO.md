@@ -29,7 +29,7 @@
 <a id="t-plugin-host"></a>
 
 ```tracking-task
-{"id":"T-PLUGIN-HOST","name":"第三方插件宿主","goal":"用户无需重编宿主即可安装、启停和升级遵循协议的第三方插件","scope":"插件包校验、宿主协议、权限与存储隔离、扩展点、生命周期和异常处理；不含在线商店/付费平台","acceptance":"外部测试插件走正常安装路径；越权调用被拒；停用撤销其提醒，数据处置明确；升级失败可恢复且核心笔记不受损","dependencies":["T-PLUGIN-PLATFORM-VALIDATION"],"version":"v1","mode":"staged","status":"in_progress","execution_ref":"STEPS.md#t-plugin-host","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002","D-EXT-004"]}
+{"id":"T-PLUGIN-HOST","name":"第三方插件宿主","goal":"用户无需重编宿主即可安装、启停和升级遵循协议的第三方插件","scope":"插件包校验、宿主协议、权限与存储隔离、扩展点、生命周期和异常处理；不含在线商店/付费平台","acceptance":"外部测试插件走正常安装路径；越权调用被拒；停用撤销其提醒，数据处置明确；升级失败可恢复且核心笔记不受损","dependencies":["T-PLUGIN-PLATFORM-VALIDATION"],"version":"v1","mode":"staged","status":"blocked","execution_ref":"STEPS.md#t-plugin-host","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002","D-EXT-004"]}
 ```
 
 待开始（不预建步骤块）；范围与平台限制见[规划草案](plans/2026-09-10-plugins-mobile-timetable.md)。

@@ -2,7 +2,7 @@
 
 主 STEPS：承载正在推进的 Task 的宏观步骤序列与执行位置。任务级状态只在 [Project TODO](TODO.md) 维护，本文件只维护步骤状态。
 
-活跃步骤块数量：**4**
+活跃步骤块数量：**3**
 
 步骤状态取值：`未开始` / `进行中` / `受阻` / `已完成` / `已跳过`
 
@@ -17,11 +17,11 @@
 所有者Codex /root；single-writer；2026-09-11。回链：[Task](TODO.md#t-mobile-base)。按D-EXT-004实现主程序薄移动启动和插件页，不复制实验壳、不实现完整手机版；宿主包合同先确定后交错实现，依赖任务未完成不等于整体验收放行。
 
 ```tracking-step
-{"id":"T-MOBILE-BASE/S1","name":"产品移动入口与构建","task_id":"T-MOBILE-BASE","task_version":"v2","number":1,"status":"进行中","evidence":[]}
+{"id":"T-MOBILE-BASE/S1","name":"产品移动入口与构建","task_id":"T-MOBILE-BASE","task_version":"v2","number":1,"status":"已完成","evidence":["主产品薄移动启动与平台依赖分离完成；Android APK/iOS模拟器app构建成功，iOS已启动产品页；完整功能验收仍在宿主/集成Task"]}
 ```
 
 ```tracking-execution
-{"id":"T-MOBILE-BASE/E-001","name":"产品移动入口与构建","task_id":"T-MOBILE-BASE","task_version":"v2","status":"running","authorization":"2026-09-11 用户明确要求课表v0.1产品接入与双模拟器闭环；D-EXT-004","scope":"按D-EXT-004实现主程序薄移动启动和插件页，不复制实验壳、不实现完整手机版","steps":["T-MOBILE-BASE/S1"],"evidence":[],"stop_reason":null}
+{"id":"T-MOBILE-BASE/E-001","name":"产品移动入口与构建","task_id":"T-MOBILE-BASE","task_version":"v2","status":"succeeded","authorization":"2026-09-11 用户明确要求课表v0.1产品接入与双模拟器闭环；D-EXT-004","scope":"按D-EXT-004实现主程序薄移动启动和插件页，不复制实验壳、不实现完整手机版","steps":["T-MOBILE-BASE/S1"],"evidence":["a30f4ed产品启动分离与双端工程生成/构建完成；不复制Probe壳；未宣称完整手机版或Android界面闭环已验收"],"stop_reason":null}
 ```
 
 ### T-TIMETABLE-PLUGIN · 课表插件与 JSON 规范 @v1
@@ -31,33 +31,11 @@
 所有者Codex /root；single-writer；2026-09-11。回链：[Task](TODO.md#t-timetable-plugin)。按固定包合同实现学期/节次/周次/课程/提前提醒及每日视图；高级例外仍未完成；宿主包合同先确定后交错实现，依赖任务未完成不等于整体验收放行。
 
 ```tracking-step
-{"id":"T-TIMETABLE-PLUGIN/S1","name":"课表 v0.1 包与规则","task_id":"T-TIMETABLE-PLUGIN","task_version":"v1","number":1,"status":"进行中","evidence":[]}
+{"id":"T-TIMETABLE-PLUGIN/S1","name":"课表 v0.1 包与规则","task_id":"T-TIMETABLE-PLUGIN","task_version":"v1","number":1,"status":"已完成","evidence":["官方JS包实现版本化学期/节次/显式周次/课程/提前提醒/每日数据；3条新增Node规则回归通过；产品交互与高级例外未据此宣告完成"]}
 ```
 
 ```tracking-execution
-{"id":"T-TIMETABLE-PLUGIN/E-001","name":"课表 v0.1 包与规则","task_id":"T-TIMETABLE-PLUGIN","task_version":"v1","status":"running","authorization":"2026-09-11 用户明确要求课表v0.1产品接入与双模拟器闭环；D-EXT-004","scope":"按固定包合同实现学期/节次/周次/课程/提前提醒及每日视图；高级例外仍未完成","steps":["T-TIMETABLE-PLUGIN/S1"],"evidence":[],"stop_reason":null}
-```
-
-### T-PLUGIN-HOST · 第三方插件宿主 @v1
-
-<a id="t-plugin-host"></a>
-
-所有者Codex /root；single-writer；2026-09-11。回链：[Task](TODO.md#t-plugin-host)。目的：在主程序实现受限首包安装链路；授权与边界见D-EXT-004及[基线](plugins/timetable-v01.md)。
-
-```tracking-step
-{"id":"T-PLUGIN-HOST/S1","name":"官方课表包与原生安装边界","task_id":"T-PLUGIN-HOST","task_version":"v1","number":1,"status":"已完成","evidence":["主程序已实现完整包摘要预检/权限确认/原子独立状态；篡改包与坏状态拒绝测试通过；iOS产品内实际导入官方包、确认权限并安装启用"]}
-```
-
-```tracking-step
-{"id":"T-PLUGIN-HOST/S2","name":"插件运行入口与课表使用界面","task_id":"T-PLUGIN-HOST","task_version":"v1","number":2,"status":"进行中","evidence":["插件页和Worker运行已接入；iOS安装后出现课表入口；修正独立滚动，完整课表保存/提醒验收待继续"]}
-```
-
-```tracking-step
-{"id":"T-PLUGIN-HOST/S3","name":"产品移动构建与生命周期回归","task_id":"T-PLUGIN-HOST","task_version":"v1","number":3,"status":"未开始","evidence":[]}
-```
-
-```tracking-execution
-{"id":"T-PLUGIN-HOST/E-001","name":"课表插件产品接入基线与最小安装链路","task_id":"T-PLUGIN-HOST","task_version":"v1","status":"running","authorization":"2026-09-11 用户要求主程序可安装课表v0.1及双模拟器闭环；任意第三方开放前保留安全门","scope":"受限首包安装、权限确认、打开/停用/卸载、错误显示；产品按模块重做，不整包复制Probe","steps":["T-PLUGIN-HOST/S1","T-PLUGIN-HOST/S2","T-PLUGIN-HOST/S3"],"evidence":[],"stop_reason":null}
+{"id":"T-TIMETABLE-PLUGIN/E-001","name":"课表 v0.1 包与规则","task_id":"T-TIMETABLE-PLUGIN","task_version":"v1","status":"succeeded","authorization":"2026-09-11 用户明确要求课表v0.1产品接入与双模拟器闭环；D-EXT-004","scope":"按固定包合同实现学期/节次/周次/课程/提前提醒及每日视图；高级例外仍未完成","steps":["T-TIMETABLE-PLUGIN/S1"],"evidence":["a30f4ed课表v0.1包及构建摘要、JSON样例和规则测试完成；保留32条计划/两时区限制，主程序使用闭环待宿主验收"],"stop_reason":null}
 ```
 
 ### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1
@@ -88,6 +66,29 @@
 ---
 
 ## 挂起步骤块
+
+### T-PLUGIN-HOST · 第三方插件宿主 @v1
+
+<a id="t-plugin-host"></a>
+
+所有者Codex /root；single-writer；2026-09-11。回链：[Task](TODO.md#t-plugin-host)。目的：在主程序实现受限首包安装链路；授权与边界见D-EXT-004及[基线](plugins/timetable-v01.md)。
+
+```tracking-step
+{"id":"T-PLUGIN-HOST/S1","name":"官方课表包与原生安装边界","task_id":"T-PLUGIN-HOST","task_version":"v1","number":1,"status":"已完成","evidence":["主程序已实现完整包摘要预检/权限确认/原子独立状态；篡改包与坏状态拒绝测试通过；iOS产品内实际导入官方包、确认权限并安装启用"]}
+```
+
+```tracking-step
+{"id":"T-PLUGIN-HOST/S2","name":"插件运行入口与课表使用界面","task_id":"T-PLUGIN-HOST","task_version":"v1","number":2,"status":"受阻","evidence":["插件页和Worker运行已接入；iOS安装后出现课表入口；修正独立滚动，完整课表保存/提醒验收待继续","iOS文件选择器noWindowsAvailable，Window激活重试无效；Android Emulator不被CUA识别；已请求最小用户操作/ADB授权"]}
+```
+
+```tracking-step
+{"id":"T-PLUGIN-HOST/S3","name":"产品移动构建与生命周期回归","task_id":"T-PLUGIN-HOST","task_version":"v1","number":3,"status":"未开始","evidence":[]}
+```
+
+```tracking-execution
+{"id":"T-PLUGIN-HOST/E-001","name":"课表插件产品接入基线与最小安装链路","task_id":"T-PLUGIN-HOST","task_version":"v1","status":"paused","authorization":"2026-09-11 用户要求主程序可安装课表v0.1及双模拟器闭环；任意第三方开放前保留安全门","scope":"受限首包安装、权限确认、打开/停用/卸载、错误显示；产品按模块重做，不整包复制Probe","steps":["T-PLUGIN-HOST/S1","T-PLUGIN-HOST/S2","T-PLUGIN-HOST/S3"],"evidence":["a30f4ed已实现主程序受限包安装/权限/生命周期、Worker和课表页；60 Rust/34Node/check0错误/双端产品构建通过","iOS产品内实际预检、权限确认、安装启用和重开安装状态保留通过；最新课表导入与完整提醒矩阵因工具点击阻塞未完成，见产品检查点"],"stop_reason":"等待iOS文件选择器点击product-smoke-2.json；Android需用户明确许可ADB UI测试方式，之后续接同一执行完成产品闭环"}
+```
+
 
 ### T-PROJECT-REVIEW-FIX · 全量审查缺陷整改 @v1
 

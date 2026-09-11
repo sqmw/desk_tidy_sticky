@@ -28,6 +28,8 @@ Probe P-JS-CONNECTION-01以已知功能证据及未满足的安全边界结束�
 
 本文件是实施合同，不是完成证明；具体实测与剩余缺口写对应STEPS。
 
+当前产品实测与恢复入口见[产品检查点](2026-09-11-product-checkpoint.md)。
+
 ## 当前产品代码导航
 
 - `plugins/timetable-v01/entry.js` / `example.json`：外部JS规则与JSON样例；`scripts/build-timetable-package.mjs`生成dtplugin与经审查后编入宿主的摘要。构建脚本只在开发时运行，安装时不生成信任摘要。
