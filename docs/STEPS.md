@@ -86,7 +86,7 @@
 ```
 
 ```tracking-execution
-{"id":"T-PLUGIN-HOST/E-001","name":"课表插件产品接入基线与最小安装链路","task_id":"T-PLUGIN-HOST","task_version":"v1","status":"paused","authorization":"2026-09-11 用户要求主程序可安装课表v0.1及双模拟器闭环；任意第三方开放前保留安全门","scope":"受限首包安装、权限确认、打开/停用/卸载、错误显示；产品按模块重做，不整包复制Probe","steps":["T-PLUGIN-HOST/S1","T-PLUGIN-HOST/S2","T-PLUGIN-HOST/S3"],"evidence":["a30f4ed已实现主程序受限包安装/权限/生命周期、Worker和课表页；60 Rust/34Node/check0错误/双端产品构建通过","iOS产品内实际预检、权限确认、安装启用和重开安装状态保留通过；最新课表导入与完整提醒矩阵因工具点击阻塞未完成，见产品检查点"],"stop_reason":"等待iOS文件选择器点击product-smoke-2.json；Android需用户明确许可ADB UI测试方式，之后续接同一执行完成产品闭环"}
+{"id":"T-PLUGIN-HOST/E-001","name":"课表插件产品接入基线与最小安装链路","task_id":"T-PLUGIN-HOST","task_version":"v1","status":"paused","authorization":"2026-09-11 用户要求主程序可安装课表v0.1及双模拟器闭环；任意第三方开放前保留安全门","scope":"受限首包安装、权限确认、打开/停用/卸载、错误显示；产品按模块重做，不整包复制Probe","steps":["T-PLUGIN-HOST/S1","T-PLUGIN-HOST/S2","T-PLUGIN-HOST/S3"],"evidence":["a30f4ed已实现主程序受限包安装/权限/生命周期、Worker和课表页；60 Rust/34Node/check0错误/双端产品构建通过","iOS产品内实际预检、权限确认、安装启用和重开安装状态保留通过；最新课表导入与完整提醒矩阵因工具点击阻塞未完成，见产品检查点","用户反馈文件选择完成并选择手动Android；iOS复核安装仍有效、错误包输入被拒绝，native revision1/data=null/notificationIds空；恢复CUA仍noWindowsAvailable，未宣称保存或通知通过"],"stop_reason":"iOS当前已选JSON但原生data仍为空；CUA重新绑定仍无法滚动点击，待下方课表区域手动校验/保存。用户选择手动Android操作，不使用ADB UI代点；之后续接同一执行核对产品完整闭环。"}
 ```
 
 

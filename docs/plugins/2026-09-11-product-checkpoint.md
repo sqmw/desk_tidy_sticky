@@ -13,7 +13,9 @@
 
 最新iOS构建当前停在课程文件选择器，product-smoke-2.json可见；坐标点击反复返回noWindowsAvailable，激活与Window菜单选择当前窗口均未恢复。已请求用户点击一次该文件，不要求重新安装包。时间样例可能过期，恢复后要更新测试课程时间，不能把过期计划无通知算通过。
 
-Android最新APK已构建，首次产品APK安装完成，dtplugin与JSON已复制到Download。CUA应用清单不含Android Emulator，按已知qemu路径选择返回Invalid app。已请求用户明确允许Android专用ADB UI测试方式；尚未取得许可或进行该路径的界面验收，不以安装成功代替交互成功。
+Android最新APK已构建，首次产品APK安装完成，dtplugin与JSON已复制到Download。CUA应用清单不含Android Emulator，按已知qemu路径选择返回Invalid app。用户明确选择手动完成Android操作，不使用ADB代点界面；之后只按用户结果与允许的只读日志核对，不以安装成功代替交互成功。
+
+用户反馈iOS文件选择完成后的复核：产品仍显示“课表0.1.0已启用”，把课表JSON送入插件包入口的请求被正确拒绝，未损坏安装状态。原生state.json显示revision=1、data=null、notificationIds=[]，即尚未保存课表。CUA重置并按Simulator bundle ID重新绑定后，滚动仍返回noWindowsAvailable。当前需要在下方课表区域手动校验/保存，不再要求重新安装包；旧近期样例的提醒时间已过，不能据此判断通知成功或失败。
 
 因此产品内“显示课程→保存→重开→后台提醒→修改/停用取消→卸载”双端矩阵未完成；Probe的成功不能补作产品证据。当前不交付为完整可用版本、不开放任意第三方。
 
