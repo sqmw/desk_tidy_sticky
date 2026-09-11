@@ -40,6 +40,8 @@
 
 需要已有 Playwright：默认从项目依赖解析，或通过 `BROWSER_TEST_NODE_MODULES` 指向现有工具运行时的 node_modules。浏览器默认用 Playwright Chromium；`PLAYWRIGHT_CHROMIUM_EXECUTABLE` 可指向现有 Chromium/Chrome。该入口不自动安装依赖，不属于默认 `make test`；运行环境依赖通过运行时发现提供，不在项目写入机器路径。该 DOM 回归不能证明 Tauri IPC、登录启动或真实多屏行为。
 
+插件产品页面回归：`pnpm test:plugins:browser`，复用上述浏览器环境变量。真实组件与外部 JS Worker覆盖安装、导入预览/取消/保存/重开、失败重试、启停卸载；原生调用使用测试替身，不调度系统通知，不读取用户数据。运行数据与截图位于系统临时目录。
+
 - Node 依赖管理器固定为 `pnpm@10.28.2`，声明在 `package.json` 的 `packageManager` 字段。
 - `pnpm-workspace.yaml` 通过 `allowBuilds.esbuild: true` 允许 `esbuild` 执行安装期 build script，用于避免非交互终端或 CI 中被 pnpm 的 build 审批阻塞。
 

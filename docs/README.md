@@ -4,6 +4,8 @@ This is the first-read route for people and agents. Read the active documents be
 
 ## Active
 
+- [Mac Plugin Product Flow](plugins/mac-product-flow.md): current sidebar placement, plugin management and timetable import/use contract.
+
 - [Installable Timetable v0.1](plugins/timetable-v01.md): current product-integration contract, simulator acceptance and restricted-package safety gate.
 
 - [Plugin Implementation Baseline](plugins/implementation-baseline.md): backend manifest/admission contract, source/test routes and runtime release gates.

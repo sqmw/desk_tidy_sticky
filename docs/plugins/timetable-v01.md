@@ -2,6 +2,8 @@
 
 日期：2026-09-11；依据 D-EXT-004。当前批次：主程序内本地包安装与课表使用，不扩商店、复杂升级、自动同步或完整手机版。任务状态以TODO为准。
 
+当前产品页面与优先级以D-EXT-006及[Mac产品流程](mac-product-flow.md)为准：管理页与课表页分离，先在Mac交付安装、导入和查看。下文保留既有平台接口与证据边界，不代表本批继续扩建平台适配。
+
 ## 放行与不放行
 
 - 本里程碑Android/iOS使用模拟器验收；真机不阻塞，也不伪造为已经测试。
@@ -39,7 +41,7 @@ Probe P-JS-CONNECTION-01以已知功能证据及未满足的安全边界结束�
 - `src-tauri/src/plugins/notifications.rs`：宿主通知ID与平台适配。当前桌面仅显示课表，尚无系统定时提醒；移动通知必须在产品内另测。
 - `src/lib/plugins/runtime.ts`：已审查代码的独立Worker；4秒执行超时终止，不宣称这是任意代码的硬内存沙箱。
 - `src/lib/plugins/wire.js`：JSON消息边界，去除前端响应式Proxy，避免保存/重开时DataCloneError；编码/发送失败不留下超时请求。对应`tests/frontend/plugin-worker-wire.test.js`。
-- `src/routes/plugins/+page.svelte`：本地包导入、权限确认、开关/卸载、JSON校验预览/替换、每日课程；桌面工作台通过独立插件窗口进入，避免切走笔记编辑页面。
+- `src/routes/plugins/+page.svelte`：管理/课表导航容器；具体组件与测试见[Mac产品流程](mac-product-flow.md)。桌面工作台通过独立插件窗口进入，避免切走笔记编辑页面。
 - `src-tauri/src/desktop_app.rs` / `mobile_app.rs`：主程序平台启动分离；桌面文件以crate-root include保留原Tauri命令宏作用域。移动页仍属同一Tauri产品，不是改名后的Probe。
 - `tests/frontend/timetable-v01.test.js`、Rust plugins测试：周次/节次/时区/坏输入/提醒数量、包篡改与损坏状态拒绝。
 

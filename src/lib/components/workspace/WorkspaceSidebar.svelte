@@ -1,5 +1,5 @@
 <script>
-  import { openPluginsWindow } from "$lib/plugins/open-window.js";
+  import WorkspacePluginLinks from "$lib/plugins/WorkspacePluginLinks.svelte";
   import {
     WORKSPACE_MAIN_TAB_NOTES,
     WORKSPACE_MAIN_TAB_FOCUS,
@@ -77,6 +77,7 @@
   <div class="sidebar-body">
     <div class="sidebar-block modules-block">
       <WorkspaceSidebarModules {strings} {collapsed} {mainTabs} {mainTab} {onSetMainTab} />
+      <WorkspacePluginLinks {collapsed}/>
     </div>
     <div class="sidebar-section-divider" aria-hidden="true"></div>
 
@@ -104,7 +105,6 @@
   </div>
 
   <div class="sidebar-actions">
-    <button type="button" class="footer-toggle" onclick={() => openPluginsWindow().catch(error => console.error(error))} title="插件与课表">插件与课表</button>
     <button
       type="button"
       class="footer-toggle"

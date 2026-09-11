@@ -6,7 +6,11 @@ The current delivery line is installable timetable v0.1 in the main Tauri produc
 
 ## Current State
 
-- D-EXT-005 is the active sequencing decision: finish the usable Mac product flow first; pause mobile packaging/interactive acceptance and do not expand Probe work. Shared Worker Proxy serialization and visible feedback are the immediate fix. Keep the existing platform adapters and evidence; do not rebuild three business implementations.
+- D-EXT-006 now prioritizes the Mac product experience: sidebar plugin management, installed timetable entry, import preview/confirmation and saved-course display. No mobile packaging, new notification adaptation or generic framework expansion in this batch. See [Mac product flow](../plugins/mac-product-flow.md). Existing native changes remain preserved.
+
+- Mac product UI batch has native evidence for package install, file import, full preview, save, process reopen, sidebar direct entry, and disable with data retained/queue empty. UI is split into manager/timetable/import components; malformed input and retry/navigation guards have real Worker DOM regression. Exact evidence and residual reminder/format gates are in the product flow above; no arbitrary-third-party or mobile release claim.
+
+- D-EXT-005 established the earlier sequencing decision: finish the usable Mac product flow first; pause mobile packaging/interactive acceptance and do not expand Probe work. Shared Worker Proxy serialization and visible feedback are the immediate fix. Keep the existing platform adapters and evidence; do not rebuild three business implementations.
 
 - Current batch is installable timetable v0.1 in the product, per [D-EXT-004](../DECISIONS.md#d-ext-004) and [product baseline](../plugins/timetable-v01.md). Simulator acceptance replaces the true-device gate only for this milestone. Exact reviewed package digests gate installation; arbitrary third-party execution remains closed pending isolation/resource validation. Product plugin page, native state/lifecycle and mobile boot paths are new implementations, not copied Probe shells.
 

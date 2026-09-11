@@ -2,13 +2,39 @@
 
 主 STEPS：承载正在推进的 Task 的宏观步骤序列与执行位置。任务级状态只在 [Project TODO](TODO.md) 维护，本文件只维护步骤状态。
 
-活跃步骤块数量：**3**
+活跃步骤块数量：**4**
 
 步骤状态取值：`未开始` / `进行中` / `受阻` / `已完成` / `已跳过`
 
 ---
 
 ## 活跃步骤块
+
+### T-PLUGIN-HOST · 第三方插件宿主 @v1
+
+<a id="t-plugin-host"></a>
+
+所有者Codex /root；single-writer；2026-09-11。回链：[Task](TODO.md#t-plugin-host)。目的：在主程序实现受限首包安装链路；授权与边界见D-EXT-004及[基线](plugins/timetable-v01.md)。
+
+```tracking-step
+{"id":"T-PLUGIN-HOST/S1","name":"官方课表包与原生安装边界","task_id":"T-PLUGIN-HOST","task_version":"v1","number":1,"status":"已完成","evidence":["主程序已实现完整包摘要预检/权限确认/原子独立状态；篡改包与坏状态拒绝测试通过；iOS产品内实际导入官方包、确认权限并安装启用"]}
+```
+
+```tracking-step
+{"id":"T-PLUGIN-HOST/S2","name":"插件运行入口与课表使用界面","task_id":"T-PLUGIN-HOST","task_version":"v1","number":2,"status":"已完成","evidence":["插件页和Worker运行已接入；iOS安装后出现课表入口；修正独立滚动，完整课表保存/提醒验收待继续","iOS文件选择器noWindowsAvailable，Window激活重试无效；Android Emulator不被CUA识别；已请求最小用户操作/ADB授权","2026-09-11 D-EXT-006恢复：先在Mac实现管理/使用分离；旧移动工具阻塞保留为历史证据，不阻塞当前阶段。","D-EXT-006 Mac本批：管理/课表分离、工作台动态入口、完整导入预览/确认保存、进程重开课程保留、停用入口隐藏与提醒队列清空均有原生实测；浏览器反向交互通过，见mac-product-flow.md。移动及完整提醒门仍未验收。"]}
+```
+
+```tracking-step
+{"id":"T-PLUGIN-HOST/S3","name":"产品移动构建与生命周期回归","task_id":"T-PLUGIN-HOST","task_version":"v1","number":3,"status":"未开始","evidence":[]}
+```
+
+```tracking-execution
+{"id":"T-PLUGIN-HOST/E-001","name":"课表插件产品接入基线与最小安装链路","task_id":"T-PLUGIN-HOST","task_version":"v1","status":"succeeded","authorization":"2026-09-11 用户要求主程序可安装课表v0.1及双模拟器闭环；任意第三方开放前保留安全门；2026-09-11 用户批准D-EXT-006：先在Mac落实插件入口、安装及独立课表导入使用","scope":"受限首包安装、权限确认、打开/停用/卸载、错误显示；产品按模块重做，不整包复制Probe","steps":["T-PLUGIN-HOST/S1","T-PLUGIN-HOST/S2","T-PLUGIN-HOST/S3"],"evidence":["a30f4ed已实现主程序受限包安装/权限/生命周期、Worker和课表页；60 Rust/34Node/check0错误/双端产品构建通过","iOS产品内实际预检、权限确认、安装启用和重开安装状态保留通过；最新课表导入与完整提醒矩阵因工具点击阻塞未完成，见产品检查点","用户反馈文件选择完成并选择手动Android；iOS复核安装仍有效、错误包输入被拒绝，native revision1/data=null/notificationIds空；恢复CUA仍noWindowsAvailable，未宣称保存或通知通过","2026-09-11 D-EXT-006恢复后完成Mac S2产品流程；原生安装/文件导入/预览/保存/进程重开/侧栏直达/停用入口同步及数据保留通过。37前端、check0/0、五组DOM/真实Worker通过。S3移动与整个Task安全/提醒验收未宣称完成；旧原生改动保留未混入本批前端提交。"],"stop_reason":null}
+```
+
+
+阶段顺序补充（D-EXT-006）：S2当前验收管理与课表入口、导入预览/保存/重开；不推进S3移动构建，也不扩大通知适配。Task整体安全与生命周期验收不减少。
+
 
 ### T-MOBILE-BASE · Android 与 iOS 基础客户端 @v2
 
@@ -66,29 +92,6 @@
 ---
 
 ## 挂起步骤块
-
-### T-PLUGIN-HOST · 第三方插件宿主 @v1
-
-<a id="t-plugin-host"></a>
-
-所有者Codex /root；single-writer；2026-09-11。回链：[Task](TODO.md#t-plugin-host)。目的：在主程序实现受限首包安装链路；授权与边界见D-EXT-004及[基线](plugins/timetable-v01.md)。
-
-```tracking-step
-{"id":"T-PLUGIN-HOST/S1","name":"官方课表包与原生安装边界","task_id":"T-PLUGIN-HOST","task_version":"v1","number":1,"status":"已完成","evidence":["主程序已实现完整包摘要预检/权限确认/原子独立状态；篡改包与坏状态拒绝测试通过；iOS产品内实际导入官方包、确认权限并安装启用"]}
-```
-
-```tracking-step
-{"id":"T-PLUGIN-HOST/S2","name":"插件运行入口与课表使用界面","task_id":"T-PLUGIN-HOST","task_version":"v1","number":2,"status":"受阻","evidence":["插件页和Worker运行已接入；iOS安装后出现课表入口；修正独立滚动，完整课表保存/提醒验收待继续","iOS文件选择器noWindowsAvailable，Window激活重试无效；Android Emulator不被CUA识别；已请求最小用户操作/ADB授权"]}
-```
-
-```tracking-step
-{"id":"T-PLUGIN-HOST/S3","name":"产品移动构建与生命周期回归","task_id":"T-PLUGIN-HOST","task_version":"v1","number":3,"status":"未开始","evidence":[]}
-```
-
-```tracking-execution
-{"id":"T-PLUGIN-HOST/E-001","name":"课表插件产品接入基线与最小安装链路","task_id":"T-PLUGIN-HOST","task_version":"v1","status":"paused","authorization":"2026-09-11 用户要求主程序可安装课表v0.1及双模拟器闭环；任意第三方开放前保留安全门","scope":"受限首包安装、权限确认、打开/停用/卸载、错误显示；产品按模块重做，不整包复制Probe","steps":["T-PLUGIN-HOST/S1","T-PLUGIN-HOST/S2","T-PLUGIN-HOST/S3"],"evidence":["a30f4ed已实现主程序受限包安装/权限/生命周期、Worker和课表页；60 Rust/34Node/check0错误/双端产品构建通过","iOS产品内实际预检、权限确认、安装启用和重开安装状态保留通过；最新课表导入与完整提醒矩阵因工具点击阻塞未完成，见产品检查点","用户反馈文件选择完成并选择手动Android；iOS复核安装仍有效、错误包输入被拒绝，native revision1/data=null/notificationIds空；恢复CUA仍noWindowsAvailable，未宣称保存或通知通过"],"stop_reason":"iOS当前已选JSON但原生data仍为空；CUA重新绑定仍无法滚动点击，待下方课表区域手动校验/保存。用户选择手动Android操作，不使用ADB UI代点；之后续接同一执行核对产品完整闭环。"}
-```
-
 
 ### T-PROJECT-REVIEW-FIX · 全量审查缺陷整改 @v1
 
