@@ -4,7 +4,8 @@ This is the first-read route for people and agents. Read the active documents be
 
 ## Active
 
-- [Mac Plugin Product Flow](plugins/mac-product-flow.md): current sidebar placement, plugin management and timetable import/use contract.
+- [Workspace Plugin Integration Plan](plugins/workspace-integration-plan.md): next Mac batch design; plugins and timetable inside the workspace, with draft protection and acceptance gates. Documentation only; not implemented yet.
+- [Mac Plugin First Implementation](plugins/mac-product-flow.md): existing separate-window implementation, reusable components and historical native acceptance evidence.
 
 - [Installable Timetable v0.1](plugins/timetable-v01.md): current product-integration contract, simulator acceptance and restricted-package safety gate.
 

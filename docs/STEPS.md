@@ -25,7 +25,19 @@
 ```
 
 ```tracking-step
-{"id":"T-PLUGIN-HOST/S3","name":"产品移动构建与生命周期回归","task_id":"T-PLUGIN-HOST","task_version":"v1","number":3,"status":"未开始","evidence":[]}
+{"id":"T-PLUGIN-HOST/S4","name":"插件主窗口接入方案","task_id":"T-PLUGIN-HOST","task_version":"v1","number":3,"status":"已完成","evidence":["主窗口接入方案v1含三产品官方来源、页面/草稿合同、源码路由、实施顺序、反例验收与恢复边界；文档review及链接/追踪校验通过，不代表代码实施"]}
+```
+
+主窗口方案先明确页面、草稿与验收边界；本轮只整理文档。后续实施须取得开始代码工作的指令，不把本执行作为代码实施证据。
+
+```tracking-step
+{"id":"T-PLUGIN-HOST/S5","name":"Mac主窗口接入与交互验收","task_id":"T-PLUGIN-HOST","task_version":"v1","number":4,"status":"未开始","evidence":[]}
+```
+
+获准实施后按[方案第6节](plugins/workspace-integration-plan.md#6-拟实施顺序与验收)先保护草稿，再接入页面并复跑Mac闭环；不以前轮独立窗口证据替代。本阶段期间不推进移动适配。
+
+```tracking-step
+{"id":"T-PLUGIN-HOST/S3","name":"产品移动构建与生命周期回归","task_id":"T-PLUGIN-HOST","task_version":"v1","number":5,"status":"未开始","evidence":[]}
 ```
 
 ```tracking-execution
@@ -34,6 +46,12 @@
 
 
 阶段顺序补充（D-EXT-006）：S2当前验收管理与课表入口、导入预览/保存/重开；不推进S3移动构建，也不扩大通知适配。Task整体安全与生命周期验收不减少。
+
+阶段顺序补充（D-EXT-007）：用户批准主窗口方向的方案整理；S1→S2的旧证据保留，插入S4方案和S5主窗口接入，再回到原S3移动阶段。原S3 ID不变，仅顺序号3→5；不重启已终态E-001。目标/范围仍归Task@v1，变更的是当前承载方式和阶段顺序。
+
+```tracking-execution
+{"id":"T-PLUGIN-HOST/E-002","name":"插件主窗口接入方案整理","task_id":"T-PLUGIN-HOST","task_version":"v1","status":"succeeded","authorization":"2026-09-11 用户：就按照你的调研结果整理方案文档；仅文档、计划和决策记录，不改代码/应用/用户数据","scope":"记录同主窗口产品设计、草稿保护、复用导航、实施顺序与验收；同步索引和任务记录，保留独立窗口旧证据","steps":["T-PLUGIN-HOST/S4"],"evidence":["已交付docs/plugins/workspace-integration-plan.md@v1并登记D-EXT-007；索引/TODO/STEPS对齐，旧独立窗口合同与实测保留；本轮仅文档，代码/应用/用户数据未改","已review方案与源码路由；本地链接检查、tracking_check及git diff --check通过。S5代码接入未开始，须后续启动实施。"],"stop_reason":null}
+```
 
 
 ### T-MOBILE-BASE · Android 与 iOS 基础客户端 @v2
