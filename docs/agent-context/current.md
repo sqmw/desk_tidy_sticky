@@ -6,6 +6,8 @@ The current delivery line is installable timetable v0.1 in the main Tauri produc
 
 ## Current State
 
+- Real timetable demo/schema v2 supersede invented visual fixtures: 15 courses/classes, 82 dated meetings, 87 teacher records, all reference times and reminders disabled. Plugin0.2.0 supports v1/v2; fixed old0.1.0 digest remains admitted to preserve installed states. See [schema and demo](../plugins/timetable-schema-v2.md). No production data replacement or external publication.
+
 - Timetable UI now prioritizes a compact weekly grid, not large daily/reminder cards. Week navigation, course details and secondary settings reuse the existing external Worker/JSON contract; see [week-view design and evidence](../ui/2026-09-11-timetable-week-view.md). Ownership: T-TIMETABLE-PLUGIN/E-002. No native adapter or plugin-package changes in this batch.
 
 - E-003 implements the D-EXT-007 workspace integration. Sidebar plugin/timetable entries now switch workspace content; notes stay mounted/inert when hidden, navigation waits existing saves and blocks conflicts, and confirmations use in-window dialogs. See [implementation evidence](../plugins/workspace-integration-implementation.md) for Mac/DOM results and compatibility boundaries. Earlier documentation-only wording below describes E-002, not current code.

@@ -21,7 +21,7 @@ export function layoutCourses(rows, periods) {
   const items=rows.map(course=>{
     const start=periods.findIndex(p=>p.start===course.start), end=periods.findIndex(p=>p.end===course.end);
     if(start<0||end<start)throw new Error('课程时间与节次不一致，请重新导入课表。');
-    return {...course,row:start+1,span:end-start+1,lane:0,lanes:1,color:courseColor(course.id)};
+    return {...course,row:start+1,span:end-start+1,lane:0,lanes:1,color:courseColor(course.courseId ? `course/${course.courseId}/stable` : course.id)};
   }).sort((a,b)=>a.row-b.row||b.span-a.span||a.id.localeCompare(b.id));
   let group=/** @type {any[]} */([]), ends=/** @type {number[]} */([]), boundary=0;
   function flush(){for(const item of group)item.lanes=ends.length;group=[];ends=[];}

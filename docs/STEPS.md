@@ -96,6 +96,14 @@
 {"id":"T-TIMETABLE-PLUGIN/E-002","name":"课表周视图与视觉重设计","task_id":"T-TIMETABLE-PLUGIN","task_version":"v1","status":"succeeded","authorization":"2026-09-11 用户提供课表页截图并明确重新设计一下这里；承接周课表主视图、紧凑导航、课程色块与次要设置的讨论","scope":"课表周视图、详情/提醒按需展开、主题/密度、日期周次展示及前端回归；不改包白名单、存储合同、提醒调度或移动适配","steps":["T-TIMETABLE-PLUGIN/S2"],"evidence":["按用户截图重做共享课表UI，默认周网格、紧凑导航、稳定柔和彩色课程块、今天突出；去除每日/提醒巨型卡片，详情和权限说明按需打开","43前端/check0错误0警告/生产前端构建/真实组件与实际Worker浏览器回归通过；补周次边界、跨年、单双周来源、冲突排列、课程详情、10课程8节亮暗与窄窗口、色块多色及深色标题对比度>=4.5断言","已review样式优先级、日历日期运算、规则来源和历史保护；插件包/摘要/Rust/数据协议未改，用户数据及现有应用未替换。丰富样例仅在测试替身中，不冒充新原生安装/提醒验收。"],"stop_reason":null}
 ```
 
+```tracking-step
+{"id":"T-TIMETABLE-PLUGIN/S3","name":"真实课表demo与schema v2","task_id":"T-TIMETABLE-PLUGIN","task_version":"v1","number":3,"status":"已完成","evidence":["真实demo替换虚构课程：15门/15班/82时段/87教师记录，参考时间与未知教师原样保留；schema v2文件/语义校验/实际Worker及页面兼容完成，demo不保存预览与空提醒计划已测","46前端/check0错误0警告/构建/浏览器回归、独立Ajv draft2020及Rust新旧包固定摘要/篡改拒绝验证通过；见plugins/timetable-schema-v2.md"]}
+```
+
+```tracking-execution
+{"id":"T-TIMETABLE-PLUGIN/E-003","name":"真实课表demo与schema v2","task_id":"T-TIMETABLE-PLUGIN","task_version":"v1","status":"succeeded","authorization":"2026-09-12 用户要求真实完整课表作为demo，不使用虚构课程，并设计好schema","scope":"源数据转换、课程/班级/授课schema v2、兼容v1的插件解析与真实demo预览回归；不发布、不覆盖用户已存数据、不调度demo提醒","steps":["T-TIMETABLE-PLUGIN/S3"],"evidence":["交付真实example.json与schema-v2.json，15课程/班级、82日期时段、87教师原文；null教师及参考节次保留，学校周次未确认用显示周","0.2.0插件支持v1/v2，保留0.1.0包与固定摘要；UI真实demo入口仅内存预览，导入预览显示授课详情，demo禁提醒；不改Host API/权限或其他原生适配","46前端测试、Svelte0/0、生产构建、独立Ajv schema验证、实际Worker浏览器回归和Rust包准入测试通过；原生安装现场未扩测，不更新安装版/用户数据/对外发布，review及恢复见schema文档"],"stop_reason":null}
+```
+
 ### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1
 
 - 回链 TODO 条目：[T-STK-P0-DATA-SAFETY](TODO.md#todo-t-stk-p0-data-safety)

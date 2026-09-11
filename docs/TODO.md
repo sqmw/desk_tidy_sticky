@@ -49,10 +49,10 @@
 <a id="t-timetable-plugin"></a>
 
 ```tracking-task
-{"id":"T-TIMETABLE-PLUGIN","name":"课表插件与 JSON 规范","goal":"通过正常插件协议导入、展示课表并管理上课提醒","scope":"版本化课表JSON、学期/周次/节次、今日/周视图、调停课、提醒和手动导出；不含学校爬取、OCR或自动同步","acceptance":"坏数据不覆盖旧课表，重复导入不重复创建；单双周和例外正确；调整/停用取消陈旧提醒；桌面与移动解析同一课表语义一致","dependencies":["T-PLUGIN-HOST"],"version":"v1","mode":"staged","status":"in_progress","execution_ref":"STEPS.md#t-timetable-plugin","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001"]}
+{"id":"T-TIMETABLE-PLUGIN","name":"课表插件与 JSON 规范","goal":"通过正常插件协议导入、展示课表并管理上课提醒","scope":"版本化课表JSON、学期/周次/节次、今日/周视图、调停课、提醒和手动导出；不含学校爬取、OCR或自动同步","acceptance":"坏数据不覆盖旧课表，重复导入不重复创建；单双周和例外正确；调整/停用取消陈旧提醒；桌面与移动解析同一课表语义一致","dependencies":["T-PLUGIN-HOST"],"version":"v1","mode":"staged","status":"in_progress","execution_ref":"STEPS.md#t-timetable-plugin","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-008"]}
 ```
 
-课表已改为周视图主界面，布局、详情/设置及回归证据见[视觉重设计](ui/2026-09-11-timetable-week-view.md)；Task整体仍保留调停课、更多格式和提醒/跨端验收，未因UI完成而关闭。
+已采用用户真实完整课表作为demo，并实现[schema v2及兼容读取](plugins/timetable-schema-v2.md)；原[周视图设计](ui/2026-09-11-timetable-week-view.md)的虚构预览数据不再使用。Task整体仍保留调停课、更多格式和提醒/跨端验收，未因此关闭。
 
 ### T-EXT-CROSSPLATFORM-ACCEPTANCE · 跨端插件与课表集成验收
 

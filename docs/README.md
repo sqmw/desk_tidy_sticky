@@ -4,6 +4,8 @@ This is the first-read route for people and agents. Read the active documents be
 
 ## Active
 
+- [Timetable Schema v2 and Real Demo](plugins/timetable-schema-v2.md): current data contract, actual course demo, source/uncertainty preservation, v1 compatibility and reminder safety.
+
 - [Timetable Week View](ui/2026-09-11-timetable-week-view.md): current timetable visual design, week navigation, course grid, settings/details and regression coverage.
 
 - [Workspace Plugin Integration](plugins/workspace-integration-implementation.md): current Mac in-workspace navigation, draft protection, reusable components and verification boundaries.

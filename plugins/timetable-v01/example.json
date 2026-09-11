@@ -1,13 +1,3061 @@
 {
-  "schemaVersion": 1,
-  "id": "semester-2026-autumn",
-  "semester": { "startDate": "2026-09-07", "timeZone": "Asia/Shanghai", "weeks": 18 },
-  "reminderMinutes": 10,
+  "schemaVersion": 2,
+  "id": "njmu-2026-fall",
+  "mode": "demo",
+  "semester": {
+    "startDate": "2026-09-14",
+    "weeks": 17,
+    "timeZone": "Asia/Shanghai",
+    "weekNumberStart": null
+  },
+  "reminders": {
+    "enabled": false,
+    "minutesBefore": 10
+  },
   "periods": [
-    { "id": "p1", "start": "08:00", "end": "08:45" },
-    { "id": "p2", "start": "08:55", "end": "09:40" }
+    {
+      "id": "p1",
+      "start": "08:00",
+      "end": "08:40",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[0]"
+      }
+    },
+    {
+      "id": "p2",
+      "start": "08:50",
+      "end": "09:30",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[1]"
+      }
+    },
+    {
+      "id": "p3",
+      "start": "09:40",
+      "end": "10:20",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[2]"
+      }
+    },
+    {
+      "id": "p4",
+      "start": "10:30",
+      "end": "11:10",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[3]"
+      }
+    },
+    {
+      "id": "p5",
+      "start": "11:20",
+      "end": "12:00",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[4]"
+      }
+    },
+    {
+      "id": "p6",
+      "start": "12:10",
+      "end": "12:50",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[5]"
+      }
+    },
+    {
+      "id": "p7",
+      "start": "14:00",
+      "end": "14:40",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[6]"
+      }
+    },
+    {
+      "id": "p8",
+      "start": "14:50",
+      "end": "15:30",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[7]"
+      }
+    },
+    {
+      "id": "p9",
+      "start": "15:40",
+      "end": "16:20",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[8]"
+      }
+    },
+    {
+      "id": "p10",
+      "start": "16:30",
+      "end": "17:10",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[9]"
+      }
+    },
+    {
+      "id": "p11",
+      "start": "17:20",
+      "end": "18:00",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[10]"
+      }
+    },
+    {
+      "id": "p12",
+      "start": "18:10",
+      "end": "18:50",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[11]"
+      }
+    },
+    {
+      "id": "p13",
+      "start": "19:00",
+      "end": "19:40",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[12]"
+      }
+    },
+    {
+      "id": "p14",
+      "start": "19:50",
+      "end": "20:30",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[13]"
+      }
+    },
+    {
+      "id": "p15",
+      "start": "20:40",
+      "end": "21:20",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[14]"
+      }
+    },
+    {
+      "id": "p16",
+      "start": "21:30",
+      "end": "22:10",
+      "source": {
+        "sourceId": "bell-times",
+        "locator": "periodTimes[15]"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "id": "print",
+      "title": "课表打印.doc",
+      "sha256": "bf45d0daf0377f35ead8f1200fc1ad088ddec1d27296e1f621588718bf39a84d"
+    },
+    {
+      "id": "catalog",
+      "title": "2026-2027学年第一学期（秋季）研究生课程目录及课程安排表 (1).xlsx",
+      "sha256": "9981f127c46a2afc2b21bbd79102831e5fa4d10b927f178eb042b9f53d76cbd7"
+    },
+    {
+      "id": "bell-times",
+      "title": "njmu-course-planner/config/2026-2027-fall.json 作息时间",
+      "sha256": "2c1d934670e99bde8072b5ede5d769d4811b6543bfcd8c554df32a332313ae93"
+    }
   ],
   "courses": [
-    { "id": "linear-algebra", "name": "线性代数", "room": "教学楼203", "weekday": 1, "weeks": [1,3,5,7,9,11,13,15,17], "periodIds": ["p1","p2"] }
+    {
+      "id": "G310jc009a",
+      "code": "G310jc009a",
+      "name": "学术规范与实验室安全"
+    },
+    {
+      "id": "G320my019a",
+      "code": "G320my019a",
+      "name": "新时代中国特色社会主义理论与实践"
+    },
+    {
+      "id": "Z320gx187a",
+      "code": "Z320gx187a",
+      "name": "医学大数据与人工智能"
+    },
+    {
+      "id": "Z320gx184a",
+      "code": "Z320gx184a",
+      "name": "生物信息学及临床应用前沿"
+    },
+    {
+      "id": "Z320gx186a",
+      "code": "Z320gx186a",
+      "name": "先进生物医学材料"
+    },
+    {
+      "id": "Z320gx185a",
+      "code": "Z320gx185a",
+      "name": "专业英语（工信院）"
+    },
+    {
+      "id": "Z310yy077a",
+      "code": "Z310yy077a",
+      "name": "纳米药物前沿"
+    },
+    {
+      "id": "Z310gx192a",
+      "code": "Z310gx192a",
+      "name": "道法自然的科研"
+    },
+    {
+      "id": "Z310jc127a",
+      "code": "Z310jc127a",
+      "name": "创新思维和科研方法"
+    },
+    {
+      "id": "Z320gx188a",
+      "code": "Z320gx188a",
+      "name": "生物医学工程伦理"
+    },
+    {
+      "id": "G110jc018a",
+      "code": "G110jc018a",
+      "name": "科研设计与论文写作（自然科学）"
+    },
+    {
+      "id": "G310yy031a",
+      "code": "G310yy031a",
+      "name": "智能分子影像与医学创新"
+    },
+    {
+      "id": "Z320gx193a",
+      "code": "Z320gx193a",
+      "name": "数字医学技术与应用"
+    },
+    {
+      "id": "G310my027a",
+      "code": "G310my027a",
+      "name": "自然辩证法概论"
+    },
+    {
+      "id": "Z320gx189a",
+      "code": "Z320gx189a",
+      "name": "生物医学复杂网络分析"
+    }
+  ],
+  "sections": [
+    {
+      "id": "G310jc009a-class-8",
+      "courseId": "G310jc009a",
+      "name": "学术规范与实验室安全8班"
+    },
+    {
+      "id": "G320my019a-class-8",
+      "courseId": "G320my019a",
+      "name": "新时代中国特色社会主义理论与实践8班"
+    },
+    {
+      "id": "Z320gx187a-class-2",
+      "courseId": "Z320gx187a",
+      "name": "医学大数据与人工智能2班"
+    },
+    {
+      "id": "Z320gx184a-class-1",
+      "courseId": "Z320gx184a",
+      "name": "生物信息学及临床应用前沿1班"
+    },
+    {
+      "id": "Z320gx186a-class-1",
+      "courseId": "Z320gx186a",
+      "name": "先进生物医学材料1班"
+    },
+    {
+      "id": "Z320gx185a-class-1",
+      "courseId": "Z320gx185a",
+      "name": "专业英语（工信院）1班"
+    },
+    {
+      "id": "Z310yy077a-class-1",
+      "courseId": "Z310yy077a",
+      "name": "纳米药物前沿1班"
+    },
+    {
+      "id": "Z310gx192a-class-1",
+      "courseId": "Z310gx192a",
+      "name": "道法自然的科研1班"
+    },
+    {
+      "id": "Z310jc127a-class-1",
+      "courseId": "Z310jc127a",
+      "name": "创新思维和科研方法1班"
+    },
+    {
+      "id": "Z320gx188a-class-1",
+      "courseId": "Z320gx188a",
+      "name": "生物医学工程伦理1班"
+    },
+    {
+      "id": "G110jc018a-class-8",
+      "courseId": "G110jc018a",
+      "name": "科研设计与论文写作（自然科学）8班"
+    },
+    {
+      "id": "G310yy031a-class-1",
+      "courseId": "G310yy031a",
+      "name": "智能分子影像与医学创新1班"
+    },
+    {
+      "id": "Z320gx193a-class-1",
+      "courseId": "Z320gx193a",
+      "name": "数字医学技术与应用1班"
+    },
+    {
+      "id": "G310my027a-class-4",
+      "courseId": "G310my027a",
+      "name": "自然辩证法概论4班"
+    },
+    {
+      "id": "Z320gx189a-class-1",
+      "courseId": "Z320gx189a",
+      "name": "生物医学复杂网络分析1班"
+    }
+  ],
+  "meetings": [
+    {
+      "id": "m-2026-09-17-G310jc009a",
+      "sectionId": "G310jc009a-class-8",
+      "date": "2026-09-17",
+      "dayPart": "morning",
+      "time": {
+        "periodIds": [
+          "p4",
+          "p5"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G92"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "周莎"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row2/day4"
+      },
+      "rawEntries": [
+        "学术规范与实验室安全8班[周莎](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-09-14-G320my019a",
+      "sectionId": "G320my019a-class-8",
+      "date": "2026-09-14",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G107"
+        }
+      },
+      "room": "逸夫楼阶7",
+      "teachers": [
+        "周业勤"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row3/day1"
+      },
+      "rawEntries": [
+        "新时代中国特色社会主义理论与实践8班[周业勤](逸夫楼阶7)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "打印地点与旧安排表不同，展示采用打印地点。",
+        "打印星期与旧安排表不同，展示采用打印日期。"
+      ]
+    },
+    {
+      "id": "m-2026-09-18-Z320gx187a",
+      "sectionId": "Z320gx187a-class-2",
+      "date": "2026-09-18",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G456"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "李建清"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row4/day5"
+      },
+      "rawEntries": [
+        "医学大数据与人工智能2班[李建清](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-09-19-Z320gx184a",
+      "sectionId": "Z320gx184a-class-1",
+      "date": "2026-09-19",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G448"
+        }
+      },
+      "room": "逸夫楼阶7",
+      "teachers": [
+        "汪强虎"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row4/day6"
+      },
+      "rawEntries": [
+        "生物信息学及临床应用前沿1班[汪强虎](逸夫楼阶7)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-09-21-Z320gx186a",
+      "sectionId": "Z320gx186a-class-1",
+      "date": "2026-09-21",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G453"
+        }
+      },
+      "room": "博学楼A208",
+      "teachers": [
+        "段磊",
+        "金娟"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row5/day1"
+      },
+      "rawEntries": [
+        "先进生物医学材料1班[段磊](博学楼A208)",
+        "先进生物医学材料1班[金娟](博学楼A208)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "同一时段列出多位教师；各自授课节次未注明，不拆成重复课程或提醒。"
+      ]
+    },
+    {
+      "id": "m-2026-09-22-Z320gx185a",
+      "sectionId": "Z320gx185a-class-1",
+      "date": "2026-09-22",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G451"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "赵黎黎"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row5/day2"
+      },
+      "rawEntries": [
+        "专业英语（工信院）1班[赵黎黎](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-09-28-Z320gx186a",
+      "sectionId": "Z320gx186a-class-1",
+      "date": "2026-09-28",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G453"
+        }
+      },
+      "room": "博学楼A208",
+      "teachers": [
+        "黄斌"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row6/day1"
+      },
+      "rawEntries": [
+        "先进生物医学材料1班[黄斌](博学楼A208)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-09-29-Z320gx185a",
+      "sectionId": "Z320gx185a-class-1",
+      "date": "2026-09-29",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G451"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "刘亿一"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row6/day2"
+      },
+      "rawEntries": [
+        "专业英语（工信院）1班[刘亿一](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-08-Z310yy077a",
+      "sectionId": "Z310yy077a-class-1",
+      "date": "2026-10-08",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G393"
+        }
+      },
+      "room": "博学楼A208",
+      "teachers": [
+        "韩峰"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row7/day4"
+      },
+      "rawEntries": [
+        "纳米药物前沿1班[韩峰](博学楼A208)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-09-Z320gx187a",
+      "sectionId": "Z320gx187a-class-2",
+      "date": "2026-10-09",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G456"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "刘宾"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row7/day5"
+      },
+      "rawEntries": [
+        "医学大数据与人工智能2班[刘宾](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-10-Z320gx184a",
+      "sectionId": "Z320gx184a-class-1",
+      "date": "2026-10-10",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G448"
+        }
+      },
+      "room": "逸夫楼阶7",
+      "teachers": [
+        "武剑"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row7/day6"
+      },
+      "rawEntries": [
+        "生物信息学及临床应用前沿1班[武剑](逸夫楼阶7)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-11-Z310gx192a",
+      "sectionId": "Z310gx192a-class-1",
+      "date": "2026-10-11",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G334"
+        }
+      },
+      "room": "学海楼D214",
+      "teachers": [
+        "余善成"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row7/day7"
+      },
+      "rawEntries": [
+        "道法自然的科研1班[余善成](学海楼D214)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-14-Z310jc127a",
+      "sectionId": "Z310jc127a-class-1",
+      "date": "2026-10-14",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G338"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "王成坤"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row8/day3"
+      },
+      "rawEntries": [
+        "创新思维和科研方法1班[王成坤](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "打印地点与旧安排表不同，展示采用打印地点。"
+      ]
+    },
+    {
+      "id": "m-2026-10-12-Z320gx186a",
+      "sectionId": "Z320gx186a-class-1",
+      "date": "2026-10-12",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G453"
+        }
+      },
+      "room": "明达楼215",
+      "teachers": [
+        "黄斌"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row9/day1"
+      },
+      "rawEntries": [
+        "先进生物医学材料1班[黄斌](明达楼215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-15-Z310yy077a",
+      "sectionId": "Z310yy077a-class-1",
+      "date": "2026-10-15",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G393"
+        }
+      },
+      "room": "博学楼A208",
+      "teachers": [
+        "徐华娥"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row9/day4"
+      },
+      "rawEntries": [
+        "纳米药物前沿1班[徐华娥](博学楼A208)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-16-Z320gx187a",
+      "sectionId": "Z320gx187a-class-2",
+      "date": "2026-10-16",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G456"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "刘宾"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row9/day5"
+      },
+      "rawEntries": [
+        "医学大数据与人工智能2班[刘宾](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-17-Z320gx184a",
+      "sectionId": "Z320gx184a-class-1",
+      "date": "2026-10-17",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G448"
+        }
+      },
+      "room": "逸夫楼阶7",
+      "teachers": [
+        "王铖"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row9/day6"
+      },
+      "rawEntries": [
+        "生物信息学及临床应用前沿1班[王铖](逸夫楼阶7)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-18-Z310gx192a",
+      "sectionId": "Z310gx192a-class-1",
+      "date": "2026-10-18",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G334"
+        }
+      },
+      "room": "学海楼D214",
+      "teachers": [
+        "王捷"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row9/day7"
+      },
+      "rawEntries": [
+        "道法自然的科研1班[王捷](学海楼D214)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-24-Z320gx188a",
+      "sectionId": "Z320gx188a-class-1",
+      "date": "2026-10-24",
+      "dayPart": "morning",
+      "time": {
+        "periodIds": [
+          "p2",
+          "p3",
+          "p4",
+          "p5"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G458"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "刘亿一"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row10/day6"
+      },
+      "rawEntries": [
+        "生物医学工程伦理1班[刘亿一](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-21-Z310jc127a",
+      "sectionId": "Z310jc127a-class-1",
+      "date": "2026-10-21",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G338"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "胡志林"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row11/day3"
+      },
+      "rawEntries": [
+        "创新思维和科研方法1班[胡志林](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "打印地点与旧安排表不同，展示采用打印地点。"
+      ]
+    },
+    {
+      "id": "m-2026-10-19-Z320gx186a",
+      "sectionId": "Z320gx186a-class-1",
+      "date": "2026-10-19",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G453"
+        }
+      },
+      "room": "明达楼215",
+      "teachers": [
+        "刘亿一"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row12/day1"
+      },
+      "rawEntries": [
+        "先进生物医学材料1班[刘亿一](明达楼215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-20-Z320gx185a",
+      "sectionId": "Z320gx185a-class-1",
+      "date": "2026-10-20",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G451"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "刘亿一"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row12/day2"
+      },
+      "rawEntries": [
+        "专业英语（工信院）1班[刘亿一](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-22-Z310yy077a",
+      "sectionId": "Z310yy077a-class-1",
+      "date": "2026-10-22",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G393"
+        }
+      },
+      "room": "博学楼A208",
+      "teachers": [
+        "霍达"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row12/day4"
+      },
+      "rawEntries": [
+        "纳米药物前沿1班[霍达](博学楼A208)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-23-Z320gx187a",
+      "sectionId": "Z320gx187a-class-2",
+      "date": "2026-10-23",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G456"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "张明智"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row12/day5"
+      },
+      "rawEntries": [
+        "医学大数据与人工智能2班[张明智](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-24-Z320gx184a",
+      "sectionId": "Z320gx184a-class-1",
+      "date": "2026-10-24",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G448"
+        }
+      },
+      "room": "逸夫楼阶7",
+      "teachers": [
+        "王铖"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row12/day6"
+      },
+      "rawEntries": [
+        "生物信息学及临床应用前沿1班[王铖](逸夫楼阶7)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-25-Z310gx192a",
+      "sectionId": "Z310gx192a-class-1",
+      "date": "2026-10-25",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G334"
+        }
+      },
+      "room": "学海楼D214",
+      "teachers": [
+        "王捷"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row12/day7"
+      },
+      "rawEntries": [
+        "道法自然的科研1班[王捷](学海楼D214)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-31-Z320gx188a",
+      "sectionId": "Z320gx188a-class-1",
+      "date": "2026-10-31",
+      "dayPart": "morning",
+      "time": {
+        "periodIds": [
+          "p2",
+          "p3",
+          "p4",
+          "p5"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G458"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "陈峰"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row13/day6"
+      },
+      "rawEntries": [
+        "生物医学工程伦理1班[陈峰](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-28-Z310jc127a",
+      "sectionId": "Z310jc127a-class-1",
+      "date": "2026-10-28",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G338"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "谢利平"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row14/day3"
+      },
+      "rawEntries": [
+        "创新思维和科研方法1班[谢利平](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "打印地点与旧安排表不同，展示采用打印地点。"
+      ]
+    },
+    {
+      "id": "m-2026-10-30-G110jc018a",
+      "sectionId": "G110jc018a-class-8",
+      "date": "2026-10-30",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G15"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "乐珅",
+        "马长艳"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row14/day5"
+      },
+      "rawEntries": [
+        "科研设计与论文写作（自然科学）8班[乐珅](平房教室)",
+        "科研设计与论文写作（自然科学）8班[马长艳](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "同一时段列出多位教师；各自授课节次未注明，不拆成重复课程或提醒。"
+      ]
+    },
+    {
+      "id": "m-2026-10-26-Z320gx186a",
+      "sectionId": "Z320gx186a-class-1",
+      "date": "2026-10-26",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G453"
+        }
+      },
+      "room": "明达楼215",
+      "teachers": [
+        "刘亿一"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row15/day1"
+      },
+      "rawEntries": [
+        "先进生物医学材料1班[刘亿一](明达楼215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-27-Z320gx185a",
+      "sectionId": "Z320gx185a-class-1",
+      "date": "2026-10-27",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G451"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "刘亿一"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row15/day2"
+      },
+      "rawEntries": [
+        "专业英语（工信院）1班[刘亿一](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-29-Z310yy077a",
+      "sectionId": "Z310yy077a-class-1",
+      "date": "2026-10-29",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G393"
+        }
+      },
+      "room": "博学楼A208",
+      "teachers": [
+        "李玲玲"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row15/day4"
+      },
+      "rawEntries": [
+        "纳米药物前沿1班[李玲玲](博学楼A208)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-30-Z320gx187a",
+      "sectionId": "Z320gx187a-class-2",
+      "date": "2026-10-30",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G456"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "王俊杰"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row15/day5"
+      },
+      "rawEntries": [
+        "医学大数据与人工智能2班[王俊杰](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-10-31-Z320gx184a",
+      "sectionId": "Z320gx184a-class-1",
+      "date": "2026-10-31",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G448"
+        }
+      },
+      "room": "逸夫楼阶7",
+      "teachers": [
+        "李科宁"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row15/day6"
+      },
+      "rawEntries": [
+        "生物信息学及临床应用前沿1班[李科宁](逸夫楼阶7)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-01-Z310gx192a",
+      "sectionId": "Z310gx192a-class-1",
+      "date": "2026-11-01",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G334"
+        }
+      },
+      "room": "学海楼D214",
+      "teachers": [
+        "余善成"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row15/day7"
+      },
+      "rawEntries": [
+        "道法自然的科研1班[余善成](学海楼D214)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-07-Z320gx188a",
+      "sectionId": "Z320gx188a-class-1",
+      "date": "2026-11-07",
+      "dayPart": "morning",
+      "time": {
+        "periodIds": [
+          "p2",
+          "p3",
+          "p4",
+          "p5"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G458"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "刘亿一"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row16/day6"
+      },
+      "rawEntries": [
+        "生物医学工程伦理1班[刘亿一](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-03-G310yy031a",
+      "sectionId": "G310yy031a-class-1",
+      "date": "2026-11-03",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G141"
+        }
+      },
+      "room": "明达楼215",
+      "teachers": [
+        "张涛"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row17/day2"
+      },
+      "rawEntries": [
+        "智能分子影像与医学创新1班[张涛](明达楼215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-04-Z310jc127a",
+      "sectionId": "Z310jc127a-class-1",
+      "date": "2026-11-04",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G338"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "刘文涛"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row17/day3"
+      },
+      "rawEntries": [
+        "创新思维和科研方法1班[刘文涛](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "打印地点与旧安排表不同，展示采用打印地点。"
+      ]
+    },
+    {
+      "id": "m-2026-11-06-G110jc018a",
+      "sectionId": "G110jc018a-class-8",
+      "date": "2026-11-06",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G15"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "陈进",
+        "张正东"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row17/day5"
+      },
+      "rawEntries": [
+        "科研设计与论文写作（自然科学）8班[陈进](平房教室)",
+        "科研设计与论文写作（自然科学）8班[张正东](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "同一时段列出多位教师；各自授课节次未注明，不拆成重复课程或提醒。"
+      ]
+    },
+    {
+      "id": "m-2026-11-02-Z320gx186a",
+      "sectionId": "Z320gx186a-class-1",
+      "date": "2026-11-02",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G453"
+        }
+      },
+      "room": "明达楼215",
+      "teachers": [
+        "吴昊"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row18/day1"
+      },
+      "rawEntries": [
+        "先进生物医学材料1班[吴昊](明达楼215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-03-Z320gx185a",
+      "sectionId": "Z320gx185a-class-1",
+      "date": "2026-11-03",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G451"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "赵黎黎"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row18/day2"
+      },
+      "rawEntries": [
+        "专业英语（工信院）1班[赵黎黎](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-06-Z320gx187a",
+      "sectionId": "Z320gx187a-class-2",
+      "date": "2026-11-06",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G456"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "胡杰"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row18/day5"
+      },
+      "rawEntries": [
+        "医学大数据与人工智能2班[胡杰](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-07-Z320gx184a",
+      "sectionId": "Z320gx184a-class-1",
+      "date": "2026-11-07",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G448"
+        }
+      },
+      "room": "逸夫楼阶7",
+      "teachers": [
+        "邵娇芳"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row18/day6"
+      },
+      "rawEntries": [
+        "生物信息学及临床应用前沿1班[邵娇芳](逸夫楼阶7)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-14-Z320gx188a",
+      "sectionId": "Z320gx188a-class-1",
+      "date": "2026-11-14",
+      "dayPart": "morning",
+      "time": {
+        "periodIds": [
+          "p2",
+          "p3",
+          "p4",
+          "p5"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G458"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "金娟"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row19/day6"
+      },
+      "rawEntries": [
+        "生物医学工程伦理1班[金娟](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-10-G310yy031a",
+      "sectionId": "G310yy031a-class-1",
+      "date": "2026-11-10",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G141"
+        }
+      },
+      "room": "明达楼215",
+      "teachers": [
+        "张涛"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row20/day2"
+      },
+      "rawEntries": [
+        "智能分子影像与医学创新1班[张涛](明达楼215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-13-G110jc018a",
+      "sectionId": "G110jc018a-class-8",
+      "date": "2026-11-13",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G15"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "杭栋",
+        "徐志鹏"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row20/day5"
+      },
+      "rawEntries": [
+        "科研设计与论文写作（自然科学）8班[杭栋](平房教室)",
+        "科研设计与论文写作（自然科学）8班[徐志鹏](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "同一时段列出多位教师；各自授课节次未注明，不拆成重复课程或提醒。"
+      ]
+    },
+    {
+      "id": "m-2026-11-09-Z320gx186a",
+      "sectionId": "Z320gx186a-class-1",
+      "date": "2026-11-09",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G453"
+        }
+      },
+      "room": "明达楼215",
+      "teachers": [
+        "吴昊"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row21/day1"
+      },
+      "rawEntries": [
+        "先进生物医学材料1班[吴昊](明达楼215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-10-Z320gx185a",
+      "sectionId": "Z320gx185a-class-1",
+      "date": "2026-11-10",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G451"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "刘亿一"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row21/day2"
+      },
+      "rawEntries": [
+        "专业英语（工信院）1班[刘亿一](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-12-Z320gx193a",
+      "sectionId": "Z320gx193a-class-1",
+      "date": "2026-11-12",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G464"
+        }
+      },
+      "room": "学海楼D215",
+      "teachers": [
+        "黄婧"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row21/day4"
+      },
+      "rawEntries": [
+        "数字医学技术与应用1班[黄婧](学海楼D215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-13-Z320gx187a",
+      "sectionId": "Z320gx187a-class-2",
+      "date": "2026-11-13",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G456"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "李杰"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row21/day5"
+      },
+      "rawEntries": [
+        "医学大数据与人工智能2班[李杰](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-14-Z320gx184a",
+      "sectionId": "Z320gx184a-class-1",
+      "date": "2026-11-14",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G448"
+        }
+      },
+      "room": "逸夫楼阶7",
+      "teachers": [
+        "李科宁"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row21/day6"
+      },
+      "rawEntries": [
+        "生物信息学及临床应用前沿1班[李科宁](逸夫楼阶7)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-21-Z320gx188a",
+      "sectionId": "Z320gx188a-class-1",
+      "date": "2026-11-21",
+      "dayPart": "morning",
+      "time": {
+        "periodIds": [
+          "p2",
+          "p3",
+          "p4",
+          "p5"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G458"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "金娟"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row22/day6"
+      },
+      "rawEntries": [
+        "生物医学工程伦理1班[金娟](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-17-G310yy031a",
+      "sectionId": "G310yy031a-class-1",
+      "date": "2026-11-17",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G141"
+        }
+      },
+      "room": "明达楼215",
+      "teachers": [
+        "张涛"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row23/day2"
+      },
+      "rawEntries": [
+        "智能分子影像与医学创新1班[张涛](明达楼215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-18-G310my027a",
+      "sectionId": "G310my027a-class-4",
+      "date": "2026-11-18",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G99"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "石仿"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row23/day3"
+      },
+      "rawEntries": [
+        "自然辩证法概论4班[石仿](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-20-G110jc018a",
+      "sectionId": "G110jc018a-class-8",
+      "date": "2026-11-20",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G15"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "施荣根",
+        "王觉进"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row23/day5"
+      },
+      "rawEntries": [
+        "科研设计与论文写作（自然科学）8班[施荣根](平房教室)",
+        "科研设计与论文写作（自然科学）8班[王觉进](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "同一时段列出多位教师；各自授课节次未注明，不拆成重复课程或提醒。"
+      ]
+    },
+    {
+      "id": "m-2026-11-16-Z320gx186a",
+      "sectionId": "Z320gx186a-class-1",
+      "date": "2026-11-16",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G453"
+        }
+      },
+      "room": "明达楼215",
+      "teachers": [
+        "段磊"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row24/day1"
+      },
+      "rawEntries": [
+        "先进生物医学材料1班[段磊](明达楼215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-17-Z320gx185a",
+      "sectionId": "Z320gx185a-class-1",
+      "date": "2026-11-17",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G451"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "刘亿一"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row24/day2"
+      },
+      "rawEntries": [
+        "专业英语（工信院）1班[刘亿一](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-19-Z320gx193a",
+      "sectionId": "Z320gx193a-class-1",
+      "date": "2026-11-19",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G464"
+        }
+      },
+      "room": "学海楼D215",
+      "teachers": [
+        "胡本慧"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row24/day4"
+      },
+      "rawEntries": [
+        "数字医学技术与应用1班[胡本慧](学海楼D215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-20-Z320gx187a",
+      "sectionId": "Z320gx187a-class-2",
+      "date": "2026-11-20",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G456"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "李杰"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row24/day5"
+      },
+      "rawEntries": [
+        "医学大数据与人工智能2班[李杰](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-21-Z320gx184a",
+      "sectionId": "Z320gx184a-class-1",
+      "date": "2026-11-21",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G448"
+        }
+      },
+      "room": "逸夫楼阶7",
+      "teachers": [
+        "武剑"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row24/day6"
+      },
+      "rawEntries": [
+        "生物信息学及临床应用前沿1班[武剑](逸夫楼阶7)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-28-Z320gx188a",
+      "sectionId": "Z320gx188a-class-1",
+      "date": "2026-11-28",
+      "dayPart": "morning",
+      "time": {
+        "periodIds": [
+          "p2",
+          "p3",
+          "p4",
+          "p5"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G458"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "陈峰"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row25/day6"
+      },
+      "rawEntries": [
+        "生物医学工程伦理1班[陈峰](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-24-G310yy031a",
+      "sectionId": "G310yy031a-class-1",
+      "date": "2026-11-24",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G141"
+        }
+      },
+      "room": "明达楼215",
+      "teachers": [
+        "张涛"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row26/day2"
+      },
+      "rawEntries": [
+        "智能分子影像与医学创新1班[张涛](明达楼215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-25-G310my027a",
+      "sectionId": "G310my027a-class-4",
+      "date": "2026-11-25",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G99"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "石仿"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row26/day3"
+      },
+      "rawEntries": [
+        "自然辩证法概论4班[石仿](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-24-Z320gx185a",
+      "sectionId": "Z320gx185a-class-1",
+      "date": "2026-11-24",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G451"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        null
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row27/day2"
+      },
+      "rawEntries": [
+        "专业英语（工信院）1班[](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "打印表教师为空，保留未知。"
+      ]
+    },
+    {
+      "id": "m-2026-11-26-Z320gx193a",
+      "sectionId": "Z320gx193a-class-1",
+      "date": "2026-11-26",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G464"
+        }
+      },
+      "room": "学海楼D215",
+      "teachers": [
+        "胡本慧"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row27/day4"
+      },
+      "rawEntries": [
+        "数字医学技术与应用1班[胡本慧](学海楼D215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-05-Z320gx188a",
+      "sectionId": "Z320gx188a-class-1",
+      "date": "2026-12-05",
+      "dayPart": "morning",
+      "time": {
+        "periodIds": [
+          "p2",
+          "p3",
+          "p4",
+          "p5"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G458"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "陈峰"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row28/day6"
+      },
+      "rawEntries": [
+        "生物医学工程伦理1班[陈峰](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-02-G310my027a",
+      "sectionId": "G310my027a-class-4",
+      "date": "2026-12-02",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G99"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "石仿"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row29/day3"
+      },
+      "rawEntries": [
+        "自然辩证法概论4班[石仿](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-11-30-Z320gx189a",
+      "sectionId": "Z320gx189a-class-1",
+      "date": "2026-11-30",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G459"
+        }
+      },
+      "room": "博学楼B206",
+      "teachers": [
+        "张锡哲"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row30/day1"
+      },
+      "rawEntries": [
+        "生物医学复杂网络分析1班[张锡哲](博学楼B206)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-03-Z320gx193a",
+      "sectionId": "Z320gx193a-class-1",
+      "date": "2026-12-03",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G464"
+        }
+      },
+      "room": "学海楼D215",
+      "teachers": [
+        "胡本慧"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row30/day4"
+      },
+      "rawEntries": [
+        "数字医学技术与应用1班[胡本慧](学海楼D215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-04-Z320gx189a",
+      "sectionId": "Z320gx189a-class-1",
+      "date": "2026-12-04",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G459"
+        }
+      },
+      "room": "博学楼B206",
+      "teachers": [
+        "张锡哲"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row30/day5"
+      },
+      "rawEntries": [
+        "生物医学复杂网络分析1班[张锡哲](博学楼B206)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-09-G310my027a",
+      "sectionId": "G310my027a-class-4",
+      "date": "2026-12-09",
+      "dayPart": "afternoon",
+      "time": {
+        "periodIds": [
+          "p7",
+          "p8",
+          "p9",
+          "p10"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G99"
+        }
+      },
+      "room": "逸夫楼阶5",
+      "teachers": [
+        "石仿"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row31/day3"
+      },
+      "rawEntries": [
+        "自然辩证法概论4班[石仿](逸夫楼阶5)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-07-Z320gx189a",
+      "sectionId": "Z320gx189a-class-1",
+      "date": "2026-12-07",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G459"
+        }
+      },
+      "room": "博学楼B206",
+      "teachers": [
+        "王捷"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row32/day1"
+      },
+      "rawEntries": [
+        "生物医学复杂网络分析1班[王捷](博学楼B206)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-10-Z320gx193a",
+      "sectionId": "Z320gx193a-class-1",
+      "date": "2026-12-10",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G464"
+        }
+      },
+      "room": "学海楼D215",
+      "teachers": [
+        "黄婧"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row32/day4"
+      },
+      "rawEntries": [
+        "数字医学技术与应用1班[黄婧](学海楼D215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-11-Z320gx189a",
+      "sectionId": "Z320gx189a-class-1",
+      "date": "2026-12-11",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G459"
+        }
+      },
+      "room": "博学楼B206",
+      "teachers": [
+        "王捷"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row32/day5"
+      },
+      "rawEntries": [
+        "生物医学复杂网络分析1班[王捷](博学楼B206)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-19-Z320gx188a",
+      "sectionId": "Z320gx188a-class-1",
+      "date": "2026-12-19",
+      "dayPart": "morning",
+      "time": {
+        "periodIds": [
+          "p2",
+          "p3",
+          "p4",
+          "p5"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G458"
+        }
+      },
+      "room": "平房教室",
+      "teachers": [
+        "刘亿一"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row33/day6"
+      },
+      "rawEntries": [
+        "生物医学工程伦理1班[刘亿一](平房教室)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。",
+        "打印地点与旧安排表不同，展示采用打印地点。"
+      ]
+    },
+    {
+      "id": "m-2026-12-17-Z320gx193a",
+      "sectionId": "Z320gx193a-class-1",
+      "date": "2026-12-17",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G464"
+        }
+      },
+      "room": "学海楼D215",
+      "teachers": [
+        "黄婧"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row34/day4"
+      },
+      "rawEntries": [
+        "数字医学技术与应用1班[黄婧](学海楼D215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-21-Z320gx189a",
+      "sectionId": "Z320gx189a-class-1",
+      "date": "2026-12-21",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G459"
+        }
+      },
+      "room": "学海楼D214",
+      "teachers": [
+        "王捷"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row35/day1"
+      },
+      "rawEntries": [
+        "生物医学复杂网络分析1班[王捷](学海楼D214)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-24-Z320gx193a",
+      "sectionId": "Z320gx193a-class-1",
+      "date": "2026-12-24",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G464"
+        }
+      },
+      "room": "学海楼D215",
+      "teachers": [
+        "黄婧"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row35/day4"
+      },
+      "rawEntries": [
+        "数字医学技术与应用1班[黄婧](学海楼D215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-25-Z320gx189a",
+      "sectionId": "Z320gx189a-class-1",
+      "date": "2026-12-25",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G459"
+        }
+      },
+      "room": "学海楼D214",
+      "teachers": [
+        "王捷"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row35/day5"
+      },
+      "rawEntries": [
+        "生物医学复杂网络分析1班[王捷](学海楼D214)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2026-12-31-Z320gx193a",
+      "sectionId": "Z320gx193a-class-1",
+      "date": "2026-12-31",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G464"
+        }
+      },
+      "room": "学海楼D215",
+      "teachers": [
+        "胡本慧"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row36/day4"
+      },
+      "rawEntries": [
+        "数字医学技术与应用1班[胡本慧](学海楼D215)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2027-01-04-Z320gx189a",
+      "sectionId": "Z320gx189a-class-1",
+      "date": "2027-01-04",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G459"
+        }
+      },
+      "room": "学海楼D214",
+      "teachers": [
+        "王捷"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row37/day1"
+      },
+      "rawEntries": [
+        "生物医学复杂网络分析1班[王捷](学海楼D214)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    },
+    {
+      "id": "m-2027-01-08-Z320gx189a",
+      "sectionId": "Z320gx189a-class-1",
+      "date": "2027-01-08",
+      "dayPart": "evening",
+      "time": {
+        "periodIds": [
+          "p12",
+          "p13",
+          "p14",
+          "p15"
+        ],
+        "status": "reference",
+        "source": {
+          "sourceId": "catalog",
+          "locator": "课程安排表!G459"
+        }
+      },
+      "room": "学海楼D214",
+      "teachers": [
+        "王捷"
+      ],
+      "source": {
+        "sourceId": "print",
+        "locator": "table1/row37/day5"
+      },
+      "rawEntries": [
+        "生物医学复杂网络分析1班[王捷](学海楼D214)"
+      ],
+      "notes": [
+        "打印表仅标注时段；具体节次参照旧安排表，尚未逐次确认。"
+      ]
+    }
   ]
 }

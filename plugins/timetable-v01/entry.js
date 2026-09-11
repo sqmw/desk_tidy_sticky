@@ -1,4 +1,5 @@
 // Desk Tidy timetable v0.1: browser-compatible business logic, no native imports.
+import { parseV2, occurrencesV2 } from './schema-v2.js';
 /** @param {string} message */
 const fail = (message) => { throw new Error(message); };
 /** @param {any} value */
@@ -28,6 +29,7 @@ function list(value, max, label) { if(!Array.isArray(value)||value.length>max) f
 export function parse(input) {
   if(typeof input!=='string' || new TextEncoder().encode(input).length>262144) fail('课表文件超过256 KiB或格式无效');
   const t=JSON.parse(input);
+  if(t?.schemaVersion===2)return parseV2(t);
   if(!t || t.schemaVersion!==1 || !id(t.id)) fail('课表版本或ID无效');
   const s=t.semester;
   if(!s || !int(s.weeks,1,54) || !['Asia/Shanghai','UTC'].includes(s.timeZone)) fail('学期周数或时区无效（v0.1支持Asia/Shanghai、UTC）');
@@ -58,11 +60,12 @@ export function parse(input) {
 
 /** @param {any} input */
 export function occurrences(input) {
+  if(input?.schemaVersion===2)return occurrencesV2(input);
   const t=parse(JSON.stringify(input));
   const offset=t.semester.timeZone==='Asia/Shanghai'?480:0;
   const base=date(t.semester.startDate), result=[];
   for(const c of t.courses) {
-    const ps=t.periods.filter(p=>c.periodIds.includes(p.id));
+    const ps=t.periods.filter((/** @type {any} */ p)=>c.periodIds.includes(p.id));
     for(const week of c.weeks) {
       const day=base+((week-1)*7+c.weekday-1)*86400000;
       result.push({id:`${t.id}/${c.id}/${week}`,name:c.name,room:c.room,week,date:new Date(day).toISOString().slice(0,10),
@@ -72,10 +75,17 @@ export function occurrences(input) {
   return result.sort((a,b)=>a.at-b.at||a.id.localeCompare(b.id));
 }
 /** @param {any} input @param {string} day */
-export function view(input,day) { date(day);return occurrences(input).filter(e=>e.date===day); }
+export function view(input,day) { date(day);return occurrences(input).filter((/** @type {any} */ e)=>e.date===day); }
 /** @param {any} input @param {number} now */
 export function plan(input,now) {
   if(!Number.isFinite(now))fail('当前时间无效');
-  const all=occurrences(input).map(e=>({at:e.at-input.reminderMinutes*60000,title:'该上课了：'+e.name,body:e.room+' · '+e.start})).filter(e=>e.at>now+1000);
+  if(input?.schemaVersion===2){
+    const t=parseV2(input);
+    if(!t.reminders.enabled||t.mode==='demo')return {events:[],remaining:0};
+    if(t.meetings.some((/** @type {any} */ m)=>m.time.status!=='confirmed'))fail('存在未确认授课时间，不能安排提醒');
+    const events=occurrencesV2(t).map((/** @type {any} */ e)=>({at:e.at-t.reminders.minutesBefore*60000,title:'该上课了：'+e.name,body:e.room+' · '+e.start})).filter((/** @type {any} */ e)=>e.at>now+1000);
+    return {events:events.slice(0,32),remaining:Math.max(0,events.length-32)};
+  }
+  const all=occurrences(input).map((/** @type {any} */ e)=>({at:e.at-input.reminderMinutes*60000,title:'该上课了：'+e.name,body:e.room+' · '+e.start})).filter((/** @type {any} */ e)=>e.at>now+1000);
   return {events:all.slice(0,32),remaining:Math.max(0,all.length-32)};
 }

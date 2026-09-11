@@ -18,7 +18,7 @@
           {#each periods as _, i}<div class="grid-cell" style={`grid-row:${i+1};grid-column:1/-1`} aria-hidden="true"></div>{/each}
           {#each columns[dayIndex] as course (course.id)}
             <button class={`course color-${course.color}`} style={`grid-row:${course.row}/span ${course.span};grid-column:1;margin-left:calc(${course.lane / course.lanes * 100}% + 4px);width:calc(${100 / course.lanes}% - 8px)`} onclick={() => selected=course} aria-label={`${course.name}，${names[dayIndex]} ${course.start}–${course.end}，${course.room || '未填写教室'}`} title={`${course.name} · ${course.start}–${course.end} · ${course.room || '未填写教室'}`}>
-              <strong>{course.name}</strong><span>{course.room || '未填写教室'}</span>{#if course.span>1}<small>{course.start}–{course.end}</small>{/if}
+              <strong>{course.name}</strong>{#if course.teachers?.length}<span>{course.teachers.map((name:string|null)=>name || '教师未注明').join(' / ')}</span>{/if}<span>{course.room || '未填写教室'}</span>{#if course.span>1}<small>{course.timeStatus==='reference'?'参考 ':''}{course.start}–{course.end}</small>{/if}
             </button>
           {/each}
         </div>
@@ -26,7 +26,7 @@
     {/each}
   </div>
 </div>
-{#if selected}<PluginDialog title={selected.name} cancel={() => selected=null}><div class="course-detail"><p><span>上课日期</span><strong>{selected.date.replaceAll('-','.')} · 第 {selected.week} 周</strong></p><p><span>时间</span><strong>{selected.start}–{selected.end}</strong></p><p><span>教室</span><strong>{selected.room || '未填写教室'}</strong></p></div><button onclick={() => selected=null}>关闭详情</button></PluginDialog>{/if}
+{#if selected}<PluginDialog title={selected.name} cancel={() => selected=null}><div class="course-detail"><p><span>上课日期</span><strong>{selected.date.replaceAll('-','.')} · {selected.weekLabel || `第 ${selected.week} 周`}</strong></p><p><span>时间</span><strong>{selected.start}–{selected.end}</strong></p><p><span>教室</span><strong>{selected.room || '未填写教室'}</strong></p>{#if selected.teachers}<p><span>授课教师</span><strong>{selected.teachers.map((name:string|null)=>name || '未注明').join(' / ')}</strong></p><p><span>时间依据</span><strong>{selected.timeStatus==='confirmed'?'已确认':selected.timeStatus==='reference'?'旧安排表参考，未逐次确认':'未确定'}</strong></p>{#each selected.notes || [] as note}<p>{note}</p>{/each}{/if}</div><button onclick={() => selected=null}>关闭详情</button></PluginDialog>{/if}
 
 <style>
   .week-scroll{overflow:auto;border:1px solid var(--ws-border,#dce2ed);border-radius:14px;background:var(--ws-card-bg,#fff)}

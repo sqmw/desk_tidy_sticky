@@ -61,6 +61,7 @@ export async function invoke(command,args={}){
  }
  if(command==='plugin_open'){if(!s.manifest||!s.enabled)throw new Error('插件未启用');return JSON.parse(approved).source;}
  if(command==='plugin_save'){
+  if(args.data?.mode==='demo'&&args.plan.length)throw new Error('demo must not schedule reminders');
   if(window.failSave)throw new Error('模拟磁盘写入失败');
   if(!s.enabled||args.expectedRevision!==s.revision)throw new Error('状态已变化');
   return write({...s,data:args.data,reminderStatus:'测试接口：不调度系统提醒'});
@@ -97,11 +98,16 @@ try {
   await page.getByLabel('我同意以上权限').check();await page.getByRole('button',{name:'确认安装',exact:true}).click();
   await page.getByRole('button',{name:'打开课表',exact:true}).click();
   await page.getByRole('button',{name:'导入第一份课表'}).waitFor();
+  await page.getByRole('button',{name:'查看真实课表示例'}).click();
+  await page.getByRole('button',{name:/学术规范与实验室安全，周四/}).waitFor();
+  assert.equal(await page.evaluate(()=>window.fixture().data),null);
+  await page.getByRole('button',{name:'退出演示'}).click();
+  await page.getByRole('button',{name:'导入第一份课表'}).waitFor();
   console.log('PASS empty entry, rejected package, explicit consent, installed timetable entry');
   async function importData(data){await page.getByRole('button',{name:'导入课表',exact:true}).click();await page.getByLabel('导入课表JSON',{exact:true}).setInputFiles({name:'course.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(data))});}
   await importData(example);await page.getByRole('button',{name:'确认导入并保存'}).waitFor();
   assert.equal(await page.evaluate(()=>window.fixture().data),null);
-  assert.equal(await page.locator('tbody tr').count(),example.courses.length);
+  assert.equal(await page.locator('tbody tr').count(),example.meetings.length);
   await page.getByRole('button',{name:'插件管理',exact:true}).click();
   await page.getByRole('button',{name:'继续导入'}).click();
   await page.getByRole('button',{name:'取消导入',exact:true}).click();
@@ -114,14 +120,14 @@ try {
   await page.getByLabel('查看周次').selectOption('1');
   await page.getByText(example.courses[0].name,{exact:true}).waitFor();
   await page.screenshot({path:path.join(root,'saved-timetable.png')});
-  await page.getByRole('button',{name:/线性代数，周一/}).click();
-  await page.getByRole('dialog',{name:'线性代数',exact:true}).waitFor();
+  await page.getByRole('button',{name:/学术规范与实验室安全，周四/}).click();
+  await page.getByRole('dialog',{name:'学术规范与实验室安全',exact:true}).waitFor();
   await page.getByRole('button',{name:'关闭详情'}).click();
   await page.getByLabel('查看周次').selectOption('2');
-  await page.getByText('本周没有课程，切换周次查看其他安排',{exact:false}).waitFor();
-  assert.equal(await page.locator('.week-grid .course').count(),0);
+  await page.getByRole('button',{name:/先进生物医学材料，周一/}).waitFor();
+  assert.equal(await page.locator('.week-grid .course').count(),2);
   await page.getByLabel('查看周次').selectOption('1');
-  await page.getByRole('button',{name:/线性代数，周一/}).waitFor();
+  await page.getByRole('button',{name:/学术规范与实验室安全，周四/}).waitFor();
   console.log('PASS actual Worker parse/save/reopen and daily courses');
   await importData({schemaVersion:99});await page.getByRole('alert').filter({hasText:'无法导入'}).waitFor();
   assert.equal((await page.evaluate(()=>window.fixture().data)).id,example.id);
@@ -192,15 +198,11 @@ try {
   assert.equal(await page.getByRole('button',{name:'确认导入并保存'}).count(),0);
   await page.waitForFunction(()=>document.querySelector('button[aria-label="课表"]')?.getAttribute('aria-current')==='page');
   await page.screenshot({path:path.join(root,'workspace-light.png')});
-  const dense=structuredClone(example);
-  dense.periods=[['08:00','08:45'],['08:55','09:40'],['10:00','10:45'],['10:55','11:40'],['14:00','14:45'],['14:55','15:40'],['16:00','16:45'],['16:55','17:40']].map(([start,end],i)=>({id:'p'+(i+1),start,end}));
-  dense.courses=[['高等数学','A楼 203',1,1],['大学英语','综合楼 302',2,3],['数据结构','实验楼 401',3,1],['概率论','A楼 106',4,3],['线性代数','A楼 203',5,1],['计算机网络','实验楼 202',1,5],['体育','东区操场',2,7],['操作系统','实验楼 401',3,5],['大学物理','理科楼 208',4,5],['程序设计实践','机房 301',5,7]].map(([name,room,weekday,period],i)=>({id:'course-'+i,name,room,weekday,weeks:[1,3,5],periodIds:['p'+period,'p'+(period+1)]}));
-  await importData(dense);await page.getByRole('button',{name:'确认导入并保存'}).click();
-  await page.getByText('课表已保存，重新打开后仍可查看。',{exact:true}).waitFor();
-  await page.getByLabel('查看周次').selectOption('1');
-  await page.getByRole('button',{name:/高等数学，周一/}).waitFor();
-  assert.equal(await page.locator('.week-grid .course').count(),10);
-  await page.setViewportSize({width:1200,height:900});
+  // Use the real 2026-10-26 week, not invented course names or schedules.
+  await page.getByLabel('查看周次').selectOption('7');
+  await page.getByRole('button',{name:/科研设计与论文写作/}).waitFor();
+  assert.equal(await page.locator('.week-grid .course').count(),9);
+  await page.setViewportSize({width:1400,height:1500});
   await page.screenshot({path:path.join(root,'week-dense-light.png')});
   const tones=await page.locator('.week-grid .course').evaluateAll(nodes=>new Set(nodes.map(node=>getComputedStyle(node).backgroundColor)).size);
   assert.ok(tones>1,'course colors must not be overridden by shared button styles');

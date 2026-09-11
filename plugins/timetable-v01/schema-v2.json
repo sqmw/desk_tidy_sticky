@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Desk Tidy Timetable v2",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+    },
+    "mode": {
+      "enum": [
+        "demo",
+        "personal"
+      ]
+    },
+    "semester": {
+      "type": "object",
+      "properties": {
+        "startDate": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "weeks": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 54
+        },
+        "timeZone": {
+          "enum": [
+            "Asia/Shanghai",
+            "UTC"
+          ]
+        },
+        "weekNumberStart": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 99
+        }
+      },
+      "required": [
+        "startDate",
+        "weeks",
+        "timeZone",
+        "weekNumberStart"
+      ],
+      "additionalProperties": false
+    },
+    "reminders": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "minutesBefore": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 120
+        }
+      },
+      "required": [
+        "enabled",
+        "minutesBefore"
+      ],
+      "additionalProperties": false
+    },
+    "periods": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "start": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$"
+          },
+          "source": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "required": [
+          "id",
+          "start",
+          "end",
+          "source"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 24,
+      "minItems": 1
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "sha256"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 32,
+      "minItems": 1
+    },
+    "courses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "code": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 128,
+      "minItems": 0
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "courseId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "id",
+          "courseId",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 256,
+      "minItems": 0
+    },
+    "meetings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "sectionId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "dayPart": {
+            "enum": [
+              "morning",
+              "afternoon",
+              "evening"
+            ]
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "periodIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+                },
+                "maxItems": 24,
+                "minItems": 0
+              },
+              "status": {
+                "enum": [
+                  "confirmed",
+                  "reference",
+                  "unknown"
+                ]
+              },
+              "source": {
+                "$ref": "#/$defs/sourceRef"
+              }
+            },
+            "required": [
+              "periodIds",
+              "status",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          "room": {
+            "type": "string",
+            "maxLength": 160
+          },
+          "teachers": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "maxItems": 16,
+            "minItems": 0
+          },
+          "source": {
+            "$ref": "#/$defs/sourceRef"
+          },
+          "rawEntries": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "maxItems": 16,
+            "minItems": 1
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "maxItems": 16,
+            "minItems": 0
+          }
+        },
+        "required": [
+          "id",
+          "sectionId",
+          "date",
+          "dayPart",
+          "time",
+          "room",
+          "teachers",
+          "source",
+          "rawEntries",
+          "notes"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 2048,
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "id",
+    "mode",
+    "semester",
+    "reminders",
+    "periods",
+    "sources",
+    "courses",
+    "sections",
+    "meetings"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "sourceRef": {
+      "type": "object",
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        }
+      },
+      "required": [
+        "sourceId",
+        "locator"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
