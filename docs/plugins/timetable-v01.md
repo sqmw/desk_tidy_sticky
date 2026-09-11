@@ -41,3 +41,7 @@ Probe P-JS-CONNECTION-01以已知功能证据及未满足的安全边界结束�
 v0.1明确边界：Asia/Shanghai与UTC两种时区、每次最多32条未来提醒；更多提醒需重开后重新提交。不能把这种有限计划说明成整个学期无需维护必达。JSON首次不承诺高级调停课例外；安装/停用/卸载数据均留本插件空间。
 
 开发记录：Tauri初始化生成Android/Xcode工程，Gradle与Rust默认生成目录暂使用其标准忽略路径，属于可重建构建产物，不放业务数据库或密钥；数据仍在应用私有目录。iOS初始化自动安装xcodegen及设备工具，遇Homebrew证书依赖链接冲突后未强制覆盖；使用已存在的OpenSSL/证书和已安装依赖完成设备工具安装，并验证idevice_id 1.4.0可运行。此环境处理不作为用户构建命令模板。
+
+构建应共用一次前端产物，再顺序构建双端（后续传`--config '{"build":{"beforeBuildCommand":""}}'`跳过重复前端），避免同时写SvelteKit输出。Xcode脚本显式发现rustup stable的rustc；生成缓存、JNI动态库链接及DerivedData不入Git。Tauri重复iOS打包可能因已有目标目录报错，保留旧app到仓库外备份后重建，不删除历史产物。
+
+初步验证：前端check零错误、34项Node测试及60项macOS Rust测试通过；主程序Android APK与iOS模拟器app构建成功。iOS实际包预检、权限确认和安装入口通过。真实WebView发现全局overflow:hidden使插件页无法滚动，已修正为页内独立滚动；完整保存/提醒/生命周期矩阵仍需复跑，不以构建成功代替。

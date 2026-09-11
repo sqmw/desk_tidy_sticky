@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "semester-2026-autumn",
+  "semester": { "startDate": "2026-09-07", "timeZone": "Asia/Shanghai", "weeks": 18 },
+  "reminderMinutes": 10,
+  "periods": [
+    { "id": "p1", "start": "08:00", "end": "08:45" },
+    { "id": "p2", "start": "08:55", "end": "09:40" }
+  ],
+  "courses": [
+    { "id": "linear-algebra", "name": "线性代数", "room": "教学楼203", "weekday": 1, "weeks": [1,3,5,7,9,11,13,15,17], "periodIds": ["p1","p2"] }
+  ]
+}

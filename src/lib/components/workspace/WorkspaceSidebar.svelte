@@ -1,4 +1,5 @@
 <script>
+  import { openPluginsWindow } from "$lib/plugins/open-window.js";
   import {
     WORKSPACE_MAIN_TAB_NOTES,
     WORKSPACE_MAIN_TAB_FOCUS,
@@ -103,6 +104,7 @@
   </div>
 
   <div class="sidebar-actions">
+    <button type="button" class="footer-toggle" onclick={() => openPluginsWindow().catch(error => console.error(error))} title="插件与课表">插件与课表</button>
     <button
       type="button"
       class="footer-toggle"

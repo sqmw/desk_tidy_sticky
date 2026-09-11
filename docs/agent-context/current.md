@@ -6,6 +6,8 @@ The current user-authorized delivery line is [M-EXT-01](../TODO.md#m-ext-01), st
 
 ## Current State
 
+- Current batch is installable timetable v0.1 in the product, per [D-EXT-004](../DECISIONS.md#d-ext-004) and [product baseline](../plugins/timetable-v01.md). Simulator acceptance replaces the true-device gate only for this milestone. Exact reviewed package digests gate installation; arbitrary third-party execution remains closed pending isolation/resource validation. Product plugin page, native state/lifecycle and mobile boot paths are new implementations, not copied Probe shells.
+
 - Current S3 evidence: Android Probe `34b8a94` and iOS evidence `e79ec60` both cover the same external JS/JSON course import, Rust persistence/reopen, background notification and cancellation on simulators. The user completed iOS file selection; E-006 succeeded after latest-build regression. True-device/channel, permission/reboot matrix and resource/security validation remain open. No product code promotion.
 
 - E-004 Probe `3e85be7` adds durable storage and actual Rust process restart evidence (14 tests plus two explicitly run child-host tests). Old sessions are not stored or restored. S2's minimal validation gate is complete; S3 begins mobile prerequisites. Product IPC, mobile runtime/notifications and resource-hardening are not implied; see [current execution](../STEPS.md#t-plugin-platform-validation).

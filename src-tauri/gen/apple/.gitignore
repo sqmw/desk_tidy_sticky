@@ -1,0 +1,8 @@
+xcuserdata/
+build/
+Externals/
+DerivedData/
+assets/
+ExportOptions.plist
+Podfile.lock
+Pods/

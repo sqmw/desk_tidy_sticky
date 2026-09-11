@@ -1,0 +1,7 @@
+{
+  "identifier":"mobile-product",
+  "description":"Trusted mobile product UI; third-party packages are not granted Tauri access",
+  "platforms":["android","iOS"],
+  "windows":["main"],
+  "permissions":["core:default","notification:default"]
+}

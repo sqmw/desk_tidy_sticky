@@ -45,11 +45,11 @@
 所有者Codex /root；single-writer；2026-09-11。回链：[Task](TODO.md#t-plugin-host)。目的：在主程序实现受限首包安装链路；授权与边界见D-EXT-004及[基线](plugins/timetable-v01.md)。
 
 ```tracking-step
-{"id":"T-PLUGIN-HOST/S1","name":"官方课表包与原生安装边界","task_id":"T-PLUGIN-HOST","task_version":"v1","number":1,"status":"进行中","evidence":[]}
+{"id":"T-PLUGIN-HOST/S1","name":"官方课表包与原生安装边界","task_id":"T-PLUGIN-HOST","task_version":"v1","number":1,"status":"已完成","evidence":["主程序已实现完整包摘要预检/权限确认/原子独立状态；篡改包与坏状态拒绝测试通过；iOS产品内实际导入官方包、确认权限并安装启用"]}
 ```
 
 ```tracking-step
-{"id":"T-PLUGIN-HOST/S2","name":"插件运行入口与课表使用界面","task_id":"T-PLUGIN-HOST","task_version":"v1","number":2,"status":"未开始","evidence":[]}
+{"id":"T-PLUGIN-HOST/S2","name":"插件运行入口与课表使用界面","task_id":"T-PLUGIN-HOST","task_version":"v1","number":2,"status":"进行中","evidence":["插件页和Worker运行已接入；iOS安装后出现课表入口；修正独立滚动，完整课表保存/提醒验收待继续"]}
 ```
 
 ```tracking-step

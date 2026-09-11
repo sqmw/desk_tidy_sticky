@@ -1,0 +1,4 @@
+# Approved packages are byte-addressed; checkout must not change their digest.
+plugins/**/*.dtplugin -text
+plugins/**/entry.js text eol=lf
+plugins/**/*.sha256 text eol=lf
