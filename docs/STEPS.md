@@ -2,42 +2,13 @@
 
 主 STEPS：承载正在推进的 Task 的宏观步骤序列与执行位置。任务级状态只在 [Project TODO](TODO.md) 维护，本文件只维护步骤状态。
 
-活跃步骤块数量：**1**
+活跃步骤块数量：**2**
 
 步骤状态取值：`未开始` / `进行中` / `受阻` / `已完成` / `已跳过`
 
 ---
 
 ## 活跃步骤块
-
-### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1
-
-- 回链 TODO 条目：[T-STK-P0-DATA-SAFETY](TODO.md#todo-t-stk-p0-data-safety)
-- 块所有者：Claude Code 会话 `97c43058`
-- 写入模式：`single-writer`
-- 执行授权：`implicit` — 来源：用户 2026-08-10 指令“开始修复”，紧接在上一轮“P0 四条要不要本轮落地”的提问之后；范围：扫描文档 P0 批次 A1/A2/A3/A4 加同函数的 A5/C1。四项均为可逆代码修复，不触及冻结基线与架构取舍，故不升级为 `explicit`。
-- 最近更新：2026-08-10
-
-**目的意图**：把 `docs/issues/2026-08-10-sticky-full-scan.md` 判定为 P0 的四条数据安全缺陷从"有台账"推进到"已修复且有自动化回归"，消除贴纸尺寸单调膨胀、隐藏贴纸丢失可见锚点、隐藏态切层级后贴纸永久失踪、块编辑器静默丢内容这四类用户不可逆损失。顺带并入 A5、C1 两条与 P0 同文件同函数、独立提交反而增加噪音的修复。明确不含 B1 混合 DPI 坐标空间口径、B2 macOS 窗口生命周期取舍、F4 devtools 发布策略，这三条需要先与用户定方向。
-
-**宏观步骤**
-
-| # | 步骤 | 状态 | 完成判据 | 实测结果 |
-| --- | --- | --- | --- | --- |
-| 1 | A2 + A3：后端隐藏态守卫与坐标回收 | 已完成 | `hide_note_to_edge_unlocked` 对 hidden 幂等；`clear_auto_hide_runtime` 在 hidden 时回收 `x/y`；三条仍保留活窗口的命令先唤回再改层级；新增 Rust 测试覆盖幂等与坐标回收 | 新增 `is_already_hidden` 守卫与 `reveal_hidden_note_before_state_change`；Rust 测试 19 → 24 全绿 |
-| 2 | A1：控制态预留量归口前端 | 已完成 | 新增预留量运行态与上报命令；`persist_note_window_size` 扣除预留后再写盘；前端在扩窗/收窗两处上报；新增 Rust 测试覆盖扣减与缺省回落 | 新增 `StickyWindowReserveState` + `set_note_window_reserve` + `note_body_extent`；前端改为单一 `getAppliedControlsReserve()` 算式并由 `$effect` 上报；Rust 测试 24 → 31 全绿。已知残留：收起动画期间约 1ms 的上报/缩窗非原子窗口，记入扫描文档第 8 节 |
-| 3 | A4 + A5 + C1：块编辑器写入路径 | 已完成 | 分块/追加/合并三处检查保存返回值并回滚草稿；`activeBlockInitialDraft` 三处补清；图片粘贴改走 `setEditorDraft`；新增前端测试覆盖保存失败回滚 | 抽出 `block-structural-commit.js` 纯函数（`block-note-editor-controller.js` 依赖 `$lib` 别名，`node --test` 无法加载，故另立模块）；前端测试 15 → 18 全绿 |
-| 4 | 自动化验证与文档回写 | 已完成 | `make check`、Rust 测试、前端测试、`git diff --check` 全绿；扫描文档六条标记状态 | svelte-check 0 error / 0 warning；`cargo check` 无警告；31 项 Rust + 18 项前端测试通过；扫描文档新增第 8 节修复记录 |
-| 5 | 实机冒烟验收 | 未开始 | 扫描文档第 8 节列出的 5 项冒烟全部通过；通过后 TODO 条目转 `done` 并按归档规则移出本块 | — |
-
-**步骤变更记录**
-
-- 2026-08-10 建块，绑定定义版本 v1。
-- 2026-08-10 步骤 1-4 完成。追加步骤 5：自动化门禁不覆盖窗口几何、层级切换与存储恢复态这三类真实运行行为，任务在实机冒烟前不转 `done`。定义版本不变（未改变任务边界与完成定义，只把原本隐含的验收拆成显式步骤）。
-
----
-
-## 挂起步骤块
 
 ### T-PLUGIN-PLATFORM-VALIDATION · 跨端插件运行与分发可行性 @v1
 
@@ -76,13 +47,13 @@ E-002 先实现容器无关的可信会话与受控调用模块：身份由宿�
 ```
 
 ```tracking-step
-{"id":"T-PLUGIN-PLATFORM-VALIDATION/S3","name":"双移动端安装与提醒验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":3,"status":"受阻","evidence":["E-004 持久化门通过后进入移动前置准备：adb无设备，Android两项API35 AVD与Rust targets存在；iOS无可用模拟器与编译target；尚未运行手机端或验证通知","E-005 Probe34b8a94：Android15模拟器真实导入/重开/系统后台提醒/取消/坏输入与越权反例通过","E-006 Probee106caf：iOS构建/安装/启动/通知权限通过，文件选择器工具无法交互，等待最小人工操作；双端和真机未验收"]}
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/S3","name":"双移动端安装与提醒验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":3,"status":"进行中","evidence":["E-004 持久化门通过后进入移动前置准备：adb无设备，Android两项API35 AVD与Rust targets存在；iOS无可用模拟器与编译target；尚未运行手机端或验证通知","E-005 Probe34b8a94：Android15模拟器真实导入/重开/系统后台提醒/取消/坏输入与越权反例通过","E-006 Probee106caf：iOS构建/安装/启动/通知权限通过，文件选择器工具无法交互，等待最小人工操作；双端和真机未验收","E-006已解除选文件阻塞，Probee79ec60补齐iOS同JS/JSON导入/持久化重开/后台通知/取消；Android与iOS均有最小模拟器闭环，真机/渠道/撤权/设备重启及完整平台矩阵仍未完成"]}
 ```
 
 S3 产出：Android/iOS 安装渠道、文件选择、后台/锁屏/撤权/取消通知的设备证据；模拟器和真机结果分开。工具链缺失不判定产品不可行。
 
 ```tracking-execution
-{"id":"T-PLUGIN-PLATFORM-VALIDATION/E-006","name":"iOS 课程提醒同例验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","status":"paused","authorization":"2026-09-11 用户要求Android样例后以同样例验证iOS，补必要环境，不扩完整手机版","scope":"独立Probe同JS/JSON在iOS模拟器承载、Rust持久化与系统通知；必要runtime/编译target准备；不承诺真机签名或App Store审核","steps":["T-PLUGIN-PLATFORM-VALIDATION/S3"],"evidence":["Probee106caf：共用JS/JSON、Rust C ABI与iOS UIKit/JavaScriptCore/系统通知适配已构建和签名；iPhone16模拟器iOS26.5安装启动，通知权限页面授权通过","官方iOS运行时8.52GB与Rust模拟器target准备完成；Android共用桥交叉构建与既有14项/2子进程回归仍通过","系统UIDocumentPicker可见但CUA无内部AX元素，坐标点击noWindowsAvailable；激活窗口/完整树/Tab未恢复，已请求用户最小选文件","未取得iOS课程导入/持久化/后台提醒/取消结果；为保留现场，最后一版弹窗收口修正仅编译未覆盖运行app","用户反馈加载完成后，CUA实际确认“外部 JS 已就绪”；已打开课程JSON选择器并看到course.json，但坐标点击仍报noWindowsAvailable。尚未导入课程。"],"stop_reason":"等待用户在当前文件选择器点击course.json；随后续接E-006验证持久化与系统提醒。JS加载已确认，不再要求重复加载entry.js。"}
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/E-006","name":"iOS 课程提醒同例验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","status":"succeeded","authorization":"2026-09-11 用户要求Android样例后以同样例验证iOS，补必要环境，不扩完整手机版","scope":"独立Probe同JS/JSON在iOS模拟器承载、Rust持久化与系统通知；必要runtime/编译target准备；不承诺真机签名或App Store审核","steps":["T-PLUGIN-PLATFORM-VALIDATION/S3"],"evidence":["Probee106caf：共用JS/JSON、Rust C ABI与iOS UIKit/JavaScriptCore/系统通知适配已构建和签名；iPhone16模拟器iOS26.5安装启动，通知权限页面授权通过","官方iOS运行时8.52GB与Rust模拟器target准备完成；Android共用桥交叉构建与既有14项/2子进程回归仍通过","系统UIDocumentPicker可见但CUA无内部AX元素，坐标点击noWindowsAvailable；激活窗口/完整树/Tab未恢复，已请求用户最小选文件","未取得iOS课程导入/持久化/后台提醒/取消结果；为保留现场，最后一版弹窗收口修正仅编译未覆盖运行app","用户反馈加载完成后，CUA实际确认“外部 JS 已就绪”；已打开课程JSON选择器并看到course.json，但坐标点击仍报noWindowsAvailable。尚未导入课程。","续接实测：用户完成选JS/JSON后，页面与Rust快照确认课程；批准JS与Android共用样例SHA256一致","iOS后台/锁屏出现真实课程通知；取消10:44:14 UTC计划后截止时间之外无课程通知","安装最新构建，进程10009→48619，重开读取课程成功；最新构建10:49:07通知出现，取消10:50:07计划后10:50:41之后无通知","Probee79ec60保存逐项证据，安装二进制SHA b2d274121d359f05a4500c9cdb1346e63079394ffb47d2f06778239832a6ac9c；本轮无源码变更、无产品Promotion；仅最小模拟器闭环，不关闭Task"],"stop_reason":null}
 ```
 
 ```tracking-execution
@@ -100,6 +71,36 @@ S4 根据 S2/S3 证据选择容器，记录限制与后续任务放行；缺任�
 ```
 
 
+
+
+### <a id="steps-t-stk-p0-data-safety"></a>T-STK-P0-DATA-SAFETY · 贴纸数据安全 P0 修复 · 定义版本 v1
+
+- 回链 TODO 条目：[T-STK-P0-DATA-SAFETY](TODO.md#todo-t-stk-p0-data-safety)
+- 块所有者：Claude Code 会话 `97c43058`
+- 写入模式：`single-writer`
+- 执行授权：`implicit` — 来源：用户 2026-08-10 指令“开始修复”，紧接在上一轮“P0 四条要不要本轮落地”的提问之后；范围：扫描文档 P0 批次 A1/A2/A3/A4 加同函数的 A5/C1。四项均为可逆代码修复，不触及冻结基线与架构取舍，故不升级为 `explicit`。
+- 最近更新：2026-08-10
+
+**目的意图**：把 `docs/issues/2026-08-10-sticky-full-scan.md` 判定为 P0 的四条数据安全缺陷从"有台账"推进到"已修复且有自动化回归"，消除贴纸尺寸单调膨胀、隐藏贴纸丢失可见锚点、隐藏态切层级后贴纸永久失踪、块编辑器静默丢内容这四类用户不可逆损失。顺带并入 A5、C1 两条与 P0 同文件同函数、独立提交反而增加噪音的修复。明确不含 B1 混合 DPI 坐标空间口径、B2 macOS 窗口生命周期取舍、F4 devtools 发布策略，这三条需要先与用户定方向。
+
+**宏观步骤**
+
+| # | 步骤 | 状态 | 完成判据 | 实测结果 |
+| --- | --- | --- | --- | --- |
+| 1 | A2 + A3：后端隐藏态守卫与坐标回收 | 已完成 | `hide_note_to_edge_unlocked` 对 hidden 幂等；`clear_auto_hide_runtime` 在 hidden 时回收 `x/y`；三条仍保留活窗口的命令先唤回再改层级；新增 Rust 测试覆盖幂等与坐标回收 | 新增 `is_already_hidden` 守卫与 `reveal_hidden_note_before_state_change`；Rust 测试 19 → 24 全绿 |
+| 2 | A1：控制态预留量归口前端 | 已完成 | 新增预留量运行态与上报命令；`persist_note_window_size` 扣除预留后再写盘；前端在扩窗/收窗两处上报；新增 Rust 测试覆盖扣减与缺省回落 | 新增 `StickyWindowReserveState` + `set_note_window_reserve` + `note_body_extent`；前端改为单一 `getAppliedControlsReserve()` 算式并由 `$effect` 上报；Rust 测试 24 → 31 全绿。已知残留：收起动画期间约 1ms 的上报/缩窗非原子窗口，记入扫描文档第 8 节 |
+| 3 | A4 + A5 + C1：块编辑器写入路径 | 已完成 | 分块/追加/合并三处检查保存返回值并回滚草稿；`activeBlockInitialDraft` 三处补清；图片粘贴改走 `setEditorDraft`；新增前端测试覆盖保存失败回滚 | 抽出 `block-structural-commit.js` 纯函数（`block-note-editor-controller.js` 依赖 `$lib` 别名，`node --test` 无法加载，故另立模块）；前端测试 15 → 18 全绿 |
+| 4 | 自动化验证与文档回写 | 已完成 | `make check`、Rust 测试、前端测试、`git diff --check` 全绿；扫描文档六条标记状态 | svelte-check 0 error / 0 warning；`cargo check` 无警告；31 项 Rust + 18 项前端测试通过；扫描文档新增第 8 节修复记录 |
+| 5 | 实机冒烟验收 | 未开始 | 扫描文档第 8 节列出的 5 项冒烟全部通过；通过后 TODO 条目转 `done` 并按归档规则移出本块 | — |
+
+**步骤变更记录**
+
+- 2026-08-10 建块，绑定定义版本 v1。
+- 2026-08-10 步骤 1-4 完成。追加步骤 5：自动化门禁不覆盖窗口几何、层级切换与存储恢复态这三类真实运行行为，任务在实机冒烟前不转 `done`。定义版本不变（未改变任务边界与完成定义，只把原本隐含的验收拆成显式步骤）。
+
+---
+
+## 挂起步骤块
 
 ### T-PROJECT-REVIEW-FIX · 全量审查缺陷整改 @v1
 

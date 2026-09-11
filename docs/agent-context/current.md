@@ -6,7 +6,7 @@ The current user-authorized delivery line is [M-EXT-01](../TODO.md#m-ext-01), st
 
 ## Current State
 
-- Current S3 gate: Android course sample in Probe `34b8a94` passed actual emulator import, Rust persistence/reopen, background notification, cancellation and rejection cases. iOS adapter `e106caf` builds/installs/starts and notification consent passed, but document-picker automation cannot interact; E-006 is paused awaiting one manual file selection. Preserve the simulator and resume the same execution. No product code promotion or true-device acceptance.
+- Current S3 evidence: Android Probe `34b8a94` and iOS evidence `e79ec60` both cover the same external JS/JSON course import, Rust persistence/reopen, background notification and cancellation on simulators. The user completed iOS file selection; E-006 succeeded after latest-build regression. True-device/channel, permission/reboot matrix and resource/security validation remain open. No product code promotion.
 
 - E-004 Probe `3e85be7` adds durable storage and actual Rust process restart evidence (14 tests plus two explicitly run child-host tests). Old sessions are not stored or restored. S2's minimal validation gate is complete; S3 begins mobile prerequisites. Product IPC, mobile runtime/notifications and resource-hardening are not implied; see [current execution](../STEPS.md#t-plugin-platform-validation).
 

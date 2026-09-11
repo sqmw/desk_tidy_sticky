@@ -29,10 +29,10 @@
 <a id="t-plugin-platform-validation"></a>
 
 ```tracking-task
-{"id":"T-PLUGIN-PLATFORM-VALIDATION","name":"跨端插件运行与分发可行性","goal":"明确第三方插件在Android/iOS目标渠道可落地的运行边界","scope":"外部插件包加载、隔离与权限拒绝、用户文件导入和系统提醒最小验证；不构建完整商店或重写宿主","acceptance":"两端都有目标设备/渠道证据或清楚的不可行结论；能据此选择运行形态；不以桌面成功替代手机结果","dependencies":[],"version":"v1","mode":"staged","status":"blocked","execution_ref":"STEPS.md#t-plugin-platform-validation","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002","D-EXT-003"]}
+{"id":"T-PLUGIN-PLATFORM-VALIDATION","name":"跨端插件运行与分发可行性","goal":"明确第三方插件在Android/iOS目标渠道可落地的运行边界","scope":"外部插件包加载、隔离与权限拒绝、用户文件导入和系统提醒最小验证；不构建完整商店或重写宿主","acceptance":"两端都有目标设备/渠道证据或清楚的不可行结论；能据此选择运行形态；不以桌面成功替代手机结果","dependencies":[],"version":"v1","mode":"staged","status":"in_progress","execution_ref":"STEPS.md#t-plugin-platform-validation","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002","D-EXT-003"]}
 ```
 
-当前执行：[步骤与证据](STEPS.md#t-plugin-platform-validation)；[实施基线](plugins/implementation-baseline.md)。Android最小课程样例已通过API35模拟器闭环；iOS已构建安装并授权通知，但系统文件选择器工具不可交互，等待一次人工选entry.js后续接E-006。尚无真机/双端验收，不开放产品插件安装。
+当前执行：[步骤与证据](STEPS.md#t-plugin-platform-validation)；[实施基线](plugins/implementation-baseline.md)。Android/API35与iOS26.5模拟器均已通过同JS/JSON导入、持久化重开、后台提醒与取消；E-006已收口。尚无真机/完整平台矩阵或安全放行，不开放产品插件安装。
 
 ### T-PLUGIN-HOST · 第三方插件宿主
 
