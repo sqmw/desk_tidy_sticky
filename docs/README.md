@@ -4,6 +4,8 @@ This is the first-read route for people and agents. Read the active documents be
 
 ## Active
 
+- [Installable Timetable v0.1](plugins/timetable-v01.md): current product-integration contract, simulator acceptance and restricted-package safety gate.
+
 - [Plugin Implementation Baseline](plugins/implementation-baseline.md): backend manifest/admission contract, source/test routes and runtime release gates.
 
 - [Plugins, Mobile And Timetable Milestone](plans/2026-09-10-plugins-mobile-timetable.md): confirmed product scope, proposed host/platform boundaries and course JSON acceptance; runtime/distribution choices remain open.

@@ -10,7 +10,7 @@
 
 <a id="m-ext-01"></a>
 
-状态：in_progress（进入跨端插件可行性实施；尚未开放安装）。
+状态：in_progress（进入可安装课表v0.1产品接入；移动端以模拟器验收，真机不阻塞；任意第三方仍有独立安全门）。
 
 目标：桌面、Android、iOS 可安装第三方插件，以课表 JSON 导入、展示和提醒形成首个闭环；首期手动导入导出，自动同步后续单独规划。
 
@@ -20,26 +20,16 @@
 
 依据：[D-EXT-001](DECISIONS.md#d-ext-001)、[D-EXT-002](DECISIONS.md#d-ext-002)、[D-EXT-003](DECISIONS.md#d-ext-003)；[规划 v3](plans/2026-09-10-plugins-mobile-timetable.md)。iOS 当前按非 App Store 首发规划，未来上架单独评估；首选 JS/TS 插件验证，具体容器、签名安装方式和能力集仍需验证。
 
-计划外占比：结构化活跃记录口径为 1/6；存量六项活跃记录缺少里程碑归属字段，不能据此给出全项目比例，本轮不补造历史归属。
+计划外占比：结构化活跃记录口径为 1/5；存量六项活跃记录缺少里程碑归属字段，不能据此给出全项目比例，本轮不补造历史归属。
 
 ## Active
-
-### T-PLUGIN-PLATFORM-VALIDATION · 跨端插件运行与分发可行性
-
-<a id="t-plugin-platform-validation"></a>
-
-```tracking-task
-{"id":"T-PLUGIN-PLATFORM-VALIDATION","name":"跨端插件运行与分发可行性","goal":"明确第三方插件在Android/iOS目标渠道可落地的运行边界","scope":"外部插件包加载、隔离与权限拒绝、用户文件导入和系统提醒最小验证；不构建完整商店或重写宿主","acceptance":"两端都有目标设备/渠道证据或清楚的不可行结论；能据此选择运行形态；不以桌面成功替代手机结果","dependencies":[],"version":"v1","mode":"staged","status":"in_progress","execution_ref":"STEPS.md#t-plugin-platform-validation","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002","D-EXT-003"]}
-```
-
-当前执行：[步骤与证据](STEPS.md#t-plugin-platform-validation)；[实施基线](plugins/implementation-baseline.md)。Android/API35与iOS26.5模拟器均已通过同JS/JSON导入、持久化重开、后台提醒与取消；E-006已收口。尚无真机/完整平台矩阵或安全放行，不开放产品插件安装。
 
 ### T-PLUGIN-HOST · 第三方插件宿主
 
 <a id="t-plugin-host"></a>
 
 ```tracking-task
-{"id":"T-PLUGIN-HOST","name":"第三方插件宿主","goal":"用户无需重编宿主即可安装、启停和升级遵循协议的第三方插件","scope":"插件包校验、宿主协议、权限与存储隔离、扩展点、生命周期和异常处理；不含在线商店/付费平台","acceptance":"外部测试插件走正常安装路径；越权调用被拒；停用撤销其提醒，数据处置明确；升级失败可恢复且核心笔记不受损","dependencies":["T-PLUGIN-PLATFORM-VALIDATION"],"version":"v1","mode":"staged","status":"pending","execution_ref":"","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002"]}
+{"id":"T-PLUGIN-HOST","name":"第三方插件宿主","goal":"用户无需重编宿主即可安装、启停和升级遵循协议的第三方插件","scope":"插件包校验、宿主协议、权限与存储隔离、扩展点、生命周期和异常处理；不含在线商店/付费平台","acceptance":"外部测试插件走正常安装路径；越权调用被拒；停用撤销其提醒，数据处置明确；升级失败可恢复且核心笔记不受损","dependencies":["T-PLUGIN-PLATFORM-VALIDATION"],"version":"v1","mode":"staged","status":"in_progress","execution_ref":"STEPS.md#t-plugin-host","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002","D-EXT-004"]}
 ```
 
 待开始（不预建步骤块）；范围与平台限制见[规划草案](plans/2026-09-10-plugins-mobile-timetable.md)。
@@ -49,7 +39,7 @@
 <a id="t-mobile-base"></a>
 
 ```tracking-task
-{"id":"T-MOBILE-BASE","name":"Android 与 iOS 基础客户端","goal":"在两种移动平台提供可用的基础笔记与插件承载入口","scope":"平台依赖拆分、触屏页面、应用存储、文件选择和手动导入导出、通知权限；不承诺桌面置顶/托盘等能力；无自动同步","acceptance":"Android/iOS 真机可运行；基础笔记与文件往返通过；插件承载与宿主合同接通；权限拒绝有解释，桌面行为回归通过","dependencies":["T-PLUGIN-PLATFORM-VALIDATION"],"version":"v1","mode":"staged","status":"pending","execution_ref":"","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002"]}
+{"id":"T-MOBILE-BASE","name":"Android 与 iOS 基础客户端","goal":"在两种移动平台提供可用的基础笔记与插件承载入口","scope":"平台依赖拆分、触屏页面、应用存储、文件选择和手动导入导出、通知权限；不承诺桌面置顶/托盘等能力；无自动同步","acceptance":"Android/iOS 模拟器可运行（本里程碑真机不阻塞）；基础笔记与文件往返通过；插件承载与宿主合同接通；权限拒绝有解释，桌面行为回归通过","dependencies":["T-PLUGIN-PLATFORM-VALIDATION"],"version":"v2","mode":"staged","status":"in_progress","execution_ref":"STEPS.md#t-mobile-base","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002","D-EXT-004"],"previous_versions":["v1"]}
 ```
 
 待开始（不预建步骤块）；范围与平台限制见[规划草案](plans/2026-09-10-plugins-mobile-timetable.md)。
@@ -59,7 +49,7 @@
 <a id="t-timetable-plugin"></a>
 
 ```tracking-task
-{"id":"T-TIMETABLE-PLUGIN","name":"课表插件与 JSON 规范","goal":"通过正常插件协议导入、展示课表并管理上课提醒","scope":"版本化课表JSON、学期/周次/节次、今日/周视图、调停课、提醒和手动导出；不含学校爬取、OCR或自动同步","acceptance":"坏数据不覆盖旧课表，重复导入不重复创建；单双周和例外正确；调整/停用取消陈旧提醒；桌面与移动解析同一课表语义一致","dependencies":["T-PLUGIN-HOST"],"version":"v1","mode":"staged","status":"pending","execution_ref":"","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001"]}
+{"id":"T-TIMETABLE-PLUGIN","name":"课表插件与 JSON 规范","goal":"通过正常插件协议导入、展示课表并管理上课提醒","scope":"版本化课表JSON、学期/周次/节次、今日/周视图、调停课、提醒和手动导出；不含学校爬取、OCR或自动同步","acceptance":"坏数据不覆盖旧课表，重复导入不重复创建；单双周和例外正确；调整/停用取消陈旧提醒；桌面与移动解析同一课表语义一致","dependencies":["T-PLUGIN-HOST"],"version":"v1","mode":"staged","status":"in_progress","execution_ref":"STEPS.md#t-timetable-plugin","acceptance_evidence":[],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001"]}
 ```
 
 待开始（不预建步骤块）；范围与平台限制见[规划草案](plans/2026-09-10-plugins-mobile-timetable.md)。
@@ -265,6 +255,19 @@
 - 不恢复旧 `contenteditable BlockEditor`，避免历史 caret 跳动问题回归。
 
 ## Done
+
+### T-PLUGIN-PLATFORM-VALIDATION · 跨端插件运行与分发可行性
+
+<a id="t-plugin-platform-validation"></a>
+
+```tracking-task
+{"id":"T-PLUGIN-PLATFORM-VALIDATION","name":"跨端插件运行与分发可行性","goal":"明确第三方插件在Android/iOS目标渠道可落地的运行边界","scope":"外部插件包加载、隔离与权限拒绝、用户文件导入和系统提醒最小验证；不构建完整商店或重写宿主","acceptance":"Android/iOS模拟器有同JS/JSON的导入、持久化重开、后台提醒与取消证据；明确受限首包接入路线和未满足的任意第三方隔离/资源边界；真机不阻塞功能可行性结论","dependencies":[],"version":"v2","mode":"staged","status":"done","execution_ref":"archive/2026-09-11-plugin-platform-validation.md#t-plugin-platform-validation","acceptance_evidence":["Probe e79ec60 Android/iOS实际证据；D-EXT-004批准模拟器基线及受限首包产品接入，任意第三方仍不安全放行"],"priority":"high","milestone":"M-EXT-01","decisions":["D-EXT-001","D-EXT-002","D-EXT-003","D-EXT-004"],"previous_versions":["v1"]}
+```
+
+已结案：双模拟器功能证据与已知安全边界审阅完成；[归档执行](archive/2026-09-11-plugin-platform-validation.md#t-plugin-platform-validation)，受限产品接入见D-EXT-004。
+
+
+
 
 ### T-PLUGIN-MOBILE-PLAN · 插件与移动端里程碑规划
 
