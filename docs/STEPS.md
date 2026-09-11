@@ -52,6 +52,14 @@ E-002 先实现容器无关的可信会话与受控调用模块：身份由宿�
 
 S3 产出：Android/iOS 安装渠道、文件选择、后台/锁屏/撤权/取消通知的设备证据；模拟器和真机结果分开。工具链缺失不判定产品不可行。
 
+```tracking-execution
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/E-006","name":"iOS 课程提醒同例验证","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","status":"running","authorization":"2026-09-11 用户要求Android样例后以同样例验证iOS，补必要环境，不扩完整手机版","scope":"独立Probe同JS/JSON在iOS模拟器承载、Rust持久化与系统通知；必要runtime/编译target准备；不承诺真机签名或App Store审核","steps":["T-PLUGIN-PLATFORM-VALIDATION/S3"],"evidence":[],"stop_reason":null}
+```
+
+```tracking-execution
+{"id":"T-PLUGIN-PLATFORM-VALIDATION/E-005","name":"Android 课程提醒最小样例","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","status":"succeeded","authorization":"2026-09-11 用户要求手机可操作最小课程提醒样例：先Android，外部JS/JSON、保存/后台提醒/取消，再同样例iOS；不扩建框架","scope":"在独立Probe构建安装可操作Android样例，模拟器实测文件导入、Rust持久化及系统提醒；不修改安装版/真实数据，不扩大商店或升级体系","steps":["T-PLUGIN-PLATFORM-VALIDATION/S3"],"evidence":["Probe34b8a94：arm64 Android APK构建/签名/模拟器安装通过；系统文件选择器导入外部JS和课程JSON，经Rust保存并重开读取","Android15 API35模拟器后台16:45:25通知显示；16:47:15计划取消，16:47:29无新增通知；坏JSON不覆盖、直接桥接伪造身份/原生命令/提醒请求拒绝","修复Android文件锁适配及UI结果可读性；既有14项测试和2次子进程入口仍通过；未改变Parent产品源码或安装版","原Android镜像缺system.img，使用校验过的官方替代镜像置于仓库外缓存；iOS runtime下载及后续同例验证转E-006，不能宣称双端完成"],"stop_reason":null}
+```
+
 ```tracking-step
 {"id":"T-PLUGIN-PLATFORM-VALIDATION/S4","name":"证据审查与运行路线决策","task_id":"T-PLUGIN-PLATFORM-VALIDATION","task_version":"v1","number":4,"status":"未开始","evidence":[]}
 ```
